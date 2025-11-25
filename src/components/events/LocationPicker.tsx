@@ -1,0 +1,368 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import Mapbox from '@rnmapbox/maps';
+import { MapPin, Lock, Unlock, Navigation } from 'lucide-react-native';
+import { Input } from '../ui';
+import { GeocodingService } from '../../services/geocoding.service';
+import type { AddressDetails, LocationState } from '../../types/event-form';
+import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import Constants from 'expo-constants';
+
+Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
+
+interface LocationPickerProps {
+  location: LocationState;
+  address: AddressDetails;
+  onLocationChange: (lat: number, lon: number) => void;
+  onAddressChange: (address: AddressDetails) => void;
+  onLockChange: (locked: boolean) => void;
+  onSaveLocation: (lat: number, lon: number) => void;
+}
+
+const PARIS_COORDS = { latitude: 48.8566, longitude: 2.3522 };
+
+export function LocationPicker({
+  location,
+  address,
+  onLocationChange,
+  onAddressChange,
+  onLockChange,
+  onSaveLocation,
+}: LocationPickerProps) {
+  const [geocodeLoading, setGeocodeLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const validateCoordinates = (lat: number, lon: number): boolean => {
+    return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+  };
+
+  const getSafeCoordinates = () => {
+    if (validateCoordinates(location.latitude, location.longitude)) {
+      return { latitude: location.latitude, longitude: location.longitude };
+    }
+    return PARIS_COORDS;
+  };
+
+  const handleValidateLocation = async () => {
+    setGeocodeLoading(true);
+    setError(null);
+
+    const coords = getSafeCoordinates();
+    const result = await GeocodingService.reverseGeocode(coords.latitude, coords.longitude);
+
+    if (result) {
+      onAddressChange(result);
+      onSaveLocation(coords.latitude, coords.longitude);
+      onLockChange(true);
+    } else {
+      setError('Impossible de géocoder cette position');
+    }
+
+    setGeocodeLoading(false);
+  };
+
+  const handleGeocodeAddress = async () => {
+    setGeocodeLoading(true);
+    setError(null);
+
+    const result = await GeocodingService.geocodeAddress(address);
+
+    if (result) {
+      onLocationChange(result.latitude, result.longitude);
+      onAddressChange(result.address);
+    } else {
+      setError('Adresse introuvable');
+    }
+
+    setGeocodeLoading(false);
+  };
+
+  const handleUnlockLocation = () => {
+    if (location.savedLocation) {
+      onLocationChange(location.savedLocation.latitude, location.savedLocation.longitude);
+    }
+    onLockChange(false);
+    setError(null);
+  };
+
+  const handleMapPress = (feature: any) => {
+    if (location.isLocked) return;
+
+    const coords = feature.geometry.coordinates;
+    if (coords) {
+      onLocationChange(coords[1], coords[0]);
+    }
+  };
+
+  const safeCoords = getSafeCoordinates();
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.mapContainer}>
+        <Mapbox.MapView
+          style={styles.map}
+          styleURL={Mapbox.StyleURL.Street}
+          onPress={handleMapPress}
+          scrollEnabled={!location.isLocked}
+          zoomEnabled={!location.isLocked}
+          pitchEnabled={false}
+          rotateEnabled={false}
+        >
+          <Mapbox.Camera
+            zoomLevel={14}
+            centerCoordinate={[safeCoords.longitude, safeCoords.latitude]}
+          />
+
+          {!location.isLocked ? (
+            <Mapbox.PointAnnotation
+              id="location-marker"
+              coordinate={[safeCoords.longitude, safeCoords.latitude]}
+              draggable
+              onDragEnd={(feature) => {
+                const coords = feature.geometry.coordinates;
+                onLocationChange(coords[1], coords[0]);
+              }}
+            >
+              <View style={[styles.marker, location.isLocked && styles.markerLocked]}>
+                <MapPin size={24} color={colors.neutral[0]} />
+              </View>
+            </Mapbox.PointAnnotation>
+          ) : (
+            <Mapbox.PointAnnotation
+              id="location-marker-locked"
+              coordinate={[safeCoords.longitude, safeCoords.latitude]}
+            >
+              <View style={[styles.marker, styles.markerLocked]}>
+                <MapPin size={24} color={colors.neutral[0]} />
+              </View>
+            </Mapbox.PointAnnotation>
+          )}
+        </Mapbox.MapView>
+
+        {location.isLocked && (
+          <View style={styles.lockOverlay}>
+            <Lock size={16} color={colors.neutral[0]} />
+            <Text style={styles.lockText}>Position verrouillée</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.controls}>
+        <View style={styles.coordsRow}>
+          <View style={styles.coordInput}>
+            <Input
+              label="Latitude"
+              value={location.latitude.toFixed(6)}
+              onChangeText={(text) => {
+                const val = parseFloat(text);
+                if (!isNaN(val)) {
+                  onLocationChange(val, location.longitude);
+                }
+              }}
+              keyboardType="numeric"
+              editable={!location.isLocked}
+            />
+          </View>
+          <View style={styles.coordInput}>
+            <Input
+              label="Longitude"
+              value={location.longitude.toFixed(6)}
+              onChangeText={(text) => {
+                const val = parseFloat(text);
+                if (!isNaN(val)) {
+                  onLocationChange(location.latitude, val);
+                }
+              }}
+              keyboardType="numeric"
+              editable={!location.isLocked}
+            />
+          </View>
+        </View>
+
+        <Input
+          label="Numéro"
+          value={address.streetNumber}
+          onChangeText={(text) => onAddressChange({ ...address, streetNumber: text })}
+          editable={!location.isLocked}
+        />
+
+        <Input
+          label="Rue"
+          value={address.streetName}
+          onChangeText={(text) => onAddressChange({ ...address, streetName: text })}
+          editable={!location.isLocked}
+        />
+
+        <View style={styles.row}>
+          <View style={styles.halfInput}>
+            <Input
+              label="Code postal"
+              value={address.postalCode}
+              onChangeText={(text) => onAddressChange({ ...address, postalCode: text })}
+              keyboardType="numeric"
+              editable={!location.isLocked}
+            />
+          </View>
+          <View style={styles.halfInput}>
+            <Input
+              label="Ville"
+              value={address.city}
+              onChangeText={(text) => onAddressChange({ ...address, city: text })}
+              editable={!location.isLocked}
+            />
+          </View>
+        </View>
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <View style={styles.actions}>
+          {!location.isLocked ? (
+            <>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonSecondary]}
+                onPress={handleGeocodeAddress}
+                disabled={geocodeLoading}
+              >
+                {geocodeLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary[600]} />
+                ) : (
+                  <>
+                    <Navigation size={18} color={colors.primary[600]} />
+                    <Text style={styles.buttonSecondaryText}>Localiser</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.buttonPrimary]}
+                onPress={handleValidateLocation}
+                disabled={geocodeLoading}
+              >
+                {geocodeLoading ? (
+                  <ActivityIndicator size="small" color={colors.neutral[0]} />
+                ) : (
+                  <>
+                    <Lock size={18} color={colors.neutral[0]} />
+                    <Text style={styles.buttonPrimaryText}>Valider</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSecondary, { flex: 1 }]}
+              onPress={handleUnlockLocation}
+            >
+              <Unlock size={18} color={colors.primary[600]} />
+              <Text style={styles.buttonSecondaryText}>Modifier</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    gap: spacing.md,
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  map: {
+    flex: 1,
+  },
+  marker: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[600],
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: colors.neutral[0],
+  },
+  markerLocked: {
+    backgroundColor: colors.success[600],
+  },
+  lockOverlay: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.success[600],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
+  },
+  lockText: {
+    ...typography.caption,
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  controls: {
+    gap: spacing.md,
+  },
+  coordsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  coordInput: {
+    flex: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  error: {
+    ...typography.bodySmall,
+    color: colors.error[600],
+    marginTop: spacing.xs,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  button: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  buttonPrimary: {
+    backgroundColor: colors.primary[600],
+  },
+  buttonSecondary: {
+    backgroundColor: colors.primary[50],
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  buttonPrimaryText: {
+    ...typography.body,
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  buttonSecondaryText: {
+    ...typography.body,
+    color: colors.primary[600],
+    fontWeight: '600',
+  },
+});
