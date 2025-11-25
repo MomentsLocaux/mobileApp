@@ -1,5 +1,8 @@
-export const colors = {
+type ColorScale = Record<string | number, string>;
+
+export const colors: Record<string, ColorScale> = {
   primary: {
+    0: '#fef2f2',
     50: '#fef2f2',
     100: '#fee2e2',
     200: '#fecaca',
@@ -12,6 +15,7 @@ export const colors = {
     900: '#7f1d1d',
   },
   secondary: {
+    0: '#f0fdf4',
     50: '#f0fdf4',
     100: '#dcfce7',
     200: '#bbf7d0',
@@ -24,6 +28,7 @@ export const colors = {
     900: '#14532d',
   },
   neutral: {
+    0: '#fafafa',
     50: '#fafafa',
     100: '#f5f5f5',
     200: '#e5e5e5',
@@ -36,21 +41,25 @@ export const colors = {
     900: '#171717',
   },
   error: {
+    0: '#fef2f2',
     50: '#fef2f2',
     500: '#ef4444',
     700: '#b91c1c',
   },
   success: {
+    0: '#f0fdf4',
     50: '#f0fdf4',
     500: '#22c55e',
     700: '#15803d',
   },
   warning: {
+    0: '#fffbeb',
     50: '#fffbeb',
     500: '#f59e0b',
     700: '#b45309',
   },
   info: {
+    0: '#eff6ff',
     50: '#eff6ff',
     500: '#3b82f6',
     700: '#1d4ed8',
@@ -105,6 +114,21 @@ export const typography = {
     fontSize: 14,
     fontWeight: '400' as const,
     lineHeight: 20,
+  },
+  bodyLarge: {
+    fontSize: 18,
+    fontWeight: '400' as const,
+    lineHeight: 26,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    lineHeight: 18,
+  },
+  small: {
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 16,
   },
   caption: {
     fontSize: 12,

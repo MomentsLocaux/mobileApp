@@ -35,7 +35,9 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
         <X size={20} color={colors.neutral[600]} />
       </TouchableOpacity>
 
-      <Image source={{ uri: event.cover_url }} style={styles.cover} />
+      {event.cover_url ? (
+        <Image source={{ uri: event.cover_url }} style={styles.cover} />
+      ) : null}
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>

@@ -148,3 +148,141 @@ This is a **technical foundation only**. To build your application:
 ## License
 
 Private project scaffold.
+
+
+# 📱 Moments Locaux — Application Mobile
+
+Application mobile React Native/Expo (Dev Client + modules natifs), développée avec :
+- Expo SDK
+- React Native
+- @rnmapbox/maps (Carte Mapbox)
+- TypeScript
+- VS Code + Copilot/Codex
+- iOS dev-client pour tests sur appareil réel
+
+---
+
+## 🚀 Démarrer le projet
+
+### 1. Installer les dépendances
+```
+npm install
+```
+
+### 2. Lancer en mode dev-client
+L’app doit être installée sur l’iPhone via Xcode (dev client Expo).
+```
+npx expo start --dev-client
+```
+
+### 3. Nettoyer le cache si besoin
+```
+npx expo start --dev-client --clear
+```
+
+---
+
+## 🏗️ Structure du projet
+
+```
+app/          # écrans Expo Router (ou src/ si choisi)
+components/   # composants UI réutilisables
+lib/          # logique métier, hooks, utilitaires
+assets/       # icônes, splash, images
+ios/          # projet iOS généré (ne pas éditer manuellement sauf nécessité)
+android/      # projet Android généré (idem)
+```
+
+---
+
+## 🔩 Ajouter un module natif (Mapbox, Camera, Audio…)
+
+1. Installer la dépendance :
+```
+npm install <lib>
+# ou: expo install <lib>
+```
+
+2. Regénérer les projets natifs :
+```
+npx expo prebuild -p ios
+cd ios
+pod install
+cd ..
+```
+
+3. Rebuild du dev-client dans Xcode :
+- Ouvrir `ios/<APP>.xcworkspace`
+- Sélectionner l'iPhone
+- Build & run (installe un nouveau dev client)
+
+4. Relancer le dev server :
+```
+npx expo start --dev-client
+```
+
+---
+
+## 🧪 Tests sur iPhone réel
+
+- Lancer Metro : `npx expo start --dev-client`
+- Ouvrir l’application *dev client* installée via Xcode
+- Le téléphone et le Mac doivent être sur **le même réseau Wi-Fi**
+
+---
+
+## 🌲 Git Workflow recommandé
+
+### Branches
+- `main` — stable
+- `feature/...` — développements
+- `fix/...` — corrections
+
+### Cycle standard
+```
+git checkout -b feature/mapbox-improve
+git add .
+git commit -m "feat: improve map gestures and clustering"
+git push origin feature/mapbox-improve
+```
+
+---
+
+## 🧰 Commandes utiles
+
+```
+# Diagnostiquer un problème de config
+npx expo doctor
+
+# Vérifier le bundle iOS natif
+cd ios && pod install && cd ..
+
+# Effacer caches (cas ultime)
+rm -rf node_modules
+rm -rf ios/Pods
+npm install
+npx expo prebuild -p ios
+cd ios && pod install && cd ..
+```
+
+---
+
+## 🧭 Notes importantes
+
+- **Ne pas faire de `expo prebuild` inutilement.**
+  Seulement après ajout/modification de modules natifs.
+- **Commits natifs clairs** :
+  - `chore(ios): prebuild & pods after adding Mapbox`
+- Le code métier doit rester **100% dans JS/TS**, *jamais* dans `ios/*`.
+
+---
+
+## 🔐 Identité & Build
+
+- Le bundle ID iOS se règle dans `app.json`
+- Les icônes & splash sont dans `assets/`
+
+---
+
+## 🏁 Licence
+Projet interne Moments Locaux — Tous droits réservés.

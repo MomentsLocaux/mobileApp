@@ -28,16 +28,19 @@ CREATE TABLE IF NOT EXISTS event_checkins (
 
 ALTER TABLE event_checkins ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can check-in to events" ON event_checkins;
 CREATE POLICY "Users can check-in to events"
   ON event_checkins FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own check-ins" ON event_checkins;
 CREATE POLICY "Users can view their own check-ins"
   ON event_checkins FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view all check-ins" ON event_checkins;
 CREATE POLICY "Users can view all check-ins"
   ON event_checkins FOR SELECT
   TO authenticated

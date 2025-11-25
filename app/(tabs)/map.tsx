@@ -49,7 +49,7 @@ export default function MapScreen() {
 
   const loadEvents = useCallback(async () => {
     try {
-      const data = await EventsService.listEvents({}, 'date');
+      const data = await EventsService.listEvents();
       setAllEvents(data);
     } catch (error) {
       console.error('Error loading events:', error);

@@ -56,21 +56,36 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!validate()) return;
 
-    const success = await signUp(email, password);
-    if (success) {
-      Alert.alert(
-        'Compte créé',
-        'Votre compte a été créé avec succès !',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)'),
-          },
-        ]
-      );
-    } else {
-      Alert.alert('Erreur', "Impossible de créer le compte. L'email existe peut-être déjà.");
+    const response = await signUp(email, password);
+    if (!response) {
+      Alert.alert('Erreur', "Impossible de créer le compte. Vérifiez votre email et réessayez.");
+      return;
     }
+
+    const alreadyRegistered =
+      typeof response.error === 'string' &&
+      response.error.toLowerCase().includes('already registered');
+
+    if (response.requiresEmailConfirmation || alreadyRegistered) {
+      Alert.alert(
+        'Vérification requise',
+        'Un email de confirmation vous a été envoyé. Validez votre adresse puis connectez-vous.',
+        [{ text: 'OK', onPress: () => router.replace('/auth/login') }]
+      );
+      return;
+    }
+
+    if (!response.success) {
+      Alert.alert(
+        'Erreur',
+        response.error || "Impossible de créer le compte. Vérifiez votre email et réessayez."
+      );
+      return;
+    }
+
+    Alert.alert('Compte créé', 'Votre compte a été créé avec succès !', [
+      { text: 'OK', onPress: () => router.replace('/(tabs)') },
+    ]);
   };
 
   return (

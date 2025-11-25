@@ -56,7 +56,7 @@ export function MapWrapper({
         style={styles.map}
         styleURL={Mapbox.StyleURL.Street}
         onMapIdle={(event) => {
-          const zoomLevel = event.properties.zoomLevel;
+          const zoomLevel = (event.properties as any).zoomLevel ?? (event.properties as any).zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
             onZoomChange(zoomLevel);
           }

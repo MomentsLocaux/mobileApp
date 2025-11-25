@@ -12,7 +12,7 @@ import { User } from 'lucide-react-native';
 import { Button } from '../../components/ui';
 import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks';
-import { supabase } from '../../lib/supabase';
+import { ProfileService } from '@/services/profile.service';
 
 const ROLE_OPTIONS = [
   { value: 'denicheur', label: 'Dénicheur', description: 'Je veux découvrir des événements' },
@@ -33,17 +33,12 @@ export default function OnboardingScreen() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          display_name: displayName,
-          bio: bio || null,
-          role: role as any,
-          onboarding_completed: true,
-        })
-        .eq('id', profile.id);
-
-      if (error) throw error;
+      await ProfileService.updateProfile(profile.id, {
+        display_name: displayName,
+        bio: bio || null,
+        role: role as any,
+        onboarding_completed: true,
+      });
 
       router.replace('/(tabs)');
     } catch (error) {
@@ -72,7 +67,7 @@ export default function OnboardingScreen() {
           <Text style={styles.stepTitle}>Parlez-nous de vous</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nom d'affichage</Text>
+            <Text style={styles.label}>Nom d&apos;affichage</Text>
             <TextInput
               style={styles.input}
               placeholder="Comment voulez-vous être appelé ?"

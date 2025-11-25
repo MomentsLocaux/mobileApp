@@ -1,5 +1,5 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Home, Map, Heart, User } from 'lucide-react-native';
+import { Map, List, Target, ShoppingBag, User } from 'lucide-react-native';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
@@ -34,8 +34,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Événements',
-          tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
+          title: 'Liste',
+          tabBarIcon: ({ size, color }) => <List size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -46,10 +46,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="favorites"
+        name="missions"
         options={{
-          title: 'Favoris',
-          tabBarIcon: ({ size, color }) => <Heart size={size} color={color} />,
+          title: 'Missions',
+          tabBarIcon: ({ size, color }) => <Target size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="shop"
+        options={{
+          title: 'Boutique',
+          tabBarIcon: ({ size, color }) => <ShoppingBag size={size} color={color} />,
         }}
       />
       <Tabs.Screen

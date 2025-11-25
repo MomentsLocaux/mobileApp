@@ -95,7 +95,7 @@ export default function ProfileEditScreen() {
         setAvatarUri(uploadedUrl);
         Alert.alert('Succès', 'Avatar uploadé');
       } else {
-        Alert.alert('Erreur', 'Impossible d\'uploader l\'avatar');
+        Alert.alert('Erreur', 'Impossible d&apos;uploader l&apos;avatar');
       }
       setUploadingAvatar(false);
     };
@@ -143,7 +143,7 @@ export default function ProfileEditScreen() {
             onChange={handleFileChange}
           />
         )}
-        <Text style={styles.uploadHint}>Cliquez sur l'icône pour changer votre avatar</Text>
+        <Text style={styles.uploadHint}>Cliquez sur l&apos;icône pour changer votre avatar</Text>
       </View>
 
       <View style={styles.form}>

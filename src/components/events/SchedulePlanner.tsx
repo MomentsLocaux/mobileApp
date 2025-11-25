@@ -138,7 +138,7 @@ export function SchedulePlanner({
             </View>
           </View>
           <Text style={styles.hint}>
-            Ces horaires seront appliqués à tous les jours de l'événement
+            Ces horaires seront appliqués à tous les jours de l&apos;événement
           </Text>
         </View>
       )}

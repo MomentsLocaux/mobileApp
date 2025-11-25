@@ -7,11 +7,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Search, Flame, Clock, MapPin } from 'lucide-react-native';
 import { EventCard, EventFilters } from '../../components/events';
-import { EventsService } from '../../services/events.service';
 import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
 import { useLocationStore, useFilterStore } from '../../store';
@@ -19,16 +19,18 @@ import { filterEvents } from '../../utils/filter-events';
 import { sortEvents } from '../../utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type { EventWithCreator } from '../../types/database';
+import { useEvents } from '@/hooks/useEvents';
 
 export default function EventsListScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { currentLocation } = useLocationStore();
   const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
+  const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
 
-  const [allEvents, setAllEvents] = useState<EventWithCreator[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<'nearby' | 'soon' | 'popular' | null>(null);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -38,30 +40,40 @@ export default function EventsListScreen() {
     };
   }, [currentLocation]);
 
-  const loadEvents = useCallback(async () => {
-    try {
-      const data = await EventsService.listEvents({}, 'date');
-      setAllEvents(data);
-    } catch (error) {
-      console.error('Error loading events:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
-
   const filteredAndSortedEvents = useMemo(() => {
-    const filtered = filterEvents(allEvents, filters, focusedIds);
-    return sortEvents(filtered, filters.sortBy || 'date', userLocation);
-  }, [allEvents, filters, focusedIds, userLocation]);
+    const base = filterEvents(fetchedEvents || [], filters, focusedIds).filter((event) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        event.title.toLowerCase().includes(q) ||
+        event.description.toLowerCase().includes(q) ||
+        event.address?.toLowerCase().includes(q)
+      );
+    });
+
+    let quickFiltered = base;
+    const now = new Date();
+    if (quickFilter === 'nearby' && userLocation) {
+      quickFiltered = base.filter((event) => {
+        const dx = event.latitude - userLocation.latitude;
+        const dy = event.longitude - userLocation.longitude;
+        const dist2 = dx * dx + dy * dy;
+        return dist2 < 0.05; // simplifié: ~ rayon local
+      });
+    }
+    if (quickFilter === 'soon') {
+      quickFiltered = base.filter((event) => event.starts_at && new Date(event.starts_at) > now);
+    }
+    if (quickFilter === 'popular') {
+      quickFiltered = base.sort((a, b) => (b.interests_count || 0) - (a.interests_count || 0));
+    }
+
+    return sortEvents(quickFiltered, filters.sortBy || 'date', userLocation);
+  }, [fetchedEvents, filters, focusedIds, search, quickFilter, userLocation]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadEvents();
+    reload();
   };
 
   const handleEventPress = (eventId: string) => {
@@ -72,14 +84,7 @@ export default function EventsListScreen() {
     if (!profile) return;
 
     await SocialService.toggleFavorite(profile.id, eventId);
-
-    setAllEvents((prev) =>
-      prev.map((event) =>
-        event.id === eventId
-          ? { ...event, is_favorited: !event.is_favorited }
-          : event
-      )
-    );
+    reload();
   };
 
   const renderEventCard = ({ item }: { item: EventWithCreator }) => (
@@ -92,7 +97,7 @@ export default function EventsListScreen() {
 
   const activeFiltersCount = getActiveFilterCount();
 
-  if (loading) {
+  if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
@@ -103,10 +108,48 @@ export default function EventsListScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchRow}>
+        <View style={styles.searchBox}>
+          <Search size={16} color={colors.neutral[500]} />
+          <TextInput
+            placeholder="Rechercher un événement"
+            placeholderTextColor={colors.neutral[400]}
+            value={search}
+            onChangeText={setSearch}
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
+        </View>
+      </View>
+
+      <View style={styles.quickFilters}>
+        <QuickChip
+          label="À proximité"
+          active={quickFilter === 'nearby'}
+          icon={<MapPin size={14} color={quickFilter === 'nearby' ? colors.primary[700] : colors.neutral[500]} />}
+          onPress={() => setQuickFilter(quickFilter === 'nearby' ? null : 'nearby')}
+        />
+        <QuickChip
+          label="Bientôt"
+          active={quickFilter === 'soon'}
+          icon={<Clock size={14} color={quickFilter === 'soon' ? colors.primary[700] : colors.neutral[500]} />}
+          onPress={() => setQuickFilter(quickFilter === 'soon' ? null : 'soon')}
+        />
+        <QuickChip
+          label="Populaire"
+          active={quickFilter === 'popular'}
+          icon={<Flame size={14} color={quickFilter === 'popular' ? colors.primary[700] : colors.neutral[500]} />}
+          onPress={() => setQuickFilter(quickFilter === 'popular' ? null : 'popular')}
+        />
+      </View>
+
       <EventFilters
         filters={filters}
         onFiltersChange={setFilters}
-        onReset={resetFilters}
+        onReset={() => {
+          resetFilters();
+          setQuickFilter(null);
+        }}
         activeFiltersCount={activeFiltersCount}
       />
 
@@ -194,6 +237,55 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
     textAlign: 'center',
   },
+  searchRow: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.neutral[100],
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.neutral[0],
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.body,
+    color: colors.neutral[900],
+  },
+  quickFilters: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.neutral[100],
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.neutral[0],
+  },
+  quickChipActive: {
+    borderColor: colors.primary[600],
+    backgroundColor: colors.primary[50],
+  },
+  quickChipText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
+  },
   fab: {
     position: 'absolute',
     bottom: spacing.xl,
@@ -211,3 +303,26 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 });
+
+function QuickChip({
+  label,
+  active,
+  onPress,
+  icon,
+}: {
+  label: string;
+  active: boolean;
+  icon?: React.ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.quickChip, active && styles.quickChipActive]}
+      activeOpacity={0.8}
+    >
+      {icon}
+      <Text style={styles.quickChipText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}

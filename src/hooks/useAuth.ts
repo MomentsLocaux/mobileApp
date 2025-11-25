@@ -1,100 +1,149 @@
-import { useState } from 'react';
-import { useAuthStore } from '../store';
-import { AuthService } from '../services/auth.service';
+import { useEffect, useCallback, useState } from 'react';
+import { useAuthStore } from '@/state/auth';
+import { AuthService } from '@/services/auth.service';
+import { UserService } from '@/services/user.service';
 
-export const useAuth = () => {
-  const {
-    user,
-    session,
-    profile,
-    isLoading,
-    setProfile,
-    setLoading,
-    setUser,
-    setSession,
-    reset,
-  } = useAuthStore();
-  const [error, setError] = useState<string | null>(null);
+export function useAuth() {
+  const { user, session, profile, isLoading, error, setUser, setSession, setProfile, setLoading, setError, reset } =
+    useAuthStore();
+  const [initialized, setInitialized] = useState(false);
 
-  const signIn = async (email: string, password: string) => {
+  const fetchProfile = useCallback(
+    async (userId: string) => {
+      const profile = await UserService.getProfile(userId);
+      setProfile(profile);
+      return profile;
+    },
+    [setProfile],
+  );
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true);
+      setError(null);
+      const response = await AuthService.signIn(email, password);
+      setLoading(false);
+
+      if (!response.success) {
+        setError(response.error || 'Erreur connexion');
+        return false;
+      }
+
+      setSession(response.session || null);
+      setUser(response.user || null);
+
+      if (response.user) {
+        const profile = response.profile || (await fetchProfile(response.user.id));
+        setProfile(profile);
+      }
+
+      return response.success;
+    },
+    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+  );
+
+  const signUp = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true);
+      setError(null);
+      const response = await AuthService.signUp(email, password);
+      setLoading(false);
+
+      if (!response.success) {
+        setError(response.error || 'Erreur inscription');
+        return false;
+      }
+
+      setSession(response.session || null);
+      setUser(response.user || null);
+
+      if (response.user && response.session) {
+        const profile = response.profile || (await fetchProfile(response.user.id));
+        setProfile(profile);
+      } else {
+        setProfile(null);
+      }
+
+      return response.success;
+    },
+    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+  );
+
+  const signOut = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await AuthService.signIn(email, password);
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error || 'Sign in failed');
+    try {
+      const response = await AuthService.signOut();
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur déconnexion');
+      }
+    } catch (signOutError: any) {
+      setLoading(false);
+      setError(signOutError?.message || 'Erreur déconnexion');
       return false;
     }
-
-    setSession(result.session ?? null);
-    setUser(result.user ?? null);
-    if (result.profile) {
-      setProfile(result.profile);
-    }
-
-    return true;
-  };
-
-  const signUp = async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
-    const result = await AuthService.signUp(email, password);
     setLoading(false);
-
-    if (!result.success) {
-      setError(result.error || 'Sign up failed');
-      return false;
-    }
-
-    setSession(result.session ?? null);
-    setUser(result.user ?? null);
-    if (result.profile) {
-      setProfile(result.profile);
-    }
-
-    return true;
-  };
-
-  const signOut = async () => {
-    setLoading(true);
-    setError(null);
-    const result = await AuthService.signOut();
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error || 'Sign out failed');
-      return false;
-    }
-
     reset();
     return true;
-  };
+  }, [reset, setError, setLoading]);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (!user) return null;
-    try {
-      const currentProfile = await AuthService.getCurrentProfile();
-      if (currentProfile) {
-        setProfile(currentProfile);
+    return fetchProfile(user.id);
+  }, [fetchProfile, user]);
+
+  useEffect(() => {
+    if (initialized) return;
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const session = await AuthService.getCurrentSession();
+        if (!mounted) return;
+        const user = await AuthService.getCurrentUser();
+        if (!mounted) return;
+
+        setSession(session);
+        setUser(user);
+
+        if (user) {
+          try {
+            await fetchProfile(user.id);
+          } catch (profileError: any) {
+            console.error('Error fetching profile on init:', profileError);
+            setError(profileError?.message || 'Erreur profil');
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
+      } catch (initError: any) {
+        console.error('Error initializing auth state:', initError);
+        setError(initError?.message || 'Erreur connexion');
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+      } finally {
+        if (!mounted) return;
+        setInitialized(true);
+        setLoading(false);
       }
-      return currentProfile;
-    } catch (error) {
-      console.error('Error refreshing profile:', error);
-      return null;
-    }
-  };
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [fetchProfile, initialized, setError, setLoading, setProfile, setSession, setUser]);
 
   return {
     user,
     session,
     profile,
     isLoading,
-    isAuthenticated: !!session,
     error,
+    isAuthenticated: !!session,
     signIn,
     signUp,
     signOut,
     refreshProfile,
   };
-};
+}

@@ -130,7 +130,6 @@ export default function ProfileScreen() {
           variant="outline"
           fullWidth
           style={styles.signOutButton}
-          icon={<LogOut size={18} color={colors.error[600]} />}
         />
       </View>
     </ScrollView>

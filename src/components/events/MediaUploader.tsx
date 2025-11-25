@@ -61,7 +61,7 @@ export function MediaUploader({
         )}
 
         <View style={styles.urlInput}>
-          <Text style={styles.inputLabel}>URL de l'image</Text>
+          <Text style={styles.inputLabel}>URL de l&apos;image</Text>
           <View style={styles.inputRow}>
             <input
               type="text"
@@ -86,7 +86,7 @@ export function MediaUploader({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Galerie (optionnel)</Text>
         <Text style={styles.sectionHint}>
-          Ajoutez jusqu'à 3 images supplémentaires
+          Ajoutez jusqu&apos;à 3 images supplémentaires
         </Text>
 
         {gallery.length > 0 && (

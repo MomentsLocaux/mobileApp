@@ -7,7 +7,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { User, MapPin, Calendar } from 'lucide-react-native';
 import { Card } from '../../components/ui';
 import { EventCard } from '../../components/events';
@@ -18,6 +18,7 @@ import type { Profile, EventWithCreator } from '../../types/database';
 
 export default function CreatorProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [creator, setCreator] = useState<Profile | null>(null);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +88,11 @@ export default function CreatorProfileScreen() {
           </Card>
         ) : (
           events.map((event) => (
-            <EventCard key={event.id} event={event} />
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => router.push(`/events/${event.id}`)}
+            />
           ))
         )}
       </View>

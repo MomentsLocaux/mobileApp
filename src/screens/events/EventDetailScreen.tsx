@@ -22,45 +22,42 @@ import {
   Share2,
   Edit,
   Trash2,
+  Image as ImageIcon,
 } from 'lucide-react-native';
 import { Button, Card } from '../../components/ui';
 import { EventsService } from '../../services/events.service';
 import { SocialService } from '../../services/social.service';
-import { CommentsService } from '../../services/comments.service';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
-import type { EventWithCreator, CommentWithAuthor } from '../../types/database';
+import type { EventWithCreator } from '../../types/database';
+import { useComments } from '@/hooks/useComments';
+import { useLocationStore } from '@/store';
+import { CheckinService } from '@/services/checkin.service';
 
 const { width } = Dimensions.get('window');
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const { currentLocation } = useLocationStore();
+  const { comments, loading: loadingComments, addComment, reload: reloadComments } = useComments(id || '');
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
-  const [comments, setComments] = useState<CommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     loadEventDetails();
-    loadComments();
   }, [id]);
 
   const loadEventDetails = async () => {
     if (!id) return;
-    const data = await EventsService.getEventById(id, profile?.id);
+    const data = await EventsService.getEventById(id);
     setEvent(data);
     setLoading(false);
-  };
-
-  const loadComments = async () => {
-    if (!id) return;
-    const data = await CommentsService.listComments(id);
-    setComments(data);
   };
 
   const handleToggleFavorite = async () => {
@@ -86,10 +83,25 @@ export default function EventDetailScreen() {
   };
 
   const handleCheckIn = async () => {
-    if (!profile || !event) return;
-    const success = await SocialService.checkIn(profile.id, event.id);
-    if (success) {
-      Alert.alert('Check-in réussi', 'Vous avez participé à cet événement !');
+    if (!profile || !event || !session?.access_token) return;
+    if (!currentLocation) {
+      Alert.alert('Localisation requise', 'Activez la localisation pour valider le check-in.');
+      return;
+    }
+    try {
+      const res = await CheckinService.checkIn(
+        event.id,
+        currentLocation.coords.latitude,
+        currentLocation.coords.longitude,
+        session.access_token,
+      );
+      if (res.success) {
+        Alert.alert('Check-in réussi', res.rewards?.lumo ? `+${res.rewards.lumo} Lumo` : 'Check-in validé');
+      } else {
+        Alert.alert('Check-in', res.message || 'Check-in non valide');
+      }
+    } catch (err) {
+      Alert.alert('Check-in', err instanceof Error ? err.message : 'Erreur check-in');
     }
   };
 
@@ -97,12 +109,14 @@ export default function EventDetailScreen() {
     if (!profile || !event || !commentText.trim()) return;
 
     setSubmittingComment(true);
-    const comment = await CommentsService.createComment(profile.id, event.id, commentText);
-    setSubmittingComment(false);
-
-    if (comment) {
+    try {
+      await addComment(commentText.trim());
       setCommentText('');
-      loadComments();
+      reloadComments();
+    } catch (err) {
+      Alert.alert('Commentaire', err instanceof Error ? err.message : 'Erreur envoi commentaire');
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
@@ -167,7 +181,13 @@ export default function EventDetailScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Image source={{ uri: event.cover_url }} style={styles.coverImage} />
+      {event.cover_url ? (
+        <Image source={{ uri: event.cover_url }} style={styles.coverImage} />
+      ) : (
+        <View style={[styles.coverImage, styles.coverPlaceholder]}>
+          <ImageIcon size={48} color={colors.neutral[400]} />
+        </View>
+      )}
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>
@@ -313,7 +333,7 @@ export default function EventDetailScreen() {
                 )}
                 <Text style={styles.commentAuthor}>{comment.author.display_name}</Text>
               </View>
-              <Text style={styles.commentContent}>{comment.content}</Text>
+              <Text style={styles.commentContent}>{comment.message}</Text>
             </Card>
           ))}
         </View>
@@ -355,6 +375,11 @@ const styles = StyleSheet.create({
     width: width,
     height: 300,
     resizeMode: 'cover',
+  },
+  coverPlaceholder: {
+    backgroundColor: colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     padding: spacing.lg,
