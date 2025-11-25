@@ -21,7 +21,7 @@ const initialState = {
   user: null,
   session: null,
   profile: null,
-  isLoading: true,
+  isLoading: false,
   isAuthenticated: false,
   role: null,
   onboardingCompleted: false,

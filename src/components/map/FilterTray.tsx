@@ -99,7 +99,7 @@ export function FilterTray({
 
       {isExpanded && (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
+          <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Catégorie</Text>
             <View style={styles.chipContainer}>
               {Object.entries(CATEGORIES).map(([key, value]) => (
@@ -124,160 +124,166 @@ export function FilterTray({
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Temps</Text>
-            <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.time === 'weekend' && styles.chipActive]}
-                onPress={() => toggleTime('weekend')}
-              >
-                <Text style={[styles.chipText, filters.time === 'weekend' && styles.chipTextActive]}>
-                  Weekend
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, filters.time === 'live' && styles.chipActive]}
-                onPress={() => toggleTime('live')}
-              >
-                <Text style={[styles.chipText, filters.time === 'live' && styles.chipTextActive]}>
-                  En cours
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Popularité</Text>
-            <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.popularity === 'trending' && styles.chipActive]}
-                onPress={() => togglePopularity('trending')}
-              >
-                <Text style={[styles.chipText, filters.popularity === 'trending' && styles.chipTextActive]}>
-                  Tendance (10+)
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, filters.popularity === 'popular' && styles.chipActive]}
-                onPress={() => togglePopularity('popular')}
-              >
-                <Text style={[styles.chipText, filters.popularity === 'popular' && styles.chipTextActive]}>
-                  Populaire (30+)
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, filters.popularity === 'top' && styles.chipActive]}
-                onPress={() => togglePopularity('top')}
-              >
-                <Text style={[styles.chipText, filters.popularity === 'top' && styles.chipTextActive]}>
-                  Top (50+)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Prix</Text>
-            <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.freeOnly && styles.chipActive]}
-                onPress={toggleFreeOnly}
-              >
-                <Text style={[styles.chipText, filters.freeOnly && styles.chipTextActive]}>
-                  Gratuit
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, filters.paidOnly && styles.chipActive]}
-                onPress={togglePaidOnly}
-              >
-                <Text style={[styles.chipText, filters.paidOnly && styles.chipTextActive]}>
-                  Payant
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Visibilité</Text>
-            <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.visibility === 'public' && styles.chipActive]}
-                onPress={() => toggleVisibility('public')}
-              >
-                <Text style={[styles.chipText, filters.visibility === 'public' && styles.chipTextActive]}>
-                  Public
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, filters.visibility === 'prive' && styles.chipActive]}
-                onPress={() => toggleVisibility('prive')}
-              >
-                <Text style={[styles.chipText, filters.visibility === 'prive' && styles.chipTextActive]}>
-                  Privé
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Options</Text>
-            <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.includePast && styles.chipActive]}
-                onPress={toggleIncludePast}
-              >
-                <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
-                  Inclure passés
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tri</Text>
-            <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.sortBy === 'date' && styles.chipActive]}
-                onPress={() => changeSortBy('date')}
-              >
-                <Text style={[styles.chipText, filters.sortBy === 'date' && styles.chipTextActive]}>
-                  Date
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.chip,
-                  filters.sortBy === 'distance' && styles.chipActive,
-                  !hasUserLocation && styles.chipDisabled,
-                ]}
-                onPress={() => changeSortBy('distance')}
-                disabled={!hasUserLocation}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    filters.sortBy === 'distance' && styles.chipTextActive,
-                    !hasUserLocation && styles.chipTextDisabled,
-                  ]}
+          <View style={styles.row}>
+            <View style={styles.sectionCardHalf}>
+              <Text style={styles.sectionTitle}>Temps</Text>
+              <View style={styles.chipContainer}>
+                <TouchableOpacity
+                  style={[styles.chip, filters.time === 'weekend' && styles.chipActive]}
+                  onPress={() => toggleTime('weekend')}
                 >
-                  Distance
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, filters.sortBy === 'popularity' && styles.chipActive]}
-                onPress={() => changeSortBy('popularity')}
-              >
-                <Text style={[styles.chipText, filters.sortBy === 'popularity' && styles.chipTextActive]}>
-                  Popularité
-                </Text>
-              </TouchableOpacity>
+                  <Text style={[styles.chipText, filters.time === 'weekend' && styles.chipTextActive]}>
+                    Weekend
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.time === 'live' && styles.chipActive]}
+                  onPress={() => toggleTime('live')}
+                >
+                  <Text style={[styles.chipText, filters.time === 'live' && styles.chipTextActive]}>
+                    En cours
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            {!hasUserLocation && (
-              <Text style={styles.warningText}>
-                Activez la localisation pour trier par distance
-              </Text>
-            )}
+
+            <View style={styles.sectionCardHalf}>
+              <Text style={styles.sectionTitle}>Popularité</Text>
+              <View style={styles.chipContainer}>
+                <TouchableOpacity
+                  style={[styles.chip, filters.popularity === 'trending' && styles.chipActive]}
+                  onPress={() => togglePopularity('trending')}
+                >
+                  <Text style={[styles.chipText, filters.popularity === 'trending' && styles.chipTextActive]}>
+                    Tendance (10+)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.popularity === 'popular' && styles.chipActive]}
+                  onPress={() => togglePopularity('popular')}
+                >
+                  <Text style={[styles.chipText, filters.popularity === 'popular' && styles.chipTextActive]}>
+                    Populaire (30+)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.popularity === 'top' && styles.chipActive]}
+                  onPress={() => togglePopularity('top')}
+                >
+                  <Text style={[styles.chipText, filters.popularity === 'top' && styles.chipTextActive]}>
+                    Top (50+)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.sectionCardHalf}>
+              <Text style={styles.sectionTitle}>Prix</Text>
+              <View style={styles.chipContainer}>
+                <TouchableOpacity
+                  style={[styles.chip, filters.freeOnly && styles.chipActive]}
+                  onPress={toggleFreeOnly}
+                >
+                  <Text style={[styles.chipText, filters.freeOnly && styles.chipTextActive]}>
+                    Gratuit
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.paidOnly && styles.chipActive]}
+                  onPress={togglePaidOnly}
+                >
+                  <Text style={[styles.chipText, filters.paidOnly && styles.chipTextActive]}>
+                    Payant
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.sectionCardHalf}>
+              <Text style={styles.sectionTitle}>Visibilité</Text>
+              <View style={styles.chipContainer}>
+                <TouchableOpacity
+                  style={[styles.chip, filters.visibility === 'public' && styles.chipActive]}
+                  onPress={() => toggleVisibility('public')}
+                >
+                  <Text style={[styles.chipText, filters.visibility === 'public' && styles.chipTextActive]}>
+                    Public
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.visibility === 'prive' && styles.chipActive]}
+                  onPress={() => toggleVisibility('prive')}
+                >
+                  <Text style={[styles.chipText, filters.visibility === 'prive' && styles.chipTextActive]}>
+                    Privé
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.sectionCardHalf}>
+              <Text style={styles.sectionTitle}>Options</Text>
+              <View style={styles.chipContainer}>
+                <TouchableOpacity
+                  style={[styles.chip, filters.includePast && styles.chipActive]}
+                  onPress={toggleIncludePast}
+                >
+                  <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
+                    Inclure passés
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.sectionCardHalf}>
+              <Text style={styles.sectionTitle}>Tri</Text>
+              <View style={styles.chipContainer}>
+                <TouchableOpacity
+                  style={[styles.chip, filters.sortBy === 'date' && styles.chipActive]}
+                  onPress={() => changeSortBy('date')}
+                >
+                  <Text style={[styles.chipText, filters.sortBy === 'date' && styles.chipTextActive]}>
+                    Date
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    filters.sortBy === 'distance' && styles.chipActive,
+                    !hasUserLocation && styles.chipDisabled,
+                  ]}
+                  onPress={() => changeSortBy('distance')}
+                  disabled={!hasUserLocation}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      filters.sortBy === 'distance' && styles.chipTextActive,
+                      !hasUserLocation && styles.chipTextDisabled,
+                    ]}
+                  >
+                    Distance
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.sortBy === 'popularity' && styles.chipActive]}
+                  onPress={() => changeSortBy('popularity')}
+                >
+                  <Text style={[styles.chipText, filters.sortBy === 'popularity' && styles.chipTextActive]}>
+                    Popularité
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {!hasUserLocation && (
+                <Text style={styles.warningText}>
+                  Activez la localisation pour trier par distance
+                </Text>
+              )}
+            </View>
           </View>
 
           {activeFiltersCount > 0 && (
@@ -296,9 +302,11 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.neutral[0],
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
     ...Platform.select({
       web: {
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
       },
       default: {
         shadowColor: colors.neutral[900],
@@ -341,14 +349,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   content: {
-    maxHeight: 500,
+    maxHeight: 520,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[200],
-  },
-  section: {
     padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    backgroundColor: colors.neutral[50],
+  },
+  sectionCard: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral[0],
+    borderWidth: 1,
+    borderColor: colors.neutral[100],
+    marginBottom: spacing.md,
+  },
+  sectionCardHalf: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral[0],
+    borderWidth: 1,
+    borderColor: colors.neutral[100],
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     ...typography.bodySmall,

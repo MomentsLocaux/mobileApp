@@ -6,12 +6,26 @@ export class CommentsService {
     try {
       const { data, error } = await supabase
         .from('event_comments')
-        .select(
-          `
-          *,
-          author:profiles!user_id(*)
-        `
-        )
+        .select(`
+          id,
+          event_id,
+          author_id,
+          message,
+          created_at,
+          updated_at,
+          author:profiles!event_comments_author_id_fkey (
+            id,
+            display_name,
+            avatar_url,
+            bio,
+            role,
+            onboarding_completed,
+            created_at,
+            updated_at,
+            city,
+            region
+          )
+        `)
         .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
@@ -24,9 +38,8 @@ export class CommentsService {
         data?.map((comment) => ({
           ...comment,
           author: comment.author || {
-            id: comment.user_id,
+            id: comment.author_id,
             display_name: 'Utilisateur supprimé',
-            email: '',
             avatar_url: null,
             bio: null,
             role: 'denicheur' as const,
@@ -51,9 +64,9 @@ export class CommentsService {
       const { data, error } = await supabase
         .from('event_comments')
         .insert({
-          user_id: userId,
+          author_id: userId,
           event_id: eventId,
-          content,
+          message: content,
         })
         .select()
         .single();
@@ -76,7 +89,7 @@ export class CommentsService {
         .from('event_comments')
         .delete()
         .eq('id', commentId)
-        .eq('user_id', userId);
+        .eq('author_id', userId);
 
       if (error) {
         console.error('Error deleting comment:', error);

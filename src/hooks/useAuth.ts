@@ -3,7 +3,17 @@ import { useAuthStore } from '../store';
 import { AuthService } from '../services/auth.service';
 
 export const useAuth = () => {
-  const { user, session, profile, isLoading, setProfile, setLoading, reset } = useAuthStore();
+  const {
+    user,
+    session,
+    profile,
+    isLoading,
+    setProfile,
+    setLoading,
+    setUser,
+    setSession,
+    reset,
+  } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
   const signIn = async (email: string, password: string) => {
@@ -17,6 +27,8 @@ export const useAuth = () => {
       return false;
     }
 
+    setSession(result.session ?? null);
+    setUser(result.user ?? null);
     if (result.profile) {
       setProfile(result.profile);
     }
@@ -35,6 +47,8 @@ export const useAuth = () => {
       return false;
     }
 
+    setSession(result.session ?? null);
+    setUser(result.user ?? null);
     if (result.profile) {
       setProfile(result.profile);
     }

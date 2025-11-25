@@ -152,6 +152,8 @@ export default function MapScreen() {
         initialRegion={mapCenter}
         onMarkerPress={handleMarkerPress}
         onClusterPress={handleClusterPress}
+        zoom={zoom}
+        onZoomChange={setZoom}
       />
 
       <View style={styles.topOverlay}>

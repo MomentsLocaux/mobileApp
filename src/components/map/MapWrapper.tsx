@@ -17,10 +17,19 @@ interface MapWrapperProps {
   };
   onMarkerPress: (event: EventWithCreator) => void;
   onClusterPress?: (events: EventWithCreator[]) => void;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
   children?: React.ReactNode;
 }
 
-export function MapWrapper({ events, initialRegion, onMarkerPress, children }: MapWrapperProps) {
+export function MapWrapper({
+  events,
+  initialRegion,
+  onMarkerPress,
+  zoom,
+  onZoomChange,
+  children,
+}: MapWrapperProps) {
   const isMapboxAvailable = !!Mapbox.MapView;
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
@@ -46,9 +55,15 @@ export function MapWrapper({ events, initialRegion, onMarkerPress, children }: M
       <Mapbox.MapView
         style={styles.map}
         styleURL={Mapbox.StyleURL.Street}
+        onMapIdle={(event) => {
+          const zoomLevel = event.properties.zoomLevel;
+          if (onZoomChange && typeof zoomLevel === 'number') {
+            onZoomChange(zoomLevel);
+          }
+        }}
       >
         <Mapbox.Camera
-          zoomLevel={initialRegion.zoom}
+          zoomLevel={zoom ?? initialRegion.zoom}
           centerCoordinate={[initialRegion.longitude, initialRegion.latitude]}
         />
 
