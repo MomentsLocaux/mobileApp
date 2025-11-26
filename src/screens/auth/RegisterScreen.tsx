@@ -66,7 +66,10 @@ export default function RegisterScreen() {
       typeof response.error === 'string' &&
       response.error.toLowerCase().includes('already registered');
 
-    if (response.requiresEmailConfirmation || alreadyRegistered) {
+    // Supabase retourne souvent session null + user non confirmé => success true, mais require email
+    const requiresEmailConfirmation = response.success && !response.session;
+
+    if (requiresEmailConfirmation || alreadyRegistered) {
       Alert.alert(
         'Vérification requise',
         'Un email de confirmation vous a été envoyé. Validez votre adresse puis connectez-vous.',

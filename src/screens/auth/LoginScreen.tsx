@@ -43,12 +43,13 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validate()) return;
 
-    const success = await signIn(email, password);
-    if (success) {
-      router.replace('/(tabs)');
-    } else {
-      Alert.alert('Erreur', 'Email ou mot de passe incorrect');
+    const response = await signIn(email, password);
+    if (!response?.success) {
+      Alert.alert('Erreur', response?.error || 'Email ou mot de passe incorrect');
+      return;
     }
+
+    router.replace('/(tabs)');
   };
 
   return (

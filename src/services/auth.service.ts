@@ -11,9 +11,17 @@ export interface AuthResponse {
 }
 
 export class AuthService {
+  private static attachEmail(profile: Profile | null, userEmail?: string | null): Profile | null {
+    if (!profile) return null;
+    if (profile.email) return profile;
+    if (!userEmail) return profile;
+    return { ...profile, email: userEmail };
+  }
+
   static async ensureProfile(userId: string, email: string): Promise<Profile | null> {
     try {
-      return await dataProvider.ensureProfile(userId, email);
+      const profile = await dataProvider.ensureProfile(userId, email);
+      return this.attachEmail(profile, email);
     } catch (error) {
       console.error('Unexpected error in ensureProfile:', error);
       return null;
@@ -44,7 +52,8 @@ export class AuthService {
     try {
       const { session, user } = await dataProvider.signIn(email, password);
       if (!user) return { success: false, error: 'No user returned' };
-      const profile = (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, email));
+      const rawProfile = (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, email));
+      const profile = this.attachEmail(rawProfile, user.email);
       return { success: true, session, user, profile };
     } catch (error) {
       return {
@@ -87,7 +96,8 @@ export class AuthService {
       const user = await this.getCurrentUser();
       if (!user) return null;
 
-      return dataProvider.getProfile(user.id);
+      const profile = await dataProvider.getProfile(user.id);
+      return this.attachEmail(profile, user.email);
     } catch {
       return null;
     }
@@ -96,7 +106,8 @@ export class AuthService {
   static onAuthStateChange(callback: (session: Session | null, profile: Profile | null) => void) {
     const sub = dataProvider.onAuthStateChange(async (session) => {
       if (session?.user) {
-        const profile = await dataProvider.getProfile(session.user.id);
+        const rawProfile = await dataProvider.getProfile(session.user.id);
+        const profile = this.attachEmail(rawProfile, session.user.email);
         callback(session, profile);
       } else {
         callback(null, null);

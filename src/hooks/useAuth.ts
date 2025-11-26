@@ -38,7 +38,7 @@ export function useAuth() {
 
       if (!response.success) {
         setError(response.error || 'Erreur connexion');
-        return false;
+        return response;
       }
 
       setSession(response.session || null);
@@ -49,7 +49,7 @@ export function useAuth() {
         setProfile(profile);
       }
 
-      return response.success;
+      return response;
     },
     [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
   );
@@ -63,7 +63,7 @@ export function useAuth() {
 
       if (!response.success) {
         setError(response.error || 'Erreur inscription');
-        return false;
+        return response;
       }
 
       setSession(response.session || null);
@@ -76,7 +76,7 @@ export function useAuth() {
         setProfile(null);
       }
 
-      return response.success;
+      return response;
     },
     [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
   );
