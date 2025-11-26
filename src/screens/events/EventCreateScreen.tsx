@@ -342,7 +342,13 @@ export default function EventCreateScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Créer un événement</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <ChevronLeft size={20} color={colors.neutral[700]} />
+              <Text style={styles.backText}>Retour</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Créer un événement</Text>
+          </View>
           <TouchableOpacity onPress={handleReset} style={styles.cancelButton}>
             <X size={20} color={colors.neutral[600]} />
           </TouchableOpacity>
@@ -642,29 +648,29 @@ export default function EventCreateScreen() {
           )}
         </View>
       </View>
+      {showStartPicker && (
+        <DateTimePicker
+          value={new Date(formData.startsAt || new Date())}
+          mode="datetime"
+          display="spinner"
+          onChange={(_event, date) => {
+            setShowStartPicker(false);
+            if (date) setDateTime('startsAt', date);
+          }}
+        />
+      )}
+      {showEndPicker && (
+        <DateTimePicker
+          value={new Date(formData.endsAt || new Date())}
+          mode="datetime"
+          display="spinner"
+          onChange={(_event, date) => {
+            setShowEndPicker(false);
+            if (date) setDateTime('endsAt', date);
+          }}
+        />
+      )}
     </View>
-    {showStartPicker && (
-      <DateTimePicker
-        value={new Date(formData.startsAt || new Date())}
-        mode="datetime"
-        display="spinner"
-        onChange={(_event, date) => {
-          setShowStartPicker(false);
-          if (date) setDateTime('startsAt', date);
-        }}
-      />
-    )}
-    {showEndPicker && (
-      <DateTimePicker
-        value={new Date(formData.endsAt || new Date())}
-        mode="datetime"
-        display="spinner"
-        onChange={(_event, date) => {
-          setShowEndPicker(false);
-          if (date) setDateTime('endsAt', date);
-        }}
-      />
-    )}
   );
 }
 
@@ -690,6 +696,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...typography.h3,
     color: colors.neutral[900],
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  backText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
   },
   cancelButton: {
     padding: spacing.xs,

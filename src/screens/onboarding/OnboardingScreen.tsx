@@ -8,7 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User } from 'lucide-react-native';
+import { User, ChevronLeft } from 'lucide-react-native';
 import { Button } from '../../components/ui';
 import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks';
@@ -69,6 +69,10 @@ export default function OnboardingScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ChevronLeft size={20} color={colors.neutral[700]} />
+          <Text style={styles.backText}>Retour</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Bienvenue sur Lumo</Text>
         <Text style={styles.subtitle}>
           Configurons votre profil en quelques étapes
@@ -211,6 +215,17 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
     marginTop: spacing.xl,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  backText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
   },
   title: {
     ...typography.h1,

@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -101,6 +102,10 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ChevronLeft size={20} color={colors.neutral[700]} />
+            <Text style={styles.backText}>Retour</Text>
+          </TouchableOpacity>
           <Text style={styles.title}>Créer un compte</Text>
           <Text style={styles.subtitle}>Rejoignez la communauté Moments Locaux</Text>
         </View>
