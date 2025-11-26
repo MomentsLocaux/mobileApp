@@ -120,30 +120,20 @@ export function LocationPicker({
             centerCoordinate={[safeCoords.longitude, safeCoords.latitude]}
           />
 
-          {!location.isLocked ? (
-            <Mapbox.PointAnnotation
-              id="location-marker"
-              coordinate={[safeCoords.longitude, safeCoords.latitude]}
-              draggable
-              onDragEnd={(feature) => {
-                const coords = feature.geometry.coordinates;
-                onLocationChange(coords[1], coords[0]);
-              }}
-            >
-              <View style={[styles.marker, location.isLocked && styles.markerLocked]}>
-                <MapPin size={24} color={colors.neutral[0]} />
-              </View>
-            </Mapbox.PointAnnotation>
-          ) : (
-            <Mapbox.PointAnnotation
-              id="location-marker-locked"
-              coordinate={[safeCoords.longitude, safeCoords.latitude]}
-            >
-              <View style={[styles.marker, styles.markerLocked]}>
-                <MapPin size={24} color={colors.neutral[0]} />
-              </View>
-            </Mapbox.PointAnnotation>
-          )}
+          <Mapbox.PointAnnotation
+            id="location-marker"
+            coordinate={[safeCoords.longitude, safeCoords.latitude]}
+            draggable={!location.isLocked}
+            onDragEnd={(feature) => {
+              if (location.isLocked) return;
+              const coords = feature.geometry.coordinates;
+              onLocationChange(coords[1], coords[0]);
+            }}
+          >
+            <View style={[styles.marker, location.isLocked && styles.markerLocked]}>
+              <MapPin size={24} color={colors.neutral[0]} />
+            </View>
+          </Mapbox.PointAnnotation>
         </Mapbox.MapView>
 
         {location.isLocked && (

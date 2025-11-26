@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Button, Input } from '../../components/ui';
 import {
   LocationPicker,
@@ -44,14 +46,20 @@ export default function EventCreateScreen() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const now = useMemo(() => new Date(), []);
+  const defaultEnd = useMemo(() => {
+    const d = new Date(now);
+    d.setHours(d.getHours() + 2);
+    return d;
+  }, [now]);
 
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
     category: 'autre',
     tags: [],
-    startsAt: '',
-    endsAt: '',
+    startsAt: now.toISOString(),
+    endsAt: defaultEnd.toISOString(),
     scheduleMode: 'uniform',
     uniformOpening: '09:00',
     uniformClosing: '18:00',
@@ -77,6 +85,8 @@ export default function EventCreateScreen() {
     isLocked: false,
     savedLocation: null,
   });
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const [errors, setErrors] = useState<EventFormErrors>({});
 
@@ -156,8 +166,8 @@ export default function EventCreateScreen() {
               description: '',
               category: 'autre',
               tags: [],
-              startsAt: '',
-              endsAt: '',
+              startsAt: now.toISOString(),
+              endsAt: defaultEnd.toISOString(),
               scheduleMode: 'uniform',
               uniformOpening: '09:00',
               uniformClosing: '18:00',
@@ -183,6 +193,7 @@ export default function EventCreateScreen() {
               savedLocation: null,
             });
             setErrors({});
+            router.back();
           },
         },
       ]
@@ -266,6 +277,65 @@ export default function EventCreateScreen() {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
+  const formatDateTime = (value: string) => {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return 'Sélectionnez une date';
+    return d.toLocaleString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const setDateTime = (field: 'startsAt' | 'endsAt', date: Date) => {
+    const iso = date.toISOString();
+    setFormData((prev) => {
+      const next = { ...prev, [field]: iso };
+      // auto-fix end before start
+      if (field === 'startsAt') {
+        const endDate = new Date(next.endsAt);
+        if (endDate <= date) {
+          const adjusted = new Date(date);
+          adjusted.setHours(adjusted.getHours() + 2);
+          next.endsAt = adjusted.toISOString();
+        }
+      }
+      return next;
+    });
+  };
+
+  const openDatePicker = (field: 'startsAt' | 'endsAt') => {
+    const current = new Date(formData[field] || new Date());
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        mode: 'datetime',
+        value: current,
+        onChange: (_event: any, selected?: Date) => {
+          if (selected) setDateTime(field, selected);
+        },
+      });
+    } else {
+      if (field === 'startsAt') setShowStartPicker(true);
+      if (field === 'endsAt') setShowEndPicker(true);
+    }
+  };
+
+  const quickDates = [
+    { label: 'Aujourd\'hui', set: () => setDateTime('startsAt', new Date()) },
+    { label: '+1h', set: () => {
+      const d = new Date();
+      d.setHours(d.getHours() + 1);
+      setDateTime('startsAt', d);
+    } },
+    { label: '+2h fin', set: () => {
+      const d = new Date();
+      d.setHours(d.getHours() + 2);
+      setDateTime('endsAt', d);
+    } },
+  ];
+
   const progress = ((currentStep + 1) / STEPS.length) * 100;
 
   return (
@@ -348,21 +418,37 @@ export default function EventCreateScreen() {
 
         {currentStep === 1 && (
           <View style={styles.step}>
-            <Input
-              label="Date et heure de début *"
-              placeholder="YYYY-MM-DD HH:MM"
-              value={formData.startsAt}
-              onChangeText={(text) => updateFormData({ startsAt: text })}
-              error={errors.startsAt}
-            />
+            <View style={styles.dateField}>
+              <Text style={styles.inputLabel}>Date et heure de début *</Text>
+              <TouchableOpacity
+                style={styles.datePicker}
+                onPress={() => openDatePicker('startsAt')}
+              >
+                <Text style={styles.dateText}>{formatDateTime(formData.startsAt)}</Text>
+                <ChevronRight size={18} color={colors.neutral[500]} />
+              </TouchableOpacity>
+              {errors.startsAt && <Text style={styles.error}>{errors.startsAt}</Text>}
+            </View>
 
-            <Input
-              label="Date et heure de fin *"
-              placeholder="YYYY-MM-DD HH:MM"
-              value={formData.endsAt}
-              onChangeText={(text) => updateFormData({ endsAt: text })}
-              error={errors.endsAt}
-            />
+            <View style={styles.dateField}>
+              <Text style={styles.inputLabel}>Date et heure de fin *</Text>
+              <TouchableOpacity
+                style={styles.datePicker}
+                onPress={() => openDatePicker('endsAt')}
+              >
+                <Text style={styles.dateText}>{formatDateTime(formData.endsAt)}</Text>
+                <ChevronRight size={18} color={colors.neutral[500]} />
+              </TouchableOpacity>
+              {errors.endsAt && <Text style={styles.error}>{errors.endsAt}</Text>}
+            </View>
+
+            <View style={styles.quickDates}>
+              {quickDates.map((q) => (
+                <TouchableOpacity key={q.label} style={styles.quickChip} onPress={q.set}>
+                  <Text style={styles.quickChipText}>{q.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.separator} />
 
@@ -557,6 +643,28 @@ export default function EventCreateScreen() {
         </View>
       </View>
     </View>
+    {showStartPicker && (
+      <DateTimePicker
+        value={new Date(formData.startsAt || new Date())}
+        mode="datetime"
+        display="spinner"
+        onChange={(_event, date) => {
+          setShowStartPicker(false);
+          if (date) setDateTime('startsAt', date);
+        }}
+      />
+    )}
+    {showEndPicker && (
+      <DateTimePicker
+        value={new Date(formData.endsAt || new Date())}
+        mode="datetime"
+        display="spinner"
+        onChange={(_event, date) => {
+          setShowEndPicker(false);
+          if (date) setDateTime('endsAt', date);
+        }}
+      />
+    )}
   );
 }
 
@@ -625,6 +733,41 @@ const styles = StyleSheet.create({
   },
   categoriesScroll: {
     marginTop: spacing.sm,
+  },
+  dateField: {
+    gap: spacing.xs,
+  },
+  datePicker: {
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.neutral[0],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateText: {
+    ...typography.body,
+    color: colors.neutral[900],
+  },
+  quickDates: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  quickChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[100],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  quickChipText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
   },
   categoryChip: {
     paddingHorizontal: spacing.md,

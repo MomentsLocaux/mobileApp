@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Upload, X, Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import * as ImagePicker from 'expo-image-picker';
+import { Button, Input } from '../ui';
 
 interface MediaUploaderProps {
   coverUrl: string;
@@ -25,9 +28,28 @@ export function MediaUploader({
   onGalleryChange,
   error,
 }: MediaUploaderProps) {
+  const [newGalleryUrl, setNewGalleryUrl] = useState('');
+
+  const pickImage = async (onPicked: (uri: string) => void) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Autorisez l’accès à vos photos pour sélectionner une image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      quality: 0.7,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      onPicked(result.assets[0].uri);
+    }
+  };
+
   const handleAddToGallery = (url: string) => {
     if (gallery.length < 3 && url.trim()) {
       onGalleryChange([...gallery, url]);
+      setNewGalleryUrl('');
     }
   };
 
@@ -61,23 +83,19 @@ export function MediaUploader({
         )}
 
         <View style={styles.urlInput}>
-          <Text style={styles.inputLabel}>URL de l&apos;image</Text>
-          <View style={styles.inputRow}>
-            <input
-              type="text"
-              placeholder="https://example.com/image.jpg"
-              value={coverUrl}
-              onChange={(e) => onCoverChange(e.target.value)}
-              style={{
-                flex: 1,
-                padding: spacing.sm,
-                borderRadius: borderRadius.md,
-                border: `1px solid ${error ? colors.error[300] : colors.neutral[300]}`,
-                fontSize: 14,
-                fontFamily: 'inherit',
-              }}
-            />
-          </View>
+          <Text style={styles.inputLabel}>Sélectionner une image</Text>
+          <Button
+            title="Choisir dans la galerie"
+            onPress={() => pickImage(onCoverChange)}
+            variant="outline"
+          />
+          <Text style={styles.inputLabel}>Ou coller une URL</Text>
+          <Input
+            placeholder="https://example.com/image.jpg"
+            value={coverUrl}
+            onChangeText={onCoverChange}
+            error={error}
+          />
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -115,42 +133,20 @@ export function MediaUploader({
             <Text style={styles.inputLabel}>
               Ajouter une image ({gallery.length}/3)
             </Text>
-            <View style={styles.inputRow}>
-              <input
-                type="text"
-                placeholder="https://example.com/image.jpg"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    const target = e.target as HTMLInputElement;
-                    handleAddToGallery(target.value);
-                    target.value = '';
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: spacing.sm,
-                  borderRadius: borderRadius.md,
-                  border: `1px solid ${colors.neutral[300]}`,
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                }}
-              />
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => {
-                  const input = document.querySelector(
-                    'input[placeholder="https://example.com/image.jpg"]'
-                  ) as HTMLInputElement;
-                  if (input?.value) {
-                    handleAddToGallery(input.value);
-                    input.value = '';
-                  }
-                }}
-              >
-                <Upload size={18} color={colors.primary[600]} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.hint}>Appuyez sur Entrée pour ajouter</Text>
+            <Button
+              title="Depuis la galerie"
+              onPress={() => pickImage((uri) => handleAddToGallery(uri))}
+              variant="outline"
+              style={styles.addButton}
+              icon={<Upload size={18} color={colors.primary[600]} />}
+            />
+            <Input
+              placeholder="https://example.com/image.jpg"
+              value={newGalleryUrl}
+              onChangeText={setNewGalleryUrl}
+              onSubmitEditing={() => handleAddToGallery(newGalleryUrl)}
+            />
+            <Text style={styles.hint}>Validez pour ajouter</Text>
           </View>
         )}
       </View>
