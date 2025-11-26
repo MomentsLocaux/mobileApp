@@ -7,6 +7,7 @@ import { colors, borderRadius } from '../../constants/theme';
 import Constants from 'expo-constants';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
+Mapbox.setTelemetryEnabled(false);
 
 interface MapWrapperProps {
   events: EventWithCreator[];

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,21 +15,35 @@ import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
 
 const ROLE_OPTIONS = [
-  { value: 'denicheur', label: 'Dénicheur', description: 'Je veux découvrir des événements' },
-  { value: 'createur', label: 'Créateur', description: 'Je veux créer et partager des événements' },
+  { value: 'denicheur', label: 'Explorateur', description: 'Je découvre et participe.' },
+  { value: 'createur', label: 'Créateur', description: 'Je propose des moments.' },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
-  const [displayName, setDisplayName] = useState(profile?.display_name || '');
+  const fallbackDisplayName = useMemo(
+    () => profile?.display_name || profile?.email || user?.email || '',
+    [profile?.display_name, profile?.email, user?.email],
+  );
+  const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
   const [role, setRole] = useState<string>(profile?.role || 'denicheur');
+  const [city, setCity] = useState(profile?.city || '');
+  const [region, setRegion] = useState(profile?.region || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const totalSteps = 3;
+  const canContinue =
+    (step === 1 && !!displayName.trim()) ||
+    (step === 2 && !!city.trim() && !!region.trim()) ||
+    step === 3;
 
   const handleComplete = async () => {
-    if (!profile) return;
+    if (!profile || !user) return;
+    setError(null);
 
     setIsLoading(true);
     try {
@@ -37,12 +51,16 @@ export default function OnboardingScreen() {
         display_name: displayName,
         bio: bio || null,
         role: role as any,
+        city: city.trim(),
+        region: region.trim(),
         onboarding_completed: true,
       });
 
+      await refreshProfile();
       router.replace('/(tabs)');
     } catch (error) {
       console.error('Error completing onboarding:', error);
+      setError(error instanceof Error ? error.message : 'Erreur de mise à jour du profil');
     } finally {
       setIsLoading(false);
     }
@@ -55,11 +73,15 @@ export default function OnboardingScreen() {
         <Text style={styles.subtitle}>
           Configurons votre profil en quelques étapes
         </Text>
+        <Text style={styles.progressLabel}>
+          Étape {step} / {totalSteps}
+        </Text>
       </View>
 
       <View style={styles.progressBar}>
         <View style={[styles.progressStep, step >= 1 && styles.progressStepActive]} />
         <View style={[styles.progressStep, step >= 2 && styles.progressStepActive]} />
+        <View style={[styles.progressStep, step >= 3 && styles.progressStepActive]} />
       </View>
 
       {step === 1 && (
@@ -76,32 +98,6 @@ export default function OnboardingScreen() {
               maxLength={50}
             />
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bio (optionnel)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Quelques mots sur vous..."
-              value={bio}
-              onChangeText={setBio}
-              multiline
-              numberOfLines={4}
-              maxLength={200}
-            />
-          </View>
-
-          <Button
-            title="Suivant"
-            onPress={() => setStep(2)}
-            disabled={!displayName.trim()}
-            fullWidth
-          />
-        </View>
-      )}
-
-      {step === 2 && (
-        <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Quel est votre profil ?</Text>
 
           <View style={styles.roleOptions}>
             {ROLE_OPTIONS.map((option) => (
@@ -124,23 +120,82 @@ export default function OnboardingScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+      )}
 
-          <View style={styles.buttonGroup}>
-            <Button
-              title="Précédent"
-              onPress={() => setStep(1)}
-              variant="outline"
-              style={styles.buttonHalf}
+      {step === 2 && (
+        <View style={styles.stepContainer}>
+          <Text style={styles.stepTitle}>Où êtes-vous basé ?</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Ville</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex. Paris"
+              value={city}
+              onChangeText={setCity}
+              autoCapitalize="words"
             />
-            <Button
-              title="Terminer"
-              onPress={handleComplete}
-              loading={isLoading}
-              style={styles.buttonHalf}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Région</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex. Île-de-France"
+              value={region}
+              onChangeText={setRegion}
+              autoCapitalize="words"
             />
           </View>
         </View>
       )}
+
+      {step === 3 && (
+        <View style={styles.stepContainer}>
+          <Text style={styles.stepTitle}>Ajoutez une bio (optionnel)</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Parlez de vous ou de vos événements..."
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              numberOfLines={4}
+              maxLength={200}
+            />
+          </View>
+        </View>
+      )}
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      <View style={styles.buttonGroup}>
+        {step > 1 && (
+          <Button
+            title="Précédent"
+            onPress={() => setStep((prev) => Math.max(1, prev - 1))}
+            variant="outline"
+            style={styles.buttonHalf}
+            disabled={isLoading}
+          />
+        )}
+        <Button
+          title={step === totalSteps ? "C'est parti !" : 'Continuer'}
+          onPress={() => {
+            if (step < totalSteps) {
+              setStep((prev) => prev + 1);
+            } else {
+              handleComplete();
+            }
+          }}
+          loading={isLoading}
+          style={step > 1 ? styles.buttonHalf : undefined}
+          disabled={!canContinue || isLoading}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -167,6 +222,12 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[600],
     textAlign: 'center',
+  },
+  progressLabel: {
+    ...typography.caption,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   progressBar: {
     flexDirection: 'row',
@@ -209,6 +270,11 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: colors.error[600],
+    marginTop: spacing.sm,
   },
   roleOptions: {
     gap: spacing.md,

@@ -2,6 +2,15 @@ import { supabase } from '@/lib/supabase/client';
 import type { IBugsProvider, IDataProvider } from './types';
 import type { CommentWithAuthor, Event, EventWithCreator, Profile, Database, EventComment } from '@/types/database';
 
+const formatSupabaseError = (error: any, context: string) => {
+  const rawMessage =
+    (typeof error?.message === 'string' && error.message) || (typeof error === 'string' && error) || 'Erreur Supabase';
+  const message = rawMessage.trim().startsWith('<!DOCTYPE') || rawMessage.includes('Cloudflare')
+    ? 'Supabase ne répond pas (timeout). Réessayez dans quelques instants.'
+    : rawMessage;
+  return new Error(`[${context}] ${message}`);
+};
+
 export const supabaseProvider: (Pick<
   IDataProvider,
   | 'listEvents'
@@ -23,6 +32,7 @@ export const supabaseProvider: (Pick<
   IBugsProvider) = {
   async listEvents(filters: Record<string, unknown> = {}) {
     const { limit, creatorId } = filters as { limit?: number; creatorId?: string };
+    const appliedLimit = typeof limit === 'number' ? limit : 200;
 
     let query = supabase
       .from('events')
@@ -64,15 +74,13 @@ export const supabaseProvider: (Pick<
       )
       .order('created_at', { ascending: false });
 
-    if (limit) {
-      query = query.limit(limit);
-    }
+    query = query.limit(appliedLimit);
     if (creatorId) {
       query = query.eq('creator_id', creatorId);
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'listEvents');
     return (data || []) as EventWithCreator[];
   },
 
@@ -117,7 +125,7 @@ export const supabaseProvider: (Pick<
       )
       .eq('id', id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'getEventById');
     return data ? (data as EventWithCreator) : null;
   },
 
@@ -127,13 +135,13 @@ export const supabaseProvider: (Pick<
       .insert(payload as any)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'createEvent');
     return data as Event;
   },
 
   async deleteEvent(id: string) {
     const { error } = await supabase.from('events').delete().eq('id', id);
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'deleteEvent');
     return true;
   },
 
@@ -148,7 +156,7 @@ export const supabaseProvider: (Pick<
       )
       .eq('event_id', eventId)
       .order('created_at', { ascending: false });
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'listComments');
     return (data || []) as CommentWithAuthor[];
   },
 
@@ -167,19 +175,20 @@ export const supabaseProvider: (Pick<
         `,
       )
       .single();
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'createComment');
     return (data as CommentWithAuthor) || null;
   },
 
   async deleteComment(id: string) {
     const { error } = await supabase.from('event_comments').delete().eq('id', id);
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'deleteComment');
     return true;
   },
 
   async getProfile(userId: string) {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    if (error) throw error;
+    console.log('getProfile response', { userId, data, error });
+    if (error) throw formatSupabaseError(error, 'getProfile');
     return data ? (data as Profile) : null;
   },
 
@@ -189,19 +198,19 @@ export const supabaseProvider: (Pick<
       .eq('id', userId)
       .select()
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'updateProfile');
     return data ? (data as Profile) : null;
   },
 
   async earnLumo(payload: { amount?: number; reason?: string; item_type?: string; item_id?: string }) {
     const { data, error } = await (supabase.rpc as any)('earn_lumo', payload as any);
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'earnLumo');
     return data;
   },
 
   async spendLumo(payload: { amount: number; reason?: string; item_type?: string; item_id?: string }) {
     const { data, error } = await (supabase.rpc as any)('spend_lumo', payload as any);
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'spendLumo');
     return data;
   },
 
@@ -214,25 +223,25 @@ export const supabaseProvider: (Pick<
       description: payload.description,
       status: 'open',
     } as any);
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'submitBug');
     return true;
   },
 
   async toggleFavorite(eventId: string) {
     const { error } = await (supabase.rpc as any)('toggle_favorite', { event_id: eventId });
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'toggleFavorite');
     return true;
   },
 
   async toggleInterest(eventId: string) {
     const { error } = await (supabase.rpc as any)('toggle_interest', { event_id: eventId });
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'toggleInterest');
     return true;
   },
 
   async like(eventId: string) {
     const { error } = await (supabase.rpc as any)('toggle_like', { event_id: eventId });
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'like');
     return true;
   },
 
@@ -246,7 +255,7 @@ export const supabaseProvider: (Pick<
       contentType: blob.type || 'image/jpeg',
       upsert: true,
     });
-    if (error) throw error;
+    if (error) throw formatSupabaseError(error, 'uploadAvatar');
     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
     return data.publicUrl;
   },

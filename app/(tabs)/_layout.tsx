@@ -5,7 +5,7 @@ import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
 
 export default function TabsLayout() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, profile } = useAuth();
 
   if (isLoading) {
     return (
@@ -17,6 +17,10 @@ export default function TabsLayout() {
 
   if (!isAuthenticated) {
     return <Redirect href="/auth/login" />;
+  }
+
+  if (profile && !profile.onboarding_completed) {
+    return <Redirect href="/onboarding" />;
   }
 
   return (

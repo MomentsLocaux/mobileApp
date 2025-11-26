@@ -15,6 +15,7 @@ import { colors, spacing, typography, borderRadius } from '../../constants/theme
 import Constants from 'expo-constants';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
+Mapbox.setTelemetryEnabled(false);
 
 interface LocationPickerProps {
   location: LocationState;

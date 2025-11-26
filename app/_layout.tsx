@@ -2,16 +2,18 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
-import { useAuthStore } from '../src/store/authStore';
+import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
 
 export default function RootLayout() {
   useFrameworkReady();
 
-  const { setUser, setSession, setProfile, setLoading } = useAuthStore();
+  const { setUser, setSession, setProfile, setLoading, initialized, setInitialized } = useAuthStore();
 
   useEffect(() => {
     let mounted = true;
+
+    if (initialized) return;
 
     const initializeAuth = async () => {
       if (!mounted) return;
@@ -44,6 +46,7 @@ export default function RootLayout() {
       } finally {
         if (mounted) {
           setLoading(false);
+          setInitialized(true);
         }
       }
     };

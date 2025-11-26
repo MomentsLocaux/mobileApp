@@ -28,6 +28,7 @@ export const authProvider: IAuthProvider = {
 
   async getUser() {
     const { data } = await supabase.auth.getUser();
+    console.log('getUser response', data);
     return data.user;
   },
 
@@ -67,4 +68,5 @@ export const authProvider: IAuthProvider = {
       unsubscribe: () => data.subscription.unsubscribe(),
     };
   },
+
 };

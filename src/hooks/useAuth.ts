@@ -4,9 +4,21 @@ import { AuthService } from '@/services/auth.service';
 import { UserService } from '@/services/user.service';
 
 export function useAuth() {
-  const { user, session, profile, isLoading, error, setUser, setSession, setProfile, setLoading, setError, reset } =
-    useAuthStore();
-  const [initialized, setInitialized] = useState(false);
+  const {
+    user,
+    session,
+    profile,
+    isLoading,
+    error,
+    initialized,
+    setUser,
+    setSession,
+    setProfile,
+    setLoading,
+    setError,
+    setInitialized,
+    reset,
+  } = useAuthStore();
 
   const fetchProfile = useCallback(
     async (userId: string) => {
