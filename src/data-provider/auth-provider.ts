@@ -40,38 +40,26 @@ export const authProvider: IAuthProvider = {
       .maybeSingle();
     if (fetchError) throw fetchError;
     if (existing) {
-      // Backfill email if column exists and value is missing
-      if (!existing.email && email) {
-        const { data: updated, error: updateError } = await supabase
-          .from('profiles')
-          .update({ email })
-          .eq('id', userId)
-          .select()
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (updated) return updated as Profile;
-      }
-      return existing as Profile;
+      return { ...(existing as Profile), email: email ?? null };
     }
 
     const { data: inserted, error: insertError } = await supabase
       .from('profiles')
       .insert({
         id: userId,
-        display_name: email.split('@')[0],
-        email,
+        display_name: email ? email.split('@')[0] : 'Utilisateur',
         role: 'denicheur',
         onboarding_completed: false,
         avatar_url: null,
         bio: null,
         city: null,
         region: null,
-      } as any)
+      } as Database['public']['Tables']['profiles']['Insert'])
       .select()
       .single();
 
     if (insertError) throw insertError;
-    return inserted as Profile;
+    return { ...(inserted as Profile), email: email ?? null };
   },
 
   onAuthStateChange(callback) {

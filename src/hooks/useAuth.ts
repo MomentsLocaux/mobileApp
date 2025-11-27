@@ -21,10 +21,11 @@ export function useAuth() {
   } = useAuthStore();
 
   const fetchProfile = useCallback(
-    async (userId: string) => {
+    async (userId: string, userEmail?: string | null) => {
       const profile = await UserService.getProfile(userId);
-      setProfile(profile);
-      return profile;
+      const enriched = profile ? { ...profile, email: profile.email ?? userEmail ?? null } : null;
+      setProfile(enriched);
+      return enriched;
     },
     [setProfile],
   );
@@ -45,7 +46,7 @@ export function useAuth() {
       setUser(response.user || null);
 
       if (response.user) {
-        const profile = response.profile || (await fetchProfile(response.user.id));
+        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
         setProfile(profile);
       }
 
@@ -70,7 +71,7 @@ export function useAuth() {
       setUser(response.user || null);
 
       if (response.user && response.session) {
-        const profile = response.profile || (await fetchProfile(response.user.id));
+        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
         setProfile(profile);
       } else {
         setProfile(null);
@@ -101,7 +102,7 @@ export function useAuth() {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return null;
-    return fetchProfile(user.id);
+    return fetchProfile(user.id, user.email);
   }, [fetchProfile, user]);
 
   useEffect(() => {
@@ -110,9 +111,10 @@ export function useAuth() {
     (async () => {
       setLoading(true);
       try {
-        const session = await AuthService.getCurrentSession();
+        const blocked = await AuthService.isAutoRestoreBlocked();
+        const session = blocked ? null : await AuthService.getCurrentSession();
         if (!mounted) return;
-        const user = await AuthService.getCurrentUser();
+        const user = blocked ? null : await AuthService.getCurrentUser();
         if (!mounted) return;
 
         setSession(session);
@@ -120,7 +122,7 @@ export function useAuth() {
 
         if (user) {
           try {
-            await fetchProfile(user.id);
+            await fetchProfile(user.id, user.email);
           } catch (profileError: any) {
             console.error('Error fetching profile on init:', profileError);
             setError(profileError?.message || 'Erreur profil');

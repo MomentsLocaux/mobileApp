@@ -13,6 +13,8 @@ export interface AuthResponse {
   profile?: Profile | null;
 }
 
+const LOGOUT_BLOCK_KEY = 'auth_logout_blocked';
+
 export class AuthService {
   private static attachEmail(profile: Profile | null, userEmail?: string | null): Profile | null {
     if (!profile) return null;
@@ -37,6 +39,19 @@ export class AuthService {
 
   static async clearSavedSession() {
     await SecureStore.deleteItemAsync('supabase_session');
+  }
+
+  private static async blockAutoRestore() {
+    await SecureStore.setItemAsync(LOGOUT_BLOCK_KEY, '1');
+  }
+
+  static async clearAutoRestoreBlock() {
+    await SecureStore.deleteItemAsync(LOGOUT_BLOCK_KEY);
+  }
+
+  static async isAutoRestoreBlocked(): Promise<boolean> {
+    const flag = await SecureStore.getItemAsync(LOGOUT_BLOCK_KEY);
+    return !!flag;
   }
 
   static async hasSavedSession(): Promise<boolean> {
@@ -81,6 +96,7 @@ export class AuthService {
       return { success: false, error: 'Session invalide' };
     }
     const profile = await dataProvider.getProfile(user.id);
+    await this.clearAutoRestoreBlock();
     return {
       success: true,
       session,
@@ -112,6 +128,7 @@ export class AuthService {
       }
 
       const profile = await this.ensureProfile(user.id, email);
+      await this.clearAutoRestoreBlock();
       await this.saveSession(session);
       return { success: true, session, user, profile };
     } catch (error) {
@@ -128,6 +145,7 @@ export class AuthService {
       if (!user) return { success: false, error: 'No user returned' };
       const rawProfile = (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, email));
       const profile = this.attachEmail(rawProfile, user.email);
+      await this.clearAutoRestoreBlock();
       await this.saveSession(session);
       return { success: true, session, user, profile };
     } catch (error) {
@@ -140,8 +158,9 @@ export class AuthService {
 
   static async signOut(): Promise<AuthResponse> {
     try {
-      await dataProvider.signOut();
-      await this.clearSavedSession();
+      // Soft sign-out: on ne révoque pas la session côté Supabase pour conserver
+      // le refresh token et permettre une reconnexion biométrique.
+      await this.blockAutoRestore();
       return { success: true };
     } catch (error) {
       return {

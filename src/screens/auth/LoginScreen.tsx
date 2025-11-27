@@ -10,7 +10,6 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -18,11 +17,12 @@ import { AuthService } from '@/services/auth.service';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [hasSavedSession, setHasSavedSession] = useState<boolean>(false);
+  const [showForm, setShowForm] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
 
   const validate = () => {
@@ -44,7 +44,30 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleBiometric = async (): Promise<boolean> => {
+    setBiometricLoading(true);
+    const res = await AuthService.restoreSessionWithBiometrics();
+    setBiometricLoading(false);
+    if (!res.success) {
+      setHasSavedSession(false);
+      return false;
+    }
+    setShowForm(false);
+    router.replace('/(tabs)');
+    return true;
+  };
+
   const handleLogin = async () => {
+    // Premier clic : tenter biométrie si session sauvegardée, sinon afficher le formulaire
+    if (!showForm) {
+      if (hasSavedSession) {
+        const success = await handleBiometric();
+        if (success) return;
+      }
+      setShowForm(true);
+      return;
+    }
+
     if (!validate()) return;
 
     const response = await signIn(email, password);
@@ -59,24 +82,20 @@ export default function LoginScreen() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const hasSaved = await AuthService.hasSavedSession();
-      if (mounted) setBiometricAvailable(hasSaved);
+      const saved = await AuthService.hasSavedSession();
+      if (!mounted) return;
+      setHasSavedSession(saved);
     })();
     return () => {
       mounted = false;
     };
   }, []);
 
-  const handleBiometric = async () => {
-    setBiometricLoading(true);
-    const res = await AuthService.restoreSessionWithBiometrics();
-    setBiometricLoading(false);
-    if (!res.success) {
-      Alert.alert('Authentification', res.error || 'Impossible de déverrouiller.');
-      return;
+  useEffect(() => {
+    if (session) {
+      router.replace('/(tabs)');
     }
-    router.replace('/(tabs)');
-  };
+  }, [session, router]);
 
   return (
     <KeyboardAvoidingView
@@ -88,59 +107,61 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={colors.neutral[700]} />
-            <Text style={styles.backText}>Retour</Text>
-          </TouchableOpacity>
           <Text style={styles.title}>Bienvenue</Text>
-          <Text style={styles.subtitle}>Connectez-vous pour découvrir les moments locaux</Text>
+          <Text style={styles.subtitle}>Accédez à vos moments en toute sécurité</Text>
         </View>
 
         <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="votre@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            error={errors.email}
-          />
+          {showForm ? (
+            <>
+              <Input
+                label="Email"
+                placeholder="votre@email.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                error={errors.email}
+              />
 
-          <Input
-            label="Mot de passe"
-            placeholder="••••••••"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-            error={errors.password}
-          />
+              <Input
+                label="Mot de passe"
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+                error={errors.password}
+              />
+            </>
+          ) : null}
 
           <Button
             title="Se connecter"
             onPress={handleLogin}
-            loading={isLoading}
+            loading={isLoading || biometricLoading}
             fullWidth
             style={styles.loginButton}
           />
-          {biometricAvailable && (
-            <Button
-              title="Déverrouiller avec Face ID / Touch ID"
-              onPress={handleBiometric}
-              loading={biometricLoading}
-              variant="outline"
-              fullWidth
-            />
-          )}
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Pas encore de compte ? </Text>
-            <TouchableOpacity onPress={() => router.push('/auth/register')}>
-              <Text style={styles.link}>S&apos;inscrire</Text>
+          {!showForm && (
+            <TouchableOpacity
+              onPress={() => {
+                setShowForm(true);
+                setHasSavedSession(false);
+              }}
+            >
+              <Text style={styles.altLink}>Se connecter avec un autre compte</Text>
             </TouchableOpacity>
-          </View>
+          )}
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Pas encore de compte ? </Text>
+          <TouchableOpacity onPress={() => router.push('/auth/register')}>
+            <Text style={styles.link}>S&apos;inscrire</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -171,9 +192,16 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+    gap: spacing.sm,
   },
   loginButton: {
     marginTop: spacing.md,
+  },
+  altLink: {
+    ...typography.bodySmall,
+    color: colors.primary[600],
+    fontWeight: '600',
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',

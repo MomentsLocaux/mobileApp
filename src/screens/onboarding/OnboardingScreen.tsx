@@ -33,6 +33,7 @@ export default function OnboardingScreen() {
   const [city, setCity] = useState(profile?.city || '');
   const [region, setRegion] = useState(profile?.region || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const totalSteps = 3;
@@ -40,6 +41,46 @@ export default function OnboardingScreen() {
     (step === 1 && !!displayName.trim()) ||
     (step === 2 && !!city.trim() && !!region.trim()) ||
     step === 3;
+
+  const geocodeLocation = async () => {
+    setError(null);
+    const query = [city, region].filter(Boolean).join(' ');
+    if (!query.trim()) return false;
+
+    setLocationLoading(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=fr&q=${encodeURIComponent(
+          query,
+        )}`,
+        {
+          headers: { 'User-Agent': 'LumoApp/1.0' },
+        },
+      );
+
+      if (!response.ok) {
+        setError('Impossible de valider cette localisation.');
+        return false;
+      }
+
+      const results = await response.json();
+      const first = Array.isArray(results) ? results[0] : null;
+      if (!first || !first.address) {
+        setError('Ville ou région introuvable en France.');
+        return false;
+      }
+
+      const addr = first.address;
+      setCity(addr.city || addr.town || addr.village || city);
+      setRegion(addr.state || addr.county || region);
+      return true;
+    } catch (err) {
+      setError('Impossible de géocoder cette localisation.');
+      return false;
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   const handleComplete = async () => {
     if (!profile || !user) return;
@@ -179,7 +220,7 @@ export default function OnboardingScreen() {
       <View style={styles.buttonGroup}>
         {step > 1 && (
           <Button
-            title="Précédent"
+            title="Retour"
             onPress={() => setStep((prev) => Math.max(1, prev - 1))}
             variant="outline"
             style={styles.buttonHalf}
@@ -187,17 +228,21 @@ export default function OnboardingScreen() {
           />
         )}
         <Button
-          title={step === totalSteps ? "C'est parti !" : 'Continuer'}
-          onPress={() => {
+          title={step === totalSteps ? 'Valider' : 'Continuer'}
+          onPress={async () => {
+            if (step === 2) {
+              const ok = await geocodeLocation();
+              if (!ok) return;
+            }
             if (step < totalSteps) {
               setStep((prev) => prev + 1);
             } else {
               handleComplete();
             }
           }}
-          loading={isLoading}
+          loading={isLoading || locationLoading}
           style={step > 1 ? styles.buttonHalf : undefined}
-          disabled={!canContinue || isLoading}
+          disabled={!canContinue || isLoading || locationLoading}
         />
       </View>
     </ScrollView>
