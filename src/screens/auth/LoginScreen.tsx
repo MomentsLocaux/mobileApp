@@ -53,7 +53,7 @@ export default function LoginScreen() {
       return false;
     }
     setShowForm(false);
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/map');
     return true;
   };
 
@@ -76,7 +76,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/map');
   };
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (session) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/map');
     }
   }, [session, router]);
 
