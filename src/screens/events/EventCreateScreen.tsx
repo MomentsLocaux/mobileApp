@@ -15,8 +15,8 @@ import { Button, Input } from '../../components/ui';
 import {
   LocationPicker,
   SchedulePlanner,
-  MediaUploader,
 } from '../../components/events';
+import { ImageSelector } from '../../components/ImageSelector';
 import { EventsService } from '../../services/events.service';
 import { GeocodingService } from '../../services/geocoding.service';
 import { useAuth } from '../../hooks';
@@ -501,13 +501,13 @@ export default function EventCreateScreen() {
 
         {currentStep === 3 && (
           <View style={styles.step}>
-            <MediaUploader
-              coverUrl={formData.coverUrl}
-              gallery={formData.gallery}
-              onCoverChange={(url) => updateFormData({ coverUrl: url })}
-              onGalleryChange={(urls) => updateFormData({ gallery: urls })}
-              error={errors.coverUrl}
+            <ImageSelector
+              label="Photo de couverture"
+              value={formData.coverUrl}
+              required
+              onChange={(uri) => updateFormData({ coverUrl: uri || '' })}
             />
+            {errors.coverUrl && <Text style={styles.error}>{errors.coverUrl}</Text>}
           </View>
         )}
 

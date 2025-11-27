@@ -1,0 +1,92 @@
+import { useCallback, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+
+export type ImageAsset = {
+  uri: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+};
+
+interface UseImagePickerResult {
+  selectedImage: ImageAsset | null;
+  pickImage: () => Promise<ImageAsset | null>;
+  takePhoto: () => Promise<ImageAsset | null>;
+  clearImage: () => void;
+}
+
+const buildAsset = (asset: ImagePicker.ImagePickerAsset): ImageAsset => ({
+  uri: asset.uri,
+  width: asset.width,
+  height: asset.height,
+  mimeType: asset.mimeType,
+});
+
+export const useImagePicker = (): UseImagePickerResult => {
+  const [selectedImage, setSelectedImage] = useState<ImageAsset | null>(null);
+
+  const requestPermission = async (type: 'camera' | 'library') => {
+    try {
+      const { status } =
+        type === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      return status === 'granted';
+    } catch (err) {
+      console.warn('Permission error', err);
+      return false;
+    }
+  };
+
+  const pickImage = useCallback(async () => {
+    const ok = await requestPermission('library');
+    if (!ok) {
+      console.warn('Permission to access gallery denied');
+      return null;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.length) return null;
+      const asset = buildAsset(result.assets[0]);
+      setSelectedImage(asset);
+      return asset;
+    } catch (err) {
+      console.warn('pickImage error', err);
+      return null;
+    }
+  }, []);
+
+  const takePhoto = useCallback(async () => {
+    const ok = await requestPermission('camera');
+    if (!ok) {
+      console.warn('Permission to access camera denied');
+      return null;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.length) return null;
+      const asset = buildAsset(result.assets[0]);
+      setSelectedImage(asset);
+      return asset;
+    } catch (err) {
+      console.warn('takePhoto error', err);
+      return null;
+    }
+  }, []);
+
+  const clearImage = useCallback(() => setSelectedImage(null), []);
+
+  return { selectedImage, pickImage, takePhoto, clearImage };
+};
+

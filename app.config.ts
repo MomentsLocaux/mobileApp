@@ -24,10 +24,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Lumo utilise votre photothèque pour sélectionner des images pour vos événements.',
       NSPhotoLibraryAddUsageDescription:
         'Lumo peut enregistrer des images dans votre photothèque si vous le demandez.',
+      NSCameraUsageDescription:
+        'Lumo a besoin d’accéder à votre caméra pour prendre des photos.',
     },
   },
   android: {
     package: 'com.momentslocs.app',
+    permissions: [
+      'android.permission.CAMERA',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+    ],
   },
   web: {
     bundler: 'metro',
