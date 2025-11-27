@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
+import { AuthService } from '@/services/auth.service';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -50,6 +53,28 @@ export default function LoginScreen() {
       return;
     }
 
+    router.replace('/(tabs)');
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const hasSaved = await AuthService.hasSavedSession();
+      if (mounted) setBiometricAvailable(hasSaved);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleBiometric = async () => {
+    setBiometricLoading(true);
+    const res = await AuthService.restoreSessionWithBiometrics();
+    setBiometricLoading(false);
+    if (!res.success) {
+      Alert.alert('Authentification', res.error || 'Impossible de déverrouiller.');
+      return;
+    }
     router.replace('/(tabs)');
   };
 
@@ -100,6 +125,15 @@ export default function LoginScreen() {
             fullWidth
             style={styles.loginButton}
           />
+          {biometricAvailable && (
+            <Button
+              title="Déverrouiller avec Face ID / Touch ID"
+              onPress={handleBiometric}
+              loading={biometricLoading}
+              variant="outline"
+              fullWidth
+            />
+          )}
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Pas encore de compte ? </Text>

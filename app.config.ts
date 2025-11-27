@@ -19,6 +19,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.momentslocs.app',
+    infoPlist: {
+      NSPhotoLibraryUsageDescription:
+        'Lumo utilise votre photothèque pour sélectionner des images pour vos événements.',
+      NSPhotoLibraryAddUsageDescription:
+        'Lumo peut enregistrer des images dans votre photothèque si vous le demandez.',
+    },
   },
   android: {
     package: 'com.momentslocs.app',

@@ -23,6 +23,7 @@ import {
   Edit,
   Trash2,
   Image as ImageIcon,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { Button, Card } from '../../components/ui';
 import { EventsService } from '../../services/events.service';
@@ -181,6 +182,13 @@ export default function EventDetailScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ChevronLeft size={20} color={colors.neutral[700]} />
+          <Text style={styles.backText}>Retour</Text>
+        </TouchableOpacity>
+      </View>
+
       {event.cover_url ? (
         <Image source={{ uri: event.cover_url }} style={styles.coverImage} />
       ) : (
@@ -370,6 +378,21 @@ const styles = StyleSheet.create({
   errorText: {
     ...typography.body,
     color: colors.error[500],
+  },
+  header: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  backText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
   },
   coverImage: {
     width: width,
