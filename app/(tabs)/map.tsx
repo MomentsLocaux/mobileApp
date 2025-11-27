@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { MapPin } from 'lucide-react-native';
 import { FilterTray, QuickPreview, ClusterPreview, MapWrapper } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
-import { useAuth } from '../../src/hooks';
+import { useAuth, useLocation } from '../../src/hooks';
 import { useLocationStore, useFilterStore } from '../../src/store';
 import { filterEvents } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
@@ -24,6 +24,8 @@ const PARIS_COORDS = { latitude: 48.8566, longitude: 2.3522 };
 export default function MapScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  // Trigger location permission + retrieval once the map tab mounts
+  useLocation();
   const { currentLocation } = useLocationStore();
   const { filters, focusedIds, setFilters, setFocusedIds, resetFilters, getActiveFilterCount } = useFilterStore();
 

@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Upload, User as UserIcon } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
@@ -63,8 +64,40 @@ export default function ProfileEditScreen() {
   const handleAvatarUpload = async () => {
     if (Platform.OS === 'web') {
       fileInputRef.current?.click();
+      return;
+    }
+
+    if (!user) return;
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Autorisation requise', 'Veuillez autoriser l’accès à vos photos pour changer l’avatar.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    if (!asset.uri) return;
+
+    setUploadingAvatar(true);
+    const uploadedUrl = await ProfileService.uploadAvatar(user.id, asset.uri);
+    setUploadingAvatar(false);
+
+    if (uploadedUrl) {
+      setAvatarUri(uploadedUrl);
+      Alert.alert('Succès', 'Avatar uploadé');
     } else {
-      Alert.alert('Info', 'Upload d\'avatar disponible uniquement sur web pour le moment');
+      Alert.alert('Erreur', 'Impossible d\'uploader l\'avatar');
     }
   };
 
