@@ -13,6 +13,8 @@ import { FilterTray, QuickPreview, ClusterPreview, MapWrapper } from '../../src/
 import { EventsService } from '../../src/services/events.service';
 import { useAuth, useLocation } from '../../src/hooks';
 import { useLocationStore, useFilterStore } from '../../src/store';
+import { useSelectedEvent } from '../../src/hooks/useSelectedEvent';
+import { EventPreviewSheet } from '../../src/components/EventPreviewSheet';
 import { filterEvents } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
@@ -27,11 +29,11 @@ export default function MapScreen() {
   // Trigger location permission + retrieval once the map tab mounts
   useLocation();
   const { currentLocation } = useLocationStore();
+  const { selectedEvent, setSelectedEvent } = useSelectedEvent();
   const { filters, focusedIds, setFilters, setFocusedIds, resetFilters, getActiveFilterCount } = useFilterStore();
 
   const [allEvents, setAllEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<EventWithCreator | null>(null);
   const [clusterEvents, setClusterEvents] = useState<EventWithCreator[] | null>(null);
   const [zoom, setZoom] = useState(12);
 
@@ -168,15 +170,7 @@ export default function MapScreen() {
         />
       </View>
 
-      {selectedEvent && (
-        <View style={styles.bottomOverlay}>
-          <QuickPreview
-            event={selectedEvent}
-            onClose={() => setSelectedEvent(null)}
-            onViewDetails={handleViewDetails}
-          />
-        </View>
-      )}
+      <EventPreviewSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} />
 
       {clusterEvents && clusterEvents.length > 0 && (
         <View style={styles.bottomOverlay}>

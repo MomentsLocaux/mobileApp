@@ -71,11 +71,12 @@ export function MapWrapper({
         <Mapbox.UserLocation visible={true} />
 
         {events.map((event) => (
-          <Mapbox.PointAnnotation
+          <Mapbox.MarkerView
             key={event.id}
-            id={event.id}
             coordinate={[event.longitude, event.latitude]}
-            onSelected={() => onMarkerPress(event)}
+            anchor={{ x: 0.5, y: 0.5 }}
+            allowOverlap
+            onPress={() => onMarkerPress(event)}
           >
             <View
               style={[
@@ -85,7 +86,7 @@ export function MapWrapper({
             >
               <MapPin size={20} color={colors.neutral[0]} />
             </View>
-          </Mapbox.PointAnnotation>
+          </Mapbox.MarkerView>
         ))}
         {children}
       </Mapbox.MapView>

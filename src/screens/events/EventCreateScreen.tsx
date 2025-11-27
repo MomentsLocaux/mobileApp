@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,11 +17,14 @@ import {
   SchedulePlanner,
   MediaUploader,
 } from '../../components/events';
+import { AddressAutocompleteInput } from '../../components/AddressAutocompleteInput';
 import { EventsService } from '../../services/events.service';
 import { GeocodingService } from '../../services/geocoding.service';
-import { useAuth } from '../../hooks';
+import { useAuth, useLocation } from '../../hooks';
+import { useLocationStore } from '../../store';
 import { CATEGORIES } from '../../constants/categories';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import * as Clipboard from 'expo-clipboard';
 import type {
   EventFormData,
   EventFormErrors,
@@ -29,6 +32,7 @@ import type {
   ScheduleMode,
 } from '../../types/event-form';
 import type { EventCategory, EventVisibility } from '../../types/database';
+import type { MapboxFeature } from '../../types/mapbox';
 
 const STEPS = [
   { id: 0, title: 'Détails', subtitle: 'Informations de base' },
@@ -43,6 +47,10 @@ const PARIS_COORDS = { latitude: 48.8566, longitude: 2.3522 };
 export default function EventCreateScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const locationInitRef = useRef(false);
+  // trigger location permission + fetch current position
+  useLocation();
+  const { currentLocation } = useLocationStore();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -85,10 +93,65 @@ export default function EventCreateScreen() {
     isLocked: false,
     savedLocation: null,
   });
+  const [addressInput, setAddressInput] = useState('');
+  const [selectedLocationData, setSelectedLocationData] = useState<{
+    latitude: number;
+    longitude: number;
+    formatted: string;
+    raw: MapboxFeature;
+  } | null>(null);
+  const [showGpsData, setShowGpsData] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
   const [errors, setErrors] = useState<EventFormErrors>({});
+
+  useEffect(() => {
+    if (!currentLocation || locationInitRef.current) return;
+    const { latitude, longitude } = currentLocation.coords;
+    setFormData((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+    }));
+    setLocation((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+    }));
+    locationInitRef.current = true;
+  }, [currentLocation]);
+
+  useEffect(() => {
+    if (!selectedLocationData) return;
+    const { latitude, longitude, raw } = selectedLocationData;
+
+    const city =
+      raw.context?.find((c) => c.id.startsWith('place'))?.text ||
+      raw.context?.find((c) => c.id.startsWith('locality'))?.text ||
+      '';
+    const postalCode = raw.context?.find((c) => c.id.startsWith('postcode'))?.text || '';
+    const streetName = raw.text || '';
+
+    setFormData((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+      address: {
+        ...prev.address,
+        streetName,
+        city,
+        postalCode,
+      },
+    }));
+    setLocation((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+      isLocked: true,
+      savedLocation: { latitude, longitude },
+    }));
+  }, [selectedLocationData]);
 
   const validateStep = (step: number): boolean => {
     const newErrors: EventFormErrors = {};
@@ -192,6 +255,8 @@ export default function EventCreateScreen() {
               isLocked: false,
               savedLocation: null,
             });
+            setAddressInput('');
+            setSelectedLocationData(null);
             setErrors({});
             router.back();
           },
@@ -477,12 +542,27 @@ export default function EventCreateScreen() {
 
         {currentStep === 2 && (
           <View style={styles.step}>
+            <Text style={styles.inputLabel}>Adresse</Text>
+            <AddressAutocompleteInput
+              value={addressInput}
+              onChangeText={setAddressInput}
+              onSelect={(item) => {
+                setAddressInput(item.place_name);
+                setSelectedLocationData({
+                  latitude: item.center[1],
+                  longitude: item.center[0],
+                  formatted: item.place_name,
+                  raw: item,
+                });
+              }}
+            />
             <LocationPicker
               location={location}
               address={formData.address}
-              onLocationChange={(lat, lon) =>
-                setLocation((prev) => ({ ...prev, latitude: lat, longitude: lon }))
-              }
+              onLocationChange={(lat, lon) => {
+                setLocation((prev) => ({ ...prev, latitude: lat, longitude: lon }));
+                updateFormData({ latitude: lat, longitude: lon });
+              }}
               onAddressChange={(addr) => updateFormData({ address: addr })}
               onLockChange={(locked) =>
                 setLocation((prev) => ({ ...prev, isLocked: locked }))
@@ -494,6 +574,33 @@ export default function EventCreateScreen() {
                 }))
               }
             />
+            <TouchableOpacity
+              style={styles.gpsToggle}
+              onPress={() => setShowGpsData((prev) => !prev)}
+            >
+              <Text style={styles.gpsToggleText}>
+                {showGpsData ? 'Masquer les données GPS' : 'Afficher les données GPS'}
+              </Text>
+            </TouchableOpacity>
+            {showGpsData && (
+              <View style={styles.gpsBox}>
+                <Text style={styles.infoLabel}>Latitude</Text>
+                <Text style={styles.infoValue}>{location.latitude.toFixed(6)}</Text>
+                <Text style={[styles.infoLabel, { marginTop: spacing.xs }]}>Longitude</Text>
+                <Text style={styles.infoValue}>{location.longitude.toFixed(6)}</Text>
+                <TouchableOpacity
+                  style={styles.copyBtn}
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(
+                      `lat:${location.latitude}, lon:${location.longitude}`
+                    );
+                    Alert.alert('Copié', 'Coordonnées copiées dans le presse-papier');
+                  }}
+                >
+                  <Text style={styles.copyBtnText}>Copier</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {errors.location && <Text style={styles.error}>{errors.location}</Text>}
             {errors.address && <Text style={styles.error}>{errors.address}</Text>}
           </View>
@@ -843,6 +950,31 @@ const styles = StyleSheet.create({
   visibilityButtonTextActive: {
     color: colors.primary[700],
     fontWeight: '600',
+  },
+  gpsToggle: {
+    paddingVertical: spacing.sm,
+  },
+  gpsToggleText: {
+    ...typography.body,
+    color: colors.primary[600],
+  },
+  gpsBox: {
+    padding: spacing.md,
+    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  copyBtn: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primary[600],
+    borderRadius: borderRadius.sm,
+  },
+  copyBtnText: {
+    ...typography.bodySmall,
+    color: colors.neutral[0],
   },
   error: {
     ...typography.bodySmall,
