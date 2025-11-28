@@ -308,6 +308,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E84141',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
   },
 });
