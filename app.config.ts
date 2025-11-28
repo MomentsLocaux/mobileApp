@@ -32,8 +32,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.momentslocs.app',
     permissions: [
       'android.permission.CAMERA',
+      // Android 13+ requires READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE
+      'android.permission.READ_MEDIA_IMAGES',
+      // Backward compatibility for SDK < 33
       'android.permission.READ_EXTERNAL_STORAGE',
-      'android.permission.WRITE_EXTERNAL_STORAGE',
     ],
   },
   web: {

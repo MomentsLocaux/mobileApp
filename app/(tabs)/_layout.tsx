@@ -52,6 +52,9 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.neutral[50],
             borderTopColor: colors.neutral[200],
+            height: 76,
+            paddingBottom: 8,
+            paddingTop: 8,
           },
           headerRight: () => (
             <TouchableOpacity
@@ -81,6 +84,21 @@ export default function TabsLayout() {
           options={{
             title: 'Carte',
             tabBarIcon: ({ size, color }) => <Map size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="create"
+          options={{
+            title: '',
+            tabBarButton: () => (
+              <TouchableOpacity
+                style={styles.createButton}
+                activeOpacity={0.85}
+                onPress={() => router.push('/events/create' as any)}
+              >
+                <PlusCircle size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            ),
           }}
         />
         <Tabs.Screen
@@ -282,5 +300,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.neutral[900],
     fontWeight: '600',
+  },
+  createButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E84141',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
 });
