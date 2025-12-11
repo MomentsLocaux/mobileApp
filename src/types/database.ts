@@ -127,6 +127,13 @@ export interface Event {
   recurrence_rule: string | null;
   latitude: number;
   longitude: number;
+  location?:
+    | {
+        type: string;
+        coordinates: [number, number]; // [lon, lat]
+      }
+    | string
+    | null;
   address: string;
   city: string | null;
   postal_code: string | null;

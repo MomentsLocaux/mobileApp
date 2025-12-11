@@ -70,23 +70,24 @@ export function MapWrapper({
 
         <Mapbox.UserLocation visible={true} />
 
-        {events.map((event) => (
-          <Mapbox.PointAnnotation
-            key={event.id}
-            id={event.id}
-            coordinate={[event.longitude, event.latitude]}
-            onSelected={() => onMarkerPress(event)}
-          >
-            <View
-              style={[
-                styles.marker,
-                { backgroundColor: getMarkerColor(event) },
-              ]}
-            >
-              <MapPin size={20} color={colors.neutral[0]} />
-            </View>
-          </Mapbox.PointAnnotation>
-        ))}
+        {events.map((event) => {
+          // 1. Extraction des coordonnées
+          const coords =
+            Array.isArray(event?.location?.coordinates)
+              ? event.location.coordinates // format GEOGRAPHY(Point,4326)
+              : [event.longitude, event.latitude]; // fallback si ancienne structure
+
+          if (!coords || coords.length !== 2) return null;
+
+          return (
+            <Mapbox.PointAnnotation
+              key={event.id}
+              id={String(event.id)}
+              coordinate={[coords[0], coords[1]]}
+              onSelected={() => onMarkerPress(event)}
+            />
+          );
+        })}
         {children}
       </Mapbox.MapView>
     </View>

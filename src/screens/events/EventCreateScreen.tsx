@@ -224,6 +224,11 @@ export default function EventCreateScreen() {
             }, {} as Record<string, { opens: string; closes: string }>)
           : null;
 
+      const locationGeography =
+        typeof location.longitude === 'number' && typeof location.latitude === 'number'
+          ? `SRID=4326;POINT(${location.longitude} ${location.latitude})`
+          : null;
+
       const event = await EventsService.createEvent({
         creator_id: profile.id,
         title: formData.title,
@@ -236,6 +241,7 @@ export default function EventCreateScreen() {
         recurrence_rule: null,
         latitude: location.latitude,
         longitude: location.longitude,
+        location: locationGeography,
         address: GeocodingService.formatAddress(formData.address),
         city: formData.address.city,
         postal_code: formData.address.postalCode,

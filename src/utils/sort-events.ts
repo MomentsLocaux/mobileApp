@@ -27,6 +27,19 @@ export function sortEvents(
 ): EventWithCreator[] {
   const sorted = [...events];
 
+  const extractCoords = (event: EventWithCreator) => {
+    if (Array.isArray((event as any)?.location?.coordinates)) {
+      const [lon, lat] = (event as any).location.coordinates as [number, number];
+      return { lat, lon };
+    }
+
+    if (typeof event.latitude === 'number' && typeof event.longitude === 'number') {
+      return { lat: event.latitude, lon: event.longitude };
+    }
+
+    return null;
+  };
+
   switch (sortBy) {
     case 'distance':
       if (!userLocation) {
@@ -34,17 +47,24 @@ export function sortEvents(
         return sorted;
       }
       sorted.sort((a, b) => {
+        const aCoords = extractCoords(a);
+        const bCoords = extractCoords(b);
+
+        if (!aCoords && !bCoords) return 0;
+        if (!aCoords) return 1;
+        if (!bCoords) return -1;
+
         const distA = calculateDistance(
           userLocation.latitude,
           userLocation.longitude,
-          a.latitude,
-          a.longitude
+          aCoords.lat,
+          aCoords.lon
         );
         const distB = calculateDistance(
           userLocation.latitude,
           userLocation.longitude,
-          b.latitude,
-          b.longitude
+          bCoords.lat,
+          bCoords.lon
         );
         return distA - distB;
       });
