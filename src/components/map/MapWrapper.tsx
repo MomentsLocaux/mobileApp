@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapPin } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
-import { colors, borderRadius } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
+import type { Feature, FeatureCollection } from 'geojson';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
@@ -27,11 +28,16 @@ export function MapWrapper({
   events,
   initialRegion,
   onMarkerPress,
+  onClusterPress,
   zoom,
   onZoomChange,
   children,
 }: MapWrapperProps) {
   const isMapboxAvailable = !!Mapbox.MapView;
+  const shapeSourceRef = useRef<Mapbox.ShapeSource>(null);
+  const cameraRef = useRef<Mapbox.Camera>(null);
+
+  console.log('[MapWrapper] initialRegion=', initialRegion, 'events=', events.length);
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
     return (
@@ -45,10 +51,82 @@ export function MapWrapper({
     );
   }
 
-  const getMarkerColor = (event: EventWithCreator) => {
-    if (event.interests_count > 50) return colors.error[500];
-    if (event.interests_count > 20) return colors.warning[500];
-    return colors.primary[600];
+  const featureCollection = useMemo<FeatureCollection>(() => {
+    const features: Feature[] = events
+      .map((event) => {
+        const coords =
+          Array.isArray(event?.location?.coordinates) && event.location.coordinates.length === 2
+            ? event.location.coordinates
+            : [event.longitude, event.latitude];
+
+        if (!coords || coords.some((c) => typeof c !== 'number')) return null;
+
+        console.log('[MapWrapper] render event marker', event.id, 'coords=', coords);
+        return {
+          type: 'Feature',
+          id: String(event.id),
+          properties: {
+            id: event.id,
+            interests_count: event.interests_count ?? 0,
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: [coords[0], coords[1]],
+          },
+        } as Feature;
+      })
+      .filter(Boolean) as Feature[];
+
+    return { type: 'FeatureCollection', features };
+  }, [events]);
+
+  const iconColorExpression = [
+    'step',
+    ['get', 'interests_count'],
+    colors.primary[600],
+    20,
+    colors.warning[500],
+    50,
+    colors.error[500],
+  ];
+
+  const handlePress = async (event: Mapbox.OnPressEvent) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
+
+    const isCluster = feature.properties?.cluster;
+    const coords = (feature.geometry as any)?.coordinates;
+
+    if (isCluster && shapeSourceRef.current && coords) {
+      const targetZoom = Math.min(16, (zoom ?? initialRegion.zoom ?? 12) + 2);
+      cameraRef.current?.setCamera({
+        centerCoordinate: coords,
+        zoomLevel: targetZoom,
+        animationDuration: 300,
+      });
+      if (onClusterPress) {
+        try {
+          const leaves: any = await shapeSourceRef.current.getClusterLeaves(feature.properties.cluster_id, 200, 0);
+          const idsInCluster = (leaves ?? [])
+            .map((f: any) => f?.properties?.id)
+            .filter(Boolean);
+          const clusterEvents = events.filter((e) => idsInCluster.includes(e.id));
+          onClusterPress(clusterEvents.length ? clusterEvents : events);
+        } catch (e) {
+          console.warn('Cluster leaves error', e);
+          onClusterPress(events);
+        }
+      }
+      return;
+    }
+
+    const eventId = feature.properties?.id;
+    if (eventId) {
+      const selected = events.find((e) => e.id === eventId);
+      if (selected) {
+        onMarkerPress(selected);
+      }
+    }
   };
 
   return (
@@ -64,30 +142,55 @@ export function MapWrapper({
         }}
       >
         <Mapbox.Camera
+          ref={cameraRef}
           zoomLevel={zoom ?? initialRegion.zoom}
           centerCoordinate={[initialRegion.longitude, initialRegion.latitude]}
         />
 
         <Mapbox.UserLocation visible={true} />
 
-        {events.map((event) => {
-          // 1. Extraction des coordonnées
-          const coords =
-            Array.isArray(event?.location?.coordinates)
-              ? event.location.coordinates // format GEOGRAPHY(Point,4326)
-              : [event.longitude, event.latitude]; // fallback si ancienne structure
+        <Mapbox.ShapeSource
+          id="events-source"
+          ref={shapeSourceRef}
+          shape={featureCollection}
+          cluster
+          clusterRadius={50}
+          clusterMaxZoom={14}
+          onPress={handlePress}
+        >
+          <Mapbox.CircleLayer
+            id="clusters"
+            filter={['has', 'point_count']}
+            style={{
+              circleColor: ['step', ['get', 'point_count'], '#51bbd6', 10, '#f1f075', 30, '#f28cb1'],
+              circleRadius: ['step', ['get', 'point_count'], 15, 10, 20, 30, 25],
+              circleOpacity: 0.9,
+            }}
+          />
 
-          if (!coords || coords.length !== 2) return null;
+          <Mapbox.SymbolLayer
+            id="cluster-count"
+            filter={['has', 'point_count']}
+            style={{
+              textField: ['get', 'point_count_abbreviated'],
+              textSize: 12,
+              textColor: '#000',
+              textFont: ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+            }}
+          />
 
-          return (
-            <Mapbox.PointAnnotation
-              key={event.id}
-              id={String(event.id)}
-              coordinate={[coords[0], coords[1]]}
-              onSelected={() => onMarkerPress(event)}
-            />
-          );
-        })}
+          <Mapbox.SymbolLayer
+            id="event-pins"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              iconImage: 'marker-15',
+              iconSize: 1.2,
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+              iconColor: iconColorExpression,
+            }}
+          />
+        </Mapbox.ShapeSource>
         {children}
       </Mapbox.MapView>
     </View>
@@ -100,20 +203,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  marker: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
   unavailableContainer: {
     flex: 1,

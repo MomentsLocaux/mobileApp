@@ -22,6 +22,7 @@ export const useLocation = () => {
     setLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('[useLocation] permission status =', status);
       setPermissionGranted(status === 'granted');
 
       if (status === 'granted') {
@@ -42,6 +43,11 @@ export const useLocation = () => {
     try {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
+      });
+      console.log('[useLocation] current position =', {
+        lat: location.coords.latitude,
+        lon: location.coords.longitude,
+        accuracy: location.coords.accuracy,
       });
       setCurrentLocation(location);
       return location;

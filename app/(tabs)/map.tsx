@@ -19,7 +19,8 @@ import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import type { EventWithCreator } from '../../src/types/database';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
-const PARIS_COORDS = { latitude: 48.8566, longitude: 2.3522 };
+const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
+const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 
 export default function MapScreen() {
   const router = useRouter();
@@ -37,17 +38,21 @@ export default function MapScreen() {
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
-    return {
-      latitude: currentLocation.coords.latitude,
-      longitude: currentLocation.coords.longitude,
-    };
+    const { latitude, longitude } = currentLocation.coords;
+    const isSimulatorDefault =
+      Math.abs(latitude - SIM_FALLBACK_COORDS.latitude) < 1e-6 &&
+      Math.abs(longitude - SIM_FALLBACK_COORDS.longitude) < 1e-6;
+    if (isSimulatorDefault) return null;
+    return { latitude, longitude };
   }, [currentLocation]);
 
   const mapCenter = {
-    latitude: currentLocation?.coords.latitude || PARIS_COORDS.latitude,
-    longitude: currentLocation?.coords.longitude || PARIS_COORDS.longitude,
+    latitude: userLocation?.latitude ?? FONTOY_COORDS.latitude,
+    longitude: userLocation?.longitude ?? FONTOY_COORDS.longitude,
     zoom: 12,
   };
+
+  console.log('[MapScreen] mapCenter =', mapCenter, 'userLocation =', userLocation);
 
   const loadEvents = useCallback(async () => {
     try {
