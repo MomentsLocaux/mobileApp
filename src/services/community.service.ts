@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import type { CommunityMember, LeaderboardEntry } from '@/types/community';
+import type { EventWithCreator } from '@/types/database';
 
 export const CommunityService = {
   async listMembers(options: {
@@ -93,6 +94,48 @@ export const CommunityService = {
     return (data as LeaderboardEntry | null) ?? null;
   },
 
+  async listCreatorEvents(options: {
+    creatorId: string;
+    dateFilter?: 'all' | 'upcoming' | 'past';
+    visibility?: 'public' | 'prive' | 'all';
+  }): Promise<EventWithCreator[]> {
+    const { creatorId, dateFilter = 'all', visibility = 'all' } = options;
+    let query = supabase
+      .from('events')
+      .select(
+        `
+        id, title, description, address, city, latitude, longitude, starts_at, ends_at, cover_url, category, visibility, is_free,
+        event_media ( id, url, position, type, created_at ),
+        profiles!events_creator_id_fkey ( id, display_name, avatar_url )
+      `
+      )
+      .eq('creator_id', creatorId)
+      .order('starts_at', { ascending: false });
+
+    const nowIso = new Date().toISOString();
+    if (dateFilter === 'upcoming') {
+      query = query.gte('starts_at', nowIso);
+    } else if (dateFilter === 'past') {
+      query = query.lt('starts_at', nowIso);
+    }
+    if (visibility !== 'all') {
+      query = query.eq('visibility', visibility);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      ...row,
+      media: row.event_media || [],
+      creator: row.profiles ? { ...row.profiles } : { id: creatorId, display_name: '', avatar_url: null },
+      likes_count: 0,
+      comments_count: 0,
+      checkins_count: 0,
+      interests_count: 0,
+    })) as EventWithCreator[];
+  },
+
   async follow(userId: string) {
     const currentUser = (await supabase.auth.getUser()).data.user?.id;
     if (!currentUser) throw new Error('Not authenticated');
@@ -105,5 +148,18 @@ export const CommunityService = {
     if (!currentUser) throw new Error('Not authenticated');
     const { error } = await supabase.from('follows').delete().match({ follower: currentUser, following: userId });
     if (error) throw error;
+  },
+
+  async isFollowing(userId: string): Promise<boolean> {
+    const currentUser = (await supabase.auth.getUser()).data.user?.id;
+    if (!currentUser) return false;
+    const { data, error } = await supabase
+      .from('follows')
+      .select('follower, following')
+      .eq('follower', currentUser)
+      .eq('following', userId)
+      .limit(1);
+    if (error) throw error;
+    return !!data && data.length > 0;
   },
 };

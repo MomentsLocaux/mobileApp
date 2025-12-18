@@ -204,12 +204,16 @@ export default function EventDetailScreen() {
 
         <Text style={styles.title}>{event.title}</Text>
 
-        <View style={styles.creatorRow}>
+        <TouchableOpacity
+          style={styles.creatorRow}
+          activeOpacity={0.7}
+          onPress={() => router.push(`/community/${event.creator.id}`)}
+        >
           {event.creator.avatar_url && (
             <Image source={{ uri: event.creator.avatar_url }} style={styles.avatar} />
           )}
           <Text style={styles.creatorName}>Par {event.creator.display_name}</Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
