@@ -106,11 +106,17 @@ export function MapWrapper({
       });
       if (onClusterPress) {
         try {
-          const leaves: any = await shapeSourceRef.current.getClusterLeaves(feature.properties.cluster_id, 200, 0);
-          const idsInCluster = (leaves ?? [])
-            .map((f: any) => f?.properties?.id)
+          const leaves: any = await shapeSourceRef.current.getClusterLeaves(feature as any, 200, 0);
+          const leafFeatures = Array.isArray(leaves?.features)
+            ? leaves.features
+            : Array.isArray(leaves)
+            ? leaves
+            : [];
+
+          const idsInCluster = leafFeatures
+            .map((f: any) => (f?.properties?.id != null ? String(f.properties.id) : ''))
             .filter(Boolean);
-          const clusterEvents = events.filter((e) => idsInCluster.includes(e.id));
+          const clusterEvents = events.filter((e) => idsInCluster.includes(String(e.id)));
           onClusterPress(clusterEvents.length ? clusterEvents : events);
         } catch (e) {
           console.warn('Cluster leaves error', e);
