@@ -11,6 +11,8 @@ const formatSupabaseError = (error: any, context: string) => {
   return new Error(`[${context}] ${message}`);
 };
 
+const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatars';
+
 export const supabaseProvider: (Pick<
   IDataProvider,
   | 'listEvents'
@@ -249,16 +251,33 @@ export const supabaseProvider: (Pick<
 
   async uploadAvatar(userId: string, uri: string) {
     const response = await fetch(uri);
-    const blob = await response.blob();
+    const arrayBuffer = await response.arrayBuffer();
     const ext = uri.split('.').pop() || 'jpg';
     const fileName = `${userId}-${Date.now()}.${ext}`;
     const filePath = `avatars/${fileName}`;
-    const { error } = await supabase.storage.from('avatars').upload(filePath, blob, {
-      contentType: blob.type || 'image/jpeg',
-      upsert: true,
-    });
-    if (error) throw formatSupabaseError(error, 'uploadAvatar');
-    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    const contentType =
+      response.headers.get('content-type') ||
+      (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
+
+    const tryUpload = async (bucket: string) =>
+      supabase.storage.from(bucket).upload(filePath, arrayBuffer, { contentType, upsert: true });
+
+    let bucketUsed = AVATAR_BUCKET;
+    let uploadError: any = null;
+
+    const { error: primaryError } = await tryUpload(bucketUsed);
+    if (primaryError?.message?.includes('Bucket not found')) {
+      // Fallback to a public bucket if avatars is missing in the project.
+      bucketUsed = 'public';
+      const { error: fallbackError } = await tryUpload(bucketUsed);
+      uploadError = fallbackError;
+    } else {
+      uploadError = primaryError;
+    }
+
+    if (uploadError) throw formatSupabaseError(uploadError, 'uploadAvatar');
+
+    const { data } = supabase.storage.from(bucketUsed).getPublicUrl(filePath);
     return data.publicUrl;
   },
 };

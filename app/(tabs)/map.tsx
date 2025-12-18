@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,8 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MapPin } from 'lucide-react-native';
-import { FilterTray, QuickPreview, ClusterPreview, MapWrapper } from '../../src/components/map';
+import { MapPin, Navigation } from 'lucide-react-native';
+import { FilterTray, QuickPreview, ClusterPreview, MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
 import { useAuth, useLocation } from '../../src/hooks';
 import { useLocationStore, useFilterStore } from '../../src/store';
@@ -35,6 +35,7 @@ export default function MapScreen() {
   const [selectedEvent, setSelectedEvent] = useState<EventWithCreator | null>(null);
   const [clusterEvents, setClusterEvents] = useState<EventWithCreator[] | null>(null);
   const [zoom, setZoom] = useState(12);
+  const mapRef = useRef<MapWrapperHandle>(null);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -99,6 +100,7 @@ export default function MapScreen() {
 
   const activeFiltersCount = getActiveFilterCount();
   const hasUserLocation = !!currentLocation;
+  const userCoords = userLocation || mapCenter;
 
   if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
     return (
@@ -155,8 +157,10 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <MapWrapper
+        ref={mapRef}
         events={filteredAndSortedEvents}
         initialRegion={mapCenter}
+        userLocation={userLocation}
         onMarkerPress={handleMarkerPress}
         onClusterPress={handleClusterPress}
         zoom={zoom}
@@ -223,6 +227,21 @@ export default function MapScreen() {
             <Text style={styles.zoomButtonText}>−</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {userCoords && (
+        <TouchableOpacity
+          style={styles.recenterButton}
+          onPress={() =>
+            mapRef.current?.recenter({
+              longitude: userCoords.longitude,
+              latitude: userCoords.latitude,
+              zoom,
+            })
+          }
+        >
+          <Navigation size={18} color={colors.neutral[0]} />
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -300,5 +319,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[600],
     paddingVertical: spacing.xs,
+  },
+  recenterButton: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[600],
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.neutral[900],
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

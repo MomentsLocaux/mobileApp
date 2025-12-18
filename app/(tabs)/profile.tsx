@@ -1,15 +1,32 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ActivityIndicator,
+  Animated,
+  PanResponder,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Settings, User as UserIcon, MapPin, Calendar, Award, LogOut } from 'lucide-react-native';
 import { Button, Card } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
+import { EventsService } from '../../src/services/events.service';
+import type { EventWithCreator } from '../../src/types/database';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
+  const [myEvents, setMyEvents] = useState<EventWithCreator[]>([]);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const sheetTranslate = useRef(new Animated.Value(300)).current;
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -30,8 +47,56 @@ export default function ProfileScreen() {
   };
 
   const handleViewMyEvents = () => {
-    if (profile?.id) {
-      router.push(`/creator/${profile.id}` as any);
+    if (!profile?.id) return;
+    setSheetVisible(true);
+    loadMyEvents();
+    Animated.timing(sheetTranslate, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeSheet = () => {
+    Animated.timing(sheetTranslate, {
+      toValue: 300,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setSheetVisible(false));
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_evt, gesture) => {
+        if (gesture.dy > 0) {
+          sheetTranslate.setValue(Math.min(gesture.dy, 300));
+        }
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        if (gesture.dy > 120 || gesture.vy > 0.7) {
+          closeSheet();
+        } else {
+          Animated.timing(sheetTranslate, {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const loadMyEvents = async () => {
+    if (!profile?.id) return;
+    setLoadingEvents(true);
+    try {
+      const data = await EventsService.listEventsByCreator(profile.id);
+      setMyEvents(data);
+    } catch (e) {
+      console.warn('loadMyEvents error', e);
+    } finally {
+      setLoadingEvents(false);
     }
   };
 
@@ -47,92 +112,128 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <UserIcon size={40} color={colors.neutral[0]} />
-          </View>
-        )}
-        <Text style={styles.displayName}>{profile.display_name}</Text>
-        <Text style={styles.email}>{profile.email}</Text>
-        {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-        <View
-          style={[
-            styles.roleBadge,
-            { backgroundColor: getRoleBadgeColor(profile.role).bg },
-          ]}
-        >
-          <Award size={14} color={getRoleBadgeColor(profile.role).text} />
-          <Text
+    <>
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
+          {profile.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <UserIcon size={40} color={colors.neutral[0]} />
+            </View>
+          )}
+          <Text style={styles.displayName}>{profile.display_name}</Text>
+          <Text style={styles.email}>{profile.email}</Text>
+          {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+          <View
             style={[
-              styles.roleText,
-              { color: getRoleBadgeColor(profile.role).text },
+              styles.roleBadge,
+              { backgroundColor: getRoleBadgeColor(profile.role).bg },
             ]}
           >
-            {getRoleLabel(profile.role)}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => router.push('/profile/edit' as any)}
-        >
-          <Settings size={20} color={colors.primary[600]} />
-          <Text style={styles.editButtonText}>Modifier le profil</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.content}>
-        <Card padding="md">
-          <Text style={styles.sectionTitle}>Informations</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{profile.email}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Rôle</Text>
-            <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Onboarding</Text>
-            <Text style={styles.infoValue}>
-              {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
+            <Award size={14} color={getRoleBadgeColor(profile.role).text} />
+            <Text
+              style={[
+                styles.roleText,
+                { color: getRoleBadgeColor(profile.role).text },
+              ]}
+            >
+              {getRoleLabel(profile.role)}
             </Text>
           </View>
-        </Card>
 
-        {profile.role === 'createur' && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push('/profile/edit' as any)}
+          >
+            <Settings size={20} color={colors.primary[600]} />
+            <Text style={styles.editButtonText}>Modifier le profil</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.content}>
+          <Card padding="md">
+            <Text style={styles.sectionTitle}>Informations</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{profile.email}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Rôle</Text>
+              <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Onboarding</Text>
+              <Text style={styles.infoValue}>
+                {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
+              </Text>
+            </View>
+          </Card>
+
           <Card padding="md" style={styles.actionCard}>
-            <Text style={styles.sectionTitle}>Actions créateur</Text>
+            <Text style={styles.sectionTitle}>Actions</Text>
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
               <Calendar size={18} color={colors.primary[600]} />
-              <Text style={styles.linkText}>Voir mes événements</Text>
+              <Text style={styles.linkText}>Mes événements</Text>
             </TouchableOpacity>
           </Card>
-        )}
 
-        {(profile.role === 'moderateur' || profile.role === 'admin') && (
-          <Card padding="md" style={styles.actionCard}>
-            <Text style={styles.sectionTitle}>Modération</Text>
-            <TouchableOpacity style={styles.linkButton}>
-              <Award size={18} color={colors.secondary[600]} />
-              <Text style={styles.linkText}>Accès modération</Text>
-            </TouchableOpacity>
-          </Card>
-        )}
+          {(profile.role === 'moderateur' || profile.role === 'admin') && (
+            <Card padding="md" style={styles.actionCard}>
+              <Text style={styles.sectionTitle}>Modération</Text>
+              <TouchableOpacity style={styles.linkButton}>
+                <Award size={18} color={colors.secondary[600]} />
+                <Text style={styles.linkText}>Accès modération</Text>
+              </TouchableOpacity>
+            </Card>
+          )}
 
-        <Button
-          title="Se déconnecter"
-          onPress={handleSignOut}
-          variant="outline"
-          fullWidth
-          style={styles.signOutButton}
-        />
-      </View>
-    </ScrollView>
+          <Button
+            title="Se déconnecter"
+            onPress={handleSignOut}
+            variant="outline"
+            fullWidth
+            style={styles.signOutButton}
+          />
+        </View>
+      </ScrollView>
+
+      {sheetVisible && (
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeSheet} />
+          <Animated.View
+            style={[styles.sheet, { transform: [{ translateY: sheetTranslate }] }]}
+            {...panResponder.panHandlers}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Mes événements</Text>
+              <TouchableOpacity onPress={closeSheet}>
+                <Text style={styles.closeText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+            {loadingEvents ? (
+              <View style={styles.loadingEvents}>
+                <ActivityIndicator size="small" color={colors.primary[600]} />
+              </View>
+            ) : myEvents.length === 0 ? (
+              <Text style={styles.emptySheetText}>Aucun événement créé</Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 420 }}>
+                {myEvents.map((event) => (
+                  <Card key={event.id} padding="md" style={{ marginBottom: spacing.sm }}>
+                    <TouchableOpacity onPress={() => router.push(`/events/${event.id}` as any)}>
+                      <Text style={styles.eventTitle}>{event.title}</Text>
+                      <Text style={styles.eventMeta}>{event.city || event.address || ''}</Text>
+                    </TouchableOpacity>
+                  </Card>
+                ))}
+              </ScrollView>
+            )}
+          </Animated.View>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -258,5 +359,64 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[600],
     marginTop: spacing.md,
+  },
+  sheetOverlay: {
+    position: 'absolute',
+    inset: 0,
+    justifyContent: 'flex-end',
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  sheet: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  sheetHandle: {
+    width: 48,
+    height: 5,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[300],
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sheetTitle: {
+    ...typography.h4,
+    color: colors.neutral[900],
+  },
+  closeText: {
+    ...typography.bodySmall,
+    color: colors.primary[600],
+    fontWeight: '600',
+  },
+  loadingEvents: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  emptySheetText: {
+    ...typography.body,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    paddingVertical: spacing.md,
+  },
+  eventTitle: {
+    ...typography.body,
+    color: colors.neutral[900],
+    fontWeight: '600',
+  },
+  eventMeta: {
+    ...typography.bodySmall,
+    color: colors.neutral[600],
+    marginTop: 2,
   },
 });

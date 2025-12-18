@@ -46,8 +46,10 @@ export const useImagePicker = (): UseImagePickerResult => {
     }
 
     try {
+      const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
+
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes,
         allowsEditing: true,
         quality: 0.8,
       });
@@ -89,4 +91,3 @@ export const useImagePicker = (): UseImagePickerResult => {
 
   return { selectedImage, pickImage, takePhoto, clearImage };
 };
-

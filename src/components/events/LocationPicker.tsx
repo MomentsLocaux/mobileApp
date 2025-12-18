@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
-import { MapPin, Lock, Unlock, Navigation } from 'lucide-react-native';
+import { Lock, Unlock, Navigation } from 'lucide-react-native';
 import { Input } from '../ui';
 import { GeocodingService } from '../../services/geocoding.service';
 import type { AddressDetails, LocationState } from '../../types/event-form';
@@ -120,20 +120,34 @@ export function LocationPicker({
             centerCoordinate={[safeCoords.longitude, safeCoords.latitude]}
           />
 
-          <Mapbox.PointAnnotation
-            id="location-marker"
-            coordinate={[safeCoords.longitude, safeCoords.latitude]}
-            draggable={!location.isLocked}
-            onDragEnd={(feature) => {
+          <Mapbox.ShapeSource
+            id="location-source"
+            shape={{
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [safeCoords.longitude, safeCoords.latitude],
+              },
+            }}
+            onPress={(event) => {
               if (location.isLocked) return;
-              const coords = feature.geometry.coordinates;
-              onLocationChange(coords[1], coords[0]);
+              const coords = (event.features?.[0]?.geometry as any)?.coordinates;
+              if (coords) {
+                onLocationChange(coords[1], coords[0]);
+              }
             }}
           >
-            <View style={[styles.marker, location.isLocked && styles.markerLocked]}>
-              <MapPin size={24} color={colors.neutral[0]} />
-            </View>
-          </Mapbox.PointAnnotation>
+            <Mapbox.SymbolLayer
+              id="location-symbol"
+              style={{
+                iconImage: 'marker-15',
+                iconSize: 1.4,
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+                iconColor: location.isLocked ? colors.neutral[500] : colors.primary[600],
+              }}
+            />
+          </Mapbox.ShapeSource>
         </Mapbox.MapView>
 
         {location.isLocked && (
@@ -272,19 +286,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  marker: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.neutral[0],
-  },
-  markerLocked: {
-    backgroundColor: colors.success[600],
   },
   lockOverlay: {
     position: 'absolute',

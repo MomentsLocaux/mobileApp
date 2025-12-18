@@ -180,7 +180,7 @@ export default function TabsLayout() {
             label="Mon profil"
             onPress={() => {
               toggleDrawer(false);
-              router.push('/profile/edit' as any);
+              router.push('/(tabs)/profile' as any);
             }}
           />
           <DrawerLink

@@ -6,9 +6,10 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { User, MapPin, Calendar } from 'lucide-react-native';
+import { User, MapPin, Calendar, ArrowLeft } from 'lucide-react-native';
 import { Card } from '../../components/ui';
 import { EventCard } from '../../components/events';
 import { ProfileService } from '../../services/profile.service';
@@ -58,6 +59,21 @@ export default function CreatorProfileScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={20} color={colors.neutral[800]} />
+          <Text style={styles.backText}>Retour</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.homeButton}
+          onPress={() => router.replace('/(tabs)')}
+        >
+          <Text style={styles.homeText}>Accueil</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.header}>
         {creator.avatar_url ? (
           <Image source={{ uri: creator.avatar_url }} style={styles.avatar} />
@@ -120,6 +136,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.neutral[0],
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  backText: {
+    ...typography.bodySmall,
+    color: colors.neutral[800],
+    fontWeight: '600',
+  },
+  homeButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[50],
+  },
+  homeText: {
+    ...typography.bodySmall,
+    color: colors.primary[700],
+    fontWeight: '600',
   },
   avatar: {
     width: 100,

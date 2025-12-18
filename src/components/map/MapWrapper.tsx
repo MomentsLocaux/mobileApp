@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapPin } from 'lucide-react-native';
@@ -17,6 +17,7 @@ interface MapWrapperProps {
     longitude: number;
     zoom: number;
   };
+  userLocation?: { latitude: number; longitude: number } | null;
   onMarkerPress: (event: EventWithCreator) => void;
   onClusterPress?: (events: EventWithCreator[]) => void;
   zoom?: number;
@@ -24,20 +25,31 @@ interface MapWrapperProps {
   children?: React.ReactNode;
 }
 
-export function MapWrapper({
-  events,
-  initialRegion,
-  onMarkerPress,
-  onClusterPress,
-  zoom,
-  onZoomChange,
-  children,
-}: MapWrapperProps) {
+export type MapWrapperHandle = {
+  recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
+};
+
+export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
+  ({ events, initialRegion, userLocation, onMarkerPress, onClusterPress, zoom, onZoomChange, children }, ref) => {
   const isMapboxAvailable = !!Mapbox.MapView;
   const shapeSourceRef = useRef<Mapbox.ShapeSource>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
 
   console.log('[MapWrapper] initialRegion=', initialRegion, 'events=', events.length);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      recenter: ({ longitude, latitude, zoom: zoomLevel }) => {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [longitude, latitude],
+          zoomLevel: zoomLevel ?? zoom ?? initialRegion.zoom,
+          animationDuration: 300,
+        });
+      },
+    }),
+    [initialRegion.zoom, zoom]
+  );
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
     return (
@@ -149,11 +161,34 @@ export function MapWrapper({
       >
         <Mapbox.Camera
           ref={cameraRef}
-          zoomLevel={zoom ?? initialRegion.zoom}
-          centerCoordinate={[initialRegion.longitude, initialRegion.latitude]}
+          defaultSettings={{
+            centerCoordinate: [initialRegion.longitude, initialRegion.latitude],
+            zoomLevel: initialRegion.zoom,
+          }}
         />
 
-        <Mapbox.UserLocation visible={true} />
+        <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />
+
+        {userLocation && (
+          <Mapbox.ShapeSource
+            id="user-location"
+            shape={{
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [userLocation.longitude, userLocation.latitude] },
+            }}
+          >
+            <Mapbox.SymbolLayer
+              id="user-location-symbol"
+              style={{
+                iconImage: 'marker-15',
+                iconSize: 1.6,
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+                iconColor: colors.secondary[600] ?? '#ff7f50',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
         <Mapbox.ShapeSource
           id="events-source"
@@ -185,15 +220,25 @@ export function MapWrapper({
             }}
           />
 
-          <Mapbox.SymbolLayer
+          <Mapbox.CircleLayer
+            id="event-pins-halo"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              circleColor: colors.neutral[0],
+              circleRadius: 9,
+              circleOpacity: 0.9,
+              circleStrokeWidth: 0,
+            }}
+          />
+          <Mapbox.CircleLayer
             id="event-pins"
             filter={['!', ['has', 'point_count']]}
             style={{
-              iconImage: 'marker-15',
-              iconSize: 1.2,
-              iconAllowOverlap: true,
-              iconIgnorePlacement: true,
-              iconColor: iconColorExpression,
+              circleColor: iconColorExpression,
+              circleRadius: 7,
+              circleOpacity: 0.95,
+              circleStrokeColor: colors.neutral[0],
+              circleStrokeWidth: 2,
             }}
           />
         </Mapbox.ShapeSource>
@@ -201,7 +246,7 @@ export function MapWrapper({
       </Mapbox.MapView>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

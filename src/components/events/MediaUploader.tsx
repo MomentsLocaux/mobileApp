@@ -36,10 +36,11 @@ export function MediaUploader({
       Alert.alert('Permission requise', 'Autorisez l’accès à vos photos pour sélectionner une image.');
       return;
     }
+    const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       quality: 0.7,
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes,
     });
     if (!result.canceled && result.assets.length > 0) {
       onPicked(result.assets[0].uri);

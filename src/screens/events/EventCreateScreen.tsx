@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import {
 import { ImageSelector } from '../../components/ImageSelector';
 import { EventsService } from '../../services/events.service';
 import { GeocodingService } from '../../services/geocoding.service';
-import { useAuth } from '../../hooks';
+import { useAuth, useLocation } from '../../hooks';
 import { CATEGORIES } from '../../constants/categories';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type {
@@ -43,6 +43,8 @@ const PARIS_COORDS = { latitude: 48.8566, longitude: 2.3522 };
 export default function EventCreateScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { currentLocation } = useLocation();
+  const hasCenteredOnceRef = useRef(false);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -87,8 +89,32 @@ export default function EventCreateScreen() {
   });
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const [errors, setErrors] = useState<EventFormErrors>({});
+
+  useEffect(() => {
+    if (
+      currentLocation &&
+      !hasCenteredOnceRef.current &&
+      currentLocation.coords?.latitude &&
+      currentLocation.coords?.longitude
+    ) {
+      const { latitude, longitude } = currentLocation.coords;
+      setLocation((prev) => ({
+        ...prev,
+        latitude,
+        longitude,
+        savedLocation: prev.savedLocation ?? { latitude, longitude },
+      }));
+      setFormData((prev) => ({
+        ...prev,
+        latitude,
+        longitude,
+      }));
+      hasCenteredOnceRef.current = true;
+    }
+  }, [currentLocation]);
 
   const validateStep = (step: number): boolean => {
     const newErrors: EventFormErrors = {};
@@ -210,6 +236,11 @@ export default function EventCreateScreen() {
       return;
     }
 
+    setShowPreview(true);
+  };
+
+  const handleConfirmCreate = async () => {
+    if (!profile) return;
     setSubmitting(true);
 
     try {
@@ -263,12 +294,8 @@ export default function EventCreateScreen() {
       setSubmitting(false);
 
       if (event) {
-        Alert.alert('Succès', 'Événement créé avec succès', [
-          {
-            text: 'Voir l\'événement',
-            onPress: () => router.push(`/events/${event.id}` as any),
-          },
-        ]);
+        setShowPreview(false);
+        router.push(`/creator/${profile.id}` as any);
       } else {
         Alert.alert('Erreur', 'Impossible de créer l\'événement');
       }
@@ -676,6 +703,42 @@ export default function EventCreateScreen() {
           }}
         />
       )}
+
+      {showPreview && (
+        <View style={styles.previewOverlay}>
+          <View style={styles.previewCard}>
+            <Text style={styles.previewTitle}>Confirmer la création</Text>
+            <Text style={styles.previewLabel}>{formData.title || 'Titre manquant'}</Text>
+            <Text style={styles.previewText} numberOfLines={3}>
+              {formData.description || 'Aucune description'}
+            </Text>
+            <Text style={styles.previewText}>
+              {formData.address.streetNumber} {formData.address.streetName}
+            </Text>
+            <Text style={styles.previewText}>
+              {formData.address.postalCode} {formData.address.city}
+            </Text>
+            <Text style={styles.previewText}>
+              Début : {formatDateTime(formData.startsAt)}
+              {'\n'}Fin : {formatDateTime(formData.endsAt)}
+            </Text>
+            <View style={styles.previewActions}>
+              <Button
+                title="Annuler"
+                variant="outline"
+                onPress={() => setShowPreview(false)}
+                style={styles.previewActionButton}
+              />
+              <Button
+                title={submitting ? 'Création...' : 'Confirmer'}
+                onPress={handleConfirmCreate}
+                disabled={submitting}
+                style={styles.previewActionButton}
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -890,5 +953,47 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[0],
     fontWeight: '600',
+  },
+  previewOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  previewCard: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: colors.neutral[0],
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    shadowColor: colors.neutral[900],
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  previewTitle: {
+    ...typography.h4,
+    color: colors.neutral[900],
+  },
+  previewLabel: {
+    ...typography.body,
+    color: colors.neutral[800],
+    fontWeight: '600',
+  },
+  previewText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  previewActionButton: {
+    flex: 1,
   },
 });
