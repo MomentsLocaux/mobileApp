@@ -115,40 +115,47 @@ export default function ProfileScreen() {
     <>
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          {profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          {profile.cover_url ? (
+            <Image source={{ uri: profile.cover_url }} style={styles.cover} />
           ) : (
-            <View style={styles.avatarPlaceholder}>
-              <UserIcon size={40} color={colors.neutral[0]} />
-            </View>
+            <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
           )}
-          <Text style={styles.displayName}>{profile.display_name}</Text>
-          <Text style={styles.email}>{profile.email}</Text>
-          {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-          <View
-            style={[
-              styles.roleBadge,
-              { backgroundColor: getRoleBadgeColor(profile.role).bg },
-            ]}
-          >
-            <Award size={14} color={getRoleBadgeColor(profile.role).text} />
-            <Text
+          <View style={styles.headerOverlay}>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <UserIcon size={40} color={colors.neutral[0]} />
+              </View>
+            )}
+            <Text style={styles.displayName}>{profile.display_name}</Text>
+            <Text style={styles.email}>{profile.email}</Text>
+            {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+            <View
               style={[
-                styles.roleText,
-                { color: getRoleBadgeColor(profile.role).text },
+                styles.roleBadge,
+                { backgroundColor: getRoleBadgeColor(profile.role).bg },
               ]}
             >
-              {getRoleLabel(profile.role)}
-            </Text>
-          </View>
+              <Award size={14} color={getRoleBadgeColor(profile.role).text} />
+              <Text
+                style={[
+                  styles.roleText,
+                  { color: getRoleBadgeColor(profile.role).text },
+                ]}
+              >
+                {getRoleLabel(profile.role)}
+              </Text>
+            </View>
 
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => router.push('/profile/edit' as any)}
-          >
-            <Settings size={20} color={colors.primary[600]} />
-            <Text style={styles.editButtonText}>Modifier le profil</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => router.push('/profile/edit' as any)}
+            >
+              <Settings size={20} color={colors.primary[600]} />
+              <Text style={styles.editButtonText}>Modifier le profil</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.content}>
@@ -243,9 +250,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[100],
   },
   header: {
-    alignItems: 'center',
-    padding: spacing.xl,
     backgroundColor: colors.neutral[50],
+  },
+  cover: {
+    width: '100%',
+    height: 180,
+  },
+  headerOverlay: {
+    alignItems: 'center',
+    marginTop: -60,
+    paddingBottom: spacing.md,
   },
   avatar: {
     width: 100,

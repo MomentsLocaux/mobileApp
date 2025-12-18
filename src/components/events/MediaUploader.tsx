@@ -30,20 +30,37 @@ export function MediaUploader({
 }: MediaUploaderProps) {
   const [newGalleryUrl, setNewGalleryUrl] = useState('');
 
-  const pickImage = async (onPicked: (uri: string) => void) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Autorisez l’accès à vos photos pour sélectionner une image.');
-      return;
-    }
-    const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      quality: 0.7,
-      mediaTypes,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      onPicked(result.assets[0].uri);
+  const pickImage = async (onPicked: (uri: string) => void, source: 'library' | 'camera') => {
+    if (source === 'library') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Autorisez l’accès à vos photos pour sélectionner une image.');
+        return;
+      }
+      const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+        mediaTypes,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        onPicked(result.assets[0].uri);
+      }
+    } else {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Autorisez l’accès à la caméra.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        onPicked(result.assets[0].uri);
+      }
     }
   };
 
@@ -85,11 +102,19 @@ export function MediaUploader({
 
         <View style={styles.urlInput}>
           <Text style={styles.inputLabel}>Sélectionner une image</Text>
-          <Button
-            title="Choisir dans la galerie"
-            onPress={() => pickImage(onCoverChange)}
-            variant="outline"
-          />
+          <TouchableOpacity
+            style={styles.uploadCircle}
+            onPress={() =>
+              Alert.alert('Photo de couverture', 'Choisissez une option', [
+                { text: 'Galerie', onPress: () => pickImage(onCoverChange, 'library') },
+                { text: 'Prendre une photo', onPress: () => pickImage(onCoverChange, 'camera') },
+                { text: 'Annuler', style: 'cancel' },
+              ])
+            }
+          >
+            <Upload size={20} color={colors.neutral[0]} />
+          </TouchableOpacity>
+          <Text style={styles.uploadHint}>Importer ou prendre une photo</Text>
           <Text style={styles.inputLabel}>Ou coller une URL</Text>
           <Input
             placeholder="https://example.com/image.jpg"
@@ -136,9 +161,9 @@ export function MediaUploader({
             </Text>
             <Button
               title="Depuis la galerie"
-              onPress={() => pickImage((uri) => handleAddToGallery(uri))}
+              onPress={() => pickImage((uri) => handleAddToGallery(uri), 'library')}
               variant="outline"
-              style={styles.addButton}
+              style={[styles.addButton, styles.centerButton]}
               icon={<Upload size={18} color={colors.primary[600]} />}
             />
             <Input
@@ -229,6 +254,29 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.primary[200],
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  flexButton: {
+    flex: 1,
+  },
+  uploadCircle: {
+    alignSelf: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary[600],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.sm,
+  },
+  uploadHint: {
+    ...typography.caption,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   hint: {
     ...typography.caption,

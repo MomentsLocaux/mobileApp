@@ -26,6 +26,7 @@ export default function ProfileEditScreen() {
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [avatarUri, setAvatarUri] = useState(profile?.avatar_url || '');
+  const [coverUri, setCoverUri] = useState(profile?.cover_url || '');
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -45,6 +46,9 @@ export default function ProfileEditScreen() {
 
     if (avatarUri && avatarUri !== profile.avatar_url) {
       updates.avatar_url = avatarUri;
+    }
+    if (coverUri && coverUri !== profile.cover_url) {
+      updates.cover_url = coverUri;
     }
 
     const updatedProfile = await ProfileService.updateProfile(user.id, updates);
@@ -103,6 +107,34 @@ export default function ProfileEditScreen() {
     }
   };
 
+  const handleCoverUpload = async () => {
+    if (!user) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Autorisation requise', 'Veuillez autoriser l’accès à vos photos pour changer la couverture.');
+      return;
+    }
+    const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    if (!asset.uri) return;
+    setUploadingAvatar(true);
+    const uploadedUrl = await ProfileService.uploadAvatar(user.id, asset.uri);
+    setUploadingAvatar(false);
+    if (uploadedUrl) {
+      setCoverUri(uploadedUrl);
+      Alert.alert('Succès', 'Couverture mise à jour');
+    } else {
+      Alert.alert('Erreur', 'Impossible d\'uploader la couverture');
+    }
+  };
+
   const handleFileChange = async (event: any) => {
     if (!user) return;
 
@@ -156,6 +188,17 @@ export default function ProfileEditScreen() {
       </View>
 
       <View style={styles.header}>
+        <TouchableOpacity style={styles.coverWrapper} onPress={handleCoverUpload} disabled={uploadingAvatar}>
+          {coverUri ? (
+            <Image source={{ uri: coverUri }} style={styles.cover} />
+          ) : (
+            <View style={[styles.cover, styles.coverPlaceholder]} />
+          )}
+          <View style={styles.coverOverlay}>
+            <Text style={styles.coverText}>Changer la couverture</Text>
+          </View>
+        </TouchableOpacity>
+
         <View style={styles.avatarContainer}>
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -256,13 +299,39 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: spacing.xl,
     backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    paddingBottom: spacing.lg,
+  },
+  coverWrapper: {
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.neutral[200],
+  },
+  cover: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    backgroundColor: colors.neutral[200],
+  },
+  coverOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  coverText: {
+    ...typography.caption,
+    color: colors.neutral[0],
+    fontWeight: '600',
   },
   avatarContainer: {
     position: 'relative',
+    marginTop: -60,
     marginBottom: spacing.sm,
   },
   avatar: {

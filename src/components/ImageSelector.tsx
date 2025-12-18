@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Image, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { Camera, Image as ImageIcon, Trash2 } from 'lucide-react-native';
+import { View, Image, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
-import { Button } from './ui';
 import type { ImageAsset } from '../hooks/useImagePicker';
 import { useImagePicker } from '../hooks/useImagePicker';
 
@@ -18,12 +17,12 @@ export const ImageSelector: React.FC<Props> = ({ label = 'Image', value, onChang
   const currentUri = selectedImage?.uri || value || null;
 
   const handlePick = async () => {
-    const asset = await pickImage();
+    const asset = await pickImage({ aspect: [16, 9] });
     if (asset?.uri) onChange(asset.uri);
   };
 
   const handleCamera = async () => {
-    const asset = await takePhoto();
+    const asset = await takePhoto({ aspect: [16, 9] });
     if (asset?.uri) onChange(asset.uri);
   };
 
@@ -44,21 +43,33 @@ export const ImageSelector: React.FC<Props> = ({ label = 'Image', value, onChang
         )}
       </View>
 
-      {currentUri ? (
-        <View style={styles.preview}>
-          <Image source={{ uri: currentUri }} style={styles.image} />
-        </View>
-      ) : (
-        <View style={styles.placeholder}>
-          <ImageIcon size={32} color={colors.neutral[400]} />
-          <Text style={styles.placeholderText}>Aucune image sélectionnée</Text>
-        </View>
-      )}
+      <View style={styles.previewWrapper}>
+        {currentUri ? (
+          <View style={styles.preview}>
+            <Image source={{ uri: currentUri }} style={styles.image} />
+          </View>
+        ) : (
+          <View style={styles.placeholder}>
+            <ImageIcon size={32} color={colors.neutral[400]} />
+            <Text style={styles.placeholderText}>Aucune image sélectionnée</Text>
+          </View>
+        )}
 
-      <View style={styles.actions}>
-        <Button title="Choisir dans la galerie" onPress={handlePick} variant="outline" />
-        <Button title="Prendre une photo" onPress={handleCamera} variant="secondary" />
+        <TouchableOpacity
+          style={styles.uploadCircle}
+          onPress={() =>
+            Alert.alert('Photo', 'Choisissez une option', [
+              { text: 'Galerie', onPress: handlePick },
+              { text: 'Prendre une photo', onPress: handleCamera },
+              { text: 'Annuler', style: 'cancel' },
+            ])
+          }
+          accessibilityLabel="Choisir ou prendre une photo"
+        >
+          <Plus size={20} color={colors.neutral[0]} />
+        </TouchableOpacity>
       </View>
+      <Text style={styles.uploadHint}>Importer ou prendre une photo</Text>
     </View>
   );
 };
@@ -111,9 +122,28 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.neutral[500],
   },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+  previewWrapper: {
+    position: 'relative',
+  },
+  uploadCircle: {
+    position: 'absolute',
+    bottom: spacing.md,
+    right: spacing.md,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary[600],
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  uploadHint: {
+    ...typography.caption,
+    color: colors.neutral[600],
+    textAlign: 'center',
   },
 });
-

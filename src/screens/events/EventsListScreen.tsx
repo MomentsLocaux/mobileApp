@@ -184,14 +184,6 @@ export default function EventsListScreen() {
         }
       />
 
-      {profile?.role === 'createur' && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push('/events/create' as any)}
-        >
-          <Plus size={24} color={colors.neutral[0]} />
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -285,22 +277,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.neutral[700],
     fontWeight: '600',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: spacing.xl,
-    right: spacing.xl,
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.neutral[900],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 });
 

@@ -1,5 +1,5 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
-import { Map, List, Target, ShoppingBag, User, PlusCircle, Send, Compass, UserCircle2 } from 'lucide-react-native';
+import { Map, Home, Users, ShoppingBag, User, PlusCircle, Send, Compass, UserCircle2, Target } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
@@ -49,6 +49,7 @@ export default function TabsLayout() {
           headerShown: true,
           tabBarActiveTintColor: colors.primary[600],
           tabBarInactiveTintColor: colors.neutral[500],
+          tabBarShowLabel: false,
           tabBarStyle: {
             backgroundColor: colors.neutral[50],
             borderTopColor: colors.neutral[200],
@@ -75,8 +76,8 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Liste',
-            tabBarIcon: ({ size, color }) => <List size={size} color={color} />,
+            title: 'Accueil',
+            tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
           }}
         />
         <Tabs.Screen
@@ -102,10 +103,10 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="missions"
+          name="community"
           options={{
-            title: 'Missions',
-            tabBarIcon: ({ size, color }) => <Target size={size} color={color} />,
+            title: 'Communauté',
+            tabBarIcon: ({ size, color }) => <Users size={size} color={color} />,
           }}
         />
         <Tabs.Screen
@@ -116,18 +117,9 @@ export default function TabsLayout() {
           }}
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
-        <Tabs.Screen
-          name="profile"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="favorites"
-          options={{
-            href: null,
-          }}
-        />
+        <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="favorites" options={{ href: null }} />
+        <Tabs.Screen name="missions" options={{ href: null }} />
       </Tabs>
 
       {drawerOpen && (
@@ -183,27 +175,35 @@ export default function TabsLayout() {
               router.push('/(tabs)/profile' as any);
             }}
           />
-          <DrawerLink
-            icon={Send}
-            label="Inviter des amis"
-            onPress={() => {
-              toggleDrawer(false);
-              Alert.alert('Inviter des amis', 'À implémenter');
-            }}
-          />
-          <DrawerLink
-            icon={Compass}
-            label="Mon parcours"
-            onPress={() => {
-              toggleDrawer(false);
-              Alert.alert('Mon parcours', 'Page gamification à venir');
-            }}
-          />
-          <DrawerLink
-            icon={Map}
-            label="Évènements"
-            onPress={() => {
-              toggleDrawer(false);
+        <DrawerLink
+          icon={Send}
+          label="Inviter des amis"
+          onPress={() => {
+            toggleDrawer(false);
+            Alert.alert('Inviter des amis', 'À implémenter');
+          }}
+        />
+        <DrawerLink
+          icon={Compass}
+          label="Mon parcours"
+          onPress={() => {
+            toggleDrawer(false);
+            Alert.alert('Mon parcours', 'Page gamification à venir');
+          }}
+        />
+        <DrawerLink
+          icon={Target}
+          label="Missions"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/(tabs)/missions' as any);
+          }}
+        />
+        <DrawerLink
+          icon={Map}
+          label="Évènements"
+          onPress={() => {
+            toggleDrawer(false);
               router.push('/(tabs)/index' as any);
             }}
           />

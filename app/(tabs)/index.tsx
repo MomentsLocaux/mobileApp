@@ -1,2 +1,2 @@
-import EventsListScreen from '../../src/screens/events/EventsListScreen';
-export default EventsListScreen;
+import HomeScreen from '../../src/screens/home/HomeScreen';
+export default HomeScreen;

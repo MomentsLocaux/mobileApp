@@ -64,6 +64,14 @@ export const EventCard: React.FC<EventCardProps> = ({
           </Text>
 
           <View style={styles.metaRow}>
+            <View style={[styles.visibilityPill, event.visibility === 'public' ? styles.publicPill : styles.privatePill]}>
+              <Text style={[styles.visibilityText, event.visibility === 'public' ? styles.publicText : styles.privateText]}>
+                {event.visibility === 'public' ? 'Public' : 'Privé'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.metaRow}>
             <Calendar size={14} color={colors.neutral[600]} />
             <Text style={styles.metaText}>{formatDate(event.starts_at)}</Text>
           </View>
@@ -171,5 +179,26 @@ const styles = StyleSheet.create({
     color: colors.success[700],
     fontSize: 12,
     fontWeight: '600',
+  },
+  visibilityPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  visibilityText: {
+    ...typography.caption,
+    fontWeight: '700',
+  },
+  publicPill: {
+    backgroundColor: colors.success[50],
+  },
+  privatePill: {
+    backgroundColor: colors.warning[50],
+  },
+  publicText: {
+    color: colors.success[700],
+  },
+  privateText: {
+    color: colors.warning[700],
   },
 });
