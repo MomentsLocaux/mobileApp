@@ -30,7 +30,9 @@ import { EventsService } from '../../services/events.service';
 import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryLabel } from '@/constants/eventTypology';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 import type { EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
@@ -41,6 +43,7 @@ const { width } = Dimensions.get('window');
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { locale } = useI18n();
   const { profile, session } = useAuth();
   const { currentLocation } = useLocationStore();
   const { comments, loading: loadingComments, addComment, reload: reloadComments } = useComments(id || '');
@@ -185,7 +188,7 @@ export default function EventDetailScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ChevronLeft size={20} color={colors.neutral[700]} />
-          <Text style={styles.backText}>Retour</Text>
+          <Text style={styles.backText}>{t('eventDetail', 'back', locale)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -198,9 +201,9 @@ export default function EventDetailScreen() {
       )}
 
       <View style={styles.content}>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{getCategoryLabel(event.category)}</Text>
-        </View>
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>{getCategoryLabel(event.category, locale)}</Text>
+          </View>
 
         <Text style={styles.title}>{event.title}</Text>
 

@@ -20,7 +20,11 @@ import { ImageSelector } from '../../components/ImageSelector';
 import { EventsService } from '../../services/events.service';
 import { GeocodingService } from '../../services/geocoding.service';
 import { useAuth, useLocation } from '../../hooks';
-import { CATEGORIES } from '../../constants/categories';
+import { getTypologyOptions } from '@/constants/eventTypology';
+import { EnumService } from '@/services/enum.service';
+import { getPreferredLocale } from '@/utils/locale';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type {
   EventFormData,
@@ -30,25 +34,29 @@ import type {
 } from '../../types/event-form';
 import type { EventCategory, EventVisibility } from '../../types/database';
 
-const STEPS = [
-  { id: 0, title: 'Détails', subtitle: 'Informations de base' },
-  { id: 1, title: 'Horaires', subtitle: 'Dates et créneaux' },
-  { id: 2, title: 'Localisation', subtitle: 'Lieu de l\'événement' },
-  { id: 3, title: 'Médias', subtitle: 'Photos et images' },
-  { id: 4, title: 'Options', subtitle: 'Configuration finale' },
-];
-
 const PARIS_COORDS = { latitude: 48.8566, longitude: 2.3522 };
 
 export default function EventCreateScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { currentLocation } = useLocation();
+  const { locale } = useI18n();
   const hasCenteredOnceRef = useRef(false);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [typologyOptions, setTypologyOptions] = useState(() => getTypologyOptions(locale));
   const now = useMemo(() => new Date(), []);
+  const steps = useMemo(
+    () => [
+      { id: 0, title: t('events', 'stepDetails', locale), subtitle: t('events', 'validation.description', locale) },
+      { id: 1, title: t('events', 'stepSchedule', locale), subtitle: 'Dates' },
+      { id: 2, title: t('events', 'stepLocation', locale), subtitle: 'Lieu' },
+      { id: 3, title: t('events', 'stepMedia', locale), subtitle: 'Photos' },
+      { id: 4, title: t('events', 'stepOptions', locale), subtitle: 'Options' },
+    ],
+    [locale]
+  );
   const defaultEnd = useMemo(() => {
     const d = new Date(now);
     d.setHours(d.getHours() + 2);
@@ -58,7 +66,7 @@ export default function EventCreateScreen() {
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
-    category: 'autre',
+    category: typologyOptions[0]?.value || '',
     tags: [],
     startsAt: now.toISOString(),
     endsAt: defaultEnd.toISOString(),
@@ -94,6 +102,24 @@ export default function EventCreateScreen() {
   const [errors, setErrors] = useState<EventFormErrors>({});
 
   useEffect(() => {
+    const loadTypology = async () => {
+      const values = await EnumService.fetchEventTypology(locale);
+      setTypologyOptions(
+        values.map((v) => ({
+          value: v.value,
+          label: v.translations[locale] ?? v.value,
+          icon: v.icon,
+          color: v.color,
+        }))
+      );
+      setFormData((prev) => ({
+        ...prev,
+        category: prev.category || values[0]?.value || '',
+      }));
+    };
+
+    loadTypology();
+
     if (
       currentLocation &&
       !hasCenteredOnceRef.current &&
@@ -114,7 +140,7 @@ export default function EventCreateScreen() {
       }));
       hasCenteredOnceRef.current = true;
     }
-  }, [currentLocation]);
+  }, [currentLocation, locale]);
 
   const validateStep = (step: number): boolean => {
     const newErrors: EventFormErrors = {};
@@ -122,41 +148,41 @@ export default function EventCreateScreen() {
     switch (step) {
       case 0:
         if (!formData.title.trim()) {
-          newErrors.title = 'Le titre est obligatoire';
+          newErrors.title = t('events', 'validation.title', locale);
         }
         if (!formData.description.trim()) {
-          newErrors.description = 'La description est obligatoire';
+          newErrors.description = t('events', 'validation.description', locale);
         }
         break;
 
       case 1:
         if (!formData.startsAt) {
-          newErrors.startsAt = 'La date de début est obligatoire';
+          newErrors.startsAt = t('events', 'validation.startsAt', locale);
         }
         if (!formData.endsAt) {
-          newErrors.endsAt = 'La date de fin est obligatoire';
+          newErrors.endsAt = t('events', 'validation.endsAt', locale);
         }
         if (formData.startsAt && formData.endsAt) {
           const start = new Date(formData.startsAt);
           const end = new Date(formData.endsAt);
           if (start >= end) {
-            newErrors.endsAt = 'La date de fin doit être après la date de début';
+            newErrors.endsAt = t('events', 'validation.endAfterStart', locale);
           }
         }
         break;
 
       case 2:
         if (!location.isLocked) {
-          newErrors.location = 'Veuillez valider la localisation';
+          newErrors.location = t('events', 'validation.location', locale);
         }
         if (!formData.address.city) {
-          newErrors.address = 'La ville est obligatoire';
+          newErrors.address = t('events', 'validation.city', locale);
         }
         break;
 
       case 3:
         if (!formData.coverUrl.trim()) {
-          newErrors.coverUrl = 'La photo de couverture est obligatoire';
+          newErrors.coverUrl = t('events', 'validation.cover', locale);
         }
         break;
     }
@@ -190,7 +216,7 @@ export default function EventCreateScreen() {
             setFormData({
               title: '',
               description: '',
-              category: 'autre',
+              category: typologyOptions[0]?.value || '',
               tags: [],
               startsAt: now.toISOString(),
               endsAt: defaultEnd.toISOString(),
@@ -380,7 +406,7 @@ export default function EventCreateScreen() {
               <ChevronLeft size={20} color={colors.neutral[700]} />
               <Text style={styles.backText}>Retour</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Créer un événement</Text>
+            <Text style={styles.headerTitle}>{t('events', 'stepDetails', locale)}</Text>
           </View>
           <TouchableOpacity onPress={handleReset} style={styles.cancelButton}>
             <X size={20} color={colors.neutral[600]} />
@@ -407,36 +433,32 @@ export default function EventCreateScreen() {
         {currentStep === 0 && (
           <View style={styles.step}>
             <Input
-              label="Titre *"
-              placeholder="Nom de votre événement"
+              label={`${t('events', 'stepDetails', locale)} *`}
+              placeholder={t('events', 'titlePlaceholder', locale)}
               value={formData.title}
               onChangeText={(text) => updateFormData({ title: text })}
               error={errors.title}
             />
 
             <View>
-              <Text style={styles.inputLabel}>Catégorie *</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoriesScroll}
-              >
-                {Object.entries(CATEGORIES).map(([key, value]) => (
+              <Text style={styles.inputLabel}>{`${t('events', 'category', locale)} *`}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
+                {typologyOptions.map(({ value, label }) => (
                   <TouchableOpacity
-                    key={key}
+                    key={value}
                     style={[
                       styles.categoryChip,
-                      formData.category === key && styles.categoryChipActive,
+                      formData.category === value && styles.categoryChipActive,
                     ]}
-                    onPress={() => updateFormData({ category: key as EventCategory })}
+                    onPress={() => updateFormData({ category: value as EventCategory })}
                   >
                     <Text
                       style={[
                         styles.categoryChipText,
-                        formData.category === key && styles.categoryChipTextActive,
+                        formData.category === value && styles.categoryChipTextActive,
                       ]}
                     >
-                      {value.label}
+                      {label}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -444,8 +466,8 @@ export default function EventCreateScreen() {
             </View>
 
             <Input
-              label="Description *"
-              placeholder="Décrivez votre événement en détail"
+              label={`${t('events', 'stepDetails', locale)} - ${t('common', 'confirm', locale)} *`}
+              placeholder={t('events', 'descriptionPlaceholder', locale)}
               value={formData.description}
               onChangeText={(text) => updateFormData({ description: text })}
               multiline

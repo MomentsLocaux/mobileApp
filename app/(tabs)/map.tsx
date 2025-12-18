@@ -17,6 +17,8 @@ import { filterEvents } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import type { EventWithCreator } from '../../src/types/database';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
@@ -25,6 +27,7 @@ const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 export default function MapScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { locale } = useI18n();
   // Trigger location permission + retrieval once the map tab mounts
   useLocation();
   const { currentLocation } = useLocationStore();
@@ -61,7 +64,7 @@ export default function MapScreen() {
       setAllEvents(data);
     } catch (error) {
       console.error('Error loading events:', error);
-      Alert.alert('Erreur', 'Impossible de charger les événements');
+      Alert.alert('Erreur', t('home', 'noEvents', locale));
     } finally {
       setLoading(false);
     }
@@ -119,7 +122,7 @@ export default function MapScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.fallback}>
-          <Text style={styles.fallbackText}>Chargement de la carte...</Text>
+          <Text style={styles.fallbackText}>{t('common', 'loading', locale)}</Text>
         </View>
       </View>
     );
@@ -141,12 +144,12 @@ export default function MapScreen() {
           <MapPin size={48} color={colors.neutral[400]} />
           <Text style={styles.fallbackText}>
             {activeFiltersCount > 0
-              ? 'Aucun événement ne correspond aux filtres'
-              : 'Aucun événement à afficher sur la carte'}
+              ? t('home', 'noEvents', locale)
+              : t('home', 'noEvents', locale)}
           </Text>
           {activeFiltersCount === 0 && (
             <Text style={styles.fallbackSubtext}>
-              Créez votre premier événement pour le voir apparaître ici
+              {t('home', 'noEvents', locale)}
             </Text>
           )}
         </View>

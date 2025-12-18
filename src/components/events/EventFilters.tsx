@@ -8,9 +8,12 @@ import {
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { CATEGORIES } from '../../constants/categories';
+import { getTypologyOptions } from '@/constants/eventTypology';
+import { getPreferredLocale } from '@/utils/locale';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../../types/filters';
 import type { EventCategory } from '../../types/database';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t as translate } from '@/i18n/translations';
 
 interface EventFiltersProps {
   filters: EventFilters;
@@ -26,6 +29,9 @@ export function EventFilters({
   activeFiltersCount,
 }: EventFiltersProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const locale = getPreferredLocale();
+  const typologyOptions = getTypologyOptions(locale);
+  const { locale: currentLocale } = useI18n();
 
   const toggleCategory = (category: EventCategory) => {
     onFiltersChange({ category: filters.category === category ? undefined : category });
@@ -74,7 +80,9 @@ export function EventFilters({
         <View style={styles.toggleLeft}>
           <Filter size={18} color={colors.neutral[700]} />
           <Text style={styles.toggleText}>
-            {isVisible ? 'Masquer les filtres' : 'Afficher les filtres'}
+            {isVisible
+              ? translate('filters', 'hide', currentLocale)
+              : translate('filters', 'show', currentLocale)}
           </Text>
           {activeFiltersCount > 0 && (
             <View style={styles.badge}>
@@ -97,28 +105,28 @@ export function EventFilters({
           contentContainerStyle={styles.filtersContent}
         >
           <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Catégories</Text>
+            <Text style={styles.filterLabel}>{translate('filters', 'category', currentLocale)}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.chipsScroll}
             >
-              {Object.entries(CATEGORIES).map(([key, value]) => (
+              {typologyOptions.map(({ value, label }) => (
                 <TouchableOpacity
-                  key={key}
+                  key={value}
                   style={[
                     styles.chip,
-                    filters.category === key && styles.chipActive,
+                    filters.category === value && styles.chipActive,
                   ]}
-                  onPress={() => toggleCategory(key as EventCategory)}
+                  onPress={() => toggleCategory(value as EventCategory)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      filters.category === key && styles.chipTextActive,
+                      filters.category === value && styles.chipTextActive,
                     ]}
                   >
-                    {value.label}
+                    {label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -126,14 +134,14 @@ export function EventFilters({
           </View>
 
           <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Temps</Text>
+            <Text style={styles.filterLabel}>{translate('filters', 'time', currentLocale)}</Text>
             <View style={styles.chipRow}>
               <TouchableOpacity
                 style={[styles.chip, filters.time === 'weekend' && styles.chipActive]}
                 onPress={() => toggleTime('weekend')}
               >
                 <Text style={[styles.chipText, filters.time === 'weekend' && styles.chipTextActive]}>
-                  Weekend
+                  {translate('filters', 'weekend', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -141,21 +149,21 @@ export function EventFilters({
                 onPress={() => toggleTime('live')}
               >
                 <Text style={[styles.chipText, filters.time === 'live' && styles.chipTextActive]}>
-                  En cours
+                  {translate('filters', 'live', currentLocale)}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Popularité</Text>
+            <Text style={styles.filterLabel}>{translate('filters', 'popularity', currentLocale)}</Text>
             <View style={styles.chipRow}>
               <TouchableOpacity
                 style={[styles.chip, filters.popularity === 'trending' && styles.chipActive]}
                 onPress={() => togglePopularity('trending')}
               >
                 <Text style={[styles.chipText, filters.popularity === 'trending' && styles.chipTextActive]}>
-                  Tendance (10+)
+                  {translate('filters', 'trending', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -163,7 +171,7 @@ export function EventFilters({
                 onPress={() => togglePopularity('popular')}
               >
                 <Text style={[styles.chipText, filters.popularity === 'popular' && styles.chipTextActive]}>
-                  Populaire (30+)
+                  {translate('filters', 'popular', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -171,21 +179,21 @@ export function EventFilters({
                 onPress={() => togglePopularity('top')}
               >
                 <Text style={[styles.chipText, filters.popularity === 'top' && styles.chipTextActive]}>
-                  Top (50+)
+                  {translate('filters', 'top', currentLocale)}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Options</Text>
+            <Text style={styles.filterLabel}>{translate('filters', 'options', currentLocale)}</Text>
             <View style={styles.chipRow}>
               <TouchableOpacity
                 style={[styles.chip, filters.freeOnly && styles.chipActive]}
                 onPress={toggleFreeOnly}
               >
                 <Text style={[styles.chipText, filters.freeOnly && styles.chipTextActive]}>
-                  Gratuit
+                  {translate('filters', 'free', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -193,7 +201,7 @@ export function EventFilters({
                 onPress={togglePaidOnly}
               >
                 <Text style={[styles.chipText, filters.paidOnly && styles.chipTextActive]}>
-                  Payant
+                  {translate('filters', 'paid', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -201,7 +209,7 @@ export function EventFilters({
                 onPress={() => toggleVisibility('public')}
               >
                 <Text style={[styles.chipText, filters.visibility === 'public' && styles.chipTextActive]}>
-                  Public
+                  {translate('filters', 'public', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -209,7 +217,7 @@ export function EventFilters({
                 onPress={() => toggleVisibility('prive')}
               >
                 <Text style={[styles.chipText, filters.visibility === 'prive' && styles.chipTextActive]}>
-                  Privé
+                  {translate('filters', 'private', currentLocale)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -217,7 +225,7 @@ export function EventFilters({
                 onPress={toggleIncludePast}
               >
                 <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
-                  Inclure passés
+                  {translate('filters', 'includePast', currentLocale)}
                 </Text>
               </TouchableOpacity>
             </View>

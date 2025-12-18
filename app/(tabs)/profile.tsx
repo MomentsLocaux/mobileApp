@@ -19,10 +19,14 @@ import { colors, spacing, typography, borderRadius } from '../../src/constants/t
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
 import { EventsService } from '../../src/services/events.service';
 import type { EventWithCreator } from '../../src/types/database';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
+import { LanguageSwitcher } from '@/components/profile/LanguageSwitcher';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
+  const { locale } = useI18n();
   const [myEvents, setMyEvents] = useState<EventWithCreator[]>([]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -30,12 +34,12 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      t('profile', 'logout', locale),
+      t('profile', 'logoutConfirm', locale),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common', 'cancel', locale), style: 'cancel' },
         {
-          text: 'Se déconnecter',
+          text: t('profile', 'logout', locale),
           style: 'destructive',
           onPress: async () => {
             await signOut();
@@ -160,43 +164,44 @@ export default function ProfileScreen() {
 
         <View style={styles.content}>
           <Card padding="md">
-            <Text style={styles.sectionTitle}>Informations</Text>
+            <Text style={styles.sectionTitle}>{t('profile', 'info', locale)}</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Email</Text>
               <Text style={styles.infoValue}>{profile.email}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Rôle</Text>
+              <Text style={styles.infoLabel}>{t('profile', 'role', locale)}</Text>
               <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Onboarding</Text>
+              <Text style={styles.infoLabel}>{t('profile', 'onboarding', locale)}</Text>
               <Text style={styles.infoValue}>
-                {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
+                {profile.onboarding_completed ? t('profile', 'onboardingDone', locale) : t('profile', 'onboardingPending', locale)}
               </Text>
             </View>
+            <LanguageSwitcher />
           </Card>
 
           <Card padding="md" style={styles.actionCard}>
-            <Text style={styles.sectionTitle}>Actions</Text>
+            <Text style={styles.sectionTitle}>{t('profile', 'actions', locale)}</Text>
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
               <Calendar size={18} color={colors.primary[600]} />
-              <Text style={styles.linkText}>Mes événements</Text>
+              <Text style={styles.linkText}>{t('profile', 'myEvents', locale)}</Text>
             </TouchableOpacity>
           </Card>
 
           {(profile.role === 'moderateur' || profile.role === 'admin') && (
             <Card padding="md" style={styles.actionCard}>
-              <Text style={styles.sectionTitle}>Modération</Text>
+              <Text style={styles.sectionTitle}>{t('profile', 'moderation', locale)}</Text>
               <TouchableOpacity style={styles.linkButton}>
                 <Award size={18} color={colors.secondary[600]} />
-                <Text style={styles.linkText}>Accès modération</Text>
+                <Text style={styles.linkText}>{t('profile', 'moderationAccess', locale)}</Text>
               </TouchableOpacity>
             </Card>
           )}
 
           <Button
-            title="Se déconnecter"
+            title={t('profile', 'logout', locale)}
             onPress={handleSignOut}
             variant="outline"
             fullWidth
@@ -214,9 +219,9 @@ export default function ProfileScreen() {
           >
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Mes événements</Text>
+              <Text style={styles.sheetTitle}>{t('profile', 'myEvents', locale)}</Text>
               <TouchableOpacity onPress={closeSheet}>
-                <Text style={styles.closeText}>Fermer</Text>
+                <Text style={styles.closeText}>{t('profile', 'close', locale)}</Text>
               </TouchableOpacity>
             </View>
             {loadingEvents ? (
@@ -224,7 +229,7 @@ export default function ProfileScreen() {
                 <ActivityIndicator size="small" color={colors.primary[600]} />
               </View>
             ) : myEvents.length === 0 ? (
-              <Text style={styles.emptySheetText}>Aucun événement créé</Text>
+              <Text style={styles.emptySheetText}>{t('profile', 'noEvents', locale)}</Text>
             ) : (
               <ScrollView style={{ maxHeight: 420 }}>
                 {myEvents.map((event) => (

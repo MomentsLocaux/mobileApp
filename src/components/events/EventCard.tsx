@@ -3,7 +3,9 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, MapPin, Calendar, Users } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryLabel } from '@/constants/eventTypology';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 import type { EventWithCreator } from '../../types/database';
 
 interface EventCardProps {
@@ -21,6 +23,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   showDistance,
   distance,
 }) => {
+  const { locale } = useI18n();
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleDateString('fr-FR', {
@@ -52,7 +55,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             )}
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryText}>
-                {getCategoryLabel(event.category)}
+                {getCategoryLabel(event.category, locale)}
               </Text>
             </View>
           </View>
@@ -66,7 +69,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           <View style={styles.metaRow}>
             <View style={[styles.visibilityPill, event.visibility === 'public' ? styles.publicPill : styles.privatePill]}>
               <Text style={[styles.visibilityText, event.visibility === 'public' ? styles.publicText : styles.privateText]}>
-                {event.visibility === 'public' ? 'Public' : 'Privé'}
+                {event.visibility === 'public' ? t('common', 'public', locale) : t('common', 'private', locale)}
               </Text>
             </View>
           </View>
@@ -97,7 +100,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           {event.is_free && (
             <View style={styles.freeBadge}>
-              <Text style={styles.freeText}>Gratuit</Text>
+              <Text style={styles.freeText}>{t('common', 'free', locale)}</Text>
             </View>
           )}
         </View>

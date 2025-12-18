@@ -9,12 +9,15 @@ import type { CommunityMember } from '../../types/community';
 import type { EventWithCreator } from '@/types/database';
 import { EventCard } from '@/components/events';
 import { useAuth } from '@/hooks';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 
 export default function CommunityProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const { locale } = useI18n();
   const [member, setMember] = useState<CommunityMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
@@ -74,12 +77,12 @@ export default function CommunityProfileScreen() {
 
   const filteredLabel = useMemo(() => {
     const parts = [];
-    if (dateFilter === 'upcoming') parts.push('À venir');
-    if (dateFilter === 'past') parts.push('Passés');
-    if (visibilityFilter === 'public') parts.push('Publics');
-    if (visibilityFilter === 'prive') parts.push('Privés');
-    return parts.length ? parts.join(' • ') : 'Tous les événements';
-  }, [dateFilter, visibilityFilter]);
+    if (dateFilter === 'upcoming') parts.push(t('community', 'upcoming', locale));
+    if (dateFilter === 'past') parts.push(t('community', 'past', locale));
+    if (visibilityFilter === 'public') parts.push(t('common', 'public', locale));
+    if (visibilityFilter === 'prive') parts.push(t('common', 'private', locale));
+    return parts.length ? parts.join(' • ') : t('community', 'all', locale);
+  }, [dateFilter, visibilityFilter, locale]);
 
   if (loading) {
     return (
@@ -92,7 +95,7 @@ export default function CommunityProfileScreen() {
   if (!member) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.error}>Profil introuvable</Text>
+        <Text style={styles.error}>{t('community', 'profileNotFound', locale)}</Text>
       </View>
     );
   }
@@ -102,7 +105,7 @@ export default function CommunityProfileScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={[styles.backButton, { paddingTop: insets.top + spacing.xs }]} onPress={() => router.back()}>
           <ArrowLeft size={20} color={colors.neutral[800]} />
-          <Text style={styles.backText}>Retour</Text>
+          <Text style={styles.backText}>{t('common', 'back', locale)}</Text>
         </TouchableOpacity>
         {member.cover_url ? (
           <Image source={{ uri: member.cover_url }} style={styles.cover} />
@@ -149,47 +152,47 @@ export default function CommunityProfileScreen() {
       </View>
 
       <View style={styles.statsRow}>
-        <Stat label="Événements" value={member.events_created_count} />
-        <Stat label="Followers" value={member.followers_count} />
-        <Stat label="Suivis" value={member.following_count || 0} />
-        <Stat label="Lumo" value={member.lumo_total} />
+        <Stat label={t('community', 'events', locale)} value={member.events_created_count} />
+        <Stat label={t('community', 'followers', locale)} value={member.followers_count} />
+        <Stat label={t('community', 'following', locale)} value={member.following_count || 0} />
+        <Stat label={t('community', 'lumo', locale)} value={member.lumo_total} />
       </View>
 
       <View style={styles.eventsSection}>
         <View style={styles.eventsHeader}>
-          <Text style={styles.sectionTitle}>Événements</Text>
+          <Text style={styles.sectionTitle}>{t('community', 'events', locale)}</Text>
           <Text style={styles.sectionSubtitle}>{filteredLabel}</Text>
         </View>
         <View style={styles.filterRow}>
           <FilterChip
-            label="Tous"
+            label={t('community', 'all', locale)}
             active={dateFilter === 'all'}
             onPress={() => setDateFilter('all')}
           />
           <FilterChip
-            label="À venir"
+            label={t('community', 'upcoming', locale)}
             active={dateFilter === 'upcoming'}
             onPress={() => setDateFilter(dateFilter === 'upcoming' ? 'all' : 'upcoming')}
           />
           <FilterChip
-            label="Passés"
+            label={t('community', 'past', locale)}
             active={dateFilter === 'past'}
             onPress={() => setDateFilter(dateFilter === 'past' ? 'all' : 'past')}
           />
         </View>
         <View style={styles.filterRow}>
           <FilterChip
-            label="Public"
+            label={t('common', 'public', locale)}
             active={visibilityFilter === 'public'}
             onPress={() => setVisibilityFilter(visibilityFilter === 'public' ? 'all' : 'public')}
           />
           <FilterChip
-            label="Privé"
+            label={t('common', 'private', locale)}
             active={visibilityFilter === 'prive'}
             onPress={() => setVisibilityFilter(visibilityFilter === 'prive' ? 'all' : 'prive')}
           />
           <FilterChip
-            label="Tous"
+            label={t('community', 'all', locale)}
             active={visibilityFilter === 'all'}
             onPress={() => setVisibilityFilter('all')}
           />
@@ -198,11 +201,11 @@ export default function CommunityProfileScreen() {
         {loadingEvents ? (
           <View style={styles.loadingEvents}>
             <ActivityIndicator size="small" color={colors.primary[600]} />
-            <Text style={styles.loadingText}>Chargement des événements…</Text>
+            <Text style={styles.loadingText}>{t('community', 'loadingEvents', locale)}</Text>
           </View>
         ) : events.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>Aucun événement trouvé</Text>
+            <Text style={styles.emptyText}>{t('community', 'noEvents', locale)}</Text>
           </View>
         ) : (
           events.map((event) => (

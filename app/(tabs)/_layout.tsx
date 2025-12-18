@@ -4,10 +4,13 @@ import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile } = useAuth();
   const router = useRouter();
+  const { locale } = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -76,14 +79,14 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Accueil',
+            title: t('home', 'forYou', locale),
             tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
           }}
         />
         <Tabs.Screen
           name="map"
           options={{
-            title: 'Carte',
+            title: 'Map',
             tabBarIcon: ({ size, color }) => <Map size={size} color={color} />,
           }}
         />
@@ -105,14 +108,14 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="community"
           options={{
-            title: 'Communauté',
+            title: t('community', 'followers', locale),
             tabBarIcon: ({ size, color }) => <Users size={size} color={color} />,
           }}
         />
         <Tabs.Screen
           name="shop"
           options={{
-            title: 'Boutique',
+            title: t('profile', 'invite', locale),
             tabBarIcon: ({ size, color }) => <ShoppingBag size={size} color={color} />,
           }}
         />
@@ -159,25 +162,25 @@ export default function TabsLayout() {
           </View>
         </View>
         <View style={styles.drawerLinks}>
-          <DrawerLink
-            icon={PlusCircle}
-            label="Créer un évènement"
-            onPress={() => {
-              toggleDrawer(false);
-              router.push('/events/create' as any);
-            }}
-          />
-          <DrawerLink
-            icon={User}
-            label="Mon profil"
-            onPress={() => {
-              toggleDrawer(false);
-              router.push('/(tabs)/profile' as any);
-            }}
-          />
+        <DrawerLink
+          icon={PlusCircle}
+          label={t('events', 'stepMedia', locale)}
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/events/create' as any);
+          }}
+        />
+        <DrawerLink
+          icon={User}
+          label={t('profile', 'myProfile', locale)}
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/(tabs)/profile' as any);
+          }}
+        />
         <DrawerLink
           icon={Send}
-          label="Inviter des amis"
+          label={t('profile', 'invite', locale)}
           onPress={() => {
             toggleDrawer(false);
             Alert.alert('Inviter des amis', 'À implémenter');
@@ -185,7 +188,7 @@ export default function TabsLayout() {
         />
         <DrawerLink
           icon={Compass}
-          label="Mon parcours"
+          label={t('profile', 'journey', locale)}
           onPress={() => {
             toggleDrawer(false);
             Alert.alert('Mon parcours', 'Page gamification à venir');
@@ -193,7 +196,7 @@ export default function TabsLayout() {
         />
         <DrawerLink
           icon={Target}
-          label="Missions"
+          label={t('profile', 'missions', locale)}
           onPress={() => {
             toggleDrawer(false);
             router.push('/(tabs)/missions' as any);
@@ -201,7 +204,7 @@ export default function TabsLayout() {
         />
         <DrawerLink
           icon={Map}
-          label="Évènements"
+          label={t('profile', 'events', locale)}
           onPress={() => {
             toggleDrawer(false);
               router.push('/(tabs)/index' as any);

@@ -1,7 +1,10 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../src/constants/theme';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 
 export default function ProfileLayout() {
+  const { locale } = useI18n();
   return (
     <Stack
       screenOptions={{
@@ -18,8 +21,8 @@ export default function ProfileLayout() {
       <Stack.Screen
         name="edit"
         options={{
-          title: 'Modifier le profil',
-          headerBackTitle: 'Retour',
+          title: t('profile', 'editProfile', locale),
+          headerBackTitle: t('common', 'back', locale),
         }}
       />
     </Stack>

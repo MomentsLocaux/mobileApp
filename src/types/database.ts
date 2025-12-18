@@ -94,7 +94,8 @@ export interface Database {
 }
 
 export type UserRole = 'denicheur' | 'createur' | 'moderateur' | 'admin';
-export type EventCategory = 'concert' | 'exposition' | 'spectacle' | 'sport' | 'festival' | 'atelier' | 'conference' | 'autre';
+// Event category now comes from DB enum (event_typology); allow dynamic slugs.
+export type EventCategory = string;
 export type EventVisibility = 'public' | 'prive';
 export type ScheduleMode = 'ponctuel' | 'recurrent' | 'permanent';
 export type TransactionType = 'earn' | 'spend' | 'refund';

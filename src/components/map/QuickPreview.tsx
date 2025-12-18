@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { X, MapPin, Calendar, Heart } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryLabel } from '@/constants/eventTypology';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 import type { EventWithCreator } from '../../types/database';
 
 interface QuickPreviewProps {
@@ -19,6 +21,7 @@ interface QuickPreviewProps {
 }
 
 export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProps) {
+  const { locale } = useI18n();
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleDateString('fr-FR', {
@@ -41,7 +44,7 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{getCategoryLabel(event.category)}</Text>
+          <Text style={styles.categoryText}>{getCategoryLabel(event.category, locale)}</Text>
         </View>
 
         <Text style={styles.title} numberOfLines={2}>
@@ -67,7 +70,7 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
           </View>
 
           <TouchableOpacity style={styles.viewButton} onPress={onViewDetails}>
-            <Text style={styles.viewButtonText}>Voir la fiche</Text>
+            <Text style={styles.viewButtonText}>{t('common', 'confirm', locale)}</Text>
           </TouchableOpacity>
         </View>
       </View>

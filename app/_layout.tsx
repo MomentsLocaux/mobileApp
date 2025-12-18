@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
+import { I18nProvider } from '@/contexts/I18nProvider';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -73,7 +74,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <I18nProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
@@ -82,6 +83,6 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
-    </>
+    </I18nProvider>
   );
 }

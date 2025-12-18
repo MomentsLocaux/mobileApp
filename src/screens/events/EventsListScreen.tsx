@@ -20,10 +20,13 @@ import { sortEvents } from '../../utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type { EventWithCreator } from '../../types/database';
 import { useEvents } from '@/hooks/useEvents';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 
 export default function EventsListScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { locale } = useI18n();
   const { currentLocation } = useLocationStore();
   const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
@@ -101,7 +104,7 @@ export default function EventsListScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={styles.loadingText}>Chargement des événements...</Text>
+        <Text style={styles.loadingText}>{t('common', 'loading', locale)}</Text>
       </View>
     );
   }
@@ -176,9 +179,7 @@ export default function EventsListScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-              {activeFiltersCount > 0 || focusedIds
-                ? 'Aucun événement ne correspond aux filtres'
-                : 'Aucun événement trouvé'}
+              {t('home', 'noEvents', locale)}
             </Text>
           </View>
         }

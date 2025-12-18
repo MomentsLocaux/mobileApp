@@ -19,6 +19,8 @@ import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { EventCard, EventFilters } from '@/components/events';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 
 type StoryItem = {
   creatorId: string;
@@ -31,6 +33,7 @@ type StoryItem = {
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { locale } = useI18n();
   const { currentLocation } = useLocationStore();
   const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
@@ -119,14 +122,14 @@ export default function HomeScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={styles.loadingText}>Chargement des événements...</Text>
+        <Text style={styles.loadingText}>{t('common', 'loading', locale)}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Pour vous</Text>
+      <Text style={styles.sectionTitle}>{t('home', 'forYou', locale)}</Text>
       <FlatList
         horizontal
         data={[{ me: true }, ...stories]}
@@ -145,7 +148,7 @@ export default function HomeScreen() {
                 <Text style={styles.plusText}>+</Text>
               </View>
               <Text style={styles.storyLabel} numberOfLines={1}>
-                Nouveau
+                {t('home', 'new', locale)}
               </Text>
             </TouchableOpacity>
           ) : (
@@ -191,7 +194,7 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary[600]} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun événement trouvé</Text>
+            <Text style={styles.emptyText}>{t('home', 'noEvents', locale)}</Text>
           </View>
         }
       />

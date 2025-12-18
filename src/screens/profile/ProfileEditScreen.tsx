@@ -16,12 +16,15 @@ import { Upload, User as UserIcon, ChevronLeft } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '../../services/profile.service';
+import { useI18n } from '@/contexts/I18nProvider';
+import { t } from '@/i18n/translations';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/roleHelpers';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
   const { profile, user, refreshProfile } = useAuth();
+  const { locale } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
@@ -58,7 +61,7 @@ export default function ProfileEditScreen() {
       if (refreshProfile) {
         await refreshProfile();
       }
-      Alert.alert('Succès', 'Profil mis à jour');
+      Alert.alert(t('common', 'confirm', locale), t('profile', 'myProfile', locale));
       router.back();
     } else {
       Alert.alert('Erreur', 'Impossible de mettre à jour le profil');
