@@ -43,6 +43,27 @@ function matchesTimeFilter(
     return startsAt >= start && startsAt <= end;
   }
 
+  if (timeFilter === 'today') {
+    const startsAt = new Date(event.starts_at);
+    if (isNaN(startsAt.getTime())) return false;
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setHours(23, 59, 59, 999);
+    return startsAt >= startOfDay && startsAt <= endOfDay;
+  }
+
+  if (timeFilter === 'tomorrow') {
+    const startsAt = new Date(event.starts_at);
+    if (isNaN(startsAt.getTime())) return false;
+    const startOfDay = new Date(now);
+    startOfDay.setDate(startOfDay.getDate() + 1);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setHours(23, 59, 59, 999);
+    return startsAt >= startOfDay && startsAt <= endOfDay;
+  }
+
   if (timeFilter === 'live') {
     return isLive(event, now);
   }
@@ -78,6 +99,8 @@ export function filterEvents(
   focusedIds: string[] | null = null
 ): EventWithCreator[] {
   const now = new Date();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
 
   return events.filter((event) => {
     if (focusedIds && focusedIds.length > 0) {
@@ -90,12 +113,41 @@ export function filterEvents(
       return false;
     }
 
+    // Default behavior: if no explicit date filter is provided, only show events starting today or later
+    if (!filters.includePast && !filters.startDate && !filters.endDate && !filters.time) {
+      const start = new Date(event.starts_at);
+      if (!isNaN(start.getTime()) && start < startOfToday) {
+        return false;
+      }
+    }
+
     if (filters.category && event.category !== filters.category) {
       return false;
     }
 
+    if (filters.categories && filters.categories.length > 0) {
+      if (!filters.categories.includes(event.category)) {
+        return false;
+      }
+    }
+
     if (filters.time && !matchesTimeFilter(event, filters.time, now)) {
       return false;
+    }
+
+    if (filters.startDate || filters.endDate) {
+      const eventStart = new Date(event.starts_at);
+      if (isNaN(eventStart.getTime())) return false;
+      if (filters.startDate) {
+        const start = new Date(filters.startDate);
+        start.setHours(0, 0, 0, 0);
+        if (eventStart < start) return false;
+      }
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        if (eventStart > end) return false;
+      }
     }
 
     if (filters.freeOnly && !event.is_free) {
@@ -118,6 +170,12 @@ export function filterEvents(
       return false;
     }
 
+    if (filters.tags && filters.tags.length > 0) {
+      if (!event.tags || !filters.tags.some((tag) => event.tags.includes(tag))) {
+        return false;
+      }
+    }
+
     if (
       filters.radiusKm &&
       filters.centerLat !== undefined &&
@@ -137,7 +195,8 @@ export function getActiveFilterCount(filters: EventFilters): number {
   let count = 0;
 
   if (filters.category) count++;
-  if (filters.time) count++;
+  if (filters.categories && filters.categories.length > 0) count++;
+  if (filters.time || filters.startDate || filters.endDate) count++;
   if (filters.radiusKm) count++;
   if (filters.freeOnly) count++;
   if (filters.paidOnly) count++;
@@ -145,6 +204,7 @@ export function getActiveFilterCount(filters: EventFilters): number {
   if (filters.includePast) count++;
   if (filters.popularity) count++;
   if (filters.tag) count++;
+  if (filters.tags && filters.tags.length > 0) count++;
 
   return count;
 }

@@ -103,22 +103,22 @@ export function FilterTray({
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Catégorie</Text>
             <View style={styles.chipContainer}>
-              {Object.entries(CATEGORIES).map(([key, value]) => (
+              {CATEGORIES.map((item) => (
                 <TouchableOpacity
-                  key={key}
+                  key={item.value}
                   style={[
                     styles.chip,
-                    filters.category === key && styles.chipActive,
+                    filters.category === item.value && styles.chipActive,
                   ]}
-                  onPress={() => toggleCategory(key as EventCategory)}
+                  onPress={() => toggleCategory(item.value as EventCategory)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      filters.category === key && styles.chipTextActive,
+                      filters.category === item.value && styles.chipTextActive,
                     ]}
                   >
-                    {value.label}
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
               ))}

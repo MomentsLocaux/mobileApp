@@ -6,17 +6,21 @@ import {
   TouchableOpacity,
   Text,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MapPin, Navigation } from 'lucide-react-native';
-import { FilterTray, QuickPreview, ClusterPreview, MapWrapper, type MapWrapperHandle } from '../../src/components/map';
+import { QuickPreview, ClusterPreview, MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
 import { useAuth, useLocation } from '../../src/hooks';
-import { useLocationStore, useFilterStore } from '../../src/store';
+import { useLocationStore, useFilterStore, useSearchStore } from '../../src/store';
 import { filterEvents } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import type { EventWithCreator } from '../../src/types/database';
+import { GlobalSearchBar } from '../../src/components/search/GlobalSearchBar';
+import { SearchOverlayModal } from '../../src/components/search/SearchOverlayModal';
+import { buildFiltersFromSearch } from '../../src/utils/search-filters';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
@@ -28,7 +32,9 @@ export default function MapScreen() {
   // Trigger location permission + retrieval once the map tab mounts
   useLocation();
   const { currentLocation } = useLocationStore();
-  const { filters, focusedIds, setFilters, setFocusedIds, resetFilters, getActiveFilterCount } = useFilterStore();
+  const { filters, focusedIds, setFilters, setFocusedIds, getActiveFilterCount } = useFilterStore();
+  const searchState = useSearchStore();
+  const [searchVisible, setSearchVisible] = useState(false);
 
   const [allEvents, setAllEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,12 +100,19 @@ export default function MapScreen() {
     }
   };
 
-  const handleResetFilters = () => {
-    resetFilters();
-  };
+  const applySearch = useCallback(() => {
+    const derived = buildFiltersFromSearch(useSearchStore.getState(), userLocation || mapCenter);
+    setFilters(derived);
+
+    const loc = useSearchStore.getState().where.location;
+    if (loc) {
+      mapRef.current?.recenter({ latitude: loc.latitude, longitude: loc.longitude, zoom: 11 });
+    } else if (derived.centerLat && derived.centerLon) {
+      mapRef.current?.recenter({ latitude: derived.centerLat, longitude: derived.centerLon, zoom: 11 });
+    }
+  }, [mapCenter, setFilters, userLocation]);
 
   const activeFiltersCount = getActiveFilterCount();
-  const hasUserLocation = !!currentLocation;
   const userCoords = userLocation || mapCenter;
 
   if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
@@ -117,10 +130,9 @@ export default function MapScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.fallback}>
-          <Text style={styles.fallbackText}>Chargement de la carte...</Text>
-        </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Text style={styles.fallbackText}>Chargement de la carte...</Text>
       </View>
     );
   }
@@ -129,12 +141,9 @@ export default function MapScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.topOverlay}>
-          <FilterTray
-            filters={filters}
-            onFiltersChange={setFilters}
-            onReset={handleResetFilters}
-            activeFiltersCount={activeFiltersCount}
-            hasUserLocation={hasUserLocation}
+          <GlobalSearchBar
+            onPress={() => setSearchVisible(true)}
+            summary={searchState.where.location?.label}
           />
         </View>
         <View style={styles.fallback}>
@@ -150,6 +159,11 @@ export default function MapScreen() {
             </Text>
           )}
         </View>
+        <SearchOverlayModal
+          visible={searchVisible}
+          onClose={() => setSearchVisible(false)}
+          onApply={applySearch}
+        />
       </View>
     );
   }
@@ -168,12 +182,9 @@ export default function MapScreen() {
       />
 
       <View style={styles.topOverlay}>
-        <FilterTray
-          filters={filters}
-          onFiltersChange={setFilters}
-          onReset={handleResetFilters}
-          activeFiltersCount={activeFiltersCount}
-          hasUserLocation={hasUserLocation}
+        <GlobalSearchBar
+          onPress={() => setSearchVisible(true)}
+          summary={searchState.where.location?.label}
         />
       </View>
 
@@ -243,6 +254,12 @@ export default function MapScreen() {
           <Navigation size={18} color={colors.neutral[0]} />
         </TouchableOpacity>
       )}
+
+      <SearchOverlayModal
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+        onApply={applySearch}
+      />
     </View>
   );
 }
@@ -251,6 +268,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral[100],
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[100],
+    gap: spacing.sm,
   },
   fallback: {
     flex: 1,

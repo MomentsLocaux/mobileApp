@@ -106,23 +106,19 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handlePostComment = async () => {
-    if (!profile || !event || !commentText.trim()) return;
-
-    setSubmittingComment(true);
-    try {
-      await addComment(commentText.trim());
-      setCommentText('');
-      reloadComments();
-    } catch (err) {
-      Alert.alert('Commentaire', err instanceof Error ? err.message : 'Erreur envoi commentaire');
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
-
   const handleDeleteEvent = async () => {
     if (!event) return;
+    console.log('[EventDetail] delete click', {
+      eventId: event.id,
+      creatorId: event.creator_id,
+      currentUserId: profile?.id,
+    });
+    const isOwner = profile?.id === event.creator_id;
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
+    if (!isOwner && !isAdmin) {
+      Alert.alert('Action refusée', 'Seul le créateur ou un administrateur peut supprimer cet événement.');
+      return;
+    }
 
     Alert.alert(
       'Supprimer l\'événement',
@@ -135,7 +131,7 @@ export default function EventDetailScreen() {
           onPress: async () => {
             const success = await EventsService.deleteEvent(event.id);
             if (success) {
-              router.back();
+              router.replace('/(tabs)');
             }
           },
         },
@@ -177,13 +173,13 @@ export default function EventDetailScreen() {
     );
   }
 
-  const isOwner = profile?.id === event.creator_id;
+  const isOwner = !!profile?.id && profile.id === event.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)')}>
           <ChevronLeft size={20} color={colors.neutral[700]} />
           <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
@@ -224,14 +220,16 @@ export default function EventDetailScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={handleToggleInterest}>
-            <Star
-              size={24}
-              color={event.is_interested ? colors.warning[500] : colors.neutral[600]}
-              fill={event.is_interested ? colors.warning[500] : 'transparent'}
-            />
-            <Text style={styles.actionText}>{event.interests_count}</Text>
-          </TouchableOpacity>
+          {!isOwner && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleToggleInterest}>
+              <Star
+                size={24}
+                color={event.is_interested ? colors.warning[500] : colors.neutral[600]}
+                fill={event.is_interested ? colors.warning[500] : 'transparent'}
+              />
+              <Text style={styles.actionText}>{event.interests_count}</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.actionButton}>
             <Share2 size={24} color={colors.neutral[600]} />
@@ -241,7 +239,16 @@ export default function EventDetailScreen() {
             <>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => router.push(`/events/${event.id}/edit`)}
+                onPress={() => {
+                  if (isOwner || isAdmin) {
+                    console.log('[EventDetail] edit click', {
+                      eventId: event.id,
+                      creatorId: event.creator_id,
+                      currentUserId: profile?.id,
+                    });
+                    router.push(`/events/create/step-1?edit=${event.id}` as any);
+                  }
+                }}
               >
                 <Edit size={24} color={colors.primary[600]} />
               </TouchableOpacity>
@@ -311,59 +318,23 @@ export default function EventDetailScreen() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Commentaires ({comments.length})</Text>
-
-          {profile && (
-            <Card padding="md" style={styles.commentInputCard}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Ajouter un commentaire..."
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-                numberOfLines={3}
-              />
-              <Button
-                title="Publier"
-                onPress={handlePostComment}
-                loading={submittingComment}
-                disabled={!commentText.trim()}
-                size="small"
-              />
-            </Card>
-          )}
-
-          {comments.map((comment) => (
-            <Card key={comment.id} padding="md" style={styles.commentCard}>
-              <View style={styles.commentHeader}>
-                {comment.author.avatar_url && (
-                  <Image
-                    source={{ uri: comment.author.avatar_url }}
-                    style={styles.commentAvatar}
-                  />
-                )}
-                <Text style={styles.commentAuthor}>{comment.author.display_name}</Text>
-              </View>
-              <Text style={styles.commentContent}>{comment.message}</Text>
-            </Card>
-          ))}
-        </View>
-
-        <Button
-          title="Je participe !"
-          onPress={handleToggleInterest}
-          variant={event.is_interested ? 'outline' : 'primary'}
-          fullWidth
-          style={styles.participateButton}
-        />
-
-        <Button
-          title="Check-in"
-          onPress={handleCheckIn}
-          variant="secondary"
-          fullWidth
-        />
+        {!isOwner && (
+          <View style={styles.section}>
+            <Button
+              title={event.is_interested ? 'Ne plus participer' : 'Je participe !'}
+              onPress={handleToggleInterest}
+              variant={event.is_interested ? 'outline' : 'primary'}
+              fullWidth
+              style={styles.participateButton}
+            />
+            <Button
+              title="Check-in"
+              onPress={handleCheckIn}
+              variant="secondary"
+              fullWidth
+            />
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -546,5 +517,32 @@ const styles = StyleSheet.create({
   },
   participateButton: {
     marginBottom: spacing.md,
+  },
+  ownerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  ownerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral[100],
+  },
+  ownerText: {
+    ...typography.bodySmall,
+    color: colors.neutral[800],
+    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: colors.error[50],
+  },
+  deleteText: {
+    color: colors.error[600],
   },
 });

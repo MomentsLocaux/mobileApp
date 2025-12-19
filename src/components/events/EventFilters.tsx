@@ -104,22 +104,22 @@ export function EventFilters({
               showsHorizontalScrollIndicator={false}
               style={styles.chipsScroll}
             >
-              {Object.entries(CATEGORIES).map(([key, value]) => (
+              {CATEGORIES.map((cat) => (
                 <TouchableOpacity
-                  key={key}
+                  key={cat.value}
                   style={[
                     styles.chip,
-                    filters.category === key && styles.chipActive,
+                    filters.category === cat.value && styles.chipActive,
                   ]}
-                  onPress={() => toggleCategory(key as EventCategory)}
+                  onPress={() => toggleCategory(cat.value as EventCategory)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      filters.category === key && styles.chipTextActive,
+                      filters.category === cat.value && styles.chipTextActive,
                     ]}
                   >
-                    {value.label}
+                    {cat.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -129,6 +129,22 @@ export function EventFilters({
           <View style={styles.filterSection}>
             <Text style={styles.filterLabel}>Temps</Text>
             <View style={styles.chipRow}>
+              <TouchableOpacity
+                style={[styles.chip, filters.time === 'today' && styles.chipActive]}
+                onPress={() => toggleTime('today')}
+              >
+                <Text style={[styles.chipText, filters.time === 'today' && styles.chipTextActive]}>
+                  Aujourd'hui
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.chip, filters.time === 'tomorrow' && styles.chipActive]}
+                onPress={() => toggleTime('tomorrow')}
+              >
+                <Text style={[styles.chipText, filters.time === 'tomorrow' && styles.chipTextActive]}>
+                  Demain
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.chip, filters.time === 'weekend' && styles.chipActive]}
                 onPress={() => toggleTime('weekend')}
