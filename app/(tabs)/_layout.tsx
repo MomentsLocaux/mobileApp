@@ -95,7 +95,7 @@ export default function TabsLayout() {
               <TouchableOpacity
                 style={styles.createButton}
                 activeOpacity={0.85}
-                onPress={() => router.push('/events/create' as any)}
+                onPress={() => router.push('/events/create/step-1' as any)}
               >
                 <PlusCircle size={28} color="#FFFFFF" />
               </TouchableOpacity>
@@ -164,7 +164,7 @@ export default function TabsLayout() {
             label="Créer un évènement"
             onPress={() => {
               toggleDrawer(false);
-              router.push('/events/create' as any);
+              router.push('/events/create/step-1' as any);
             }}
           />
           <DrawerLink

@@ -135,7 +135,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.storiesContent}
         renderItem={({ item }: any) =>
           item.me ? (
-            <TouchableOpacity style={styles.storyItem} onPress={() => router.push('/events/create' as any)}>
+            <TouchableOpacity style={styles.storyItem} onPress={() => router.push('/events/create/step-1' as any)}>
               {profile?.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.storyAvatar} />
               ) : (

@@ -1,3 +1,5 @@
-import EventCreateScreen from '../../src/screens/events/EventCreateScreen';
+import { Redirect } from 'expo-router';
 
-export default EventCreateScreen;
+export default function CreateRedirect() {
+  return <Redirect href="/events/create/step-1" />;
+}

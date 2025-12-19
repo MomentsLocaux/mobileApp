@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import { Button } from '../../components/ui';
 import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
+import { useImagePicker } from '@/hooks/useImagePicker';
+import { supabase } from '@/lib/supabase/client';
+import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 
 const ROLE_OPTIONS = [
   { value: 'denicheur', label: 'Explorateur', description: 'Je découvre et participe.' },
@@ -22,65 +25,99 @@ const ROLE_OPTIONS = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const { profile, user, refreshProfile } = useAuth();
+  const { pickImage } = useImagePicker();
+
   const [step, setStep] = useState(1);
+  const totalSteps = 4;
+
   const fallbackDisplayName = useMemo(
     () => profile?.display_name || profile?.email || user?.email || '',
     [profile?.display_name, profile?.email, user?.email],
   );
+
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
   const [role, setRole] = useState<string>(profile?.role || 'denicheur');
   const [city, setCity] = useState(profile?.city || '');
   const [region, setRegion] = useState(profile?.region || '');
+  const [addressSearch, setAddressSearch] = useState('');
+  const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<GeocodeResult | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [coverUrl, setCoverUrl] = useState(profile?.cover_url || '');
+  const [facebook, setFacebook] = useState(profile?.facebook_url || '');
+  const [instagram, setInstagram] = useState(profile?.instagram_url || '');
+  const [tiktok, setTiktok] = useState(profile?.tiktok_url || '');
+
   const [isLoading, setIsLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const totalSteps = 3;
   const canContinue =
     (step === 1 && !!displayName.trim()) ||
-    (step === 2 && !!city.trim() && !!region.trim()) ||
-    step === 3;
+    (step === 2 && !!selectedAddress) ||
+    step === 3 ||
+    step === 4;
+
+  const searchAddress = useCallback(
+    async (q: string) => {
+      setError(null);
+      setAddressSearch(q);
+      if (!q.trim()) {
+        setAddressResults([]);
+        return;
+      }
+      setLocationLoading(true);
+      try {
+        const results = await MapboxService.search(q);
+        setAddressResults(results);
+      } catch (e) {
+        setError('Impossible de chercher cette adresse.');
+      } finally {
+        setLocationLoading(false);
+      }
+    },
+    [],
+  );
 
   const geocodeLocation = async () => {
-    setError(null);
-    const query = [city, region].filter(Boolean).join(' ');
-    if (!query.trim()) return false;
-
-    setLocationLoading(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=fr&q=${encodeURIComponent(
-          query,
-        )}`,
-        {
-          headers: { 'User-Agent': 'LumoApp/1.0' },
-        },
-      );
-
-      if (!response.ok) {
-        setError('Impossible de valider cette localisation.');
-        return false;
-      }
-
-      const results = await response.json();
-      const first = Array.isArray(results) ? results[0] : null;
-      if (!first || !first.address) {
-        setError('Ville ou région introuvable en France.');
-        return false;
-      }
-
-      const addr = first.address;
-      setCity(addr.city || addr.town || addr.village || city);
-      setRegion(addr.state || addr.county || region);
-      return true;
-    } catch (err) {
-      setError('Impossible de géocoder cette localisation.');
-      return false;
-    } finally {
-      setLocationLoading(false);
-    }
+    if (!selectedAddress) return false;
+    setCity(selectedAddress.city || selectedAddress.label);
+    setRegion(selectedAddress.country || 'France');
+    return true;
   };
+
+  const uploadImage = useCallback(
+    async (target: 'avatar' | 'cover') => {
+      const asset = await pickImage({ allowsEditing: true });
+      if (!asset?.uri) return;
+      setIsLoading(true);
+      try {
+        const response = await fetch(asset.uri);
+        const arrayBuffer = await response.arrayBuffer();
+        const ext = asset.uri.split('.').pop() || 'jpg';
+        const fileName = `${target}-${Date.now()}.${ext}`;
+        const path = target === 'avatar' ? `avatars/${fileName}` : `covers/${fileName}`;
+        const bucket = 'avatar'; // bucket déjà créé pour les avatars/covers
+        const contentType =
+          response.headers.get('content-type') ||
+          (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(path, arrayBuffer, {
+          contentType,
+          upsert: true,
+        });
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+        if (target === 'avatar') setAvatarUrl(data.publicUrl);
+        else setCoverUrl(data.publicUrl);
+      } catch (e) {
+        setError("Échec de l'upload, réessayez.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [pickImage],
+  );
 
   const handleComplete = async () => {
     if (!profile || !user) return;
@@ -94,6 +131,11 @@ export default function OnboardingScreen() {
         role: role as any,
         city: city.trim(),
         region: region.trim(),
+        avatar_url: avatarUrl || null,
+        cover_url: coverUrl || null,
+        facebook_url: facebook.trim() || null,
+        instagram_url: instagram.trim() || null,
+        tiktok_url: tiktok.trim() || null,
         onboarding_completed: true,
       });
 
@@ -115,18 +157,16 @@ export default function OnboardingScreen() {
           <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Bienvenue sur Lumo</Text>
-        <Text style={styles.subtitle}>
-          Configurons votre profil en quelques étapes
-        </Text>
+        <Text style={styles.subtitle}>Configurons votre profil en quelques étapes</Text>
         <Text style={styles.progressLabel}>
           Étape {step} / {totalSteps}
         </Text>
       </View>
 
       <View style={styles.progressBar}>
-        <View style={[styles.progressStep, step >= 1 && styles.progressStepActive]} />
-        <View style={[styles.progressStep, step >= 2 && styles.progressStepActive]} />
-        <View style={[styles.progressStep, step >= 3 && styles.progressStepActive]} />
+        {[1, 2, 3, 4].map((idx) => (
+          <View key={idx} style={[styles.progressStep, step >= idx && styles.progressStepActive]} />
+        ))}
       </View>
 
       {step === 1 && (
@@ -148,10 +188,7 @@ export default function OnboardingScreen() {
             {ROLE_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
-                style={[
-                  styles.roleCard,
-                  role === option.value && styles.roleCardSelected,
-                ]}
+                style={[styles.roleCard, role === option.value && styles.roleCardSelected]}
                 onPress={() => setRole(option.value)}
               >
                 <View style={styles.roleIcon}>
@@ -171,34 +208,102 @@ export default function OnboardingScreen() {
       {step === 2 && (
         <View style={styles.stepContainer}>
           <Text style={styles.stepTitle}>Où êtes-vous basé ?</Text>
-
+          <Text style={styles.helper}>Recherche limitée à la France.</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Ville</Text>
+            <Text style={styles.label}>Adresse ou ville</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex. Paris"
-              value={city}
-              onChangeText={setCity}
-              autoCapitalize="words"
+              placeholder="Ex. 10 rue de Rivoli, Paris"
+              value={addressSearch}
+              onChangeText={searchAddress}
+              autoCapitalize="none"
             />
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Région</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex. Île-de-France"
-              value={region}
-              onChangeText={setRegion}
-              autoCapitalize="words"
-            />
+          {locationLoading && <Text style={styles.meta}>Recherche en cours...</Text>}
+          <View style={styles.resultsContainer}>
+            {addressResults.map((item) => (
+              <TouchableOpacity
+                key={`${item.latitude}-${item.longitude}-${item.label}`}
+                style={[
+                  styles.resultRow,
+                  selectedAddress?.label === item.label && styles.resultRowActive,
+                ]}
+                onPress={() => setSelectedAddress(item)}
+              >
+                <Text style={styles.resultText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
+          {selectedAddress ? (
+            <View style={styles.selection}>
+              <Text style={styles.meta}>Adresse sélectionnée :</Text>
+              <Text style={styles.info}>{selectedAddress.label}</Text>
+            </View>
+          ) : null}
         </View>
       )}
 
       {step === 3 && (
         <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Ajoutez une bio (optionnel)</Text>
+          <Text style={styles.stepTitle}>Ajoutez vos visuels</Text>
+          <View style={styles.uploadRow}>
+            <TouchableOpacity style={styles.uploadCard} onPress={() => uploadImage('avatar')}>
+              {avatarUrl ? (
+                <ImagePreview uri={avatarUrl} label="Avatar" />
+              ) : (
+                <Text style={styles.uploadText}>Avatar</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.uploadCard} onPress={() => uploadImage('cover')}>
+              {coverUrl ? (
+                <ImagePreview uri={coverUrl} label="Cover" />
+              ) : (
+                <Text style={styles.uploadText}>Cover</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.helper}>Ces visuels pourront être modifiés plus tard.</Text>
+        </View>
+      )}
+
+      {step === 4 && (
+        <View style={styles.stepContainer}>
+          <Text style={styles.stepTitle}>Réseaux & bio</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Instagram</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="@moncompte ou lien"
+              value={instagram}
+              onChangeText={setInstagram}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>TikTok</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="@moncompte ou lien"
+              value={tiktok}
+              onChangeText={setTiktok}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Facebook</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="URL ou page"
+              value={facebook}
+              onChangeText={setFacebook}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <Text style={styles.stepTitle}>Bio (optionnel)</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Bio</Text>
@@ -248,6 +353,15 @@ export default function OnboardingScreen() {
     </ScrollView>
   );
 }
+
+const ImagePreview = ({ uri, label }: { uri: string; label: string }) => (
+  <View style={styles.previewContainer}>
+    <Text style={styles.uploadText}>{label}</Text>
+    <Text style={styles.meta} numberOfLines={1}>
+      {uri}
+    </Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -305,6 +419,7 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     gap: spacing.lg,
+    marginBottom: spacing.xl,
   },
   stepTitle: {
     ...typography.h2,
@@ -371,5 +486,56 @@ const styles = StyleSheet.create({
   },
   buttonHalf: {
     flex: 1,
+  },
+  helper: {
+    ...typography.bodySmall,
+    color: colors.neutral[600],
+  },
+  meta: {
+    ...typography.caption,
+    color: colors.neutral[500],
+  },
+  info: {
+    ...typography.body,
+    color: colors.neutral[800],
+  },
+  resultRow: {
+    paddingVertical: spacing.sm,
+  },
+  resultRowActive: {
+    backgroundColor: colors.primary[50],
+  },
+  resultText: {
+    ...typography.body,
+    color: colors.neutral[800],
+  },
+  resultsContainer: {
+    maxHeight: 200,
+  },
+  selection: {
+    gap: spacing.xs,
+  },
+  uploadRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  uploadCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[0],
+  },
+  uploadText: {
+    ...typography.body,
+    color: colors.neutral[800],
+    fontWeight: '600',
+  },
+  previewContainer: {
+    alignItems: 'center',
+    gap: spacing.xs,
   },
 });

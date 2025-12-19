@@ -7,6 +7,9 @@ export type SortOption = 'distance' | 'popularity' | 'date';
 export interface EventFilters {
   category?: EventCategory;
   time?: TimeFilter;
+  radiusKm?: number;
+  centerLat?: number;
+  centerLon?: number;
   freeOnly?: boolean;
   paidOnly?: boolean;
   visibility?: 'public' | 'prive';

@@ -183,6 +183,10 @@ export default function ProfileScreen() {
               <Calendar size={18} color={colors.primary[600]} />
               <Text style={styles.linkText}>Mes événements</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/onboarding' as any)}>
+              <Award size={18} color={colors.primary[600]} />
+              <Text style={styles.linkText}>Recommencer l'onboarding</Text>
+            </TouchableOpacity>
           </Card>
 
           {(profile.role === 'moderateur' || profile.role === 'admin') && (

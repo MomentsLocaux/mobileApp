@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
 
 export default function CreateTabRedirect() {
-  return <Redirect href="/events/create" />;
+  return <Redirect href="/events/create/step-1" />;
 }

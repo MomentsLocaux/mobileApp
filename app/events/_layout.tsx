@@ -29,6 +29,18 @@ export default function EventsLayout() {
           headerBackTitle: 'Annuler',
         }}
       />
+      <Stack.Screen
+        name="create/step-1"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="create/step-2"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

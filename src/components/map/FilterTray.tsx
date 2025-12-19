@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  TextInput,
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -126,30 +127,30 @@ export function FilterTray({
 
           <View style={styles.row}>
             <View style={styles.sectionCardHalf}>
-              <Text style={styles.sectionTitle}>Temps</Text>
-              <View style={styles.chipContainer}>
-                <TouchableOpacity
-                  style={[styles.chip, filters.time === 'weekend' && styles.chipActive]}
-                  onPress={() => toggleTime('weekend')}
-                >
-                  <Text style={[styles.chipText, filters.time === 'weekend' && styles.chipTextActive]}>
-                    Weekend
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.chip, filters.time === 'live' && styles.chipActive]}
-                  onPress={() => toggleTime('live')}
-                >
-                  <Text style={[styles.chipText, filters.time === 'live' && styles.chipTextActive]}>
-                    En cours
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            <Text style={styles.sectionTitle}>Temps</Text>
+            <View style={styles.chipContainer}>
+              <TouchableOpacity
+                style={[styles.chip, filters.time === 'weekend' && styles.chipActive]}
+                onPress={() => toggleTime('weekend')}
+              >
+                <Text style={[styles.chipText, filters.time === 'weekend' && styles.chipTextActive]}>
+                  Ce Weekend
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.chip, filters.time === 'live' && styles.chipActive]}
+                onPress={() => toggleTime('live')}
+              >
+                <Text style={[styles.chipText, filters.time === 'live' && styles.chipTextActive]}>
+                  En cours
+                </Text>
+              </TouchableOpacity>
             </View>
+          </View>
 
             <View style={styles.sectionCardHalf}>
               <Text style={styles.sectionTitle}>Popularité</Text>
-              <View style={styles.chipContainer}>
+            <View style={styles.chipContainer}>
                 <TouchableOpacity
                   style={[styles.chip, filters.popularity === 'trending' && styles.chipActive]}
                   onPress={() => togglePopularity('trending')}
@@ -228,16 +229,25 @@ export function FilterTray({
             <View style={styles.sectionCardHalf}>
               <Text style={styles.sectionTitle}>Options</Text>
               <View style={styles.chipContainer}>
-                <TouchableOpacity
-                  style={[styles.chip, filters.includePast && styles.chipActive]}
-                  onPress={toggleIncludePast}
-                >
-                  <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
-                    Inclure passés
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.chip, filters.includePast && styles.chipActive]}
+                onPress={toggleIncludePast}
+              >
+                <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
+                  Inclure passés
+                </Text>
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { minWidth: 120 }]}
+                placeholder="Rayon km"
+                keyboardType="numeric"
+                value={filters.radiusKm ? String(filters.radiusKm) : ''}
+                onChangeText={(text) =>
+                  onFiltersChange({ radiusKm: text ? Number(text) : undefined })
+                }
+              />
             </View>
+          </View>
 
             <View style={styles.sectionCardHalf}>
               <Text style={styles.sectionTitle}>Tri</Text>

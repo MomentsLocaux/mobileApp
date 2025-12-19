@@ -105,6 +105,7 @@ export interface Profile {
   email: string | null;
   display_name: string;
   avatar_url: string | null;
+  cover_url?: string | null;
   bio: string | null;
   role: UserRole;
   onboarding_completed: boolean;
@@ -112,6 +113,9 @@ export interface Profile {
   updated_at: string;
   city: string | null;
   region: string | null;
+  facebook_url?: string | null;
+  instagram_url?: string | null;
+  tiktok_url?: string | null;
 }
 
 export interface Event {

@@ -1,0 +1,226 @@
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import { colors, typography, spacing, borderRadius } from '@/constants/theme';
+import { CategorySelector } from '@/components/events/CategorySelector';
+import { TagsSelector } from '@/components/events/TagsSelector';
+import { VisibilitySelector } from '@/components/events/VisibilitySelector';
+import { OptionalInfoSection } from '@/components/events/OptionalInfoSection';
+import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
+import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { EventsService } from '@/services/events.service';
+import { useAuth } from '@/hooks';
+
+export default function CreateEventStep2() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const coverImage = useCreateEventStore((s) => s.coverImage);
+  const title = useCreateEventStore((s) => s.title);
+  const startDate = useCreateEventStore((s) => s.startDate);
+  const endDate = useCreateEventStore((s) => s.endDate);
+  const location = useCreateEventStore((s) => s.location);
+  const description = useCreateEventStore((s) => s.description);
+  const category = useCreateEventStore((s) => s.category);
+  const tags = useCreateEventStore((s) => s.tags);
+  const visibility = useCreateEventStore((s) => s.visibility);
+  const price = useCreateEventStore((s) => s.price);
+  const duration = useCreateEventStore((s) => s.duration);
+  const contact = useCreateEventStore((s) => s.contact);
+  const externalLink = useCreateEventStore((s) => s.externalLink);
+  const videoLink = useCreateEventStore((s) => s.videoLink);
+  const setCategory = useCreateEventStore((s) => s.setCategory);
+  const setTags = useCreateEventStore((s) => s.setTags);
+  const setVisibility = useCreateEventStore((s) => s.setVisibility);
+  const setPrice = useCreateEventStore((s) => s.setPrice);
+  const setDuration = useCreateEventStore((s) => s.setDuration);
+  const setContact = useCreateEventStore((s) => s.setContact);
+  const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
+  const resetStore = useCreateEventStore((s) => s.reset);
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const dateLabel = useMemo(() => {
+    if (!startDate) return '';
+    const d = new Date(startDate);
+    return d.toLocaleString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, [startDate]);
+
+  const canPublish = useMemo(() => !!category && !!title && !!startDate && !!location, [
+    category,
+    title,
+    startDate,
+    location,
+  ]);
+
+  const handlePublish = async () => {
+    if (!canPublish || !location || !startDate) return;
+    if (!user) {
+      Alert.alert('Connexion requise', 'Connectez-vous pour publier un événement.');
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const contact_email = contact && contact.includes('@') ? contact : null;
+      const contact_phone = contact && !contact.includes('@') ? contact : null;
+      let priceValue: number | null = null;
+      if (price) {
+        const normalized = Number(price.replace(',', '.').replace(/[^0-9.-]/g, ''));
+        if (!Number.isNaN(normalized)) {
+          priceValue = normalized;
+        }
+      }
+
+      const payload = {
+        title,
+        description: description || '',
+        category: category as any,
+        tags,
+        starts_at: startDate,
+        ends_at: endDate || null,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.addressLabel,
+        city: location.city,
+        postal_code: location.postalCode,
+        visibility: visibility === 'public' ? 'public' : 'prive',
+        is_free: !price || price.toLowerCase().includes('gratuit'),
+        price: priceValue,
+        cover_url: coverImage?.publicUrl || null,
+        max_participants: null,
+        registration_required: null,
+        external_url: externalLink || videoLink || null,
+        contact_email,
+        contact_phone,
+        status: 'published',
+        creator_id: user?.id,
+      };
+
+      const created = await EventsService.create(payload as any);
+      resetStore();
+      router.replace(`/events/${created.id}` as any);
+    } catch (e) {
+      console.error('publish event', e);
+      Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+          <ChevronLeft size={20} color={colors.neutral[800]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Détails de l'événement</Text>
+        <View style={styles.headerBtn} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <CategorySelector selected={category} onSelect={setCategory} />
+        <TagsSelector selected={tags} onChange={setTags} />
+        <VisibilitySelector value={visibility} onChange={setVisibility} />
+        <OptionalInfoSection
+          price={price}
+          duration={duration}
+          contact={contact}
+          externalLink={externalLink}
+          onChange={(data) => {
+            if (data.price !== undefined) setPrice(data.price);
+            if (data.duration !== undefined) setDuration(data.duration);
+            if (data.contact !== undefined) setContact(data.contact);
+            if (data.externalLink !== undefined) setExternalLink(data.externalLink);
+          }}
+        />
+        <EventPreviewMiniMap
+          coverUrl={coverImage?.publicUrl}
+          title={title}
+          dateLabel={dateLabel}
+          category={category}
+          city={location?.city}
+          location={location}
+        />
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
+          disabled={!canPublish || submitting}
+          onPress={handlePublish}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.publishText}>Publier l'événement</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: colors.neutral[0],
+  },
+  header: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+  },
+  headerBtn: {
+    padding: spacing.sm,
+    minWidth: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    ...typography.h5,
+    color: colors.neutral[900],
+    fontWeight: '700',
+  },
+  content: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl * 2,
+    gap: spacing.lg,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+  },
+  publishBtn: {
+    backgroundColor: colors.primary[600],
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+  },
+  publishDisabled: {
+    backgroundColor: colors.neutral[300],
+  },
+  publishText: {
+    ...typography.body,
+    color: '#fff',
+    fontWeight: '700',
+  },
+});

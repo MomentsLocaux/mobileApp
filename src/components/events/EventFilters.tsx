@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -133,7 +134,7 @@ export function EventFilters({
                 onPress={() => toggleTime('weekend')}
               >
                 <Text style={[styles.chipText, filters.time === 'weekend' && styles.chipTextActive]}>
-                  Weekend
+                  Ce Weekend
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -220,6 +221,15 @@ export function EventFilters({
                   Inclure passés
                 </Text>
               </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { minWidth: 120 }]}
+                placeholder="Rayon km"
+                keyboardType="numeric"
+                value={filters.radiusKm ? String(filters.radiusKm) : ''}
+                onChangeText={(text) =>
+                  onFiltersChange({ radiusKm: text ? Number(text) : undefined })
+                }
+              />
             </View>
           </View>
 
