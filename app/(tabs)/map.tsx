@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { MapPin, Navigation } from 'lucide-react-native';
+import Mapbox from '@rnmapbox/maps';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
 import { useAuth, useLocation } from '../../src/hooks';
@@ -72,6 +73,7 @@ export default function MapScreen() {
   const mapRef = useRef<MapWrapperHandle>(null);
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
   const tabTranslate = useSharedValue(0);
+  const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -270,6 +272,17 @@ export default function MapScreen() {
     transform: [{ translateY: tabTranslate.value }],
   }));
 
+  const mapStyle = useMemo(() => {
+    switch (mapMode) {
+      case 'satellite':
+        return Mapbox.StyleURL.SatelliteStreet;
+      default:
+        return Mapbox.StyleURL.Street;
+    }
+  }, [mapMode]);
+
+  const mapPitch = 0;
+
   if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
     return (
       <GestureHandlerRootView style={styles.container}>
@@ -334,6 +347,8 @@ export default function MapScreen() {
         onClusterPress={handleClusterPress}
         zoom={zoom}
         onZoomChange={setZoom}
+        styleURL={mapStyle}
+        pitch={mapPitch}
         onVisibleBoundsChange={(bounds) => {
           if (isProgrammaticMoveRef.current) {
             return;
@@ -359,6 +374,27 @@ export default function MapScreen() {
           onPress={() => setSearchVisible(true)}
           summary={searchState.where.location?.label}
         />
+        <View style={styles.layerSwitcher}>
+          {(['standard', 'satellite'] as const).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.layerButton,
+                mapMode === mode && styles.layerButtonActive,
+              ]}
+              onPress={() => setMapMode(mode)}
+            >
+              <Text
+                style={[
+                  styles.layerButtonText,
+                  mapMode === mode && styles.layerButtonTextActive,
+                ]}
+              >
+                {mode === 'standard' ? 'Standard' : 'Satellite'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {Platform.OS === 'web' && (
@@ -473,6 +509,7 @@ const styles = StyleSheet.create({
     right: spacing.md,
     maxWidth: 400,
     zIndex: 10,
+    gap: spacing.sm,
   },
   bottomOverlay: {
     position: 'absolute',
@@ -517,6 +554,33 @@ const styles = StyleSheet.create({
   },
   tabSpacer: {
     height: spacing.lg,
+  },
+  layerSwitcher: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  layerButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[0],
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  layerButtonActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+    borderWidth: 1,
+  },
+  layerButtonText: {
+    color: colors.neutral[700],
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  layerButtonTextActive: {
+    color: colors.primary[700],
   },
   recenterButton: {
     position: 'absolute',

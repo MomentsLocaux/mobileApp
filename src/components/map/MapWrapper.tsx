@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapPin } from 'lucide-react-native';
@@ -24,6 +24,9 @@ interface MapWrapperProps {
   onZoomChange?: (zoom: number) => void;
   onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   children?: React.ReactNode;
+  styleURL?: string;
+  pitch?: number;
+  bearing?: number;
 }
 
 export type MapWrapperHandle = {
@@ -43,6 +46,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onZoomChange,
       onVisibleBoundsChange,
       children,
+      styleURL,
+      pitch,
+      bearing,
     },
     ref
   ) => {
@@ -201,11 +207,29 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     }
   };
 
+  useEffect(() => {
+    if (typeof pitch === 'number') {
+      cameraRef.current?.setCamera({
+        pitch,
+        animationDuration: 250,
+      });
+    }
+  }, [pitch]);
+
+  useEffect(() => {
+    if (typeof bearing === 'number') {
+      cameraRef.current?.setCamera({
+        heading: bearing,
+        animationDuration: 250,
+      });
+    }
+  }, [bearing]);
+
   return (
     <View style={styles.container}>
       <Mapbox.MapView
         style={styles.map}
-        styleURL={Mapbox.StyleURL.Street}
+        styleURL={styleURL || Mapbox.StyleURL.Street}
         onMapIdle={(event) => {
           const zoomLevel = (event.properties as any).zoomLevel ?? (event.properties as any).zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
@@ -228,6 +252,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           defaultSettings={{
             centerCoordinate: [initialRegion.longitude, initialRegion.latitude],
             zoomLevel: initialRegion.zoom,
+            pitch: pitch ?? 0,
+            heading: bearing ?? 0,
           }}
         />
 
