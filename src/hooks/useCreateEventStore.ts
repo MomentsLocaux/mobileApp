@@ -23,6 +23,7 @@ interface CreateEventState {
   videoLink?: string;
   description?: string;
   category?: string;
+  subcategory?: string;
   tags: string[];
   visibility: 'public' | 'unlisted';
   price?: string;
@@ -37,6 +38,7 @@ interface CreateEventState {
   setVideoLink: (link?: string) => void;
   setDescription: (desc?: string) => void;
   setCategory: (cat?: string) => void;
+  setSubcategory: (cat?: string) => void;
   setTags: (tags: string[]) => void;
   setVisibility: (v: 'public' | 'unlisted') => void;
   setPrice: (price?: string) => void;
@@ -55,6 +57,7 @@ const initialState = {
   description: '',
   coverImage: undefined,
   category: undefined,
+  subcategory: undefined,
   tags: [],
   visibility: 'public' as const,
   price: undefined,
@@ -72,7 +75,8 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setLocation: (location) => set({ location }),
   setVideoLink: (videoLink) => set({ videoLink }),
   setDescription: (description) => set({ description }),
-  setCategory: (category) => set({ category }),
+  setCategory: (category) => set({ category, subcategory: undefined }),
+  setSubcategory: (subcategory) => set({ subcategory }),
   setTags: (tags) => set({ tags }),
   setVisibility: (visibility) => set({ visibility }),
   setPrice: (price) => set({ price }),

@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { CATEGORIES } from '../../constants/categories';
 import type { MapFilters, TimeFilter, PopularityFilter, SortOption } from '../../types/filters';
 import type { EventCategory } from '../../types/database';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 interface FilterTrayProps {
   filters: MapFilters;
@@ -30,9 +31,23 @@ export function FilterTray({
   hasUserLocation,
 }: FilterTrayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  useTaxonomy();
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const tags = useTaxonomyStore((s) => s.tags);
 
   const toggleCategory = (category: EventCategory) => {
     onFiltersChange({ category: filters.category === category ? undefined : category });
+    if (filters.category === category) {
+      onFiltersChange({ subcategories: undefined });
+    }
+  };
+
+  const toggleSubcategory = (subcategory: string) => {
+    const next = filters.subcategories?.includes(subcategory)
+      ? (filters.subcategories || []).filter((s) => s !== subcategory)
+      : ([...(filters.subcategories || []), subcategory] as string[]);
+    onFiltersChange({ subcategories: next });
   };
 
   const toggleTime = (time: TimeFilter) => {
@@ -103,19 +118,19 @@ export function FilterTray({
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Catégorie</Text>
             <View style={styles.chipContainer}>
-              {CATEGORIES.map((item) => (
+              {categories.map((item) => (
                 <TouchableOpacity
-                  key={item.value}
+                  key={item.id}
                   style={[
                     styles.chip,
-                    filters.category === item.value && styles.chipActive,
+                    filters.category === item.id && styles.chipActive,
                   ]}
-                  onPress={() => toggleCategory(item.value as EventCategory)}
+                  onPress={() => toggleCategory(item.id)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      filters.category === item.value && styles.chipTextActive,
+                      filters.category === item.id && styles.chipTextActive,
                     ]}
                   >
                     {item.label}
@@ -124,6 +139,35 @@ export function FilterTray({
               ))}
             </View>
           </View>
+
+          {filters.category && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Sous-catégorie</Text>
+              <View style={styles.chipContainer}>
+                {subcategories
+                  .filter((sub) => sub.category_id === filters.category)
+                  .map((sub) => (
+                    <TouchableOpacity
+                      key={sub.id}
+                      style={[
+                        styles.chip,
+                        filters.subcategories?.includes(sub.id) && styles.chipActive,
+                      ]}
+                      onPress={() => toggleSubcategory(sub.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          filters.subcategories?.includes(sub.id) && styles.chipTextActive,
+                        ]}
+                      >
+                        {sub.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </View>
+          )}
 
           <View style={styles.row}>
             <View style={styles.sectionCardHalf}>
@@ -229,25 +273,53 @@ export function FilterTray({
             <View style={styles.sectionCardHalf}>
               <Text style={styles.sectionTitle}>Options</Text>
               <View style={styles.chipContainer}>
-              <TouchableOpacity
-                style={[styles.chip, filters.includePast && styles.chipActive]}
-                onPress={toggleIncludePast}
-              >
-                <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
-                  Inclure passés
-                </Text>
-              </TouchableOpacity>
-              <TextInput
-                style={[styles.input, { minWidth: 120 }]}
-                placeholder="Rayon km"
-                keyboardType="numeric"
-                value={filters.radiusKm ? String(filters.radiusKm) : ''}
-                onChangeText={(text) =>
-                  onFiltersChange({ radiusKm: text ? Number(text) : undefined })
-                }
-              />
+                <TouchableOpacity
+                  style={[styles.chip, filters.includePast && styles.chipActive]}
+                  onPress={toggleIncludePast}
+                >
+                  <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
+                    Inclure passés
+                  </Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, { minWidth: 120 }]}
+                  placeholder="Rayon km"
+                  keyboardType="numeric"
+                  value={filters.radiusKm ? String(filters.radiusKm) : ''}
+                  onChangeText={(text) =>
+                    onFiltersChange({ radiusKm: text ? Number(text) : undefined })
+                  }
+                />
+              </View>
+              <Text style={[styles.sectionTitle, { marginTop: spacing.sm }]}>Tags</Text>
+              <View style={styles.chipContainer}>
+                {tags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag.slug}
+                    style={[
+                      styles.chip,
+                      filters.tags?.includes(tag.slug) && styles.chipActive,
+                    ]}
+                    onPress={() => {
+                      const exists = filters.tags?.includes(tag.slug);
+                      const next = exists
+                        ? (filters.tags || []).filter((t) => t !== tag.slug)
+                        : ([...(filters.tags || []), tag.slug] as string[]);
+                      onFiltersChange({ tags: next });
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        filters.tags?.includes(tag.slug) && styles.chipTextActive,
+                      ]}
+                    >
+                      {tag.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
 
             <View style={styles.sectionCardHalf}>
               <Text style={styles.sectionTitle}>Tri</Text>

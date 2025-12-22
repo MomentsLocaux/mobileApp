@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { CATEGORIES } from '../../constants/categories';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../../types/filters';
 import type { EventCategory } from '../../types/database';
 
@@ -27,9 +28,23 @@ export function EventFilters({
   activeFiltersCount,
 }: EventFiltersProps) {
   const [isVisible, setIsVisible] = useState(false);
+  useTaxonomy();
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const tags = useTaxonomyStore((s) => s.tags);
 
   const toggleCategory = (category: EventCategory) => {
     onFiltersChange({ category: filters.category === category ? undefined : category });
+    if (filters.category === category) {
+      onFiltersChange({ subcategories: undefined });
+    }
+  };
+
+  const toggleSubcategory = (subcategory: string) => {
+    const next = filters.subcategories?.includes(subcategory)
+      ? (filters.subcategories || []).filter((s) => s !== subcategory)
+      : ([...(filters.subcategories || []), subcategory] as string[]);
+    onFiltersChange({ subcategories: next });
   };
 
   const toggleTime = (time: TimeFilter) => {
@@ -104,19 +119,19 @@ export function EventFilters({
               showsHorizontalScrollIndicator={false}
               style={styles.chipsScroll}
             >
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <TouchableOpacity
-                  key={cat.value}
+                  key={cat.id}
                   style={[
                     styles.chip,
-                    filters.category === cat.value && styles.chipActive,
+                    filters.category === cat.id && styles.chipActive,
                   ]}
-                  onPress={() => toggleCategory(cat.value as EventCategory)}
+                  onPress={() => toggleCategory(cat.id)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      filters.category === cat.value && styles.chipTextActive,
+                      filters.category === cat.id && styles.chipTextActive,
                     ]}
                   >
                     {cat.label}
@@ -125,6 +140,39 @@ export function EventFilters({
               ))}
             </ScrollView>
           </View>
+
+          {filters.category && (
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Sous-catégories</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+              >
+                {subcategories
+                  .filter((sub) => sub.category_id === filters.category)
+                  .map((sub) => (
+                    <TouchableOpacity
+                      key={sub.id}
+                      style={[
+                        styles.chip,
+                        filters.subcategories?.includes(sub.id) && styles.chipActive,
+                      ]}
+                      onPress={() => toggleSubcategory(sub.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          filters.subcategories?.includes(sub.id) && styles.chipTextActive,
+                        ]}
+                      >
+                        {sub.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
+          )}
 
           <View style={styles.filterSection}>
             <Text style={styles.filterLabel}>Temps</Text>
@@ -247,6 +295,38 @@ export function EventFilters({
                 }
               />
             </View>
+            <Text style={[styles.filterLabel, { marginTop: spacing.sm }]}>Tags</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+            >
+              {tags.map((tag) => (
+                <TouchableOpacity
+                  key={tag.slug}
+                  style={[
+                    styles.chip,
+                    filters.tags?.includes(tag.slug) && styles.chipActive,
+                  ]}
+                  onPress={() => {
+                    const exists = filters.tags?.includes(tag.slug);
+                    const next = exists
+                      ? (filters.tags || []).filter((t) => t !== tag.slug)
+                      : ([...(filters.tags || []), tag.slug] as string[]);
+                    onFiltersChange({ tags: next });
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      filters.tags?.includes(tag.slug) && styles.chipTextActive,
+                    ]}
+                  >
+                    {tag.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
           {activeFiltersCount > 0 && (

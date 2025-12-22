@@ -20,7 +20,8 @@ import { ImageSelector } from '../../components/ImageSelector';
 import { EventsService } from '../../services/events.service';
 import { GeocodingService } from '../../services/geocoding.service';
 import { useAuth, useLocation } from '../../hooks';
-import { CATEGORIES } from '../../constants/categories';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type {
   EventFormData,
@@ -44,6 +45,9 @@ export default function EventCreateScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { currentLocation } = useLocation();
+  useTaxonomy();
+  const taxonomyCategories = useTaxonomyStore((s) => s.categories);
+  const taxonomySubcategories = useTaxonomyStore((s) => s.subcategories);
   const hasCenteredOnceRef = useRef(false);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -58,7 +62,8 @@ export default function EventCreateScreen() {
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
-    category: 'autre',
+    category: '',
+    subcategory: null,
     tags: [],
     startsAt: now.toISOString(),
     endsAt: defaultEnd.toISOString(),
@@ -92,6 +97,12 @@ export default function EventCreateScreen() {
   const [showPreview, setShowPreview] = useState(false);
 
   const [errors, setErrors] = useState<EventFormErrors>({});
+
+  useEffect(() => {
+    if (!formData.category && taxonomyCategories.length > 0) {
+      setFormData((prev) => ({ ...prev, category: taxonomyCategories[0]?.id || '' }));
+    }
+  }, [formData.category, taxonomyCategories]);
 
   useEffect(() => {
     if (
@@ -265,6 +276,7 @@ export default function EventCreateScreen() {
         title: formData.title,
         description: formData.description,
         category: formData.category,
+        subcategory: formData.subcategory || null,
         tags: formData.tags,
         starts_at: new Date(formData.startsAt).toISOString(),
         ends_at: new Date(formData.endsAt).toISOString(),
@@ -295,7 +307,10 @@ export default function EventCreateScreen() {
 
       if (event) {
         setShowPreview(false);
-        router.push(`/creator/${profile.id}` as any);
+        router.push({
+          pathname: '/(tabs)/map',
+          params: { focus: event.id },
+        } as any);
       } else {
         Alert.alert('Erreur', 'Impossible de créer l\'événement');
       }
@@ -421,27 +436,88 @@ export default function EventCreateScreen() {
                 showsHorizontalScrollIndicator={false}
                 style={styles.categoriesScroll}
               >
-                {Object.entries(CATEGORIES).map(([key, value]) => (
+                {taxonomyCategories.map((cat) => (
                   <TouchableOpacity
-                    key={key}
+                    key={cat.id}
                     style={[
                       styles.categoryChip,
-                      formData.category === key && styles.categoryChipActive,
+                      formData.category === cat.id && styles.categoryChipActive,
                     ]}
-                    onPress={() => updateFormData({ category: key as EventCategory })}
+                    onPress={() => updateFormData({ category: cat.id, subcategory: null })}
                   >
                     <Text
                       style={[
                         styles.categoryChipText,
-                        formData.category === key && styles.categoryChipTextActive,
+                        formData.category === cat.id && styles.categoryChipTextActive,
                       ]}
                     >
-                      {value.label}
+                      {cat.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
+
+            {formData.category && (
+              <View>
+                <Text style={styles.inputLabel}>Sous-catégorie</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.categoriesScroll}
+                >
+                  {taxonomySubcategories.filter((s) => s.category_id === formData.category).length === 0 ? (
+                    <View style={[styles.categoryChip, styles.categoryChipActive]}>
+                      <Text style={[styles.categoryChipText, styles.categoryChipTextActive]}>
+                        Aucune sous-catégorie disponible
+                      </Text>
+                    </View>
+                  ) : (
+                    taxonomySubcategories
+                      .filter((s) => s.category_id === formData.category)
+                      .map((sub) => (
+                        <TouchableOpacity
+                          key={sub.id}
+                          style={[
+                            styles.categoryChip,
+                            formData.subcategory === sub.id && styles.categoryChipActive,
+                          ]}
+                          onPress={() =>
+                            updateFormData({
+                              subcategory: formData.subcategory === sub.id ? null : sub.id,
+                            })
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.categoryChipText,
+                              formData.subcategory === sub.id && styles.categoryChipTextActive,
+                            ]}
+                          >
+                            {sub.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                  )}
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryChip,
+                      !formData.subcategory && styles.categoryChipActive,
+                    ]}
+                    onPress={() => updateFormData({ subcategory: null })}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        !formData.subcategory && styles.categoryChipTextActive,
+                      ]}
+                    >
+                      Autre / Non précisé
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            )}
 
             <Input
               label="Description *"

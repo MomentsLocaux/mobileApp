@@ -63,7 +63,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             )}
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryText}>
-                {getCategoryLabel(event.category)}
+                {getCategoryLabel(event.category || '')}
               </Text>
             </View>
           </View>

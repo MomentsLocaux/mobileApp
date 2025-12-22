@@ -11,7 +11,7 @@ import {
 import { InteractionManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapPin, Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
@@ -41,10 +41,11 @@ const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 
 export default function MapScreen() {
   const router = useRouter();
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { profile } = useAuth();
   // Trigger location permission + retrieval once the map tab mounts
   useLocation();
-  const { currentLocation } = useLocationStore();
+  const { currentLocation, isLoading: locationLoading, permissionGranted } = useLocationStore();
   const { filters, focusedIds, setFilters, setFocusedIds, getActiveFilterCount } = useFilterStore();
   const searchState = useSearchStore();
   const { activeEventId, setSearchResults, setActiveEvent } = useSearchResultsStore();
@@ -74,6 +75,7 @@ export default function MapScreen() {
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
   const tabTranslate = useSharedValue(0);
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
+  const focusHandledRef = useRef(false);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -257,6 +259,37 @@ export default function MapScreen() {
     setViewportEvents,
   ]);
 
+  useEffect(() => {
+    // reset when focus param changes
+    focusHandledRef.current = false;
+  }, [focus]);
+
+  useEffect(() => {
+    if (!focus) return;
+    const target = filteredAndSortedEvents.find((e) => String(e.id) === String(focus));
+    if (target) {
+      if (!focusHandledRef.current) {
+        openSheetWithEvents('single', [target], 1);
+        focusHandledRef.current = true;
+      }
+      return;
+    }
+    // If not found in current list, fetch the event and add it
+    (async () => {
+      try {
+        const fetched = await EventsService.getEventById(String(focus));
+        if (fetched) {
+          setAllEvents((prev) => {
+            const exists = prev.some((e) => e.id === fetched.id);
+            return exists ? prev : [...prev, fetched];
+          });
+        }
+      } catch (e) {
+        console.warn('focus fetch error', e);
+      }
+    })();
+  }, [focus, filteredAndSortedEvents, openSheetWithEvents]);
+
   // Maintient les événements affichés dans le bottom sheet en phase avec la vue courante lorsque l’utilisateur pan
   useEffect(() => {
     if (bottomSheetMode === 'viewport') {
@@ -292,6 +325,15 @@ export default function MapScreen() {
             Token Mapbox manquant. Configurez EXPO_PUBLIC_MAPBOX_TOKEN dans .env
           </Text>
         </View>
+      </GestureHandlerRootView>
+    );
+  }
+
+  if (locationLoading && !userLocation) {
+    return (
+      <GestureHandlerRootView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Text style={styles.fallbackText}>Obtention de votre position...</Text>
       </GestureHandlerRootView>
     );
   }

@@ -79,6 +79,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="events" />
+        <Stack.Screen name="bug-report" />
+        <Stack.Screen name="moderation" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

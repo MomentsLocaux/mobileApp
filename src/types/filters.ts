@@ -1,12 +1,12 @@
-import type { EventCategory } from './database';
-
 export type TimeFilter = 'today' | 'tomorrow' | 'weekend' | 'live';
 export type PopularityFilter = 'trending' | 'popular' | 'top';
 export type SortOption = 'distance' | 'popularity' | 'date';
 
 export interface EventFilters {
-  category?: EventCategory;
-  categories?: EventCategory[];
+  category?: string;
+  categories?: string[];
+  subcategory?: string;
+  subcategories?: string[];
   time?: TimeFilter;
   startDate?: string;
   endDate?: string;

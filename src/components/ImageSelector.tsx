@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   uploadCircle: {
     position: 'absolute',
     bottom: spacing.md,
-    right: spacing.md,
+    alignSelf: 'center',
     width: 52,
     height: 52,
     borderRadius: 26,

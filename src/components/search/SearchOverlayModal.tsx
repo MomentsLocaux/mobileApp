@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { X, MapPin, Calendar, Users, Tag, ChevronRight } from 'lucide-react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
 import { useSearchStore } from '../../store/searchStore';
-import type { EventCategory } from '../../types/database';
-import { CATEGORIES } from '../../constants/categories';
 import { MapboxService } from '../../services/mapbox.service';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { DateRangePicker } from '@/components/DateRangePicker';
+import type { DateRangeValue } from '@/types/eventDate.model';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
 
@@ -25,13 +25,16 @@ interface Props {
   onApply: () => void;
 }
 
-const TAGS = ['Gratuit', 'Enfants bienvenus', 'Accessible PMR', 'En extérieur', 'Éphémère', 'Nocturne', 'Participatif'];
-
 export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply }) => {
   const [activeSection, setActiveSection] = useState<SectionKey>('where');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Array<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }>>([]);
   const [loading, setLoading] = useState(false);
+  const [showRangePicker, setShowRangePicker] = useState(false);
+  useTaxonomy();
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const tags = useTaxonomyStore((s) => s.tags);
 
   const {
     where,
@@ -89,28 +92,26 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
           ? presetLabel(when.preset)
           : 'Je suis flexible';
     const whoLabel = `${who.adults} adultes${who.children ? ` · ${who.children} enfants` : ''}${who.babies ? ` · ${who.babies} bébés` : ''}`;
+    const categoryCount = (what.categories?.length || 0) + (what.subcategories?.length || 0);
+    const tagCount = what.tags.length;
     const whatLabel =
-      what.categories.length > 0 || what.tags.length > 0
-        ? `${what.categories.length} catégories, ${what.tags.length} tags`
+      categoryCount > 0 || tagCount > 0
+        ? `${categoryCount} catégories, ${tagCount} tags`
         : 'Type d’évènement';
     return { whereLabel, whenLabel, whoLabel, whatLabel };
   }, [where, when, who, what]);
 
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  const rangeValue: DateRangeValue = {
+    startDate: when.startDate || null,
+    endDate: when.endDate || null,
+  };
 
-  const onDateChange = (type: 'startDate' | 'endDate') => (event: DateTimePickerEvent, date?: Date) => {
-    if (event.type === 'dismissed') {
-      type === 'startDate' ? setShowStartPicker(false) : setShowEndPicker(false);
-      return;
-    }
-    if (date) {
-      setWhen({
-        [type]: date.toISOString(),
-        preset: undefined,
-      });
-    }
-    type === 'startDate' ? setShowStartPicker(false) : setShowEndPicker(false);
+  const handleRangeChange = (range: DateRangeValue) => {
+    setWhen({
+      startDate: range.startDate || undefined,
+      endDate: range.endDate || undefined,
+      preset: undefined,
+    });
   };
 
   const isLastSection = activeSection === 'what';
@@ -241,43 +242,36 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                     key={preset}
                     label={presetLabel(preset)}
                     active={when.preset === preset}
-                    onPress={() =>
+                    onPress={() => {
+                      const nextPreset = when.preset === preset ? undefined : preset;
                       setWhen({
-                        preset,
+                        preset: nextPreset,
                         startDate: undefined,
                         endDate: undefined,
-                      })
-                    }
+                      });
+                    }}
                   />
                 ))}
               </View>
-              <View style={styles.row}>
-                <TouchableOpacity style={styles.dateBox} onPress={() => setShowStartPicker(true)}>
-                  <Text style={styles.meta}>Début</Text>
-                  <Text style={styles.dateValue}>{when.startDate ? formatDate(when.startDate) : 'Choisir'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.dateBox} onPress={() => setShowEndPicker(true)}>
-                  <Text style={styles.meta}>Fin</Text>
-                  <Text style={styles.dateValue}>{when.endDate ? formatDate(when.endDate) : 'Choisir'}</Text>
-                </TouchableOpacity>
-              </View>
-              {showStartPicker && (
-                <DateTimePicker
-                  value={when.startDate ? new Date(when.startDate) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
-                  onChange={onDateChange('startDate')}
-                />
-              )}
-              {showEndPicker && (
-                <DateTimePicker
-                  value={when.endDate ? new Date(when.endDate) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
-                  onChange={onDateChange('endDate')}
-                />
-              )}
+              <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
+                <Text style={styles.meta}>Date(s)</Text>
+                <Text style={styles.dateValue}>
+                  {when.startDate
+                    ? when.endDate
+                      ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
+                      : formatDate(when.startDate)
+                    : 'Choisir'}
+                </Text>
+              </TouchableOpacity>
             </SectionCard>
+            <DateRangePicker
+              open={showRangePicker}
+              mode="range"
+              value={rangeValue}
+              onChange={handleRangeChange}
+              onClose={() => setShowRangePicker(false)}
+              context="search"
+            />
 
             <SectionCard
               title="Qui"
@@ -315,31 +309,58 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
             >
               <Text style={styles.sectionLabel}>Catégories</Text>
               <View style={styles.rowWrap}>
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <Chip
-                    key={cat.value}
+                    key={cat.id}
                     label={cat.label}
-                    active={what.categories.includes(cat.value)}
+                    active={what.categories.includes(cat.id)}
                     onPress={() => {
-                      const exists = what.categories.includes(cat.value);
+                      const exists = what.categories.includes(cat.id);
                       const next = exists
-                        ? what.categories.filter((c) => c !== cat.value)
-                        : [...what.categories, cat.value];
-                      setWhat({ categories: next });
+                        ? what.categories.filter((c) => c !== cat.id)
+                        : [...what.categories, cat.id];
+                      const filteredSubs = (what.subcategories || []).filter((s) => {
+                        const sub = subcategories.find((sc) => sc.id === s);
+                        return sub ? next.includes(sub.category_id) : false;
+                      });
+                      setWhat({ categories: next, subcategories: filteredSubs });
                     }}
                   />
                 ))}
               </View>
+              {what.categories.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Sous-catégories</Text>
+                  <View style={styles.rowWrap}>
+                    {subcategories
+                      .filter((sub) => what.categories.includes(sub.category_id))
+                      .map((sub) => (
+                        <Chip
+                          key={sub.id}
+                          label={sub.label}
+                          active={what.subcategories.includes(sub.id)}
+                          onPress={() => {
+                            const exists = what.subcategories.includes(sub.id);
+                            const next = exists
+                              ? what.subcategories.filter((s) => s !== sub.id)
+                              : [...what.subcategories, sub.id];
+                            setWhat({ subcategories: next });
+                          }}
+                        />
+                      ))}
+                  </View>
+                </>
+              )}
               <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tags</Text>
               <View style={styles.rowWrap}>
-                {TAGS.map((tag) => (
+                {tags.map((tag) => (
                   <Chip
-                    key={tag}
-                    label={tag}
-                    active={what.tags.includes(tag)}
+                    key={tag.id}
+                    label={tag.label}
+                    active={what.tags.includes(tag.slug)}
                     onPress={() => {
-                      const exists = what.tags.includes(tag);
-                      const next = exists ? what.tags.filter((t) => t !== tag) : [...what.tags, tag];
+                      const exists = what.tags.includes(tag.slug);
+                      const next = exists ? what.tags.filter((t) => t !== tag.slug) : [...what.tags, tag.slug];
                       setWhat({ tags: next });
                     }}
                   />
@@ -564,9 +585,18 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.sm,
   },
+  dateBoxFull: {
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    backgroundColor: colors.neutral[0],
+    gap: spacing.xs,
+  },
   dateValue: {
     ...typography.body,
     color: colors.neutral[800],
+    fontWeight: '700',
   },
   counterRow: {
     flexDirection: 'row',

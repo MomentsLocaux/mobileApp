@@ -48,6 +48,10 @@ export const buildFiltersFromSearch = (
     filters.categories = search.what.categories;
   }
 
+  if (search.what.subcategories && search.what.subcategories.length > 0) {
+    filters.subcategories = search.what.subcategories;
+  }
+
   if (search.what.tags.length > 0) {
     filters.tags = search.what.tags;
   }

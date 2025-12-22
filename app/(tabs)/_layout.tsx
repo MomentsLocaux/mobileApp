@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile } = useAuth();
@@ -11,6 +12,7 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  useTaxonomy();
 
   const toggleDrawer = (open: boolean) => {
     setDrawerOpen(open);
@@ -135,8 +137,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="favorites" options={{ href: null }} />
         <Tabs.Screen name="missions" options={{ href: null }} />
-        <Tabs.Screen name="bug-report" options={{ href: null }} />
-        <Tabs.Screen name="moderation" options={{ href: null }} />
       </Tabs>
 
       {drawerOpen && (

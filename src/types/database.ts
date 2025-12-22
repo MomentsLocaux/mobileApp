@@ -94,7 +94,7 @@ export interface Database {
 }
 
 export type UserRole = 'denicheur' | 'createur' | 'moderateur' | 'admin';
-export type EventCategory = 'concert' | 'exposition' | 'spectacle' | 'sport' | 'festival' | 'atelier' | 'conference' | 'autre';
+export type EventCategory = string;
 export type EventVisibility = 'public' | 'prive';
 export type ScheduleMode = 'ponctuel' | 'recurrent' | 'permanent';
 export type TransactionType = 'earn' | 'spend' | 'refund';
@@ -123,7 +123,8 @@ export interface Event {
   creator_id: string;
   title: string;
   description: string;
-  category: EventCategory;
+  category: string | null;
+  subcategory?: string | null;
   tags: string[];
   starts_at: string;
   ends_at: string;

@@ -113,20 +113,32 @@ export function filterEvents(
       return false;
     }
 
-    // Default behavior: if no explicit date filter is provided, only show events starting today or later
+    // Par défaut (pas de filtre temps explicite), on exclut seulement les événements totalement passés
     if (!filters.includePast && !filters.startDate && !filters.endDate && !filters.time) {
-      const start = new Date(event.starts_at);
-      if (!isNaN(start.getTime()) && start < startOfToday) {
+      const endsAt = new Date(event.ends_at);
+      if (!isNaN(endsAt.getTime()) && endsAt < startOfToday) {
         return false;
       }
     }
 
-    if (filters.category && event.category !== filters.category) {
+    const eventCategory = (event as any).category;
+
+    if (filters.category && eventCategory !== filters.category) {
       return false;
     }
 
     if (filters.categories && filters.categories.length > 0) {
-      if (!filters.categories.includes(event.category)) {
+      if (!filters.categories.includes(eventCategory || '')) {
+        return false;
+      }
+    }
+
+    if (filters.subcategory && event.subcategory !== filters.subcategory) {
+      return false;
+    }
+
+    if (filters.subcategories && filters.subcategories.length > 0) {
+      if (!filters.subcategories.includes(event.subcategory || '')) {
         return false;
       }
     }

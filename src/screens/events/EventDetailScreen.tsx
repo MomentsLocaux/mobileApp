@@ -195,7 +195,7 @@ export default function EventDetailScreen() {
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{getCategoryLabel(event.category)}</Text>
+          <Text style={styles.categoryText}>{getCategoryLabel(event.category || '')}</Text>
         </View>
 
         <Text style={styles.title}>{event.title}</Text>

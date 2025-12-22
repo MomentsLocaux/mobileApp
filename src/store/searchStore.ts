@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import type { EventCategory } from '../types/database';
-
 type Preset = 'today' | 'tomorrow' | 'weekend';
 
 export interface SearchWhereState {
@@ -28,7 +26,8 @@ export interface SearchWhoState {
 }
 
 export interface SearchWhatState {
-  categories: EventCategory[];
+  categories: string[];
+  subcategories: string[];
   tags: string[];
 }
 
@@ -49,7 +48,7 @@ const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWh
   where: { history: [] },
   when: {},
   who: { adults: 1, children: 0, babies: 0 },
-  what: { categories: [], tags: [] },
+  what: { categories: [], subcategories: [], tags: [] },
 };
 
 export const useSearchStore = create<SearchState>((set, get) => ({

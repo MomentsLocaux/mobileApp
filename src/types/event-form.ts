@@ -19,6 +19,7 @@ export interface EventFormData {
   title: string;
   description: string;
   category: EventCategory;
+  subcategory?: string | null;
   tags: string[];
   startsAt: string;
   endsAt: string;
@@ -40,6 +41,7 @@ export interface EventFormErrors {
   title?: string;
   description?: string;
   category?: string;
+  subcategory?: string;
   startsAt?: string;
   endsAt?: string;
   schedule?: string;

@@ -31,6 +31,7 @@ export default function CreateEventStep2() {
   const location = useCreateEventStore((s) => s.location);
   const description = useCreateEventStore((s) => s.description);
   const category = useCreateEventStore((s) => s.category);
+  const subcategory = useCreateEventStore((s) => s.subcategory);
   const tags = useCreateEventStore((s) => s.tags);
   const visibility = useCreateEventStore((s) => s.visibility);
   const price = useCreateEventStore((s) => s.price);
@@ -39,6 +40,7 @@ export default function CreateEventStep2() {
   const externalLink = useCreateEventStore((s) => s.externalLink);
   const videoLink = useCreateEventStore((s) => s.videoLink);
   const setCategory = useCreateEventStore((s) => s.setCategory);
+  const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
   const setTags = useCreateEventStore((s) => s.setTags);
   const setVisibility = useCreateEventStore((s) => s.setVisibility);
   const setPrice = useCreateEventStore((s) => s.setPrice);
@@ -90,6 +92,7 @@ export default function CreateEventStep2() {
         title,
         description: description || '',
         category: category as any,
+        subcategory: subcategory || null,
         tags,
         starts_at: startDate,
         ends_at: endDate || null,
@@ -133,7 +136,12 @@ export default function CreateEventStep2() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <CategorySelector selected={category} onSelect={setCategory} />
+        <CategorySelector
+          selected={category}
+          subcategory={subcategory}
+          onSelect={setCategory}
+          onSelectSubcategory={setSubcategory}
+        />
         <TagsSelector selected={tags} onChange={setTags} />
         <VisibilitySelector value={visibility} onChange={setVisibility} />
         <OptionalInfoSection

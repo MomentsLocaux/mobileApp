@@ -41,7 +41,7 @@ export const EventResultCard: React.FC<Props> = ({
   onNavigate,
   onSelect,
 }) => {
-  const categoryLabel = getCategoryLabel(event.category);
+  const categoryLabel = getCategoryLabel(event.category || '');
   const dateLabel = useMemo(() => formatDateRange(event.starts_at, event.ends_at), [event.starts_at, event.ends_at]);
 
   const tags = event.tags?.slice(0, 3) || [];
