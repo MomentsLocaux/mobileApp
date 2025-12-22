@@ -417,7 +417,7 @@ export default function MapScreen() {
 
       {userLocation && (
         <TouchableOpacity
-          style={styles.recenterButton}
+          style={styles.recenterTopButton}
           onPress={recenterToUser}
         >
           <Navigation size={18} color={colors.neutral[0]} />
@@ -582,10 +582,10 @@ const styles = StyleSheet.create({
   layerButtonTextActive: {
     color: colors.primary[700],
   },
-  recenterButton: {
+  recenterTopButton: {
     position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
+    top: spacing.md,
+    right: spacing.md,
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
@@ -597,5 +597,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
     elevation: 4,
+    zIndex: 12,
   },
 });

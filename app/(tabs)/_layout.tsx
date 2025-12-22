@@ -1,5 +1,5 @@
-import { Tabs, Redirect, useRouter } from 'expo-router';
-import { Map, Home, Users, ShoppingBag, User, PlusCircle, Send, Compass, UserCircle2, Target } from 'lucide-react-native';
+import { Tabs, Redirect, useRouter, usePathname } from 'expo-router';
+import { Map, Home, Users, ShoppingBag, User, PlusCircle, Send, Compass, UserCircle2, Target, Bug } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
@@ -8,6 +8,7 @@ import { useAuth } from '../../src/hooks';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -58,17 +59,31 @@ export default function TabsLayout() {
             paddingTop: 8,
           },
           headerRight: () => (
-            <TouchableOpacity
-              style={styles.avatarButton}
-              onPress={() => toggleDrawer(true)}
-              accessibilityLabel="Ouvrir le menu profil"
-            >
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-              ) : (
-                <UserCircle2 size={28} color={colors.neutral[700]} />
-              )}
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() =>
+                  router.push({
+                    pathname: '/bug-report',
+                    params: { page: pathname || '' },
+                  } as any)
+                }
+                accessibilityLabel="Reporter un bug"
+              >
+                <Bug size={22} color={colors.neutral[700]} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.avatarButton}
+                onPress={() => toggleDrawer(true)}
+                accessibilityLabel="Ouvrir le menu profil"
+              >
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+                ) : (
+                  <UserCircle2 size={28} color={colors.neutral[700]} />
+                )}
+              </TouchableOpacity>
+            </View>
           ),
           headerTitle: '',
         }}
@@ -120,6 +135,8 @@ export default function TabsLayout() {
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="favorites" options={{ href: null }} />
         <Tabs.Screen name="missions" options={{ href: null }} />
+        <Tabs.Screen name="bug-report" options={{ href: null }} />
+        <Tabs.Screen name="moderation" options={{ href: null }} />
       </Tabs>
 
       {drawerOpen && (
@@ -207,6 +224,27 @@ export default function TabsLayout() {
               router.push('/(tabs)/index' as any);
             }}
           />
+        {(profile?.role === 'moderateur' || profile?.role === 'admin') && (
+          <DrawerLink
+            icon={Target}
+            label="Modération"
+            onPress={() => {
+              toggleDrawer(false);
+              router.push('/moderation' as any);
+            }}
+          />
+        )}
+        <DrawerLink
+          icon={Bug}
+          label="Reporter un bug"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push({
+              pathname: '/bug-report',
+              params: { page: pathname || '' },
+            } as any);
+          }}
+        />
         </View>
       </Animated.View>
     </>
@@ -228,6 +266,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.neutral[50],
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 8,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[100],
   },
   avatarButton: {
     marginRight: 12,
