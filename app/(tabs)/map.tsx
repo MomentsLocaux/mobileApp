@@ -230,8 +230,10 @@ export default function MapScreen() {
     setSearchResults(filteredAndSortedEvents);
     setViewportEvents(viewportFilteredEvents);
     if (bottomSheetMode === 'idle' && filteredAndSortedEvents.length > 0) {
+      // Première population : on passe en mode viewport sans recadrer automatiquement
       setBottomSheetMode('viewport');
       setBottomSheetEvents(viewportFilteredEvents);
+      return;
     }
 
     if (bottomSheetMode === 'viewport') return; // ne pas recadrer quand l’utilisateur explore la carte
@@ -343,37 +345,6 @@ export default function MapScreen() {
       <GestureHandlerRootView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
         <Text style={styles.fallbackText}>Chargement de la carte...</Text>
-      </GestureHandlerRootView>
-    );
-  }
-
-  if (filteredAndSortedEvents.length === 0) {
-    return (
-      <GestureHandlerRootView style={styles.container}>
-        <View style={styles.topOverlay}>
-          <GlobalSearchBar
-            onPress={() => setSearchVisible(true)}
-            summary={searchState.where.location?.label}
-          />
-        </View>
-        <View style={styles.fallback}>
-          <MapPin size={48} color={colors.neutral[400]} />
-          <Text style={styles.fallbackText}>
-            {activeFiltersCount > 0
-              ? 'Aucun événement ne correspond aux filtres'
-              : 'Aucun événement à afficher sur la carte'}
-          </Text>
-          {activeFiltersCount === 0 && (
-            <Text style={styles.fallbackSubtext}>
-              Créez votre premier événement pour le voir apparaître ici
-            </Text>
-          )}
-        </View>
-        <SearchOverlayModal
-          visible={searchVisible}
-          onClose={() => setSearchVisible(false)}
-          onApply={applySearch}
-        />
       </GestureHandlerRootView>
     );
   }
