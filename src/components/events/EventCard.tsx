@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Heart, MapPin, Calendar, Users } from 'lucide-react-native';
+import { Heart, MapPin, Calendar, Users, Share2 } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
@@ -10,6 +10,7 @@ interface EventCardProps {
   event: EventWithCreator;
   onPress: () => void;
   onFavoritePress?: () => void;
+  onSharePress?: () => void;
   showDistance?: boolean;
   distance?: number;
 }
@@ -18,6 +19,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   event,
   onPress,
   onFavoritePress,
+  onSharePress,
   showDistance,
   distance,
 }) => {
@@ -37,18 +39,27 @@ export const EventCard: React.FC<EventCardProps> = ({
         {coverUrl && (
           <View style={styles.imageContainer}>
             <Image source={{ uri: coverUrl }} style={styles.image} />
-            {onFavoritePress && (
-              <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={onFavoritePress}
-                activeOpacity={0.7}
-              >
-                <Heart
-                  size={20}
-                  color={event.is_favorited ? colors.error[500] : colors.neutral[50]}
-                  fill={event.is_favorited ? colors.error[500] : 'transparent'}
-                />
-              </TouchableOpacity>
+            {(onFavoritePress || onSharePress) && (
+              <View style={styles.overlayButtons}>
+                {onSharePress && (
+                  <TouchableOpacity style={styles.overlayButton} onPress={onSharePress} activeOpacity={0.7}>
+                    <Share2 size={18} color={colors.neutral[50]} />
+                  </TouchableOpacity>
+                )}
+                {onFavoritePress && (
+                  <TouchableOpacity
+                    style={styles.overlayButton}
+                    onPress={onFavoritePress}
+                    activeOpacity={0.7}
+                  >
+                    <Heart
+                      size={18}
+                      color={event.is_favorited ? colors.error[500] : colors.neutral[50]}
+                      fill={event.is_favorited ? colors.error[500] : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryText}>

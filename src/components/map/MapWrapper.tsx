@@ -22,15 +22,30 @@ interface MapWrapperProps {
   onClusterPress?: (events: EventWithCreator[]) => void;
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
+  onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   children?: React.ReactNode;
 }
 
 export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
+  fitToEvents: (events: EventWithCreator[], padding?: number) => void;
 };
 
 export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
-  ({ events, initialRegion, userLocation, onMarkerPress, onClusterPress, zoom, onZoomChange, children }, ref) => {
+  (
+    {
+      events,
+      initialRegion,
+      userLocation,
+      onMarkerPress,
+      onClusterPress,
+      zoom,
+      onZoomChange,
+      onVisibleBoundsChange,
+      children,
+    },
+    ref
+  ) => {
   const isMapboxAvailable = !!Mapbox.MapView;
   const shapeSourceRef = useRef<Mapbox.ShapeSource>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
@@ -46,6 +61,45 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           zoomLevel: zoomLevel ?? zoom ?? initialRegion.zoom,
           animationDuration: 300,
         });
+      },
+      fitToEvents: (evts, padding = 40) => {
+        if (!evts || evts.length === 0) return;
+        if (evts.length === 1) {
+          const e = evts[0];
+          const coords =
+            Array.isArray(e?.location?.coordinates) && e.location.coordinates.length === 2
+              ? { longitude: e.location.coordinates[0], latitude: e.location.coordinates[1] }
+              : { longitude: e.longitude, latitude: e.latitude };
+          cameraRef.current?.setCamera({
+            centerCoordinate: [coords.longitude, coords.latitude],
+            zoomLevel: 12,
+            animationDuration: 300,
+          });
+          return;
+        }
+
+        let minLat = 90,
+          maxLat = -90,
+          minLon = 180,
+          maxLon = -180;
+
+        evts.forEach((e) => {
+          const coords =
+            Array.isArray(e?.location?.coordinates) && e.location.coordinates.length === 2
+              ? { longitude: e.location.coordinates[0], latitude: e.location.coordinates[1] }
+              : { longitude: e.longitude, latitude: e.latitude };
+          if (coords.latitude < minLat) minLat = coords.latitude;
+          if (coords.latitude > maxLat) maxLat = coords.latitude;
+          if (coords.longitude < minLon) minLon = coords.longitude;
+          if (coords.longitude > maxLon) maxLon = coords.longitude;
+        });
+
+        cameraRef.current?.fitBounds(
+          [minLon, minLat],
+          [maxLon, maxLat],
+          padding,
+          300
+        );
       },
     }),
     [initialRegion.zoom, zoom]
@@ -156,6 +210,16 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           const zoomLevel = (event.properties as any).zoomLevel ?? (event.properties as any).zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
             onZoomChange(zoomLevel);
+          }
+          const bounds = (event.properties as any)?.bounds;
+          if (
+            bounds &&
+            Array.isArray(bounds.ne) &&
+            Array.isArray(bounds.sw) &&
+            bounds.ne.length === 2 &&
+            bounds.sw.length === 2
+          ) {
+            onVisibleBoundsChange?.({ ne: bounds.ne as [number, number], sw: bounds.sw as [number, number] });
           }
         }}
       >

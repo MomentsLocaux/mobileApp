@@ -3,3 +3,8 @@ export { useLocationStore } from './locationStore';
 export { useAppStore } from './appStore';
 export { useFilterStore } from './filterStore';
 export { useSearchStore } from './searchStore';
+export { useFavoritesStore } from './favoritesStore';
+export { useHistoryStore } from './historyStore';
+export { useSearchResultsStore } from './searchResultsStore';
+export { useMapResultsUIStore } from './mapResultsUIStore';
+export { useMapResultsStore } from './mapResultsStore';
