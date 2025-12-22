@@ -145,6 +145,40 @@ export const supabaseProvider: (Pick<
     return data as Event;
   },
 
+  async updateEvent(id: string, payload: Partial<Event>) {
+    const { data, error } = await supabase
+      .from('events')
+      .update(payload as any)
+      .eq('id', id)
+      .select(
+        `
+          id,
+          creator_id,
+          title,
+          description,
+          category,
+          subcategory,
+          tags,
+          starts_at,
+          ends_at,
+          latitude,
+          longitude,
+          address,
+          city,
+          postal_code,
+          visibility,
+          status,
+          cover_url,
+          price,
+          is_free,
+          creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region)
+        `
+      )
+      .single();
+    if (error) throw formatSupabaseError(error, 'updateEvent');
+    return data as EventWithCreator;
+  },
+
   async deleteEvent(id: string) {
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) throw formatSupabaseError(error, 'deleteEvent');

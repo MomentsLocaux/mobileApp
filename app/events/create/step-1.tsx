@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,22 +9,51 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { CoverImageUploader } from '@/components/events/CoverImageUploader';
 import { CreateEventForm } from '@/components/events/CreateEventForm';
 import { LocationPickerModal } from '@/components/events/LocationPickerModal';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { EventsService } from '@/services/events.service';
 
 export default function CreateEventStep1() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
   const location = useCreateEventStore((s) => s.location);
+  const loadFromEvent = useCreateEventStore((s) => s.loadFromEvent);
+  const setEditingEvent = useCreateEventStore((s) => s.setEditingEvent);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [formValid, setFormValid] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!edit) {
+        return;
+      }
+      try {
+        const event = await EventsService.getById(String(edit));
+        if (event && mounted) {
+          loadFromEvent(event);
+        }
+      } catch (e) {
+        console.warn('[CreateEventStep1] unable to load event', e);
+      } finally {
+        if (mounted) {
+          setEditingEvent(edit ? String(edit) : undefined);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+      // Ne pas reset ici pour conserver les valeurs si on revient depuis l’étape 2
+    };
+  }, [edit, loadFromEvent, setEditingEvent]);
 
   const canProceed = useMemo(() => {
     return !!coverImage && formValid && !!title.trim() && !!startDate && !!location;

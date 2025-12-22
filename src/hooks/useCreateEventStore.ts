@@ -15,6 +15,7 @@ export type EventLocation = {
 };
 
 interface CreateEventState {
+  editingEventId?: string;
   coverImage?: CoverImage;
   title: string;
   startDate?: string;
@@ -45,10 +46,13 @@ interface CreateEventState {
   setDuration: (duration?: string) => void;
   setContact: (contact?: string) => void;
   setExternalLink: (link?: string) => void;
+  setEditingEvent: (id?: string) => void;
+  loadFromEvent: (event: any) => void;
   reset: () => void;
 }
 
 const initialState = {
+  editingEventId: undefined as string | undefined,
   title: '',
   startDate: undefined,
   endDate: undefined,
@@ -83,5 +87,42 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setDuration: (duration) => set({ duration }),
   setContact: (contact) => set({ contact }),
   setExternalLink: (externalLink) => set({ externalLink }),
+  setEditingEvent: (editingEventId) => set({ editingEventId }),
+  loadFromEvent: (event) =>
+    set(() => {
+      const priceValue =
+        typeof event.price === 'number' && !Number.isNaN(event.price) ? String(event.price) : undefined;
+      return {
+        editingEventId: event.id,
+        coverImage: event.cover_url
+          ? {
+              publicUrl: event.cover_url,
+              storagePath: event.cover_url,
+            }
+          : undefined,
+        title: event.title || '',
+        startDate: event.starts_at || undefined,
+        endDate: event.ends_at || undefined,
+        location:
+          event.latitude && event.longitude
+            ? {
+                latitude: event.latitude,
+                longitude: event.longitude,
+                addressLabel: event.address || '',
+                city: event.city || '',
+                postalCode: event.postal_code || '',
+                country: '',
+              }
+            : undefined,
+        description: event.description || '',
+        category: event.category || event.category_old || undefined,
+        subcategory: event.subcategory || undefined,
+        tags: Array.isArray(event.tags) ? event.tags : [],
+        visibility: event.visibility === 'public' ? 'public' : 'unlisted',
+        price: priceValue,
+        externalLink: event.external_url || undefined,
+        contact: event.contact_email || event.contact_phone || undefined,
+      };
+    }),
   reset: () => set(initialState),
 }));

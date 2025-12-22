@@ -47,6 +47,7 @@ export default function CreateEventStep2() {
   const setDuration = useCreateEventStore((s) => s.setDuration);
   const setContact = useCreateEventStore((s) => s.setContact);
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
+  const editingEventId = useCreateEventStore((s) => s.editingEventId);
   const resetStore = useCreateEventStore((s) => s.reset);
 
   const [submitting, setSubmitting] = useState(false);
@@ -114,9 +115,15 @@ export default function CreateEventStep2() {
         creator_id: user?.id,
       };
 
-      const created = await EventsService.create(payload as any);
-      resetStore();
-      router.replace(`/events/${created.id}` as any);
+      if (editingEventId) {
+        const updated = await EventsService.update(editingEventId, payload as any);
+        resetStore();
+        router.replace(`/events/${updated.id}` as any);
+      } else {
+        const created = await EventsService.create(payload as any);
+        resetStore();
+        router.replace(`/events/${created.id}` as any);
+      }
     } catch (e) {
       console.error('publish event', e);
       Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');

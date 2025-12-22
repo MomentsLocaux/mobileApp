@@ -18,8 +18,7 @@ export default function EventsLayout() {
       <Stack.Screen
         name="[id]"
         options={{
-          title: 'Détails de l\'événement',
-          headerBackTitle: 'Retour',
+          headerShown: false,
         }}
       />
       <Stack.Screen

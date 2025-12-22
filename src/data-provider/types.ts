@@ -11,6 +11,7 @@ export interface IDataProvider {
   getEventById(id: string): Promise<EventWithCreator | null>;
   listEventsByCreator?(creatorId: string): Promise<EventWithCreator[]>;
   createEvent(payload: Partial<Event>): Promise<Event>;
+  updateEvent(id: string, payload: Partial<Event>): Promise<EventWithCreator>;
   deleteEvent(id: string): Promise<boolean>;
 
   listComments(eventId: string): Promise<CommentWithAuthor[]>;
