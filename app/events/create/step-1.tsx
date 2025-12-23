@@ -9,22 +9,89 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { CoverImageUploader } from '@/components/events/CoverImageUploader';
+import { AdditionalImagesUploader } from '@/components/events/AdditionalImagesUploader';
 import { CreateEventForm } from '@/components/events/CreateEventForm';
 import { LocationPickerModal } from '@/components/events/LocationPickerModal';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { EventsService } from '@/services/events.service';
 
 export default function CreateEventStep1() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
   const location = useCreateEventStore((s) => s.location);
+  const setCoverImage = useCreateEventStore((s) => s.setCoverImage);
+  const setTitle = useCreateEventStore((s) => s.setTitle);
+  const setStartDate = useCreateEventStore((s) => s.setStartDate);
+  const setEndDate = useCreateEventStore((s) => s.setEndDate);
+  const setLocation = useCreateEventStore((s) => s.setLocation);
+  const setDescription = useCreateEventStore((s) => s.setDescription);
+  const setCategory = useCreateEventStore((s) => s.setCategory);
+  const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
+  const setTags = useCreateEventStore((s) => s.setTags);
+  const setVisibility = useCreateEventStore((s) => s.setVisibility);
+  const setPrice = useCreateEventStore((s) => s.setPrice);
+  const setDuration = useCreateEventStore((s) => s.setDuration);
+  const setContact = useCreateEventStore((s) => s.setContact);
+  const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
+  const setVideoLink = useCreateEventStore((s) => s.setVideoLink);
+  const setGallery = useCreateEventStore((s) => s.setGallery);
+  const resetStore = useCreateEventStore((s) => s.reset);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [formValid, setFormValid] = useState(false);
+  const [prefilling, setPrefilling] = useState(false);
+
+  React.useEffect(() => {
+    const prefill = async () => {
+      if (!edit) return;
+      setPrefilling(true);
+      try {
+        const evt = await EventsService.getById(edit);
+        if (!evt) return;
+        resetStore();
+        setTitle(evt.title || '');
+        setDescription(evt.description || '');
+        setStartDate(evt.starts_at || undefined);
+        setEndDate(evt.ends_at || undefined);
+        setCategory(evt.category || undefined);
+        setSubcategory(evt.subcategory || undefined);
+        setTags(evt.tags || []);
+        setVisibility(evt.visibility === 'prive' ? 'unlisted' : 'public');
+        setPrice(evt.price ? String(evt.price) : undefined);
+        setDuration(evt.duration || undefined);
+        setContact(evt.contact_email || evt.contact_phone || undefined);
+        setExternalLink(evt.external_url || undefined);
+        setVideoLink(undefined);
+        setCoverImage(evt.cover_url ? { publicUrl: evt.cover_url, storagePath: '' } : undefined);
+        setGallery(
+          (evt.media || [])
+            .map((m) => m.url)
+            .filter((url) => !!url && url !== evt.cover_url)
+            .slice(0, 3)
+            .map((url) => ({ publicUrl: url as string, storagePath: '' }))
+        );
+        if (evt.latitude && evt.longitude) {
+          setLocation({
+            latitude: evt.latitude,
+            longitude: evt.longitude,
+            addressLabel: evt.address || '',
+            city: evt.city || '',
+            postalCode: evt.postal_code || '',
+            country: '',
+          });
+        }
+      } finally {
+        setPrefilling(false);
+      }
+    };
+    prefill();
+  }, [edit, resetStore, setCategory, setContact, setCoverImage, setDescription, setDuration, setEndDate, setExternalLink, setGallery, setLocation, setPrice, setStartDate, setSubcategory, setTags, setTitle, setVideoLink, setVisibility]);
 
   const canProceed = useMemo(() => {
     return !!coverImage && formValid && !!title.trim() && !!startDate && !!location;
@@ -41,7 +108,10 @@ export default function CreateEventStep1() {
           <TouchableOpacity
             style={[styles.headerBtn, styles.nextBtn, !canProceed && styles.nextBtnDisabled]}
             disabled={!canProceed}
-            onPress={() => router.push('/events/create/step-2' as any)}
+            onPress={() => {
+              const dest = edit ? `/events/create/step-2?edit=${edit}` : '/events/create/step-2';
+              router.push(dest as any);
+            }}
           >
             <Text style={styles.nextText}>Suivant</Text>
           </TouchableOpacity>
@@ -49,7 +119,9 @@ export default function CreateEventStep1() {
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <CoverImageUploader />
+          <AdditionalImagesUploader />
           <CreateEventForm onOpenLocation={() => setLocationModalVisible(true)} onValidate={setFormValid} />
+          {prefilling && <Text style={styles.loadingText}>Pré-remplissage en cours…</Text>}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -99,5 +171,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: spacing.xl,
     gap: spacing.lg,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
 });

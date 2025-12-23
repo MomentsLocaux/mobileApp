@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
 import { CategorySelector } from '@/components/events/CategorySelector';
@@ -20,10 +20,10 @@ import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
-
 export default function CreateEventStep2() {
   const router = useRouter();
   const { user } = useAuth();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
@@ -39,6 +39,7 @@ export default function CreateEventStep2() {
   const contact = useCreateEventStore((s) => s.contact);
   const externalLink = useCreateEventStore((s) => s.externalLink);
   const videoLink = useCreateEventStore((s) => s.videoLink);
+  const gallery = useCreateEventStore((s) => s.gallery);
   const setCategory = useCreateEventStore((s) => s.setCategory);
   const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
   const setTags = useCreateEventStore((s) => s.setTags);
@@ -114,7 +115,28 @@ export default function CreateEventStep2() {
         creator_id: user?.id,
       };
 
+      if (edit) {
+        await EventsService.update(edit, payload as any);
+        if (gallery.length > 0 && (EventsService as any).setMedia) {
+          try {
+            await EventsService.setMedia(edit, gallery.map((g) => g.publicUrl));
+          } catch (mediaErr) {
+            console.warn('set media error', mediaErr);
+          }
+        }
+        resetStore();
+        router.replace(`/events/${edit}` as any);
+        return;
+      }
+
       const created = await EventsService.create(payload as any);
+      if (gallery.length > 0 && (EventsService as any).setMedia) {
+        try {
+          await EventsService.setMedia(created.id, gallery.map((g) => g.publicUrl));
+        } catch (mediaErr) {
+          console.warn('set media error', mediaErr);
+        }
+      }
       resetStore();
       router.replace(`/events/${created.id}` as any);
     } catch (e) {

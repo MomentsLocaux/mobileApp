@@ -1,16 +1,10 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { X, MapPin, Calendar, Heart } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
+import { EventImageCarousel } from '../events/EventImageCarousel';
 
 interface QuickPreviewProps {
   event: EventWithCreator;
@@ -35,9 +29,11 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
         <X size={20} color={colors.neutral[600]} />
       </TouchableOpacity>
 
-      {event.cover_url ? (
-        <Image source={{ uri: event.cover_url }} style={styles.cover} />
-      ) : null}
+      <EventImageCarousel
+        images={[event.cover_url, ...(event.media?.map((m) => m.url).filter(Boolean) as string[])]}
+        height={140}
+        borderRadius={0}
+      />
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>
@@ -102,11 +98,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
     borderRadius: borderRadius.full,
     padding: spacing.xs,
-  },
-  cover: {
-    width: '100%',
-    height: 120,
-    backgroundColor: colors.neutral[200],
   },
   content: {
     padding: spacing.md,

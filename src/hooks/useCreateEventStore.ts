@@ -5,6 +5,11 @@ type CoverImage = {
   publicUrl: string;
 };
 
+type GalleryImage = {
+  storagePath: string;
+  publicUrl: string;
+};
+
 export type EventLocation = {
   latitude: number;
   longitude: number;
@@ -25,6 +30,7 @@ interface CreateEventState {
   category?: string;
   subcategory?: string;
   tags: string[];
+  gallery: GalleryImage[];
   visibility: 'public' | 'unlisted';
   price?: string;
   duration?: string;
@@ -40,6 +46,9 @@ interface CreateEventState {
   setCategory: (cat?: string) => void;
   setSubcategory: (cat?: string) => void;
   setTags: (tags: string[]) => void;
+  addGalleryImage: (img: GalleryImage) => void;
+  removeGalleryImage: (publicUrl: string) => void;
+  setGallery: (imgs: GalleryImage[]) => void;
   setVisibility: (v: 'public' | 'unlisted') => void;
   setPrice: (price?: string) => void;
   setDuration: (duration?: string) => void;
@@ -59,6 +68,7 @@ const initialState = {
   category: undefined,
   subcategory: undefined,
   tags: [],
+  gallery: [],
   visibility: 'public' as const,
   price: undefined,
   duration: undefined,
@@ -78,6 +88,11 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setCategory: (category) => set({ category, subcategory: undefined }),
   setSubcategory: (subcategory) => set({ subcategory }),
   setTags: (tags) => set({ tags }),
+  addGalleryImage: (img) =>
+    set((state) => ({ gallery: [...state.gallery, img].slice(0, 3) })),
+  removeGalleryImage: (publicUrl) =>
+    set((state) => ({ gallery: state.gallery.filter((g) => g.publicUrl !== publicUrl) })),
+  setGallery: (gallery) => set({ gallery: gallery.slice(0, 3) }),
   setVisibility: (visibility) => set({ visibility }),
   setPrice: (price) => set({ price }),
   setDuration: (duration) => set({ duration }),

@@ -35,6 +35,7 @@ import type { EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { CheckinService } from '@/services/checkin.service';
+import { EventImageCarousel } from '@/components/events/EventImageCarousel';
 
 const { width } = Dimensions.get('window');
 
@@ -179,19 +180,16 @@ export default function EventDetailScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)')}>
-          <ChevronLeft size={20} color={colors.neutral[700]} />
-          <Text style={styles.backText}>Retour</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)')}>
+          <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
       </View>
 
-      {event.cover_url ? (
-        <Image source={{ uri: event.cover_url }} style={styles.coverImage} />
-      ) : (
-        <View style={[styles.coverImage, styles.coverPlaceholder]}>
-          <ImageIcon size={48} color={colors.neutral[400]} />
-        </View>
-      )}
+      <EventImageCarousel
+        images={[event.cover_url, ...(event.media?.map((m) => m.url).filter(Boolean) as string[])]}
+        height={300}
+        borderRadius={0}
+      />
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>
@@ -356,28 +354,28 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.sm,
-  },
-  backButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'flex-end',
   },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
-    fontWeight: '600',
-  },
-  coverImage: {
-    width: width,
-    height: 300,
-    resizeMode: 'cover',
-  },
-  coverPlaceholder: {
-    backgroundColor: colors.neutral[100],
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.neutral[0],
+    shadowColor: colors.neutral[900],
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  closeText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.neutral[700],
   },
   content: {
     padding: spacing.lg,

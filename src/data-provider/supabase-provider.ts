@@ -18,6 +18,8 @@ export const supabaseProvider: (Pick<
   | 'listEvents'
   | 'getEventById'
   | 'createEvent'
+  | 'updateEvent'
+  | 'setEventMedia'
   | 'deleteEvent'
   | 'listComments'
   | 'createComment'
@@ -143,6 +145,33 @@ export const supabaseProvider: (Pick<
       .single();
     if (error) throw formatSupabaseError(error, 'createEvent');
     return data as Event;
+  },
+
+  async updateEvent(id: string, payload: Partial<Event>) {
+    const { data, error } = await supabase
+      .from('events')
+      .update(payload as any)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw formatSupabaseError(error, 'updateEvent');
+    return data as EventWithCreator;
+  },
+
+  async setEventMedia(eventId: string, urls: string[]) {
+    const { error: delError } = await supabase.from('event_media').delete().eq('event_id', eventId);
+    if (delError) throw formatSupabaseError(delError, 'setEventMedia');
+
+    if (!urls || urls.length === 0) return;
+
+    const inserts = urls.slice(0, 3).map((url, index) => ({
+      event_id: eventId,
+      url,
+      type: 'image',
+      order: index,
+    }));
+    const { error: insertError } = await supabase.from('event_media').insert(inserts as any);
+    if (insertError) throw formatSupabaseError(insertError, 'setEventMedia');
   },
 
   async deleteEvent(id: string) {

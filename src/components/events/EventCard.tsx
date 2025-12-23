@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, MapPin, Calendar, Users, Share2 } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
+import { EventImageCarousel } from './EventImageCarousel';
 
 interface EventCardProps {
   event: EventWithCreator;
@@ -31,14 +32,15 @@ export const EventCard: React.FC<EventCardProps> = ({
     });
   };
 
-  const coverUrl = event.cover_url || event.media[0]?.url;
+  const gallery = event.media?.map((m) => m.url).filter(Boolean) || [];
+  const images = event.cover_url ? [event.cover_url, ...gallery] : gallery;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <Card padding="xs" elevation="md" style={styles.card}>
-        {coverUrl && (
+        {images.length > 0 && (
           <View style={styles.imageContainer}>
-            <Image source={{ uri: coverUrl }} style={styles.image} />
+            <EventImageCarousel images={images} height={180} borderRadius={borderRadius.md} />
             {(onFavoritePress || onSharePress) && (
               <View style={styles.overlayButtons}>
                 {onSharePress && (
@@ -127,11 +129,6 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
   },
   favoriteButton: {
     position: 'absolute',

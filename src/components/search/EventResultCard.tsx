@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Heart, MapPin, Calendar, Tag } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { Button } from '../ui';
 import { getCategoryLabel } from '../../constants/categories';
+import { EventImageCarousel } from '../events/EventImageCarousel';
 
 interface Props {
   event: EventWithCreator;
@@ -43,8 +44,8 @@ export const EventResultCard: React.FC<Props> = ({
 }) => {
   const categoryLabel = getCategoryLabel(event.category || '');
   const dateLabel = useMemo(() => formatDateRange(event.starts_at, event.ends_at), [event.starts_at, event.ends_at]);
-
   const tags = event.tags?.slice(0, 3) || [];
+  const images = [event.cover_url, ...(event.media?.map((m) => m.url).filter(Boolean) as string[])];
 
   return (
     <TouchableOpacity
@@ -56,13 +57,7 @@ export const EventResultCard: React.FC<Props> = ({
       }}
     >
       <View style={styles.imageWrapper}>
-        {event.cover_url ? (
-          <Image source={{ uri: event.cover_url }} style={styles.image} />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder]}>
-            <Text style={styles.placeholderText}>Aucune image</Text>
-          </View>
-        )}
+        <EventImageCarousel images={images} height={180} borderRadius={0} />
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{categoryLabel}</Text>
         </View>
@@ -126,19 +121,6 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: 'relative',
-  },
-  image: {
-    width: '100%',
-    height: 180,
-  },
-  imagePlaceholder: {
-    backgroundColor: colors.neutral[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: {
-    ...typography.caption,
-    color: colors.neutral[500],
   },
   categoryBadge: {
     position: 'absolute',

@@ -117,6 +117,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
   const isLastSection = activeSection === 'what';
   const isFirstSection = activeSection === 'where';
 
+  const includePast = when.includePast ?? false;
   const footerLabel = isFirstSection ? 'Rechercher' : isLastSection ? 'Rechercher' : 'Suivant';
 
   const goNext = () => {
@@ -252,6 +253,15 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                     }}
                   />
                 ))}
+              </View>
+              <View style={styles.checkboxRow}>
+                <TouchableOpacity
+                  style={[styles.checkbox, includePast && styles.checkboxActive]}
+                  onPress={() => setWhen({ ...when, includePast: !includePast })}
+                >
+                  {includePast && <View style={styles.checkboxMark} />}
+                </TouchableOpacity>
+                <Text style={styles.checkboxLabel}>Inclure les événements passés</Text>
               </View>
               <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
                 <Text style={styles.meta}>Date(s)</Text>
@@ -630,6 +640,35 @@ const styles = StyleSheet.create({
     ...typography.body,
     minWidth: 20,
     textAlign: 'center',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.neutral[400],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[600],
+  },
+  checkboxMark: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: colors.primary[600],
+  },
+  checkboxLabel: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
   },
   sectionLabel: {
     ...typography.caption,

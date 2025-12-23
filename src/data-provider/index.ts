@@ -9,6 +9,8 @@ export const dataProvider: DataProvider = {
   listEvents: (filters) => supabaseProvider.listEvents(filters),
   getEventById: (id) => supabaseProvider.getEventById(id),
   createEvent: (payload) => supabaseProvider.createEvent(payload),
+  updateEvent: (id, payload) => (supabaseProvider as any).updateEvent?.(id, payload),
+  setEventMedia: (id, urls) => (supabaseProvider as any).setEventMedia?.(id, urls),
   deleteEvent: (id) => supabaseProvider.deleteEvent(id),
 
   listComments: (eventId) => supabaseProvider.listComments(eventId),

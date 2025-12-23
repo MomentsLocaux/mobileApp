@@ -1,30 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
-import type { EventWithCreator } from '@/types/database';
-import { EventsService } from '@/services/events.service';
+import { useEffect, useCallback } from 'react';
+import { useEventsStore } from '@/store';
 
 interface UseEventsOptions {
   limit?: number;
+  staleMs?: number;
 }
 
 export function useEvents(options: UseEventsOptions = {}) {
-  const { limit = 50 } = options;
-  const [events, setEvents] = useState<EventWithCreator[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { limit = 50, staleMs } = options;
+  const { events, loading, error, fetchEvents } = useEventsStore();
 
-  const loadEvents = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await EventsService.list(limit);
-      setEvents((data as EventWithCreator[]) || []);
-    } catch (e: any) {
-      console.error('Error loading events:', e);
-      setError(e?.message || 'Erreur chargement événements');
-    } finally {
-      setLoading(false);
-    }
-  }, [limit]);
+  const loadEvents = useCallback(() => fetchEvents({ limit, staleMs }), [fetchEvents, limit, staleMs]);
 
   useEffect(() => {
     loadEvents();
