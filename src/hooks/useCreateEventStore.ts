@@ -5,9 +5,11 @@ type CoverImage = {
   publicUrl: string;
 };
 
-type GalleryImage = {
+export type GalleryImage = {
+  id?: string; // DB id if existing
   storagePath: string;
   publicUrl: string;
+  status: 'existing' | 'added' | 'removed';
 };
 
 export type EventLocation = {
@@ -47,7 +49,7 @@ interface CreateEventState {
   setSubcategory: (cat?: string) => void;
   setTags: (tags: string[]) => void;
   addGalleryImage: (img: GalleryImage) => void;
-  removeGalleryImage: (publicUrl: string) => void;
+  markGalleryImageRemoved: (publicUrl: string) => void;
   setGallery: (imgs: GalleryImage[]) => void;
   setVisibility: (v: 'public' | 'unlisted') => void;
   setPrice: (price?: string) => void;
@@ -89,10 +91,31 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setSubcategory: (subcategory) => set({ subcategory }),
   setTags: (tags) => set({ tags }),
   addGalleryImage: (img) =>
-    set((state) => ({ gallery: [...state.gallery, img].slice(0, 3) })),
-  removeGalleryImage: (publicUrl) =>
-    set((state) => ({ gallery: state.gallery.filter((g) => g.publicUrl !== publicUrl) })),
-  setGallery: (gallery) => set({ gallery: gallery.slice(0, 3) }),
+    set((state) => {
+      const activeCount = state.gallery.filter((g) => g.status !== 'removed').length;
+      if (activeCount >= 3) return state;
+      if (state.gallery.find((g) => g.publicUrl === img.publicUrl)) return state;
+      return { gallery: [...state.gallery, { ...img, status: 'added' }] };
+    }),
+  markGalleryImageRemoved: (publicUrl) =>
+    set((state) => ({
+      gallery: state.gallery.map((g) =>
+        g.publicUrl === publicUrl ? { ...g, status: 'removed' } : g
+      ),
+    })),
+  setGallery: (gallery) =>
+    set(() => {
+      const deduped = gallery
+        .filter((g) => !!g.publicUrl && g.publicUrl.trim().length > 0)
+        .reduce((acc: GalleryImage[], curr) => {
+          if (!acc.find((item) => item.publicUrl === curr.publicUrl)) {
+            acc.push({ ...curr, status: curr.status || 'existing' });
+          }
+          return acc;
+        }, [])
+        .slice(0, 3);
+      return { gallery: deduped };
+    }),
   setVisibility: (visibility) => set({ visibility }),
   setPrice: (price) => set({ price }),
   setDuration: (duration) => set({ duration }),

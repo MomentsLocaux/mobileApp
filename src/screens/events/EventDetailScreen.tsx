@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Heart,
   Star,
@@ -23,7 +24,6 @@ import {
   Edit,
   Trash2,
   Image as ImageIcon,
-  ChevronLeft,
 } from 'lucide-react-native';
 import { Button, Card } from '../../components/ui';
 import { EventsService } from '../../services/events.service';
@@ -36,6 +36,7 @@ import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { CheckinService } from '@/services/checkin.service';
 import { EventImageCarousel } from '@/components/events/EventImageCarousel';
+import { supabase } from '@/lib/supabase/client';
 
 const { width } = Dimensions.get('window');
 
@@ -54,6 +55,12 @@ export default function EventDetailScreen() {
   useEffect(() => {
     loadEventDetails();
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEventDetails();
+    }, [id])
+  );
 
   const loadEventDetails = async () => {
     if (!id) return;
@@ -130,6 +137,31 @@ export default function EventDetailScreen() {
           text: 'Supprimer',
           style: 'destructive',
           onPress: async () => {
+            // 1. Nettoyage du stockage (Storage)
+            const pathsToDelete: string[] = [];
+            const marker = '/storage/v1/object/public/event-media/';
+            const extractPath = (url: string) => {
+              const idx = url.indexOf(marker);
+              return idx !== -1 ? url.slice(idx + marker.length) : null;
+            };
+
+            if (event.cover_url) {
+              const p = extractPath(event.cover_url);
+              if (p) pathsToDelete.push(p);
+            }
+            if (event.media && event.media.length > 0) {
+              event.media.forEach((m) => {
+                if (m.url) {
+                  const p = extractPath(m.url as string);
+                  if (p) pathsToDelete.push(p);
+                }
+              });
+            }
+            if (pathsToDelete.length > 0) {
+              await supabase.storage.from('event-media').remove(pathsToDelete).catch((err) => console.warn('Storage cleanup error:', err));
+            }
+
+            // 2. Suppression en base de données
             const success = await EventsService.deleteEvent(event.id);
             if (success) {
               router.replace('/(tabs)');
@@ -158,6 +190,14 @@ export default function EventDetailScreen() {
     });
   };
 
+  const images = useMemo(() => {
+    const urls = [
+      event?.cover_url,
+      ...(event?.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
+    ].filter(Boolean) as string[];
+    return Array.from(new Set(urls)).slice(0, 4); // cover + 3 max
+  }, [event]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -185,11 +225,7 @@ export default function EventDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <EventImageCarousel
-        images={[event.cover_url, ...(event.media?.map((m) => m.url).filter(Boolean) as string[])]}
-        height={300}
-        borderRadius={0}
-      />
+      <EventImageCarousel images={images} height={300} borderRadius={0} />
 
       <View style={styles.content}>
         <View style={styles.categoryBadge}>

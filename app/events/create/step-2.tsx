@@ -20,6 +20,8 @@ import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
+import { supabase } from '@/lib/supabase/client';
+import { useEventsStore } from '@/store';
 export default function CreateEventStep2() {
   const router = useRouter();
   const { user } = useAuth();
@@ -51,6 +53,13 @@ export default function CreateEventStep2() {
   const resetStore = useCreateEventStore((s) => s.reset);
 
   const [submitting, setSubmitting] = useState(false);
+  const marker = '/storage/v1/object/public/event-media/';
+
+  const derivePath = (url?: string) => {
+    if (!url) return undefined;
+    const idx = url.indexOf(marker);
+    return idx !== -1 ? url.slice(idx + marker.length) : undefined;
+  };
 
   const dateLabel = useMemo(() => {
     if (!startDate) return '';
@@ -77,8 +86,29 @@ export default function CreateEventStep2() {
       Alert.alert('Connexion requise', 'Connectez-vous pour publier un événement.');
       return;
     }
+
+    const activeImages = gallery
+      .filter((g) => g.status !== 'removed' && g.publicUrl && g.publicUrl.trim().length > 0)
+      .slice(0, 3);
+    const activeMedias = activeImages.map((g, index) => ({
+      id: g.id,
+      url: g.publicUrl,
+      order: index,
+    }));
+    const removedImages = gallery.filter((g) => g.status === 'removed');
+    const removedPaths = Array.from(
+      new Set(
+        removedImages
+          .map((g) => g.storagePath || derivePath(g.publicUrl))
+          .filter((p): p is string => !!p)
+      )
+    );
+
     try {
       setSubmitting(true);
+      console.log('[publish] mode', edit ? 'edit' : 'create');
+      console.log('[publish] activeMedias', activeMedias);
+      console.log('[publish] removedPaths', removedPaths);
       const contact_email = contact && contact.includes('@') ? contact : null;
       const contact_phone = contact && !contact.includes('@') ? contact : null;
       let priceValue: number | null = null;
@@ -116,27 +146,62 @@ export default function CreateEventStep2() {
       };
 
       if (edit) {
+        // Récupérer l'événement actuel pour vérifier si la cover a changé
+        let oldCoverPath: string | undefined;
+        try {
+          const currentEvt = await EventsService.getById(edit);
+          if (currentEvt && currentEvt.cover_url && currentEvt.cover_url !== coverImage?.publicUrl) {
+            oldCoverPath = derivePath(currentEvt.cover_url);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch original event for cleanup check', err);
+        }
+
         await EventsService.update(edit, payload as any);
-        if (gallery.length > 0 && (EventsService as any).setMedia) {
+        if ((EventsService as any).setMedia) {
           try {
-            await EventsService.setMedia(edit, gallery.map((g) => g.publicUrl));
+            await EventsService.setMedia(edit, activeMedias as any);
           } catch (mediaErr) {
             console.warn('set media error', mediaErr);
+            throw mediaErr;
           }
         }
+
+        const finalRemovedPaths = [...removedPaths];
+        if (oldCoverPath && !finalRemovedPaths.includes(oldCoverPath)) {
+          finalRemovedPaths.push(oldCoverPath);
+        }
+        if (finalRemovedPaths.length > 0) {
+          try {
+            await supabase.storage.from('event-media').remove(finalRemovedPaths);
+          } catch (rmErr) {
+            console.warn('remove storage (edit)', rmErr);
+          }
+        }
+        // Rafraîchir la liste mise en cache pour éviter les incohérences sur les cartes
+        await useEventsStore.getState().fetchEvents({ force: true });
         resetStore();
         router.replace(`/events/${edit}` as any);
         return;
       }
 
       const created = await EventsService.create(payload as any);
-      if (gallery.length > 0 && (EventsService as any).setMedia) {
+      if (activeMedias.length > 0 && (EventsService as any).setMedia) {
         try {
-          await EventsService.setMedia(created.id, gallery.map((g) => g.publicUrl));
+          await EventsService.setMedia(created.id, activeMedias as any);
         } catch (mediaErr) {
           console.warn('set media error', mediaErr);
+          throw mediaErr;
         }
       }
+      if (removedPaths.length > 0) {
+        try {
+          await supabase.storage.from('event-media').remove(removedPaths);
+        } catch (rmErr) {
+          console.warn('remove storage (create)', rmErr);
+        }
+      }
+      await useEventsStore.getState().fetchEvents({ force: true });
       resetStore();
       router.replace(`/events/${created.id}` as any);
     } catch (e) {

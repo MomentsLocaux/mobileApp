@@ -30,7 +30,16 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
       </TouchableOpacity>
 
       <EventImageCarousel
-        images={[event.cover_url, ...(event.media?.map((m) => m.url).filter(Boolean) as string[])]}
+        images={
+          Array.from(
+            new Set(
+              [
+                event.cover_url,
+                ...(event.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
+              ].filter(Boolean) as string[]
+            )
+          ).slice(0, 4)
+        }
         height={140}
         borderRadius={0}
       />

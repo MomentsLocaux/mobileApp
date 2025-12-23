@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Heart, MapPin, Calendar, Tag } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
@@ -42,22 +42,36 @@ export const EventResultCard: React.FC<Props> = ({
   onNavigate,
   onSelect,
 }) => {
+  const [isSwiping, setIsSwiping] = useState(false);
   const categoryLabel = getCategoryLabel(event.category || '');
   const dateLabel = useMemo(() => formatDateRange(event.starts_at, event.ends_at), [event.starts_at, event.ends_at]);
   const tags = event.tags?.slice(0, 3) || [];
-  const images = [event.cover_url, ...(event.media?.map((m) => m.url).filter(Boolean) as string[])];
+  const images = useMemo(() => {
+    const urls = [
+      event.cover_url,
+      ...(event.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
+    ].filter(Boolean) as string[];
+    return Array.from(new Set(urls)).slice(0, 4);
+  }, [event.cover_url, event.media]);
 
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       style={[styles.card, active && styles.cardActive]}
       onPress={() => {
+        if (isSwiping) return;
         onSelect?.();
         onPress();
       }}
     >
       <View style={styles.imageWrapper}>
-        <EventImageCarousel images={images} height={180} borderRadius={0} />
+        <EventImageCarousel
+          images={images}
+          height={180}
+          borderRadius={0}
+          onSwipeStart={() => setIsSwiping(true)}
+          onSwipeEnd={() => setIsSwiping(false)}
+        />
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{categoryLabel}</Text>
         </View>

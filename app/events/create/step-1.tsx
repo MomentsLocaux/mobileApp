@@ -46,8 +46,22 @@ export default function CreateEventStep1() {
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [formValid, setFormValid] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
+  const resetOnCreateRef = React.useRef(false);
+
+  const extractStoragePath = (url: string | null | undefined) => {
+    if (!url) return '';
+    const marker = '/storage/v1/object/public/event-media/';
+    const idx = url.indexOf(marker);
+    return idx !== -1 ? url.slice(idx + marker.length) : '';
+  };
 
   React.useEffect(() => {
+    // Fresh creation: vider le store si on arrive sans paramètre d'édition
+    if (!edit && !resetOnCreateRef.current) {
+      resetStore();
+      resetOnCreateRef.current = true;
+    }
+
     const prefill = async () => {
       if (!edit) return;
       setPrefilling(true);
@@ -71,10 +85,14 @@ export default function CreateEventStep1() {
         setCoverImage(evt.cover_url ? { publicUrl: evt.cover_url, storagePath: '' } : undefined);
         setGallery(
           (evt.media || [])
-            .map((m) => m.url)
-            .filter((url) => !!url && url !== evt.cover_url)
+            .filter((m) => !!m.url && m.url !== evt.cover_url)
             .slice(0, 3)
-            .map((url) => ({ publicUrl: url as string, storagePath: '' }))
+            .map((m) => ({
+              id: (m as any).id,
+              publicUrl: m.url as string,
+              storagePath: extractStoragePath(m.url as string),
+              status: 'existing',
+            }))
         );
         if (evt.latitude && evt.longitude) {
           setLocation({

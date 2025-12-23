@@ -169,14 +169,14 @@ export default function MapScreen() {
   );
 
   const handleMarkerPress = (event: EventWithCreator) => {
-    openSheetWithEvents('single', [event], 1);
+    openSheetWithEvents('single', [event], 2);
   };
 
   const handleClusterPress = (events: EventWithCreator[]) => {
     const eventIds = events.map((e) => e.id);
     setFocusedIds(eventIds);
     if (events[0]) {
-      openSheetWithEvents('cluster', events, events.length > 5 ? 2 : 1);
+        openSheetWithEvents('cluster', events, events.length > 5 ? 2 : 1);
     }
   };
 

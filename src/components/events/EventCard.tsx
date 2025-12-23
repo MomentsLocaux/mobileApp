@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, MapPin, Calendar, Users, Share2 } from 'lucide-react-native';
 import { Card } from '../ui';
@@ -24,6 +24,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   showDistance,
   distance,
 }) => {
+  const [isSwiping, setIsSwiping] = useState(false);
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleDateString('fr-FR', {
@@ -32,15 +33,32 @@ export const EventCard: React.FC<EventCardProps> = ({
     });
   };
 
-  const gallery = event.media?.map((m) => m.url).filter(Boolean) || [];
-  const images = event.cover_url ? [event.cover_url, ...gallery] : gallery;
+  const images = (() => {
+    const urls = [
+      event.cover_url,
+      ...(event.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
+    ].filter(Boolean) as string[];
+    return Array.from(new Set(urls)).slice(0, 4); // cover + 3 max
+  })();
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      onPress={() => {
+        if (isSwiping) return;
+        onPress();
+      }}
+      activeOpacity={0.7}
+    >
       <Card padding="xs" elevation="md" style={styles.card}>
         {images.length > 0 && (
           <View style={styles.imageContainer}>
-            <EventImageCarousel images={images} height={180} borderRadius={borderRadius.md} />
+            <EventImageCarousel
+              images={images}
+              height={180}
+              borderRadius={borderRadius.md}
+              onSwipeStart={() => setIsSwiping(true)}
+              onSwipeEnd={() => setIsSwiping(false)}
+            />
             {(onFavoritePress || onSharePress) && (
               <View style={styles.overlayButtons}>
                 {onSharePress && (

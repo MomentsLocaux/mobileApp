@@ -1,5 +1,6 @@
 import { dataProvider } from '@/data-provider';
 import type { EventWithCreator, Event } from '@/types/database';
+type MediaInput = { id?: string; url: string; order?: number };
 
 export const EventsService = {
   list: (limit?: number): Promise<EventWithCreator[]> => dataProvider.listEvents({ limit }),
@@ -7,8 +8,8 @@ export const EventsService = {
   create: (payload: Partial<Event>): Promise<Event> => dataProvider.createEvent(payload),
   update: (id: string, payload: Partial<Event>): Promise<EventWithCreator> =>
     (dataProvider as any).updateEvent ? (dataProvider as any).updateEvent(id, payload) : Promise.reject(new Error('updateEvent not implemented')),
-  setMedia: (id: string, urls: string[]): Promise<void> =>
-    (dataProvider as any).setEventMedia ? (dataProvider as any).setEventMedia(id, urls) : Promise.resolve(),
+  setMedia: (id: string, medias: MediaInput[]): Promise<void> =>
+    (dataProvider as any).setEventMedia ? (dataProvider as any).setEventMedia(id, medias) : Promise.resolve(),
   delete: (id: string): Promise<boolean> => dataProvider.deleteEvent(id),
   // Legacy aliases
   listEvents: (filters?: Record<string, unknown>): Promise<EventWithCreator[]> => dataProvider.listEvents(filters),

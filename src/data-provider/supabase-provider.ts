@@ -153,25 +153,85 @@ export const supabaseProvider: (Pick<
       .update(payload as any)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw formatSupabaseError(error, 'updateEvent');
-    return data as EventWithCreator;
+    // Si RLS bloque le retour de la ligne, on ne jette pas d'erreur : on renvoie le payload enrichi
+    return (data as EventWithCreator) || ({ id, ...payload } as any);
   },
 
-  async setEventMedia(eventId: string, urls: string[]) {
-    const { error: delError } = await supabase.from('event_media').delete().eq('event_id', eventId);
-    if (delError) throw formatSupabaseError(delError, 'setEventMedia');
+  async setEventMedia(eventId: string, medias: { id?: string; url: string; order?: number }[]) {
+    console.log('[setEventMedia] eventId', eventId, 'incomingMedias', medias);
+    const { data: existing, error: fetchError } = await supabase
+      .from('event_media')
+      .select('id, url')
+      .eq('event_id', eventId);
+    if (fetchError) throw formatSupabaseError(fetchError, 'setEventMedia');
 
-    if (!urls || urls.length === 0) return;
+    const finalMedias = (medias || [])
+      .filter((m) => m && typeof m.url === 'string' && m.url.trim().length > 0)
+      .slice(0, 3)
+      .map((m, idx) => ({
+        id: m.id,
+        url: m.url,
+        order: typeof m.order === 'number' ? m.order : idx,
+      }));
+    const newIds = new Set(finalMedias.filter((m) => !!m.id).map((m) => m.id as string));
+    const existingList = (existing || []) as { id: string; url: string }[];
+    const idsToRemove = existingList.filter((e) => !newIds.has(e.id)).map((e) => e.id);
+    console.log('[setEventMedia] existing', existing, 'idsToRemove', idsToRemove);
 
-    const inserts = urls.slice(0, 3).map((url, index) => ({
+    if (idsToRemove.length > 0) {
+      console.log('[setEventMedia] deleting by id', idsToRemove);
+      const { error: delByIdError } = await supabase
+        .from('event_media')
+        .delete()
+        .in('id', idsToRemove);
+      if (delByIdError) throw formatSupabaseError(delByIdError, 'setEventMedia-delete-by-id');
+      console.log('[setEventMedia] delete response OK for ids', idsToRemove);
+    } else if (finalMedias.length === 0) {
+      // purge tout si aucune media active
+      console.log('[setEventMedia] purge all event_media for event', eventId);
+      const { error: purgeError } = await supabase.from('event_media').delete().eq('event_id', eventId);
+      if (purgeError) throw formatSupabaseError(purgeError, 'setEventMedia-purge-all');
+      console.log('[setEventMedia] purge response OK for event', eventId);
+    }
+
+    if (finalMedias.length === 0) {
+      return;
+    }
+
+    const existingToUpdate = finalMedias.filter((m) => m.id);
+    const newToInsert = finalMedias.filter((m) => !m.id).map((m) => ({
       event_id: eventId,
-      url,
+      url: m.url,
       type: 'image',
-      order: index,
+      order: m.order ?? 0,
     }));
-    const { error: insertError } = await supabase.from('event_media').insert(inserts as any);
-    if (insertError) throw formatSupabaseError(insertError, 'setEventMedia');
+
+    if (existingToUpdate.length > 0) {
+      const { error: updateError } = await supabase
+        .from('event_media')
+        .upsert(
+          existingToUpdate.map((m) => ({
+            id: m.id,
+            event_id: eventId,
+            url: m.url,
+            type: 'image',
+            order: m.order ?? 0,
+          })) as any,
+          { onConflict: 'id' }
+        );
+      if (updateError) throw formatSupabaseError(updateError, 'setEventMedia-upsert-existing');
+      console.log('[setEventMedia] upsert existing response OK', existingToUpdate.map((m) => m.id));
+    }
+
+    if (newToInsert.length > 0) {
+      console.log('[setEventMedia] inserting', newToInsert);
+      const { error: insertError } = await supabase.from('event_media').insert(newToInsert as any);
+      if (insertError) throw formatSupabaseError(insertError, 'setEventMedia');
+      console.log('[setEventMedia] insert response OK count', newToInsert.length);
+    }
+    // Fin : pas de vérification supplémentaire, on s'appuie sur les IDs et l'ordre fournis.
   },
 
   async deleteEvent(id: string) {

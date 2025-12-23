@@ -6,17 +6,16 @@ import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 
-const BUCKET = 'event-media';
-
 export const AdditionalImagesUploader = () => {
   const { pickImage } = useImagePicker();
   const gallery = useCreateEventStore((s) => s.gallery);
   const addGalleryImage = useCreateEventStore((s) => s.addGalleryImage);
-  const removeGalleryImage = useCreateEventStore((s) => s.removeGalleryImage);
+  const markRemoved = useCreateEventStore((s) => s.markGalleryImageRemoved);
   const [uploading, setUploading] = useState(false);
 
   const onPick = async () => {
-    if (gallery.length >= 3) {
+    const activeCount = gallery.filter((g) => g.status !== 'removed').length;
+    if (activeCount >= 3) {
       Alert.alert('Limite atteinte', 'Vous pouvez ajouter jusqu’à 3 images supplémentaires.');
       return;
     }
@@ -29,6 +28,12 @@ export const AdditionalImagesUploader = () => {
   const upload = async (uri: string) => {
     setUploading(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        Alert.alert('Connexion requise', 'Vous devez être connecté pour ajouter des images.');
+        return;
+      }
+
       const response = await fetch(uri);
       const arrayBuffer = await response.arrayBuffer();
       const ext = uri.split('.').pop() || 'jpg';
@@ -38,21 +43,31 @@ export const AdditionalImagesUploader = () => {
         response.headers.get('content-type') ||
         (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
 
-      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(filePath, arrayBuffer, {
+      const { error: uploadError } = await supabase.storage.from('event-media').upload(filePath, arrayBuffer, {
         contentType,
         upsert: true,
       });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.warn('upload gallery error', uploadError);
+        throw uploadError;
+      }
 
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
-      addGalleryImage({ storagePath: filePath, publicUrl: data.publicUrl });
+      const { data } = supabase.storage.from('event-media').getPublicUrl(filePath);
+      if (!gallery.find((g) => g.publicUrl === data.publicUrl)) {
+        addGalleryImage({ storagePath: filePath, publicUrl: data.publicUrl, status: 'added' });
+      }
     } catch (e) {
       console.warn('upload gallery', e);
-      Alert.alert('Erreur', 'Impossible de téléverser cette image.');
+      const message = e instanceof Error ? e.message : 'Impossible de téléverser cette image.';
+      Alert.alert('Erreur', message);
     } finally {
       setUploading(false);
     }
   };
+
+  const validGallery = gallery.filter(
+    (g) => g.status !== 'removed' && !!g.publicUrl && g.publicUrl.trim().length > 0
+  );
 
   return (
     <View style={styles.container}>
@@ -62,12 +77,21 @@ export const AdditionalImagesUploader = () => {
       </View>
 
       <View style={styles.grid}>
-        {gallery.map((img) => (
-          <View key={img.publicUrl} style={styles.thumbWrapper}>
-            <Image source={{ uri: img.publicUrl }} style={styles.thumb} />
+        {validGallery.map((img) => (
+          <View key={img.id || img.storagePath || img.publicUrl} style={styles.thumbWrapper}>
+            <Image
+              source={{ uri: img.publicUrl }}
+              style={styles.thumb}
+              onError={() => {
+                console.warn('[gallery] failed to load image, marking removed', img.publicUrl);
+                markRemoved(img.publicUrl);
+              }}
+            />
             <TouchableOpacity
               style={styles.removeBtn}
-              onPress={() => removeGalleryImage(img.publicUrl)}
+              onPress={() => {
+                markRemoved(img.publicUrl);
+              }}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <Trash2 size={14} color="#fff" />
@@ -75,7 +99,7 @@ export const AdditionalImagesUploader = () => {
           </View>
         ))}
 
-        {gallery.length < 3 && (
+        {validGallery.length < 3 ? (
           <TouchableOpacity style={styles.addTile} onPress={onPick} disabled={uploading}>
             {uploading ? (
               <ActivityIndicator color={colors.primary[600]} />
@@ -86,8 +110,14 @@ export const AdditionalImagesUploader = () => {
               </>
             )}
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
+
+      {gallery.length > 0 && (
+        <View style={{ marginTop: spacing.xs }}>
+          {/** removal handled per thumb button; kept for visual spacing */}
+        </View>
+      )}
     </View>
   );
 };

@@ -38,7 +38,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     ref
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
-    const snapPoints = useMemo(() => ['10%', '45%', '90%'], []);
+    const snapPoints = useMemo(() => ['16%', '50%', '90%'], []);
     const showList = index > 0 && mode !== 'idle';
 
     useImperativeHandle(ref, () => ({
@@ -131,7 +131,8 @@ const styles = StyleSheet.create({
   },
   peekContainer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
   },
   peekText: {
     ...typography.body,
