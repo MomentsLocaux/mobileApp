@@ -52,11 +52,21 @@ const EVENT_FULL_SELECT = `
 
 const EVENT_LIGHT_SELECT = `
   id,
+  title,
+  description,
   latitude,
   longitude,
   category,
   subcategory,
-  ambiance
+  tags,
+  starts_at,
+  ends_at,
+  address,
+  city,
+  cover_url,
+  ambiance,
+  creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region),
+  media:event_media(id, event_id, url, type, "order", created_at)
 `;
 
 export const supabaseProvider: (Pick<
@@ -144,8 +154,9 @@ export const supabaseProvider: (Pick<
       .limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');
 
+    const events = (data || []) as EventWithCreator[];
     const features =
-      (data || [])
+      events
         .filter((e) => typeof e.longitude === 'number' && typeof e.latitude === 'number')
         .map((e) => ({
           type: 'Feature',
@@ -162,8 +173,11 @@ export const supabaseProvider: (Pick<
         })) || [];
 
     return {
-      type: 'FeatureCollection',
-      features,
+      featureCollection: {
+        type: 'FeatureCollection',
+        features,
+      },
+      events,
     };
   },
 

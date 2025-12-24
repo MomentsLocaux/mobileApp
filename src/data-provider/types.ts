@@ -61,7 +61,11 @@ export interface IDataProvider {
 
   uploadAvatar(userId: string, uri: string): Promise<string | null>;
 
-  listEventsByBBox?(params: { ne: [number, number]; sw: [number, number]; limit?: number }): Promise<FeatureCollection>;
+  listEventsByBBox?(params: {
+    ne: [number, number];
+    sw: [number, number];
+    limit?: number;
+  }): Promise<{ featureCollection: FeatureCollection; events: EventWithCreator[] }>;
   getEventsByIds?(ids: string[]): Promise<EventWithCreator[]>;
 }
 

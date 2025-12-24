@@ -1,13 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  Platform,
-  TouchableOpacity,
-  Text,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,7 +7,7 @@ import { MapPin, Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
-import { useAuth, useLocation } from '../../src/hooks';
+import { useLocation } from '../../src/hooks';
 import {
   useLocationStore,
   useSearchResultsStore,
@@ -26,6 +18,7 @@ import { GlobalSearchBar } from '../../src/components/search/GlobalSearchBar';
 import { SearchOverlayModal } from '../../src/components/search/SearchOverlayModal';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
+import type { EventWithCreator } from '../../src/types/database';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
@@ -34,10 +27,9 @@ const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 export default function MapScreen() {
   const router = useRouter();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
-  const { profile } = useAuth();
   // Trigger location permission + retrieval once the map tab mounts
   useLocation();
-  const { currentLocation, isLoading: locationLoading, permissionGranted } = useLocationStore();
+  const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const { activeEventId, setActiveEvent } = useSearchResultsStore();
   const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding } =
     useMapResultsUIStore();
@@ -54,8 +46,9 @@ export default function MapScreen() {
   const tabTranslate = useSharedValue(0);
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
   const focusHandledRef = useRef(false);
-  const [sheetEvents, setSheetEvents] = useState<any[]>([]);
-  const [sheetMode, setSheetMode] = useState<'idle' | 'single' | 'cluster'>('idle');
+  const [sheetEvents, setSheetEvents] = useState<EventWithCreator[]>([]);
+  const [sheetMode, setSheetMode] = useState<'viewport' | 'single'>('viewport');
+  const [visibleEventCount, setVisibleEventCount] = useState(0);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -72,8 +65,6 @@ export default function MapScreen() {
     longitude: userLocation?.longitude ?? FONTOY_COORDS.longitude,
     zoom: 12,
   };
-
-  console.log('[MapScreen] mapCenter =', mapCenter, 'userLocation =', userLocation);
 
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
@@ -108,20 +99,24 @@ export default function MapScreen() {
     lastBoundsRef.current = bounds;
     (async () => {
       try {
-        const geojson = await EventsService.listEventsByBBox({
+        const { featureCollection, events } = await EventsService.listEventsByBBox({
           ne: bounds.ne,
           sw: bounds.sw,
           limit: 300,
         });
-        mapRef.current?.setShape(geojson as any);
+        setSheetMode('viewport');
+        setActiveEvent(undefined);
+        setSheetEvents(events || []);
+        setVisibleEventCount(events?.length || 0);
+        mapRef.current?.setShape(featureCollection as any);
       } catch (e) {
         console.warn('bbox fetch error', e);
       }
     })();
-  }, []);
+  }, [setActiveEvent]);
 
   const openEventInSheet = useCallback(
-    (event: any, snapIndex = 1) => {
+    (event: EventWithCreator, snapIndex = 1) => {
       if (!event) return;
       setSheetEvents([event]);
       setSheetMode('single');
@@ -130,7 +125,7 @@ export default function MapScreen() {
         setBottomSheetIndex(snapIndex);
         resultsSheetRef.current?.open?.(snapIndex);
         showBottomBar();
-        updateMapPadding(snapIndex === 2 ? 'high' : snapIndex === 1 ? 'medium' : 'low');
+        updateMapPadding(snapIndex === 2 ? 'high' : 'medium');
       });
     },
     [setActiveEvent, setBottomSheetIndex, showBottomBar, updateMapPadding]
@@ -216,21 +211,6 @@ export default function MapScreen() {
         initialRegion={mapCenter}
         userLocation={userLocation}
         onFeaturePress={handleFeaturePress}
-        onClusterPress={async (ids) => {
-          try {
-            const uniqueIds = Array.from(new Set((ids || []).map((id) => String(id)))).slice(0, 50);
-            const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
-            setSheetMode('cluster');
-            setSheetEvents(events);
-            setActiveEvent(events.length ? events[0].id : undefined);
-            setBottomSheetIndex(0);
-            resultsSheetRef.current?.open?.(0);
-            hideBottomBar();
-            updateMapPadding('low');
-          } catch (e) {
-            console.warn('cluster fetch error', e);
-          }
-        }}
         onZoomChange={setZoom}
         styleURL={mapStyle}
         onVisibleBoundsChange={(bounds) => {
@@ -309,7 +289,9 @@ export default function MapScreen() {
           setBottomSheetIndex(idx);
           if (idx <= 0) {
             hideBottomBar();
-            setSheetMode('idle');
+            setSheetMode('viewport');
+            setActiveEvent(undefined);
+            setSheetEvents((events) => events);
           } else {
             showBottomBar();
           }
@@ -317,7 +299,7 @@ export default function MapScreen() {
           updateMapPadding(paddingLevel);
         }}
         mode={sheetMode}
-        peekCount={sheetEvents.length}
+        peekCount={sheetMode === 'single' ? 0 : visibleEventCount}
         index={bottomSheetIndex}
       />
 

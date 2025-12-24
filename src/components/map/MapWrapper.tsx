@@ -17,7 +17,6 @@ interface MapWrapperProps {
   };
   userLocation?: { latitude: number; longitude: number } | null;
   onFeaturePress: (featureId: string) => void;
-  onClusterPress?: (features: string[]) => void;
   onZoomChange?: (zoom: number) => void;
   onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   children?: React.ReactNode;
@@ -105,51 +104,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     const feature = event.features?.[0];
     if (!feature) return;
 
-    const isCluster = feature.properties?.cluster;
-    const coords = (feature.geometry as any)?.coordinates;
-
-    if (isCluster && shapeSourceRef.current && coords) {
-      // Centrer sur les bornes réelles du cluster
-      if (onClusterPress) {
-        try {
-          const leaves: any = await shapeSourceRef.current.getClusterLeaves(feature as any, 200, 0);
-          const leafFeatures = Array.isArray(leaves?.features)
-            ? leaves.features
-            : Array.isArray(leaves)
-            ? leaves
-            : [];
-
-          const coordsInCluster = leafFeatures
-            .map((f: any) => (Array.isArray(f?.geometry?.coordinates) ? f.geometry.coordinates : null))
-            .filter((c: any) => Array.isArray(c) && c.length === 2) as number[][];
-
-          if (coordsInCluster.length > 0) {
-            let minLat = 90,
-              maxLat = -90,
-              minLon = 180,
-              maxLon = -180;
-            coordsInCluster.forEach((c) => {
-              const [lon, lat] = c;
-              if (lat < minLat) minLat = lat;
-              if (lat > maxLat) maxLat = lat;
-              if (lon < minLon) minLon = lon;
-              if (lon > maxLon) maxLon = lon;
-            });
-            cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], 60, 300);
-          }
-
-          const idsInCluster = leafFeatures
-            .map((f: any) => (f?.properties?.id != null ? String(f.properties.id) : ''))
-            .filter(Boolean);
-          onClusterPress(idsInCluster);
-        } catch (e) {
-          console.warn('Cluster leaves error', e);
-          onClusterPress([]);
-        }
-      }
-      return;
-    }
-
     const eventId = feature.properties?.id;
     if (eventId) {
       onFeaturePress(String(eventId));
@@ -215,35 +169,10 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           id="events-source"
           ref={shapeSourceRef}
           shape={shape}
-          cluster
-          clusterRadius={50}
-          clusterMaxZoom={14}
           onPress={handlePress}
         >
           <Mapbox.CircleLayer
-            id="clusters"
-            filter={['has', 'point_count']}
-            style={{
-              circleColor: ['step', ['get', 'point_count'], '#51bbd6', 10, '#f1f075', 30, '#f28cb1'],
-              circleRadius: ['step', ['get', 'point_count'], 15, 10, 20, 30, 25],
-              circleOpacity: 0.9,
-            }}
-          />
-
-          <Mapbox.SymbolLayer
-            id="cluster-count"
-            filter={['has', 'point_count']}
-            style={{
-              textField: ['get', 'point_count_abbreviated'],
-              textSize: 12,
-              textColor: '#000',
-              textFont: ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-            }}
-          />
-
-          <Mapbox.CircleLayer
             id="event-pins-halo"
-            filter={['!', ['has', 'point_count']]}
             style={{
               circleColor: colors.neutral[0],
               circleRadius: 9,
@@ -253,7 +182,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           />
           <Mapbox.CircleLayer
             id="event-pins"
-            filter={['!', ['has', 'point_count']]}
             style={{
               circleColor: colors.primary[600],
               circleRadius: 7,
