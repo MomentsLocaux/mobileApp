@@ -70,16 +70,24 @@ export default function MapScreen() {
 
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
+    // Recentrer sur l'utilisateur avec une zone équivalente à ~15 km de circonférence (~7.5 km de diamètre) autour
+    const radiusKm = 7.5; // moitié de la circonférence ciblée
+    const lat = userLocation.latitude;
+    const lon = userLocation.longitude;
+    const latDelta = radiusKm / 111; // ~111 km par degré de latitude
+    const lonDelta = radiusKm / (111 * Math.max(Math.cos((lat * Math.PI) / 180), 0.1)); // éviter division par 0
+    const coords = [
+      { latitude: lat - latDelta, longitude: lon - lonDelta },
+      { latitude: lat + latDelta, longitude: lon + lonDelta },
+    ];
+    const paddingBottom = (mapPadding?.bottom ?? 0) + 40;
+
     isProgrammaticMoveRef.current = true;
-    mapRef.current?.recenter({
-      longitude: userLocation.longitude,
-      latitude: userLocation.latitude,
-      zoom,
-    });
+    mapRef.current?.fitToCoordinates(coords, paddingBottom);
     setTimeout(() => {
       isProgrammaticMoveRef.current = false;
     }, 400);
-  }, [userLocation, zoom]);
+  }, [mapPadding, userLocation]);
 
   useEffect(() => {
     if (userLocation && !hasCenteredOnUserRef.current) {

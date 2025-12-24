@@ -255,6 +255,17 @@ export default function EventCreateScreen() {
     setSubmitting(true);
 
     try {
+      let finalCoverUrl = formData.coverUrl || null;
+      const isLocalCover =
+        typeof formData.coverUrl === 'string' &&
+        formData.coverUrl.length > 0 &&
+        !formData.coverUrl.startsWith('http');
+      if (isLocalCover) {
+        const uploaded = await EventsService.uploadEventCover(profile.id, formData.coverUrl);
+        if (!uploaded) throw new Error('upload_cover_failed');
+        finalCoverUrl = uploaded;
+      }
+
       const operatingHours =
         formData.scheduleMode === 'daily'
           ? formData.dailySchedule.reduce((acc, slot) => {
@@ -292,7 +303,7 @@ export default function EventCreateScreen() {
         visibility: formData.visibility,
         is_free: formData.isFree,
         price: formData.isFree ? null : formData.price,
-        cover_url: formData.coverUrl,
+        cover_url: finalCoverUrl,
         max_participants: null,
         registration_required: false,
         external_url: null,
@@ -303,8 +314,6 @@ export default function EventCreateScreen() {
         ambiance: null,
       });
 
-      setSubmitting(false);
-
       if (event) {
         setShowPreview(false);
         router.push({
@@ -313,6 +322,7 @@ export default function EventCreateScreen() {
         } as any);
       } else {
         Alert.alert('Erreur', 'Impossible de créer l\'événement');
+        setSubmitting(false);
       }
     } catch (error) {
       console.error('Error creating event:', error);

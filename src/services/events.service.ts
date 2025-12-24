@@ -22,6 +22,8 @@ export const EventsService = {
     (dataProvider as any).listEventsByBBox
       ? (dataProvider as any).listEventsByBBox(params)
       : Promise.resolve({ type: 'FeatureCollection', features: [] }),
+  uploadEventCover: (userId: string, uri: string): Promise<string | null> =>
+    (dataProvider as any).uploadEventCover ? (dataProvider as any).uploadEventCover(userId, uri) : Promise.resolve(null),
   getEventsByIds: async (ids: string[]): Promise<EventWithCreator[]> => {
     const unique = Array.from(new Set((ids || []).filter(Boolean)));
     if (!unique.length) return [];

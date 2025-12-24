@@ -60,6 +60,7 @@ export interface IDataProvider {
   }): Promise<boolean>;
 
   uploadAvatar(userId: string, uri: string): Promise<string | null>;
+  uploadEventCover?(userId: string, uri: string): Promise<string | null>;
 
   listEventsByBBox?(params: {
     ne: [number, number];

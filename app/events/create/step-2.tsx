@@ -22,6 +22,8 @@ import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 import { useEventsStore } from '@/store';
+
+const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 export default function CreateEventStep2() {
   const router = useRouter();
   const { user } = useAuth();
@@ -87,6 +89,13 @@ export default function CreateEventStep2() {
       return;
     }
 
+    // Sécurité : si on arrive directement sur step-2 avec ?edit=... sans être passé par step-1,
+    // on refuse de publier pour éviter d'écraser l'événement avec des valeurs vides.
+    if (edit && (!title || !location || !coverImage)) {
+      Alert.alert('Données manquantes', 'Veuillez repasser par l’étape 1 pour charger toutes les données.');
+      return;
+    }
+
     const activeImages = gallery
       .filter((g) => g.status !== 'removed' && g.publicUrl && g.publicUrl.trim().length > 0)
       .slice(0, 3);
@@ -119,6 +128,20 @@ export default function CreateEventStep2() {
         }
       }
 
+      // Assurer l'upload de la cover si l'utilisateur en a sélectionné une locale pendant l'édition.
+      let finalCoverUrl = coverImage?.publicUrl || null;
+      if (coverImage?.publicUrl && !isRemoteUrl(coverImage.publicUrl)) {
+        try {
+          const uploaded = await EventsService.uploadEventCover(user.id, coverImage.publicUrl);
+          if (uploaded) {
+            finalCoverUrl = uploaded;
+          }
+        } catch (coverErr) {
+          console.warn('cover upload (edit/create) failed', coverErr);
+          throw coverErr;
+        }
+      }
+
       const payload = {
         title,
         description: description || '',
@@ -135,7 +158,7 @@ export default function CreateEventStep2() {
         visibility: visibility === 'public' ? 'public' : 'prive',
         is_free: !price || price.toLowerCase().includes('gratuit'),
         price: priceValue,
-        cover_url: coverImage?.publicUrl || null,
+        cover_url: finalCoverUrl,
         max_participants: null,
         registration_required: null,
         external_url: externalLink || videoLink || null,
@@ -150,7 +173,7 @@ export default function CreateEventStep2() {
         let oldCoverPath: string | undefined;
         try {
           const currentEvt = await EventsService.getById(edit);
-          if (currentEvt && currentEvt.cover_url && currentEvt.cover_url !== coverImage?.publicUrl) {
+          if (currentEvt && currentEvt.cover_url && currentEvt.cover_url !== finalCoverUrl) {
             oldCoverPath = derivePath(currentEvt.cover_url);
           }
         } catch (err) {
