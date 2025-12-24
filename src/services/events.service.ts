@@ -22,6 +22,24 @@ export const EventsService = {
     (dataProvider as any).listEventsByBBox
       ? (dataProvider as any).listEventsByBBox(params)
       : Promise.resolve({ type: 'FeatureCollection', features: [] }),
-  getEventsByIds: (ids: string[]): Promise<EventWithCreator[]> =>
-    (dataProvider as any).getEventsByIds ? (dataProvider as any).getEventsByIds(ids) : Promise.resolve([]),
+  getEventsByIds: async (ids: string[]): Promise<EventWithCreator[]> => {
+    const unique = Array.from(new Set((ids || []).filter(Boolean)));
+    if (!unique.length) return [];
+    if (!(dataProvider as any).getEventsByIds) return [];
+
+    const chunkSize = 80;
+    const chunks: string[][] = [];
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      chunks.push(unique.slice(i, i + chunkSize));
+    }
+
+    const results: EventWithCreator[] = [];
+    for (const chunk of chunks) {
+      const data = await (dataProvider as any).getEventsByIds(chunk);
+      if (Array.isArray(data)) {
+        results.push(...(data as EventWithCreator[]));
+      }
+    }
+    return results;
+  },
 };

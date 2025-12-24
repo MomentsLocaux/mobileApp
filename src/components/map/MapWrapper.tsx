@@ -21,6 +21,7 @@ interface MapWrapperProps {
   onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   children?: React.ReactNode;
   styleURL?: string;
+  mapPadding?: { top: number; right: number; bottom: number; left: number };
 }
 
 export type MapWrapperHandle = {
@@ -39,6 +40,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onVisibleBoundsChange,
       children,
       styleURL,
+      mapPadding,
     },
     ref
   ) => {
@@ -166,6 +168,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             pitch: 0,
             heading: 0,
           }}
+          padding={mapPadding}
         />
 
         <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />

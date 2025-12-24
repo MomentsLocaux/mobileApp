@@ -31,7 +31,7 @@ export default function MapScreen() {
   useLocation();
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const { activeEventId, setActiveEvent } = useSearchResultsStore();
-  const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding } =
+  const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding, mapPaddingLevel } =
     useMapResultsUIStore();
   const [searchVisible, setSearchVisible] = useState(false);
 
@@ -49,6 +49,8 @@ export default function MapScreen() {
   const [sheetEvents, setSheetEvents] = useState<EventWithCreator[]>([]);
   const [sheetMode, setSheetMode] = useState<'viewport' | 'single'>('viewport');
   const [visibleEventCount, setVisibleEventCount] = useState(0);
+  const bboxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -91,28 +93,40 @@ export default function MapScreen() {
     const prev = lastBoundsRef.current;
     const same =
       prev &&
-      Math.abs(prev.ne[0] - bounds.ne[0]) < 1e-4 &&
-      Math.abs(prev.ne[1] - bounds.ne[1]) < 1e-4 &&
-      Math.abs(prev.sw[0] - bounds.sw[0]) < 1e-4 &&
-      Math.abs(prev.sw[1] - bounds.sw[1]) < 1e-4;
+      Math.abs(prev.ne[0] - bounds.ne[0]) < 0.002 &&
+      Math.abs(prev.ne[1] - bounds.ne[1]) < 0.002 &&
+      Math.abs(prev.sw[0] - bounds.sw[0]) < 0.002 &&
+      Math.abs(prev.sw[1] - bounds.sw[1]) < 0.002;
     if (same) return;
     lastBoundsRef.current = bounds;
-    (async () => {
+
+    if (bboxTimeoutRef.current) {
+      clearTimeout(bboxTimeoutRef.current);
+    }
+
+    bboxTimeoutRef.current = setTimeout(async () => {
       try {
         const featureCollection = await EventsService.listEventsByBBox({
           ne: bounds.ne,
           sw: bounds.sw,
           limit: 300,
         });
+        const ids =
+          featureCollection?.features
+            ?.map((f: any) => f?.properties?.id)
+            .filter(Boolean) || [];
+        const uniqueIds = Array.from(new Set(ids)) as string[];
+        const limitedIds = uniqueIds.slice(0, 120); // cap to avoid timeouts
+        const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
         setSheetMode('viewport');
         setActiveEvent(undefined);
-        setSheetEvents([]);
+        setSheetEvents(events);
         setVisibleEventCount(featureCollection?.features?.length || 0);
         mapRef.current?.setShape(featureCollection as any);
       } catch (e) {
         console.warn('bbox fetch error', e);
       }
-    })();
+    }, 300);
   }, [setActiveEvent]);
 
   const openEventInSheet = useCallback(
@@ -134,8 +148,13 @@ export default function MapScreen() {
   const handleFeaturePress = useCallback(
     async (id: string) => {
       try {
+        if (eventCacheRef.current.has(id)) {
+          openEventInSheet(eventCacheRef.current.get(id)!, 2);
+          return;
+        }
         const evt = await EventsService.getEventById(id);
         if (evt) {
+          eventCacheRef.current.set(id, evt);
           openEventInSheet(evt, 2);
         }
       } catch (e) {
@@ -182,6 +201,17 @@ export default function MapScreen() {
     }
   }, [mapMode]);
 
+  const mapPadding = useMemo(() => {
+    switch (mapPaddingLevel) {
+      case 'high':
+        return { top: 20, right: 20, bottom: 360, left: 20 };
+      case 'medium':
+        return { top: 20, right: 20, bottom: 240, left: 20 };
+      default:
+        return { top: 20, right: 20, bottom: 120, left: 20 };
+    }
+  }, [mapPaddingLevel]);
+
   if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
     return (
       <GestureHandlerRootView style={styles.container}>
@@ -213,6 +243,7 @@ export default function MapScreen() {
         onFeaturePress={handleFeaturePress}
         onZoomChange={setZoom}
         styleURL={mapStyle}
+        mapPadding={mapPadding}
         onVisibleBoundsChange={(bounds) => {
           handleBoundsChange(bounds);
         }}

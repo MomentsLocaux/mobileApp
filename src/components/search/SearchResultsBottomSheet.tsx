@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -39,7 +39,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
     const snapPoints = useMemo(() => ['16%', '50%', '90%'], []);
-    const showList = index > 0 && mode !== 'idle';
+    const hasEvents = events.length > 0;
+    const showList = mode === 'single' || (index > 0 && mode !== 'idle');
+    const showEmpty = index > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents;
 
     useImperativeHandle(ref, () => ({
       open: (index = 1) => {
@@ -49,6 +51,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }));
 
     const headerTitle = useMemo(() => {
+      if (mode === 'single' && hasEvents) {
+        return events[0].title;
+      }
       if (index === 0 || mode === 'idle') {
         return `${peekCount} moment${peekCount > 1 ? 's' : ''} dans cette zone`;
       }
@@ -56,12 +61,12 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
       return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
-    }, [activeEventId, events, mode, peekCount]);
+    }, [activeEventId, events, hasEvents, mode, peekCount]);
 
     return (
       <BottomSheet
         ref={sheetRef}
-        index={events.length ? index : 0}
+        index={index}
         snapPoints={snapPoints}
         enablePanDownToClose={false}
         backgroundStyle={styles.sheetBackground}
@@ -77,13 +82,39 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           )}
         </View>
 
-        {(!showList || mode === 'idle') && (
-          <View style={styles.peekContainer}>
-            <Text style={styles.peekText}>{peekCount} moment{peekCount > 1 ? 's' : ''} dans cette zone</Text>
+        {showList && mode === 'single' && hasEvents && (
+          <View style={styles.singleContainer}>
+            <EventResultCard
+              event={events[0]}
+              active
+              onPress={() => onOpenDetails(events[0])}
+              onSelect={() => onSelectEvent(events[0])}
+              onNavigate={() => onNavigate(events[0])}
+            />
           </View>
         )}
 
-        {showList && (
+        {!showList && mode !== 'idle' && (
+          <TouchableOpacity
+            style={styles.peekContainer}
+            activeOpacity={0.8}
+            onPress={() => {
+              sheetRef.current?.snapToIndex(1);
+            }}
+          >
+            <Text style={styles.peekText}>{peekCount} moment{peekCount > 1 ? 's' : ''} dans cette zone</Text>
+            <Text style={styles.peekHint}>Balaye vers le haut pour voir la liste</Text>
+          </TouchableOpacity>
+        )}
+
+        {showEmpty && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>Aucun résultat</Text>
+            <Text style={styles.emptySubtitle}>Zoomez ou déplacez la carte pour voir d&apos;autres moments</Text>
+          </View>
+        )}
+
+        {showList && mode !== 'single' && hasEvents && (
           <BottomSheetFlatList
             data={events}
             keyExtractor={(item) => item.id}
@@ -137,5 +168,30 @@ const styles = StyleSheet.create({
   peekText: {
     ...typography.body,
     color: colors.neutral[700],
+  },
+  peekHint: {
+    ...typography.caption,
+    color: colors.neutral[500],
+    marginTop: spacing.xs,
+  },
+  singleContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.xs,
+  },
+  emptyTitle: {
+    ...typography.body,
+    color: colors.neutral[800],
+    fontWeight: '700',
+  },
+  emptySubtitle: {
+    ...typography.caption,
+    color: colors.neutral[500],
+    textAlign: 'center',
   },
 });
