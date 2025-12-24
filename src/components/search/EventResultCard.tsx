@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { MapPin, Calendar, Tag, Navigation2 } from 'lucide-react-native';
+import { MapPin, Calendar, Tag, Navigation2, Heart } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
@@ -14,6 +14,8 @@ interface Props {
   onNavigate: () => void;
   onSelect?: () => void;
   onOpenCreator?: (creatorId: string) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (event: EventWithCreator) => void;
 }
 
 function formatDateRange(starts_at: string, ends_at: string) {
@@ -42,6 +44,8 @@ export const EventResultCard: React.FC<Props> = ({
   onNavigate,
   onSelect,
   onOpenCreator,
+  isFavorite,
+  onToggleFavorite,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
   const categoryLabel = getCategoryLabel(event.category || '');
@@ -125,6 +129,19 @@ export const EventResultCard: React.FC<Props> = ({
               <Navigation2 size={16} color={colors.neutral[900]} />
               <Text style={styles.ctaText}>Itinéraire</Text>
             </TouchableOpacity>
+            {onToggleFavorite && (
+              <TouchableOpacity
+                style={styles.favoriteBtn}
+                onPress={() => onToggleFavorite(event)}
+                activeOpacity={0.8}
+              >
+                <Heart
+                  size={18}
+                  color={isFavorite ? colors.error[500] : colors.neutral[0]}
+                  fill={isFavorite ? colors.error[500] : 'transparent'}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -135,10 +152,10 @@ export const EventResultCard: React.FC<Props> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.neutral[0],
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderWidth: 0,
+    marginHorizontal: 0,
   },
   cardActive: {
     borderColor: colors.primary[500],
@@ -150,6 +167,7 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: 'relative',
+    width: '100%',
   },
   topBadge: {
     position: 'absolute',
@@ -238,7 +256,8 @@ const styles = StyleSheet.create({
   ctaRow: {
     marginTop: spacing.sm,
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   ctaButton: {
     flexDirection: 'row',
@@ -253,5 +272,13 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.neutral[900],
     fontWeight: '700',
+  },
+  favoriteBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

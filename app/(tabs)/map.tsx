@@ -5,14 +5,18 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapPin, Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
+import { useFocusEffect } from '@react-navigation/native';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
+import { SocialService } from '../../src/services/social.service';
 import { useLocation } from '../../src/hooks';
 import {
   useLocationStore,
   useSearchResultsStore,
   useMapResultsUIStore,
 } from '../../src/store';
+import { useFavoritesStore } from '@/store/favoritesStore';
+import { useAuth } from '@/hooks';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import { GlobalSearchBar } from '../../src/components/search/GlobalSearchBar';
 import { SearchOverlayModal } from '../../src/components/search/SearchOverlayModal';
@@ -31,6 +35,8 @@ export default function MapScreen() {
   useLocation();
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const { activeEventId, setActiveEvent } = useSearchResultsStore();
+  const { profile } = useAuth();
+  const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
   const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding, mapPaddingLevel } =
     useMapResultsUIStore();
   const [searchVisible, setSearchVisible] = useState(false);
@@ -51,6 +57,9 @@ export default function MapScreen() {
   const [visibleEventCount, setVisibleEventCount] = useState(0);
   const bboxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
+  const getPaddingFromIndex = useCallback((idx: number) => {
+    return idx === 2 ? 360 : idx === 1 ? 240 : 120;
+  }, []);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -67,6 +76,17 @@ export default function MapScreen() {
     longitude: userLocation?.longitude ?? FONTOY_COORDS.longitude,
     zoom: 12,
   };
+
+  const mapPadding = useMemo(() => {
+    switch (mapPaddingLevel) {
+      case 'high':
+        return { top: 20, right: 20, bottom: 360, left: 20 };
+      case 'medium':
+        return { top: 20, right: 20, bottom: 240, left: 20 };
+      default:
+        return { top: 20, right: 20, bottom: 120, left: 20 };
+    }
+  }, [mapPaddingLevel]);
 
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
@@ -95,6 +115,17 @@ export default function MapScreen() {
       hasCenteredOnUserRef.current = true;
     }
   }, [recenterToUser, userLocation]);
+
+  // À chaque retour sur l’onglet carte, on repart en mode peek (pas d’ouverture auto).
+  useFocusEffect(
+    useCallback(() => {
+      setBottomSheetIndex(0);
+      hideBottomBar();
+      setSheetMode('viewport');
+      setActiveEvent(undefined);
+      // On laisse les résultats existants pour que le peek affiche immédiatement le comptage.
+    }, [hideBottomBar, setActiveEvent, setBottomSheetIndex])
+  );
 
   const handleBoundsChange = useCallback((bounds: { ne: [number, number]; sw: [number, number] }) => {
     if (isProgrammaticMoveRef.current) return;
@@ -158,13 +189,13 @@ export default function MapScreen() {
     async (id: string) => {
       try {
         if (eventCacheRef.current.has(id)) {
-          openEventInSheet(eventCacheRef.current.get(id)!, 2);
+          openEventInSheet(eventCacheRef.current.get(id)!, 1);
           return;
         }
         const evt = await EventsService.getEventById(id);
         if (evt) {
           eventCacheRef.current.set(id, evt);
-          openEventInSheet(evt, 2);
+          openEventInSheet(evt, 1);
         }
       } catch (e) {
         console.warn('getEventById error', e);
@@ -184,7 +215,7 @@ export default function MapScreen() {
       try {
         const evt = await EventsService.getEventById(String(focus));
         if (evt && !focusHandledRef.current) {
-          openEventInSheet(evt, 2);
+          openEventInSheet(evt, 1);
           focusHandledRef.current = true;
         }
       } catch (e) {
@@ -210,21 +241,10 @@ export default function MapScreen() {
     }
   }, [mapMode]);
 
-  const mapPadding = useMemo(() => {
-    switch (mapPaddingLevel) {
-      case 'high':
-        return { top: 20, right: 20, bottom: 360, left: 20 };
-      case 'medium':
-        return { top: 20, right: 20, bottom: 240, left: 20 };
-      default:
-        return { top: 20, right: 20, bottom: 120, left: 20 };
-    }
-  }, [mapPaddingLevel]);
-
   const focusOnEvent = useCallback(
     (event: EventWithCreator, snapIndex: number) => {
       if (!event || typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
-      const paddingBottom = snapIndex === 2 ? 360 : snapIndex === 1 ? 240 : 120;
+      const paddingBottom = getPaddingFromIndex(snapIndex);
       const targetZoom = Math.max(2, zoom - 0.5);
       mapRef.current?.focusOnCoordinate({
         longitude: event.longitude,
@@ -233,7 +253,38 @@ export default function MapScreen() {
         paddingBottom,
       });
     },
-    [zoom]
+    [getPaddingFromIndex, zoom]
+  );
+
+  const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
+
+  const handleToggleFavorite = useCallback(
+    async (event: EventWithCreator) => {
+      try {
+        await SocialService.toggleFavorite(profile?.id || '', event.id);
+        toggleFavorite(event);
+      } catch (e) {
+        console.warn('toggle favorite error', e);
+      }
+    },
+    [profile?.id, toggleFavorite]
+  );
+
+  const focusOnBounds = useCallback(
+    (bounds: { ne: [number, number]; sw: [number, number] } | null, snapIndex: number) => {
+      if (!bounds) return;
+      const paddingBottom = getPaddingFromIndex(snapIndex);
+      const coords = [
+        { longitude: bounds.sw[0], latitude: bounds.sw[1] },
+        { longitude: bounds.ne[0], latitude: bounds.ne[1] },
+      ];
+      isProgrammaticMoveRef.current = true;
+      mapRef.current?.fitToCoordinates(coords, paddingBottom);
+      setTimeout(() => {
+        isProgrammaticMoveRef.current = false;
+      }, 300);
+    },
+    [getPaddingFromIndex]
   );
 
   if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
@@ -341,6 +392,8 @@ export default function MapScreen() {
         onNavigate={(event) => setNavEvent(event)}
         onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
         onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+        onToggleFavorite={handleToggleFavorite}
+        isFavorite={(id) => favoritesSet.has(id)}
         onIndexChange={(idx) => {
           setBottomSheetIndex(idx);
           if (idx <= 0) {
@@ -353,6 +406,10 @@ export default function MapScreen() {
           }
           const paddingLevel = idx === 2 ? 'high' : idx === 1 ? 'medium' : 'low';
           updateMapPadding(paddingLevel);
+          // Si l'utilisateur ouvre manuellement la sheet en mode viewport, recadrer sur la zone visible.
+          if (idx > 0 && sheetMode === 'viewport') {
+            focusOnBounds(lastBoundsRef.current, idx);
+          }
         }}
         mode={sheetMode}
         peekCount={sheetMode === 'single' ? 0 : visibleEventCount}

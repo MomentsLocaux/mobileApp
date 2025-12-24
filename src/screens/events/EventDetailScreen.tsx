@@ -15,7 +15,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Heart,
-  Star,
   MapPin,
   Calendar,
   Clock,
@@ -37,6 +36,7 @@ import { useLocationStore } from '@/store';
 import { CheckinService } from '@/services/checkin.service';
 import { EventImageCarousel } from '@/components/events/EventImageCarousel';
 import { supabase } from '@/lib/supabase/client';
+import { useFavoritesStore } from '@/store/favoritesStore';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +46,7 @@ export default function EventDetailScreen() {
   const { profile, session } = useAuth();
   const { currentLocation } = useLocationStore();
   const { comments, loading: loadingComments, addComment, reload: reloadComments } = useComments(id || '');
+  const { toggleFavorite: toggleFavoriteStore, isFavorite } = useFavoritesStore();
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,23 +73,8 @@ export default function EventDetailScreen() {
   const handleToggleFavorite = async () => {
     if (!profile || !event) return;
     await SocialService.toggleFavorite(profile.id, event.id);
+    toggleFavoriteStore(event);
     setEvent((prev) => (prev ? { ...prev, is_favorited: !prev.is_favorited } : null));
-  };
-
-  const handleToggleInterest = async () => {
-    if (!profile || !event) return;
-    const newState = await SocialService.toggleInterest(profile.id, event.id);
-    setEvent((prev) =>
-      prev
-        ? {
-            ...prev,
-            is_interested: newState,
-            interests_count: newState
-              ? prev.interests_count + 1
-              : prev.interests_count - 1,
-          }
-        : null
-    );
   };
 
   const handleCheckIn = async () => {
@@ -254,17 +240,6 @@ export default function EventDetailScreen() {
             />
           </TouchableOpacity>
 
-          {!isOwner && (
-            <TouchableOpacity style={styles.actionButton} onPress={handleToggleInterest}>
-              <Star
-                size={24}
-                color={event.is_interested ? colors.warning[500] : colors.neutral[600]}
-                fill={event.is_interested ? colors.warning[500] : 'transparent'}
-              />
-              <Text style={styles.actionText}>{event.interests_count}</Text>
-            </TouchableOpacity>
-          )}
-
           <TouchableOpacity style={styles.actionButton}>
             <Share2 size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
@@ -354,13 +329,6 @@ export default function EventDetailScreen() {
 
         {!isOwner && (
           <View style={styles.section}>
-            <Button
-              title={event.is_interested ? 'Ne plus participer' : 'Je participe !'}
-              onPress={handleToggleInterest}
-              variant={event.is_interested ? 'outline' : 'primary'}
-              fullWidth
-              style={styles.participateButton}
-            />
             <Button
               title="Check-in"
               onPress={handleCheckIn}

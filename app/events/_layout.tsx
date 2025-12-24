@@ -19,6 +19,9 @@ export default function EventsLayout() {
         name="[id]"
         options={{
           headerShown: false,
+          presentation: 'modal',
+          gestureEnabled: true,
+          animation: 'slide_from_bottom',
         }}
       />
       <Stack.Screen

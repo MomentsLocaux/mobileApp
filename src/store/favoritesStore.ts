@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import type { EventWithCreator } from '../types/database';
 
+// Note: SecureStore impose une limite ~2KB. Les favoris restent légers (liste de cartes),
+// donc on reste sur SecureStore pour éviter d'ajouter une dépendance native supplémentaire.
 const secureStorage = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
   setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),

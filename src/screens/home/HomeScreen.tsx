@@ -13,10 +13,13 @@ import { useRouter } from 'expo-router';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks';
 import { useFilterStore, useLocationStore } from '@/store';
+import { useFavoritesStore } from '@/store/favoritesStore';
+import { SocialService } from '@/services/social.service';
 import { filterEvents } from '@/utils/filter-events';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
-import { EventCard, EventFilters } from '@/components/events';
+import { EventFilters } from '@/components/events';
+import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
 
@@ -32,6 +35,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { currentLocation } = useLocationStore();
+  const { favorites, toggleFavorite } = useFavoritesStore();
   const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
   const [refreshing, setRefreshing] = useState(false);
@@ -54,14 +58,6 @@ export default function HomeScreen() {
     setRefreshing(true);
     reload();
     setRefreshing(false);
-  };
-
-  const handleEventPress = (eventId: string) => {
-    router.push(`/events/${eventId}`);
-  };
-
-  const handleFavoritePress = async (_eventId: string) => {
-    // TODO: wire favorites if needed
   };
 
   const buildStories = useCallback(
@@ -114,6 +110,17 @@ export default function HomeScreen() {
       buildStories(fetchedEvents);
     }
   }, [fetchedEvents, buildStories]);
+
+  const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
+
+  const handleToggleFavorite = async (event: EventWithCreator) => {
+    try {
+      await SocialService.toggleFavorite(profile?.id || '', event.id);
+      toggleFavorite(event);
+    } catch (e) {
+      console.warn('toggle favorite error', e);
+    }
+  };
 
   if (loadingEvents) {
     return (
@@ -180,10 +187,14 @@ export default function HomeScreen() {
       <FlatList
         data={filteredAndSortedEvents}
         renderItem={({ item }: { item: EventWithCreator }) => (
-          <EventCard
+          <EventResultCard
             event={item}
-            onPress={() => handleEventPress(item.id)}
-            onFavoritePress={() => handleFavoritePress(item.id)}
+            onPress={() => router.push(`/events/${item.id}` as any)}
+            onSelect={() => {}}
+            onNavigate={() => router.push(`/events/${item.id}` as any)}
+            onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+            isFavorite={favoritesSet.has(item.id)}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
         keyExtractor={(item) => item.id}
@@ -203,7 +214,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral[100],
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
@@ -305,7 +316,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.xl,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   emptyContainer: {
     padding: spacing.lg,

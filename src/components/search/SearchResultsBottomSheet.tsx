@@ -17,6 +17,8 @@ interface Props {
   onNavigate: (event: EventWithCreator) => void;
   onOpenDetails: (event: EventWithCreator) => void;
   onOpenCreator?: (creatorId: string) => void;
+  onToggleFavorite?: (event: EventWithCreator) => void;
+  isFavorite?: (id: string) => boolean;
   onIndexChange?: (index: number) => void;
   mode: 'single' | 'cluster' | 'viewport' | 'idle';
   peekCount: number;
@@ -32,6 +34,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onNavigate,
       onOpenDetails,
       onOpenCreator,
+      onToggleFavorite,
+      isFavorite,
       onIndexChange,
       mode,
       peekCount,
@@ -93,6 +97,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               onSelect={() => onSelectEvent(events[0])}
               onNavigate={() => onNavigate(events[0])}
               onOpenCreator={onOpenCreator}
+              onToggleFavorite={onToggleFavorite}
+              isFavorite={isFavorite ? isFavorite(events[0].id) : undefined}
             />
           </View>
         )}
@@ -130,6 +136,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 onSelect={() => onSelectEvent(item)}
                 onNavigate={() => onNavigate(item)}
                 onOpenCreator={onOpenCreator}
+                onToggleFavorite={onToggleFavorite}
+                isFavorite={isFavorite ? isFavorite(item.id) : undefined}
               />
             )}
           />
@@ -160,7 +168,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   listContent: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xl,
     gap: spacing.md,
   },
@@ -179,7 +187,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   singleContainer: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xl,
   },
   emptyContainer: {

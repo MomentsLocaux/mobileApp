@@ -368,9 +368,18 @@ export const supabaseProvider: (Pick<
   },
 
   async toggleFavorite(eventId: string) {
-    const { error } = await (supabase.rpc as any)('toggle_favorite', { event_id: eventId });
-    if (error) throw formatSupabaseError(error, 'toggleFavorite');
-    return true;
+    // Implémente un toggle en s'appuyant sur like_event / unlike_event (paramètre attendu : p_event).
+    const { error } = await (supabase.rpc as any)('like_event', { p_event: eventId });
+    if (!error) return true;
+
+    // Si déjà liké (conflit), on tente l'unlike pour basculer l'état.
+    if (error?.code === '23505' || (typeof error.message === 'string' && error.message.toLowerCase().includes('duplicate'))) {
+      const { error: unlikeError } = await (supabase.rpc as any)('unlike_event', { p_event: eventId });
+      if (unlikeError) throw formatSupabaseError(unlikeError, 'toggleFavorite');
+      return true;
+    }
+
+    throw formatSupabaseError(error, 'toggleFavorite');
   },
 
   async toggleInterest(eventId: string) {
