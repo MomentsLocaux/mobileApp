@@ -99,15 +99,15 @@ export default function MapScreen() {
     lastBoundsRef.current = bounds;
     (async () => {
       try {
-        const { featureCollection, events } = await EventsService.listEventsByBBox({
+        const featureCollection = await EventsService.listEventsByBBox({
           ne: bounds.ne,
           sw: bounds.sw,
           limit: 300,
         });
         setSheetMode('viewport');
         setActiveEvent(undefined);
-        setSheetEvents(events || []);
-        setVisibleEventCount(events?.length || 0);
+        setSheetEvents([]);
+        setVisibleEventCount(featureCollection?.features?.length || 0);
         mapRef.current?.setShape(featureCollection as any);
       } catch (e) {
         console.warn('bbox fetch error', e);

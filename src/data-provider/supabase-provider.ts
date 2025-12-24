@@ -50,24 +50,25 @@ const EVENT_FULL_SELECT = `
   media:event_media(id, event_id, url, type, "order", created_at)
 `;
 
+// Ultra-light payload for the map (only what the GPU needs)
 const EVENT_LIGHT_SELECT = `
   id,
-  title,
-  description,
   latitude,
   longitude,
-  category,
-  subcategory,
-  tags,
-  starts_at,
-  ends_at,
-  address,
-  city,
-  cover_url,
-  ambiance,
-  creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region),
-  media:event_media(id, event_id, url, type, "order", created_at)
+  icon:event_category(icon)
 `;
+
+const normalizeMakiIcon = (iconValue: any): string => {
+  const raw =
+    typeof iconValue === 'string'
+      ? iconValue
+      : typeof iconValue?.icon === 'string'
+        ? iconValue.icon
+        : '';
+  if (!raw || typeof raw !== 'string') return 'marker-15';
+  // Mapbox sprites are usually suffixed with -15/-11; add -15 if absent.
+  return raw.includes('-11') || raw.includes('-15') ? raw : `${raw}-15`;
+};
 
 export const supabaseProvider: (Pick<
   IDataProvider,
@@ -154,30 +155,28 @@ export const supabaseProvider: (Pick<
       .limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');
 
-    const events = (data || []) as EventWithCreator[];
+    const events = (data || []) as { id: string; latitude: number; longitude: number; icon?: string }[];
     const features =
       events
         .filter((e) => typeof e.longitude === 'number' && typeof e.latitude === 'number')
-        .map((e) => ({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [e.longitude as number, e.latitude as number],
-          },
-          properties: {
-            id: e.id,
-            category: (e as any).category,
-            subcategory: (e as any).subcategory,
-            ambiance: (e as any).ambiance,
-          },
-        })) || [];
+        .map((e) => {
+          const icon = normalizeMakiIcon((e as any)?.icon);
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [e.longitude as number, e.latitude as number],
+            },
+            properties: {
+              id: e.id,
+              icon,
+            },
+          };
+        }) || [];
 
     return {
-      featureCollection: {
-        type: 'FeatureCollection',
-        features,
-      },
-      events,
+      type: 'FeatureCollection',
+      features,
     };
   },
 

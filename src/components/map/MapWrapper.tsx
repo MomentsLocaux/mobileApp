@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle, useState } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapPin } from 'lucide-react-native';
@@ -35,7 +35,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       initialRegion,
       userLocation,
       onFeaturePress,
-      onClusterPress,
       onZoomChange,
       onVisibleBoundsChange,
       children,
@@ -44,9 +43,34 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     ref
   ) => {
   const isMapboxAvailable = !!Mapbox.MapView;
+  const mapViewRef = useRef<Mapbox.MapView>(null);
   const shapeSourceRef = useRef<Mapbox.ShapeSource>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
-  const [shape, setShapeState] = useState<FeatureCollection>({ type: 'FeatureCollection', features: [] });
+  const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+
+  const hasBoundsChanged = (next: { sw: [number, number]; ne: [number, number] }) => {
+    const prev = lastBoundsRef.current;
+    if (!prev) return true;
+    const eq = (a: [number, number], b: [number, number]) =>
+      Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
+    return !eq(prev.sw, next.sw) || !eq(prev.ne, next.ne);
+  };
+
+  const emitVisibleBounds = useCallback(async () => {
+    if (!mapViewRef.current) return;
+    try {
+      const bounds = await mapViewRef.current.getVisibleBounds();
+      if (Array.isArray(bounds) && bounds.length === 2) {
+        const next = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+        if (hasBoundsChanged(next)) {
+          lastBoundsRef.current = next;
+          onVisibleBoundsChange?.(next);
+        }
+      }
+    } catch (e) {
+      console.warn('getVisibleBounds failed', e);
+    }
+  }, [onVisibleBoundsChange]);
 
   useImperativeHandle(
     ref,
@@ -59,7 +83,16 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         });
       },
       setShape: (fc: FeatureCollection) => {
-        setShapeState(fc);
+        // setShape exists on ShapeSource in the native module; guard in case the ref isn't ready
+        if (shapeSourceRef.current) {
+          if (typeof shapeSourceRef.current.setShape === 'function') {
+            shapeSourceRef.current.setShape(fc);
+          } else if (typeof (shapeSourceRef.current as any).setNativeProps === 'function') {
+            (shapeSourceRef.current as any).setNativeProps({ shape: fc });
+          } else {
+            console.warn('ShapeSource ref has no setShape/setNativeProps; cannot update shape');
+          }
+        }
       },
       fitToCoordinates: (coords, padding = 40) => {
         if (!coords || coords.length === 0) return;
@@ -113,23 +146,16 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   return (
     <View style={styles.container}>
       <Mapbox.MapView
+        ref={mapViewRef}
         style={styles.map}
         styleURL={styleURL || Mapbox.StyleURL.Street}
-        onMapIdle={(event) => {
-          const zoomLevel = (event.properties as any).zoomLevel ?? (event.properties as any).zoom;
+        onCameraChanged={emitVisibleBounds}
+        onMapIdle={async (event) => {
+          const zoomLevel = (event.properties as any)?.zoomLevel ?? (event.properties as any)?.zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
             onZoomChange(zoomLevel);
           }
-          const bounds = (event.properties as any)?.bounds;
-          if (
-            bounds &&
-            Array.isArray(bounds.ne) &&
-            Array.isArray(bounds.sw) &&
-            bounds.ne.length === 2 &&
-            bounds.sw.length === 2
-          ) {
-            onVisibleBoundsChange?.({ ne: bounds.ne as [number, number], sw: bounds.sw as [number, number] });
-          }
+          await emitVisibleBounds();
         }}
       >
         <Mapbox.Camera
@@ -168,26 +194,17 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         <Mapbox.ShapeSource
           id="events-source"
           ref={shapeSourceRef}
-          shape={shape}
+          shape={{ type: 'FeatureCollection', features: [] }}
           onPress={handlePress}
         >
-          <Mapbox.CircleLayer
-            id="event-pins-halo"
+          <Mapbox.SymbolLayer
+            id="event-markers"
             style={{
-              circleColor: colors.neutral[0],
-              circleRadius: 9,
-              circleOpacity: 0.9,
-              circleStrokeWidth: 0,
-            }}
-          />
-          <Mapbox.CircleLayer
-            id="event-pins"
-            style={{
-              circleColor: colors.primary[600],
-              circleRadius: 7,
-              circleOpacity: 0.95,
-              circleStrokeColor: colors.neutral[0],
-              circleStrokeWidth: 2,
+              // Use the icon from GeoJSON (Maki name); fallback to default marker
+              iconImage: ['coalesce', ['get', 'icon'], 'marker-15'],
+              iconSize: 1,
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
             }}
           />
         </Mapbox.ShapeSource>
