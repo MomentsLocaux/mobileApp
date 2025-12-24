@@ -218,19 +218,15 @@ export default function MapScreen() {
         onFeaturePress={handleFeaturePress}
         onClusterPress={async (ids) => {
           try {
+            const uniqueIds = Array.from(new Set((ids || []).map((id) => String(id)))).slice(0, 50);
+            const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
             setSheetMode('cluster');
-            const fetched = await Promise.all(
-              (ids || []).slice(0, 15).map((id) => EventsService.getEventById(String(id)))
-            );
-            const events = fetched.filter(Boolean) as any[];
             setSheetEvents(events);
-            if (events.length > 0) {
-              setActiveEvent(events[0].id);
-              setBottomSheetIndex(2);
-              resultsSheetRef.current?.open?.(2);
-              showBottomBar();
-              updateMapPadding('high');
-            }
+            setActiveEvent(events.length ? events[0].id : undefined);
+            setBottomSheetIndex(0);
+            resultsSheetRef.current?.open?.(0);
+            hideBottomBar();
+            updateMapPadding('low');
           } catch (e) {
             console.warn('cluster fetch error', e);
           }

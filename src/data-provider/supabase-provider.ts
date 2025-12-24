@@ -13,6 +13,52 @@ const formatSupabaseError = (error: any, context: string) => {
 
 const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatars';
 
+const EVENT_FULL_SELECT = `
+  id,
+  creator_id,
+  title,
+  description,
+  category,
+  subcategory,
+  tags,
+  starts_at,
+  ends_at,
+  schedule_mode,
+  recurrence_rule,
+  latitude,
+  longitude,
+  address,
+  city,
+  postal_code,
+  venue_name,
+  visibility,
+  is_free,
+  price,
+  cover_url,
+  max_participants,
+  registration_required,
+  external_url,
+  contact_email,
+  contact_phone,
+  operating_hours,
+  location,
+  created_at,
+  updated_at,
+  status,
+  ambiance,
+  creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region),
+  media:event_media(id, event_id, url, type, "order", created_at)
+`;
+
+const EVENT_LIGHT_SELECT = `
+  id,
+  latitude,
+  longitude,
+  category,
+  subcategory,
+  ambiance
+`;
+
 export const supabaseProvider: (Pick<
   IDataProvider,
   | 'listEvents'
@@ -32,58 +78,25 @@ export const supabaseProvider: (Pick<
   | 'toggleInterest'
   | 'like'
   | 'uploadAvatar'
+  | 'getEventsByIds'
 > &
   IBugsProvider) = {
   async listEvents(filters: Record<string, unknown> = {}) {
     const { limit, creatorId } = filters as { limit?: number; creatorId?: string };
     const appliedLimit = typeof limit === 'number' ? limit : 200;
+    const nowIso = new Date().toISOString();
 
     let query = supabase
       .from('events')
-      .select(
-        `
-          id,
-          creator_id,
-          title,
-          description,
-          category,
-          subcategory,
-          tags,
-          starts_at,
-          ends_at,
-          schedule_mode,
-          recurrence_rule,
-          latitude,
-          longitude,
-          address,
-          city,
-          postal_code,
-          venue_name,
-          visibility,
-          is_free,
-          price,
-          cover_url,
-          max_participants,
-          registration_required,
-          external_url,
-          contact_email,
-          contact_phone,
-          operating_hours,
-          location,
-          created_at,
-          updated_at,
-          status,
-          ambiance,
-          creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region),
-          media:event_media(id, event_id, url, type, "order", created_at)
-        `,
-      )
+      .select(EVENT_FULL_SELECT)
       .order('created_at', { ascending: false });
 
     query = query.limit(appliedLimit);
     if (creatorId) {
       query = query.eq('creator_id', creatorId);
     }
+    // Par défaut, ne retourner que les événements en cours (starts_at <= now <= ends_at ou ends_at null)
+    query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
 
     const { data, error } = await query;
     if (error) throw formatSupabaseError(error, 'listEvents');
@@ -93,52 +106,27 @@ export const supabaseProvider: (Pick<
   async getEventById(id: string) {
     const { data, error } = await supabase
       .from('events')
-      .select(
-        `
-          id,
-          creator_id,
-          title,
-          description,
-          category,
-          subcategory,
-          tags,
-          starts_at,
-          ends_at,
-          schedule_mode,
-          recurrence_rule,
-          latitude,
-          longitude,
-          address,
-          city,
-          postal_code,
-          venue_name,
-          visibility,
-          is_free,
-          price,
-          cover_url,
-          max_participants,
-          registration_required,
-          external_url,
-          contact_email,
-          contact_phone,
-          operating_hours,
-          location,
-          created_at,
-          updated_at,
-          status,
-          ambiance,
-          creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region),
-          media:event_media(id, event_id, url, type, "order", created_at)
-        `,
-      )
+      .select(EVENT_FULL_SELECT)
       .eq('id', id)
       .maybeSingle();
     if (error) throw formatSupabaseError(error, 'getEventById');
     return data ? (data as EventWithCreator) : null;
   },
 
+  async getEventsByIds(ids: string[]) {
+    const cleanedIds = Array.from(new Set((ids || []).filter(Boolean)));
+    if (!cleanedIds.length) return [];
+
+    const { data, error } = await supabase
+      .rpc('get_events_by_ids', { ids: cleanedIds })
+      .select(EVENT_FULL_SELECT);
+    if (error) throw formatSupabaseError(error, 'getEventsByIds');
+    return (data || []) as EventWithCreator[];
+  },
+
   async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number }) {
     const { ne, sw, limit = 300 } = params || {};
+    const nowIso = new Date().toISOString();
     const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const minLat = Math.min(ne?.[1] ?? 0, sw?.[1] ?? 0);
@@ -146,11 +134,13 @@ export const supabaseProvider: (Pick<
 
     const { data, error } = await supabase
       .from('events')
-      .select('id, latitude, longitude, category, subcategory, ambiance')
+      .select(EVENT_LIGHT_SELECT)
       .gte('longitude', minLon)
       .lte('longitude', maxLon)
       .gte('latitude', minLat)
       .lte('latitude', maxLat)
+      .lte('starts_at', nowIso)
+      .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
       .limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');
 

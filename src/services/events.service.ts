@@ -22,4 +22,6 @@ export const EventsService = {
     (dataProvider as any).listEventsByBBox
       ? (dataProvider as any).listEventsByBBox(params)
       : Promise.resolve({ type: 'FeatureCollection', features: [] }),
+  getEventsByIds: (ids: string[]): Promise<EventWithCreator[]> =>
+    (dataProvider as any).getEventsByIds ? (dataProvider as any).getEventsByIds(ids) : Promise.resolve([]),
 };

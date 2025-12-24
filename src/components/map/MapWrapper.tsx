@@ -61,7 +61,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       },
       setShape: (fc: FeatureCollection) => {
         setShapeState(fc);
-        shapeSourceRef.current?.setShape(fc);
       },
       fitToCoordinates: (coords, padding = 40) => {
         if (!coords || coords.length === 0) return;

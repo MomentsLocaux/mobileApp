@@ -36,6 +36,7 @@ export const dataProvider: DataProvider = {
 
   listEventsByCreator: (creatorId) => supabaseProvider.listEvents({ creatorId }),
   listEventsByBBox: (params) => (supabaseProvider as any).listEventsByBBox?.(params),
+  getEventsByIds: (ids) => (supabaseProvider as any).getEventsByIds?.(ids),
   uploadAvatar: (userId, uri) => supabaseProvider.uploadAvatar(userId, uri),
 
   submitBug: (payload) => supabaseProvider.submitBug(payload),
