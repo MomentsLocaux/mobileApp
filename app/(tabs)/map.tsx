@@ -406,8 +406,9 @@ export default function MapScreen() {
           }
           const paddingLevel = idx === 2 ? 'high' : idx === 1 ? 'medium' : 'low';
           updateMapPadding(paddingLevel);
-          // Si l'utilisateur ouvre manuellement la sheet en mode viewport, recadrer sur la zone visible.
-          if (idx > 0 && sheetMode === 'viewport') {
+          // Si l'utilisateur ouvre manuellement la sheet en mode viewport, recadrer sur la zone visible,
+          // mais ne pas bouger la carte lorsque la sheet est au maximum (idx 2).
+          if (idx === 1 && sheetMode === 'viewport') {
             focusOnBounds(lastBoundsRef.current, idx);
           }
         }}
