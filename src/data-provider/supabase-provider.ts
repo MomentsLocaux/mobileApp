@@ -137,6 +137,46 @@ export const supabaseProvider: (Pick<
     return data ? (data as EventWithCreator) : null;
   },
 
+  async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number }) {
+    const { ne, sw, limit = 300 } = params || {};
+    const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
+    const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
+    const minLat = Math.min(ne?.[1] ?? 0, sw?.[1] ?? 0);
+    const maxLat = Math.max(ne?.[1] ?? 0, sw?.[1] ?? 0);
+
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, latitude, longitude, category, subcategory, ambiance')
+      .gte('longitude', minLon)
+      .lte('longitude', maxLon)
+      .gte('latitude', minLat)
+      .lte('latitude', maxLat)
+      .limit(limit);
+    if (error) throw formatSupabaseError(error, 'listEventsByBBox');
+
+    const features =
+      (data || [])
+        .filter((e) => typeof e.longitude === 'number' && typeof e.latitude === 'number')
+        .map((e) => ({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [e.longitude as number, e.latitude as number],
+          },
+          properties: {
+            id: e.id,
+            category: (e as any).category,
+            subcategory: (e as any).subcategory,
+            ambiance: (e as any).ambiance,
+          },
+        })) || [];
+
+    return {
+      type: 'FeatureCollection',
+      features,
+    };
+  },
+
   async createEvent(payload: Partial<Event>) {
     const { data, error } = await supabase
       .from('events')

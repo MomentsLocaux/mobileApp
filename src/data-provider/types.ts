@@ -1,3 +1,4 @@
+import type { FeatureCollection } from 'geojson';
 import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/types/database';
 
 export interface CheckInResult {
@@ -59,6 +60,8 @@ export interface IDataProvider {
   }): Promise<boolean>;
 
   uploadAvatar(userId: string, uri: string): Promise<string | null>;
+
+  listEventsByBBox?(params: { ne: [number, number]; sw: [number, number]; limit?: number }): Promise<FeatureCollection>;
 }
 
 export interface IAuthProvider {

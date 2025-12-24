@@ -1,62 +1,53 @@
-import React, { useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, useState } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapPin } from 'lucide-react-native';
-import type { EventWithCreator } from '../../types/database';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
-import type { Feature, FeatureCollection } from 'geojson';
+import type { FeatureCollection } from 'geojson';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
 
 interface MapWrapperProps {
-  events: EventWithCreator[];
   initialRegion: {
     latitude: number;
     longitude: number;
     zoom: number;
   };
   userLocation?: { latitude: number; longitude: number } | null;
-  onMarkerPress: (event: EventWithCreator) => void;
-  onClusterPress?: (events: EventWithCreator[]) => void;
-  zoom?: number;
+  onFeaturePress: (featureId: string) => void;
+  onClusterPress?: (features: string[]) => void;
   onZoomChange?: (zoom: number) => void;
   onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   children?: React.ReactNode;
   styleURL?: string;
-  pitch?: number;
-  bearing?: number;
 }
 
 export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
-  fitToEvents: (events: EventWithCreator[], padding?: number) => void;
+  setShape: (fc: FeatureCollection) => void;
+  fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number) => void;
 };
 
 export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   (
     {
-      events,
       initialRegion,
       userLocation,
-      onMarkerPress,
+      onFeaturePress,
       onClusterPress,
-      zoom,
       onZoomChange,
       onVisibleBoundsChange,
       children,
       styleURL,
-      pitch,
-      bearing,
     },
     ref
   ) => {
   const isMapboxAvailable = !!Mapbox.MapView;
   const shapeSourceRef = useRef<Mapbox.ShapeSource>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
-
-  console.log('[MapWrapper] initialRegion=', initialRegion, 'events=', events.length);
+  const [shape, setShapeState] = useState<FeatureCollection>({ type: 'FeatureCollection', features: [] });
 
   useImperativeHandle(
     ref,
@@ -64,51 +55,39 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       recenter: ({ longitude, latitude, zoom: zoomLevel }) => {
         cameraRef.current?.setCamera({
           centerCoordinate: [longitude, latitude],
-          zoomLevel: zoomLevel ?? zoom ?? initialRegion.zoom,
+          zoomLevel: zoomLevel ?? initialRegion.zoom,
           animationDuration: 300,
         });
       },
-      fitToEvents: (evts, padding = 40) => {
-        if (!evts || evts.length === 0) return;
-        if (evts.length === 1) {
-          const e = evts[0];
-          const coords =
-            Array.isArray(e?.location?.coordinates) && e.location.coordinates.length === 2
-              ? { longitude: e.location.coordinates[0], latitude: e.location.coordinates[1] }
-              : { longitude: e.longitude, latitude: e.latitude };
+      setShape: (fc: FeatureCollection) => {
+        setShapeState(fc);
+        shapeSourceRef.current?.setShape(fc);
+      },
+      fitToCoordinates: (coords, padding = 40) => {
+        if (!coords || coords.length === 0) return;
+        if (coords.length === 1) {
+          const c = coords[0];
           cameraRef.current?.setCamera({
-            centerCoordinate: [coords.longitude, coords.latitude],
+            centerCoordinate: [c.longitude, c.latitude],
             zoomLevel: 12,
             animationDuration: 300,
           });
           return;
         }
-
         let minLat = 90,
           maxLat = -90,
           minLon = 180,
           maxLon = -180;
-
-        evts.forEach((e) => {
-          const coords =
-            Array.isArray(e?.location?.coordinates) && e.location.coordinates.length === 2
-              ? { longitude: e.location.coordinates[0], latitude: e.location.coordinates[1] }
-              : { longitude: e.longitude, latitude: e.latitude };
-          if (coords.latitude < minLat) minLat = coords.latitude;
-          if (coords.latitude > maxLat) maxLat = coords.latitude;
-          if (coords.longitude < minLon) minLon = coords.longitude;
-          if (coords.longitude > maxLon) maxLon = coords.longitude;
+        coords.forEach((c) => {
+          if (c.latitude < minLat) minLat = c.latitude;
+          if (c.latitude > maxLat) maxLat = c.latitude;
+          if (c.longitude < minLon) minLon = c.longitude;
+          if (c.longitude > maxLon) maxLon = c.longitude;
         });
-
-        cameraRef.current?.fitBounds(
-          [minLon, minLat],
-          [maxLon, maxLat],
-          padding,
-          300
-        );
+        cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, 300);
       },
     }),
-    [initialRegion.zoom, zoom]
+    [initialRegion.zoom]
   );
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
@@ -123,45 +102,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     );
   }
 
-  const featureCollection = useMemo<FeatureCollection>(() => {
-    const features: Feature[] = events
-      .map((event) => {
-        const coords =
-          Array.isArray(event?.location?.coordinates) && event.location.coordinates.length === 2
-            ? event.location.coordinates
-            : [event.longitude, event.latitude];
-
-        if (!coords || coords.some((c) => typeof c !== 'number')) return null;
-
-        console.log('[MapWrapper] render event marker', event.id, 'coords=', coords);
-        return {
-          type: 'Feature',
-          id: String(event.id),
-          properties: {
-            id: event.id,
-            interests_count: event.interests_count ?? 0,
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: [coords[0], coords[1]],
-          },
-        } as Feature;
-      })
-      .filter(Boolean) as Feature[];
-
-    return { type: 'FeatureCollection', features };
-  }, [events]);
-
-  const iconColorExpression = [
-    'step',
-    ['get', 'interests_count'],
-    colors.primary[600],
-    20,
-    colors.warning[500],
-    50,
-    colors.error[500],
-  ];
-
   const handlePress = async (event: Mapbox.OnPressEvent) => {
     const feature = event.features?.[0];
     if (!feature) return;
@@ -170,12 +110,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     const coords = (feature.geometry as any)?.coordinates;
 
     if (isCluster && shapeSourceRef.current && coords) {
-      const targetZoom = Math.min(16, (zoom ?? initialRegion.zoom ?? 12) + 2);
-      cameraRef.current?.setCamera({
-        centerCoordinate: coords,
-        zoomLevel: targetZoom,
-        animationDuration: 300,
-      });
+      // Centrer sur les bornes réelles du cluster
       if (onClusterPress) {
         try {
           const leaves: any = await shapeSourceRef.current.getClusterLeaves(feature as any, 200, 0);
@@ -185,14 +120,32 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             ? leaves
             : [];
 
+          const coordsInCluster = leafFeatures
+            .map((f: any) => (Array.isArray(f?.geometry?.coordinates) ? f.geometry.coordinates : null))
+            .filter((c: any) => Array.isArray(c) && c.length === 2) as number[][];
+
+          if (coordsInCluster.length > 0) {
+            let minLat = 90,
+              maxLat = -90,
+              minLon = 180,
+              maxLon = -180;
+            coordsInCluster.forEach((c) => {
+              const [lon, lat] = c;
+              if (lat < minLat) minLat = lat;
+              if (lat > maxLat) maxLat = lat;
+              if (lon < minLon) minLon = lon;
+              if (lon > maxLon) maxLon = lon;
+            });
+            cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], 60, 300);
+          }
+
           const idsInCluster = leafFeatures
             .map((f: any) => (f?.properties?.id != null ? String(f.properties.id) : ''))
             .filter(Boolean);
-          const clusterEvents = events.filter((e) => idsInCluster.includes(String(e.id)));
-          onClusterPress(clusterEvents.length ? clusterEvents : events);
+          onClusterPress(idsInCluster);
         } catch (e) {
           console.warn('Cluster leaves error', e);
-          onClusterPress(events);
+          onClusterPress([]);
         }
       }
       return;
@@ -200,30 +153,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
     const eventId = feature.properties?.id;
     if (eventId) {
-      const selected = events.find((e) => e.id === eventId);
-      if (selected) {
-        onMarkerPress(selected);
-      }
+      onFeaturePress(String(eventId));
     }
   };
-
-  useEffect(() => {
-    if (typeof pitch === 'number') {
-      cameraRef.current?.setCamera({
-        pitch,
-        animationDuration: 250,
-      });
-    }
-  }, [pitch]);
-
-  useEffect(() => {
-    if (typeof bearing === 'number') {
-      cameraRef.current?.setCamera({
-        heading: bearing,
-        animationDuration: 250,
-      });
-    }
-  }, [bearing]);
 
   return (
     <View style={styles.container}>
@@ -252,8 +184,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           defaultSettings={{
             centerCoordinate: [initialRegion.longitude, initialRegion.latitude],
             zoomLevel: initialRegion.zoom,
-            pitch: pitch ?? 0,
-            heading: bearing ?? 0,
+            pitch: 0,
+            heading: 0,
           }}
         />
 
@@ -283,7 +215,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         <Mapbox.ShapeSource
           id="events-source"
           ref={shapeSourceRef}
-          shape={featureCollection}
+          shape={shape}
           cluster
           clusterRadius={50}
           clusterMaxZoom={14}
@@ -324,7 +256,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             id="event-pins"
             filter={['!', ['has', 'point_count']]}
             style={{
-              circleColor: iconColorExpression,
+              circleColor: colors.primary[600],
               circleRadius: 7,
               circleOpacity: 0.95,
               circleStrokeColor: colors.neutral[0],
