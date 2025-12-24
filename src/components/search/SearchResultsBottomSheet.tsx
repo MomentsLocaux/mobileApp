@@ -16,6 +16,7 @@ interface Props {
   onSelectEvent: (event: EventWithCreator) => void;
   onNavigate: (event: EventWithCreator) => void;
   onOpenDetails: (event: EventWithCreator) => void;
+  onOpenCreator?: (creatorId: string) => void;
   onIndexChange?: (index: number) => void;
   mode: 'single' | 'cluster' | 'viewport' | 'idle';
   peekCount: number;
@@ -30,6 +31,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onSelectEvent,
       onNavigate,
       onOpenDetails,
+      onOpenCreator,
       onIndexChange,
       mode,
       peekCount,
@@ -90,6 +92,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               onPress={() => onOpenDetails(events[0])}
               onSelect={() => onSelectEvent(events[0])}
               onNavigate={() => onNavigate(events[0])}
+              onOpenCreator={onOpenCreator}
             />
           </View>
         )}
@@ -126,6 +129,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 onPress={() => onOpenDetails(item)}
                 onSelect={() => onSelectEvent(item)}
                 onNavigate={() => onNavigate(item)}
+                onOpenCreator={onOpenCreator}
               />
             )}
           />

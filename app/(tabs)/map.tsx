@@ -140,9 +140,10 @@ export default function MapScreen() {
         resultsSheetRef.current?.open?.(snapIndex);
         showBottomBar();
         updateMapPadding(snapIndex === 2 ? 'high' : 'medium');
+        focusOnEvent(event, snapIndex);
       });
     },
-    [setActiveEvent, setBottomSheetIndex, showBottomBar, updateMapPadding]
+    [focusOnEvent, setActiveEvent, setBottomSheetIndex, showBottomBar, updateMapPadding]
   );
 
   const handleFeaturePress = useCallback(
@@ -211,6 +212,21 @@ export default function MapScreen() {
         return { top: 20, right: 20, bottom: 120, left: 20 };
     }
   }, [mapPaddingLevel]);
+
+  const focusOnEvent = useCallback(
+    (event: EventWithCreator, snapIndex: number) => {
+      if (!event || typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
+      const paddingBottom = snapIndex === 2 ? 360 : snapIndex === 1 ? 240 : 120;
+      const targetZoom = Math.max(2, zoom - 0.5);
+      mapRef.current?.focusOnCoordinate({
+        longitude: event.longitude,
+        latitude: event.latitude,
+        zoom: targetZoom,
+        paddingBottom,
+      });
+    },
+    [zoom]
+  );
 
   if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
     return (
@@ -316,6 +332,7 @@ export default function MapScreen() {
         }}
         onNavigate={(event) => setNavEvent(event)}
         onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
+        onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
         onIndexChange={(idx) => {
           setBottomSheetIndex(idx);
           if (idx <= 0) {

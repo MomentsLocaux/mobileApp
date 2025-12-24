@@ -28,6 +28,12 @@ export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
   setShape: (fc: FeatureCollection) => void;
   fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number) => void;
+  focusOnCoordinate: (options: {
+    longitude: number;
+    latitude: number;
+    zoom?: number;
+    paddingBottom?: number;
+  }) => void;
 };
 
 export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
@@ -118,6 +124,19 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           if (c.longitude > maxLon) maxLon = c.longitude;
         });
         cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, 300);
+      },
+      focusOnCoordinate: ({ longitude, latitude, zoom: zoomLevel, paddingBottom }) => {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [longitude, latitude],
+          zoomLevel: zoomLevel ?? initialRegion.zoom,
+          padding: {
+            top: 40,
+            bottom: paddingBottom ?? 0,
+            left: 20,
+            right: 20,
+          },
+          animationDuration: 300,
+        });
       },
     }),
     [initialRegion.zoom]

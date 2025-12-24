@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Heart, MapPin, Calendar, Tag } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { MapPin, Calendar, Tag, Navigation2 } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { Button } from '../ui';
 import { getCategoryLabel } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 
@@ -14,6 +13,7 @@ interface Props {
   onPress: () => void;
   onNavigate: () => void;
   onSelect?: () => void;
+  onOpenCreator?: (creatorId: string) => void;
 }
 
 function formatDateRange(starts_at: string, ends_at: string) {
@@ -41,6 +41,7 @@ export const EventResultCard: React.FC<Props> = ({
   onPress,
   onNavigate,
   onSelect,
+  onOpenCreator,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
   const categoryLabel = getCategoryLabel(event.category || '');
@@ -67,51 +68,65 @@ export const EventResultCard: React.FC<Props> = ({
       <View style={styles.imageWrapper}>
         <EventImageCarousel
           images={images}
-          height={180}
-          borderRadius={0}
+          height={260}
+          borderRadius={borderRadius.lg}
           onSwipeStart={() => setIsSwiping(true)}
           onSwipeEnd={() => setIsSwiping(false)}
         />
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{categoryLabel}</Text>
+        <View style={styles.topBadge}>
+          <Text style={styles.topBadgeText}>{categoryLabel}</Text>
         </View>
-        <View style={styles.favoriteIcon}>
-          <Heart size={18} color={colors.neutral[0]} />
-        </View>
-      </View>
-
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={2}>
-          {event.title}
-        </Text>
-        <View style={styles.row}>
-          <MapPin size={16} color={colors.neutral[500]} />
-          <Text style={styles.meta}>
-            {event.city || event.address || 'Lieu à venir'}
-            {typeof distanceKm === 'number' ? ` • ${distanceKm.toFixed(1)} km` : ''}
-          </Text>
-        </View>
-        <View style={styles.row}>
-          <Calendar size={16} color={colors.neutral[500]} />
-          <Text style={styles.meta}>{dateLabel}</Text>
-        </View>
-
-        {tags.length > 0 && (
-          <View style={styles.tags}>
-            {tags.map((tag) => (
-              <View key={tag} style={styles.tag}>
-                <Tag size={12} color={colors.primary[600]} />
-                <Text style={styles.tagText}>{tag}</Text>
+        {event.creator?.id && (
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            activeOpacity={0.85}
+            onPress={() => onOpenCreator?.(event.creator!.id)}
+          >
+            {event.creator.avatar_url ? (
+              <Image source={{ uri: event.creator.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarInitials}>
+                  {event.creator.display_name?.slice(0, 2)?.toUpperCase() || '?'}
+                </Text>
               </View>
-            ))}
-          </View>
+            )}
+          </TouchableOpacity>
         )}
-
-        <Text style={styles.description} numberOfLines={3}>
-          {event.description || 'Aucune description'}
-        </Text>
-
-        <Button title="Y aller" onPress={onNavigate} fullWidth />
+        <View style={styles.infoOverlay} pointerEvents="box-none">
+          <Text style={styles.title} numberOfLines={2}>
+            {event.title}
+          </Text>
+          <View style={styles.row}>
+            <MapPin size={16} color={colors.neutral[0]} />
+            <Text style={styles.meta} numberOfLines={1}>
+              {event.city || event.address || 'Lieu à venir'}
+              {typeof distanceKm === 'number' ? ` • ${distanceKm.toFixed(1)} km` : ''}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Calendar size={16} color={colors.neutral[0]} />
+            <Text style={styles.meta} numberOfLines={1}>
+              {dateLabel}
+            </Text>
+          </View>
+          {tags.length > 0 && (
+            <View style={styles.tags}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Tag size={12} color={colors.neutral[0]} />
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <View style={styles.ctaRow}>
+            <TouchableOpacity style={styles.ctaButton} onPress={onNavigate}>
+              <Navigation2 size={16} color={colors.neutral[900]} />
+              <Text style={styles.ctaText}>Itinéraire</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -128,43 +143,41 @@ const styles = StyleSheet.create({
   cardActive: {
     borderColor: colors.primary[500],
     shadowColor: colors.neutral[900],
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 2,
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 14,
+    elevation: 3,
   },
   imageWrapper: {
     position: 'relative',
   },
-  categoryBadge: {
+  topBadge: {
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
     backgroundColor: colors.primary[600],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.full,
   },
-  categoryText: {
+  topBadgeText: {
     ...typography.caption,
     color: colors.neutral[0],
     fontWeight: '700',
   },
-  favoriteIcon: {
+  infoOverlay: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: '#00000055',
-    borderRadius: borderRadius.full,
-    padding: spacing.xs,
-  },
-  body: {
-    padding: spacing.lg,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     gap: spacing.xs,
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.neutral[0],
   },
   row: {
     flexDirection: 'row',
@@ -173,7 +186,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.neutral[0],
     flex: 1,
   },
   tags: {
@@ -186,18 +199,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.primary[50],
+    backgroundColor: '#00000044',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
   tagText: {
     ...typography.caption,
-    color: colors.primary[700],
+    color: colors.neutral[0],
   },
-  description: {
+  avatarWrapper: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: colors.neutral[0],
+    backgroundColor: colors.neutral[200],
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[400],
+  },
+  avatarInitials: {
+    ...typography.caption,
+    color: colors.neutral[0],
+    fontWeight: '700',
+  },
+  ctaRow: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.neutral[0],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  ctaText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
-    marginVertical: spacing.sm,
+    color: colors.neutral[900],
+    fontWeight: '700',
   },
 });
