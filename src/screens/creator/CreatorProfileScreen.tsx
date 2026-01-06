@@ -15,6 +15,7 @@ import { EventCard } from '../../components/events';
 import { ProfileService } from '../../services/profile.service';
 import { EventsService } from '../../services/events.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { getRoleLabel } from '../../utils/roleHelpers';
 import type { Profile, EventWithCreator } from '../../types/database';
 
 export default function CreatorProfileScreen() {
@@ -52,7 +53,7 @@ export default function CreatorProfileScreen() {
   if (!creator) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Créateur introuvable</Text>
+        <Text style={styles.errorText}>Profil introuvable</Text>
       </View>
     );
   }
@@ -84,7 +85,7 @@ export default function CreatorProfileScreen() {
         )}
 
         <Text style={styles.displayName}>{creator.display_name}</Text>
-        <Text style={styles.role}>{creator.role}</Text>
+        <Text style={styles.role}>{getRoleLabel(creator.role)}</Text>
 
         {creator.bio && (
           <Text style={styles.bio}>{creator.bio}</Text>

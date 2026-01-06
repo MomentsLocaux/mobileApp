@@ -2,8 +2,9 @@ import type { UserRole } from '../types/database';
 
 export const getRoleLabel = (role: UserRole): string => {
   const roleLabels: Record<UserRole, string> = {
-    denicheur: 'Dénicheur',
-    createur: 'Créateur',
+    particulier: 'Particulier',
+    professionnel: 'Professionnel',
+    institutionnel: 'Institutionnel',
     moderateur: 'Modérateur',
     admin: 'Administrateur',
   };
@@ -23,12 +24,17 @@ export const getRoleBadgeColor = (role: UserRole) => {
         bg: '#DBEAFE',
         text: '#1E40AF',
       };
-    case 'createur':
+    case 'professionnel':
       return {
         bg: '#D1FAE5',
         text: '#065F46',
       };
-    case 'denicheur':
+    case 'institutionnel':
+      return {
+        bg: '#E0E7FF',
+        text: '#3730A3',
+      };
+    case 'particulier':
     default:
       return {
         bg: '#FEF3C7',

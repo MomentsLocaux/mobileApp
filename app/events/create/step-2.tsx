@@ -1,12 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -18,15 +16,9 @@ import { VisibilitySelector } from '@/components/events/VisibilitySelector';
 import { OptionalInfoSection } from '@/components/events/OptionalInfoSection';
 import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
-import { EventsService } from '@/services/events.service';
-import { useAuth } from '@/hooks';
-import { supabase } from '@/lib/supabase/client';
-import { useEventsStore } from '@/store';
 
-const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 export default function CreateEventStep2() {
   const router = useRouter();
-  const { user } = useAuth();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
@@ -52,16 +44,6 @@ export default function CreateEventStep2() {
   const setDuration = useCreateEventStore((s) => s.setDuration);
   const setContact = useCreateEventStore((s) => s.setContact);
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
-  const resetStore = useCreateEventStore((s) => s.reset);
-
-  const [submitting, setSubmitting] = useState(false);
-  const marker = '/storage/v1/object/public/event-media/';
-
-  const derivePath = (url?: string) => {
-    if (!url) return undefined;
-    const idx = url.indexOf(marker);
-    return idx !== -1 ? url.slice(idx + marker.length) : undefined;
-  };
 
   const dateLabel = useMemo(() => {
     if (!startDate) return '';
@@ -81,159 +63,6 @@ export default function CreateEventStep2() {
     startDate,
     location,
   ]);
-
-  const handlePublish = async () => {
-    if (!canPublish || !location || !startDate) return;
-    if (!user) {
-      Alert.alert('Connexion requise', 'Connectez-vous pour publier un événement.');
-      return;
-    }
-
-    // Sécurité : si on arrive directement sur step-2 avec ?edit=... sans être passé par step-1,
-    // on refuse de publier pour éviter d'écraser l'événement avec des valeurs vides.
-    if (edit && (!title || !location || !coverImage)) {
-      Alert.alert('Données manquantes', 'Veuillez repasser par l’étape 1 pour charger toutes les données.');
-      return;
-    }
-
-    const activeImages = gallery
-      .filter((g) => g.status !== 'removed' && g.publicUrl && g.publicUrl.trim().length > 0)
-      .slice(0, 3);
-    const activeMedias = activeImages.map((g, index) => ({
-      id: g.id,
-      url: g.publicUrl,
-      order: index,
-    }));
-    const removedImages = gallery.filter((g) => g.status === 'removed');
-    const removedPaths = Array.from(
-      new Set(
-        removedImages
-          .map((g) => g.storagePath || derivePath(g.publicUrl))
-          .filter((p): p is string => !!p)
-      )
-    );
-
-    try {
-      setSubmitting(true);
-      console.log('[publish] mode', edit ? 'edit' : 'create');
-      console.log('[publish] activeMedias', activeMedias);
-      console.log('[publish] removedPaths', removedPaths);
-      const contact_email = contact && contact.includes('@') ? contact : null;
-      const contact_phone = contact && !contact.includes('@') ? contact : null;
-      let priceValue: number | null = null;
-      if (price) {
-        const normalized = Number(price.replace(',', '.').replace(/[^0-9.-]/g, ''));
-        if (!Number.isNaN(normalized)) {
-          priceValue = normalized;
-        }
-      }
-
-      // Assurer l'upload de la cover si l'utilisateur en a sélectionné une locale pendant l'édition.
-      let finalCoverUrl = coverImage?.publicUrl || null;
-      if (coverImage?.publicUrl && !isRemoteUrl(coverImage.publicUrl)) {
-        try {
-          const uploaded = await EventsService.uploadEventCover(user.id, coverImage.publicUrl);
-          if (uploaded) {
-            finalCoverUrl = uploaded;
-          }
-        } catch (coverErr) {
-          console.warn('cover upload (edit/create) failed', coverErr);
-          throw coverErr;
-        }
-      }
-
-      const payload = {
-        title,
-        description: description || '',
-        category: category as any,
-        subcategory: subcategory || null,
-        tags,
-        starts_at: startDate,
-        ends_at: endDate || null,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        address: location.addressLabel,
-        city: location.city,
-        postal_code: location.postalCode,
-        visibility: visibility === 'public' ? 'public' : 'prive',
-        is_free: !price || price.toLowerCase().includes('gratuit'),
-        price: priceValue,
-        cover_url: finalCoverUrl,
-        max_participants: null,
-        registration_required: null,
-        external_url: externalLink || videoLink || null,
-        contact_email,
-        contact_phone,
-        status: 'published',
-        creator_id: user?.id,
-      };
-
-      if (edit) {
-        // Récupérer l'événement actuel pour vérifier si la cover a changé
-        let oldCoverPath: string | undefined;
-        try {
-          const currentEvt = await EventsService.getById(edit);
-          if (currentEvt && currentEvt.cover_url && currentEvt.cover_url !== finalCoverUrl) {
-            oldCoverPath = derivePath(currentEvt.cover_url);
-          }
-        } catch (err) {
-          console.warn('Failed to fetch original event for cleanup check', err);
-        }
-
-        await EventsService.update(edit, payload as any);
-        if ((EventsService as any).setMedia) {
-          try {
-            await EventsService.setMedia(edit, activeMedias as any);
-          } catch (mediaErr) {
-            console.warn('set media error', mediaErr);
-            throw mediaErr;
-          }
-        }
-
-        const finalRemovedPaths = [...removedPaths];
-        if (oldCoverPath && !finalRemovedPaths.includes(oldCoverPath)) {
-          finalRemovedPaths.push(oldCoverPath);
-        }
-        if (finalRemovedPaths.length > 0) {
-          try {
-            await supabase.storage.from('event-media').remove(finalRemovedPaths);
-          } catch (rmErr) {
-            console.warn('remove storage (edit)', rmErr);
-          }
-        }
-        // Rafraîchir la liste mise en cache pour éviter les incohérences sur les cartes
-        await useEventsStore.getState().fetchEvents({ force: true });
-        resetStore();
-        router.replace(`/events/${edit}` as any);
-        return;
-      }
-
-      const created = await EventsService.create(payload as any);
-      if (activeMedias.length > 0 && (EventsService as any).setMedia) {
-        try {
-          await EventsService.setMedia(created.id, activeMedias as any);
-        } catch (mediaErr) {
-          console.warn('set media error', mediaErr);
-          throw mediaErr;
-        }
-      }
-      if (removedPaths.length > 0) {
-        try {
-          await supabase.storage.from('event-media').remove(removedPaths);
-        } catch (rmErr) {
-          console.warn('remove storage (create)', rmErr);
-        }
-      }
-      await useEventsStore.getState().fetchEvents({ force: true });
-      resetStore();
-      router.replace(`/events/${created.id}` as any);
-    } catch (e) {
-      console.error('publish event', e);
-      Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -278,15 +107,16 @@ export default function CreateEventStep2() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
-          disabled={!canPublish || submitting}
-          onPress={handlePublish}
+          style={[styles.publishBtn, !canPublish && styles.publishDisabled]}
+          disabled={!canPublish}
+          onPress={() =>
+            router.push({
+              pathname: '/events/create/preview',
+              params: edit ? { edit } : {},
+            } as any)
+          }
         >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.publishText}>Publier l'événement</Text>
-          )}
+          <Text style={styles.publishText}>Publier l'événement</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -109,7 +109,10 @@ export const supabaseProvider: (Pick<
       query = query.eq('creator_id', creatorId);
     }
     // Par défaut, ne retourner que les événements en cours (starts_at <= now <= ends_at ou ends_at null)
-    query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
+    // Pour un créateur, on retourne tout l'historique sans filtre temporel.
+    if (!creatorId) {
+      query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
+    }
 
     const { data, error } = await query;
     if (error) throw formatSupabaseError(error, 'listEvents');

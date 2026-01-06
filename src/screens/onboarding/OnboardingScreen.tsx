@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, ChevronLeft } from 'lucide-react-native';
@@ -18,8 +19,9 @@ import { supabase } from '@/lib/supabase/client';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 
 const ROLE_OPTIONS = [
-  { value: 'denicheur', label: 'Explorateur', description: 'Je découvre et participe.' },
-  { value: 'createur', label: 'Créateur', description: 'Je propose des moments.' },
+  { value: 'particulier', label: 'Particulier', description: 'Je découvre et participe.' },
+  { value: 'professionnel', label: 'Professionnel', description: 'Je propose des moments.' },
+  { value: 'institutionnel', label: 'Institutionnel', description: 'Je représente une structure.' },
 ];
 
 export default function OnboardingScreen() {
@@ -37,7 +39,7 @@ export default function OnboardingScreen() {
 
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
-  const [role, setRole] = useState<string>(profile?.role || 'denicheur');
+  const [role, setRole] = useState<string>(profile?.role || 'particulier');
   const [city, setCity] = useState(profile?.city || '');
   const [region, setRegion] = useState(profile?.region || '');
   const [addressSearch, setAddressSearch] = useState('');
@@ -356,10 +358,8 @@ export default function OnboardingScreen() {
 
 const ImagePreview = ({ uri, label }: { uri: string; label: string }) => (
   <View style={styles.previewContainer}>
+    <Image source={{ uri }} style={styles.previewImage} />
     <Text style={styles.uploadText}>{label}</Text>
-    <Text style={styles.meta} numberOfLines={1}>
-      {uri}
-    </Text>
   </View>
 );
 
@@ -537,5 +537,11 @@ const styles = StyleSheet.create({
   previewContainer: {
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  previewImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[100],
   },
 });
