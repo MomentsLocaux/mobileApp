@@ -83,10 +83,13 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
     setActiveSection('when');
   };
 
+  const includePast = when.includePast ?? false;
+
   const summary = useMemo(() => {
     const whereLabel = where.location?.label || 'Choisir un lieu';
-    const whenLabel =
-      when.startDate && when.endDate
+    const whenLabel = includePast
+      ? "N'importe quand"
+      : when.startDate && when.endDate
         ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
         : when.preset
           ? presetLabel(when.preset)
@@ -117,7 +120,6 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
   const isLastSection = activeSection === 'what';
   const isFirstSection = activeSection === 'where';
 
-  const includePast = when.includePast ?? false;
   const footerLabel = isFirstSection ? 'Rechercher' : isLastSection ? 'Rechercher' : 'Suivant';
 
   const goNext = () => {
@@ -257,11 +259,22 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               <View style={styles.checkboxRow}>
                 <TouchableOpacity
                   style={[styles.checkbox, includePast && styles.checkboxActive]}
-                  onPress={() => setWhen({ ...when, includePast: !includePast })}
+                  onPress={() => {
+                    if (includePast) {
+                      setWhen({ includePast: false });
+                      return;
+                    }
+                    setWhen({
+                      includePast: true,
+                      preset: undefined,
+                      startDate: undefined,
+                      endDate: undefined,
+                    });
+                  }}
                 >
                   {includePast && <View style={styles.checkboxMark} />}
                 </TouchableOpacity>
-                <Text style={styles.checkboxLabel}>Inclure les événements passés</Text>
+                <Text style={styles.checkboxLabel}>N&apos;importe quand</Text>
               </View>
               <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
                 <Text style={styles.meta}>Date(s)</Text>

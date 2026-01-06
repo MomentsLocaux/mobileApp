@@ -140,24 +140,27 @@ export const supabaseProvider: (Pick<
     return (data || []) as EventWithCreator[];
   },
 
-  async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number }) {
-    const { ne, sw, limit = 300 } = params || {};
+  async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number; includePast?: boolean }) {
+    const { ne, sw, limit = 300, includePast = false } = params || {};
     const nowIso = new Date().toISOString();
     const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const minLat = Math.min(ne?.[1] ?? 0, sw?.[1] ?? 0);
     const maxLat = Math.max(ne?.[1] ?? 0, sw?.[1] ?? 0);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('events')
       .select(EVENT_LIGHT_SELECT)
       .gte('longitude', minLon)
       .lte('longitude', maxLon)
       .gte('latitude', minLat)
-      .lte('latitude', maxLat)
-      .lte('starts_at', nowIso)
-      .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
-      .limit(limit);
+      .lte('latitude', maxLat);
+
+    if (!includePast) {
+      query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
+    }
+
+    const { data, error } = await query.limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');
 
     const events = (data || []) as { id: string; latitude: number; longitude: number; icon?: string }[];

@@ -18,10 +18,13 @@ import { CreateEventForm } from '@/components/events/CreateEventForm';
 import { LocationPickerModal } from '@/components/events/LocationPickerModal';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
+import { useAuth } from '@/hooks';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function CreateEventStep1() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { session } = useAuth();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
@@ -47,6 +50,7 @@ export default function CreateEventStep1() {
   const [formValid, setFormValid] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
   const resetOnCreateRef = React.useRef(false);
+  const isGuest = !session;
 
   const extractStoragePath = (url: string | null | undefined) => {
     if (!url) return '';
@@ -114,6 +118,20 @@ export default function CreateEventStep1() {
   const canProceed = useMemo(() => {
     return !!coverImage && formValid && !!title.trim() && !!startDate && !!location;
   }, [coverImage, formValid, title, startDate, location]);
+
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <GuestGateModal
+          visible
+          title="Créer un événement"
+          onClose={() => router.replace('/(tabs)/map')}
+          onSignUp={() => router.replace('/auth/register' as any)}
+          onSignIn={() => router.replace('/auth/login' as any)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>

@@ -16,9 +16,12 @@ import { VisibilitySelector } from '@/components/events/VisibilitySelector';
 import { OptionalInfoSection } from '@/components/events/OptionalInfoSection';
 import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { useAuth } from '@/hooks';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function CreateEventStep2() {
   const router = useRouter();
+  const { session } = useAuth();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
@@ -63,6 +66,21 @@ export default function CreateEventStep2() {
     startDate,
     location,
   ]);
+  const isGuest = !session;
+
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <GuestGateModal
+          visible
+          title="Créer un événement"
+          onClose={() => router.replace('/(tabs)/map')}
+          onSignUp={() => router.replace('/auth/register' as any)}
+          onSignIn={() => router.replace('/auth/login' as any)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>

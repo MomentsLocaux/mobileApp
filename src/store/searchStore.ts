@@ -17,6 +17,7 @@ export interface SearchWhenState {
   preset?: Preset;
   startDate?: string;
   endDate?: string;
+  includePast?: boolean;
 }
 
 export interface SearchWhoState {
@@ -46,7 +47,7 @@ export interface SearchState {
 
 const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWhat' | 'addHistory' | 'resetSearch'> = {
   where: { history: [] },
-  when: {},
+  when: { includePast: false },
   who: { adults: 1, children: 0, babies: 0 },
   what: { categories: [], subcategories: [], tags: [] },
 };

@@ -18,6 +18,7 @@ import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 import { useEventsStore } from '@/store';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 
@@ -45,6 +46,7 @@ export default function CreateEventPreview() {
   const resetStore = useCreateEventStore((s) => s.reset);
 
   const [submitting, setSubmitting] = useState(false);
+  const isGuest = !user;
   const marker = '/storage/v1/object/public/event-media/';
 
   const derivePath = (url?: string) => {
@@ -74,10 +76,7 @@ export default function CreateEventPreview() {
 
   const handleConfirm = async () => {
     if (!canPublish || !location || !startDate) return;
-    if (!user) {
-      Alert.alert('Connexion requise', 'Connectez-vous pour publier un événement.');
-      return;
-    }
+    if (!user) return;
 
     // Sécurité : si on arrive directement sur la preview avec ?edit=... sans être passé par step-1
     if (edit && (!title || !location || !coverImage)) {
@@ -239,6 +238,16 @@ export default function CreateEventPreview() {
           )}
         </TouchableOpacity>
       </View>
+
+      {isGuest ? (
+        <GuestGateModal
+          visible
+          title="Créer un événement"
+          onClose={() => router.replace('/(tabs)/map')}
+          onSignUp={() => router.replace('/auth/register' as any)}
+          onSignIn={() => router.replace('/auth/login' as any)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

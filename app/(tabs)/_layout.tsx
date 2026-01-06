@@ -5,14 +5,20 @@ import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated,
 import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const slideAnim = useRef(new Animated.Value(0)).current;
   useTaxonomy();
+  const isGuest = !isAuthenticated;
+
+  const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
+  const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
 
   const toggleDrawer = (open: boolean) => {
     setDrawerOpen(open);
@@ -36,11 +42,7 @@ export default function TabsLayout() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Redirect href="/auth/login" />;
-  }
-
-  if (profile && !profile.onboarding_completed) {
+  if (profile && !profile.onboarding_completed && isAuthenticated) {
     return <Redirect href="/onboarding" />;
   }
 
@@ -64,19 +66,29 @@ export default function TabsLayout() {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() =>
+                onPress={() => {
+                  if (isGuest) {
+                    openGuestGate('Signaler un bug');
+                    return;
+                  }
                   router.push({
                     pathname: '/bug-report',
                     params: { page: pathname || '' },
-                  } as any)
-                }
+                  } as any);
+                }}
                 accessibilityLabel="Reporter un bug"
               >
-                <Bug size={22} color={colors.neutral[700]} />
+                <Bug size={22} color={isGuest ? colors.neutral[400] : colors.neutral[700]} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.avatarButton}
-                onPress={() => toggleDrawer(true)}
+                style={[styles.avatarButton, isGuest && styles.tabDisabled]}
+                onPress={() => {
+                  if (isGuest) {
+                    openGuestGate('Accéder à votre profil');
+                    return;
+                  }
+                  toggleDrawer(true);
+                }}
                 accessibilityLabel="Ouvrir le menu profil"
               >
                 {profile?.avatar_url ? (
@@ -94,7 +106,19 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Accueil',
-            tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
+            tabBarIcon: ({ size, color }) => (
+              <Home size={size} color={isGuest ? colors.neutral[400] : color} />
+            ),
+            tabBarButton: (props) => (
+              <TouchableOpacity
+                {...props}
+                style={[props.style, isGuest && styles.tabDisabled]}
+                onPress={() => {
+                  if (isGuest) return openGuestGate("Accéder à l'accueil");
+                  props.onPress?.(undefined as any);
+                }}
+              />
+            ),
           }}
         />
         <Tabs.Screen
@@ -110,9 +134,15 @@ export default function TabsLayout() {
             title: '',
             tabBarButton: () => (
               <TouchableOpacity
-                style={styles.createButton}
+                style={[styles.createButton, isGuest && styles.createButtonDisabled]}
                 activeOpacity={0.85}
-                onPress={() => router.push('/events/create/step-1' as any)}
+                onPress={() => {
+                  if (isGuest) {
+                    openGuestGate('Créer un événement');
+                    return;
+                  }
+                  router.push('/events/create/step-1' as any);
+                }}
               >
                 <PlusCircle size={28} color="#FFFFFF" />
               </TouchableOpacity>
@@ -123,14 +153,38 @@ export default function TabsLayout() {
           name="community"
           options={{
             title: 'Communauté',
-            tabBarIcon: ({ size, color }) => <Users size={size} color={color} />,
+            tabBarIcon: ({ size, color }) => (
+              <Users size={size} color={isGuest ? colors.neutral[400] : color} />
+            ),
+            tabBarButton: (props) => (
+              <TouchableOpacity
+                {...props}
+                style={[props.style, isGuest && styles.tabDisabled]}
+                onPress={() => {
+                  if (isGuest) return openGuestGate('Accéder à la communauté');
+                  props.onPress?.(undefined as any);
+                }}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="shop"
           options={{
             title: 'Boutique',
-            tabBarIcon: ({ size, color }) => <ShoppingBag size={size} color={color} />,
+            tabBarIcon: ({ size, color }) => (
+              <ShoppingBag size={size} color={isGuest ? colors.neutral[400] : color} />
+            ),
+            tabBarButton: (props) => (
+              <TouchableOpacity
+                {...props}
+                style={[props.style, isGuest && styles.tabDisabled]}
+                onPress={() => {
+                  if (isGuest) return openGuestGate('Accéder à la boutique');
+                  props.onPress?.(undefined as any);
+                }}
+              />
+            ),
           }}
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
@@ -255,6 +309,20 @@ export default function TabsLayout() {
         />
         </View>
       </Animated.View>
+
+      <GuestGateModal
+        visible={guestGate.visible}
+        title={guestGate.title}
+        onClose={closeGuestGate}
+        onSignUp={() => {
+          closeGuestGate();
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          closeGuestGate();
+          router.push('/auth/login' as any);
+        }}
+      />
     </>
   );
 }
@@ -369,5 +437,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+  },
+  createButtonDisabled: {
+    backgroundColor: colors.neutral[400],
+  },
+  tabDisabled: {
+    opacity: 0.5,
   },
 });

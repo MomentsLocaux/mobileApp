@@ -19,10 +19,12 @@ import { colors, spacing, typography, borderRadius } from '../../src/constants/t
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
 import { EventsService } from '../../src/services/events.service';
 import type { EventWithCreator } from '../../src/types/database';
+import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, session } = useAuth();
+  const isGuest = !session;
   const [myEvents, setMyEvents] = useState<EventWithCreator[]>([]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -99,6 +101,20 @@ export default function ProfileScreen() {
       setLoadingEvents(false);
     }
   };
+
+  if (isGuest) {
+    return (
+      <View style={styles.container}>
+        <GuestGateModal
+          visible
+          title="Accéder à votre profil"
+          onClose={() => router.replace('/(tabs)/map')}
+          onSignUp={() => router.replace('/auth/register' as any)}
+          onSignIn={() => router.replace('/auth/login' as any)}
+        />
+      </View>
+    );
+  }
 
   if (!profile) {
     return (

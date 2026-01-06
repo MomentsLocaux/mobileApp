@@ -13,6 +13,7 @@ import { useLocation } from '../../src/hooks';
 import {
   useLocationStore,
   useSearchResultsStore,
+  useSearchStore,
   useMapResultsUIStore,
 } from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
@@ -35,6 +36,7 @@ export default function MapScreen() {
   useLocation();
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const { activeEventId, setActiveEvent } = useSearchResultsStore();
+  const { when } = useSearchStore();
   const { profile } = useAuth();
   const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
   const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding, mapPaddingLevel } =
@@ -51,6 +53,7 @@ export default function MapScreen() {
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
   const tabTranslate = useSharedValue(0);
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
+  const includePast = !!when.includePast;
   const focusHandledRef = useRef(false);
   const [sheetEvents, setSheetEvents] = useState<EventWithCreator[]>([]);
   const [sheetMode, setSheetMode] = useState<'viewport' | 'single'>('viewport');
@@ -149,6 +152,7 @@ export default function MapScreen() {
           ne: bounds.ne,
           sw: bounds.sw,
           limit: 300,
+          includePast,
         });
         const ids =
           featureCollection?.features
@@ -166,7 +170,14 @@ export default function MapScreen() {
         console.warn('bbox fetch error', e);
       }
     }, 300);
-  }, [setActiveEvent]);
+  }, [includePast, setActiveEvent]);
+
+  useEffect(() => {
+    if (!lastBoundsRef.current) return;
+    const bounds = lastBoundsRef.current;
+    lastBoundsRef.current = null;
+    handleBoundsChange(bounds);
+  }, [handleBoundsChange, includePast]);
 
   const openEventInSheet = useCallback(
     (event: EventWithCreator, snapIndex = 1) => {

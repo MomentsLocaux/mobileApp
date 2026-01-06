@@ -93,7 +93,13 @@ export interface Database {
   };
 }
 
-export type UserRole = 'particulier' | 'professionnel' | 'institutionnel' | 'moderateur' | 'admin';
+export type UserRole =
+  | 'invite'
+  | 'particulier'
+  | 'professionnel'
+  | 'institutionnel'
+  | 'moderateur'
+  | 'admin';
 export type EventCategory = string;
 export type EventVisibility = 'public' | 'prive';
 export type ScheduleMode = 'ponctuel' | 'recurrent' | 'permanent';

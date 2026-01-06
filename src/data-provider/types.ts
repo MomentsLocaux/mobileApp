@@ -66,6 +66,7 @@ export interface IDataProvider {
     ne: [number, number];
     sw: [number, number];
     limit?: number;
+    includePast?: boolean;
   }): Promise<FeatureCollection>;
   getEventsByIds?(ids: string[]): Promise<EventWithCreator[]>;
 }

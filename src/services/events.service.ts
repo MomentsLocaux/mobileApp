@@ -18,7 +18,7 @@ export const EventsService = {
   deleteEvent: (id: string): Promise<boolean> => dataProvider.deleteEvent(id),
   listEventsByCreator: (creatorId: string): Promise<EventWithCreator[]> =>
     dataProvider.listEventsByCreator ? dataProvider.listEventsByCreator(creatorId) : dataProvider.listEvents({ creatorId }),
-  listEventsByBBox: (params: { ne: [number, number]; sw: [number, number]; limit?: number }) =>
+  listEventsByBBox: (params: { ne: [number, number]; sw: [number, number]; limit?: number; includePast?: boolean }) =>
     (dataProvider as any).listEventsByBBox
       ? (dataProvider as any).listEventsByBBox(params)
       : Promise.resolve({ type: 'FeatureCollection', features: [] }),

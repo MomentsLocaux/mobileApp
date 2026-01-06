@@ -37,6 +37,7 @@ import { CheckinService } from '@/services/checkin.service';
 import { EventImageCarousel } from '@/components/events/EventImageCarousel';
 import { supabase } from '@/lib/supabase/client';
 import { useFavoritesStore } from '@/store/favoritesStore';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +53,11 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
+  const isGuest = !session;
+
+  const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
+  const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
 
   useEffect(() => {
     loadEventDetails();
@@ -71,6 +77,10 @@ export default function EventDetailScreen() {
   };
 
   const handleToggleFavorite = async () => {
+    if (isGuest) {
+      openGuestGate('Ajouter aux favoris');
+      return;
+    }
     if (!profile || !event) return;
     await SocialService.toggleFavorite(profile.id, event.id);
     toggleFavoriteStore(event);
@@ -78,6 +88,10 @@ export default function EventDetailScreen() {
   };
 
   const handleCheckIn = async () => {
+    if (isGuest) {
+      openGuestGate('Faire un check-in');
+      return;
+    }
     if (!profile || !event || !session?.access_token) return;
     if (!currentLocation) {
       Alert.alert('Localisation requise', 'Activez la localisation pour valider le check-in.');
@@ -204,7 +218,8 @@ export default function EventDetailScreen() {
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)')}>
           <Text style={styles.closeText}>✕</Text>
@@ -223,7 +238,13 @@ export default function EventDetailScreen() {
         <TouchableOpacity
           style={styles.creatorRow}
           activeOpacity={0.7}
-          onPress={() => router.push(`/community/${event.creator.id}`)}
+          onPress={() => {
+            if (isGuest) {
+              openGuestGate('Accéder à la communauté');
+              return;
+            }
+            router.push(`/community/${event.creator.id}`);
+          }}
         >
           {event.creator.avatar_url && (
             <Image source={{ uri: event.creator.avatar_url }} style={styles.avatar} />
@@ -240,7 +261,14 @@ export default function EventDetailScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              if (isGuest) {
+                openGuestGate('Partager cet événement');
+              }
+            }}
+          >
             <Share2 size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
 
@@ -338,7 +366,22 @@ export default function EventDetailScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+
+      <GuestGateModal
+        visible={guestGate.visible}
+        title={guestGate.title}
+        onClose={closeGuestGate}
+        onSignUp={() => {
+          closeGuestGate();
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          closeGuestGate();
+          router.push('/auth/login' as any);
+        }}
+      />
+    </>
   );
 }
 

@@ -78,7 +78,17 @@ export function EventFilters({
   };
 
   const toggleIncludePast = () => {
-    onFiltersChange({ includePast: !filters.includePast });
+    const next = !filters.includePast;
+    onFiltersChange({
+      includePast: next,
+      ...(next
+        ? {
+            time: undefined,
+            startDate: undefined,
+            endDate: undefined,
+          }
+        : {}),
+    });
   };
 
   return (
@@ -282,7 +292,7 @@ export function EventFilters({
                 onPress={toggleIncludePast}
               >
                 <Text style={[styles.chipText, filters.includePast && styles.chipTextActive]}>
-                  Inclure passés
+                  N&apos;importe quand
                 </Text>
               </TouchableOpacity>
               <TextInput

@@ -16,7 +16,7 @@ export default function Index() {
   }
 
   if (!isAuthenticated) {
-    return <Redirect href="/auth/login" />;
+    return <Redirect href="/(tabs)/map" />;
   }
 
   if (profile && !profile.onboarding_completed) {

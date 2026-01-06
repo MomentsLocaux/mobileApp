@@ -109,15 +109,17 @@ export function filterEvents(
       }
     }
 
-    if (!filters.includePast && isPastEvent(event, now)) {
-      return false;
-    }
-
-    // Par défaut (pas de filtre temps explicite), on exclut seulement les événements totalement passés
-    if (!filters.includePast && !filters.startDate && !filters.endDate && !filters.time) {
-      const endsAt = new Date(event.ends_at);
-      if (!isNaN(endsAt.getTime()) && endsAt < startOfToday) {
+    if (!filters.includePast) {
+      if (isPastEvent(event, now)) {
         return false;
+      }
+
+      // Par défaut (pas de filtre temps explicite), on exclut seulement les événements totalement passés
+      if (!filters.startDate && !filters.endDate && !filters.time) {
+        const endsAt = new Date(event.ends_at);
+        if (!isNaN(endsAt.getTime()) && endsAt < startOfToday) {
+          return false;
+        }
       }
     }
 
@@ -143,22 +145,24 @@ export function filterEvents(
       }
     }
 
-    if (filters.time && !matchesTimeFilter(event, filters.time, now)) {
-      return false;
-    }
-
-    if (filters.startDate || filters.endDate) {
-      const eventStart = new Date(event.starts_at);
-      if (isNaN(eventStart.getTime())) return false;
-      if (filters.startDate) {
-        const start = new Date(filters.startDate);
-        start.setHours(0, 0, 0, 0);
-        if (eventStart < start) return false;
+    if (!filters.includePast) {
+      if (filters.time && !matchesTimeFilter(event, filters.time, now)) {
+        return false;
       }
-      if (filters.endDate) {
-        const end = new Date(filters.endDate);
-        end.setHours(23, 59, 59, 999);
-        if (eventStart > end) return false;
+
+      if (filters.startDate || filters.endDate) {
+        const eventStart = new Date(event.starts_at);
+        if (isNaN(eventStart.getTime())) return false;
+        if (filters.startDate) {
+          const start = new Date(filters.startDate);
+          start.setHours(0, 0, 0, 0);
+          if (eventStart < start) return false;
+        }
+        if (filters.endDate) {
+          const end = new Date(filters.endDate);
+          end.setHours(23, 59, 59, 999);
+          if (eventStart > end) return false;
+        }
       }
     }
 
