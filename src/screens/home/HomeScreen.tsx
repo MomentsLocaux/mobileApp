@@ -10,18 +10,26 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks';
-import { useFilterStore, useLocationStore } from '@/store';
+import { useLocationStore, useSearchStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { SocialService } from '@/services/social.service';
 import { filterEvents } from '@/utils/filter-events';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
-import { EventFilters } from '@/components/events';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
+import { GlobalSearchBar } from '@/components/search/GlobalSearchBar';
+import { SearchOverlayModal } from '@/components/search/SearchOverlayModal';
+import { buildFiltersFromSearch } from '@/utils/search-filters';
+import { EventsService } from '@/services/events.service';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { TriageControl } from '@/components/search/TriageControl';
+import { buildSearchSummary } from '@/utils/search-summary';
 
 type StoryItem = {
   creatorId: string;
@@ -36,10 +44,19 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const { currentLocation } = useLocationStore();
   const { favorites, toggleFavorite } = useFavoritesStore();
-  const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
+  const searchState = useSearchStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
   const [refreshing, setRefreshing] = useState(false);
   const [stories, setStories] = useState<StoryItem[]>([]);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchApplied, setSearchApplied] = useState(false);
+  const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  useTaxonomy();
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const tags = useTaxonomyStore((s) => s.tags);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -49,10 +66,120 @@ export default function HomeScreen() {
     };
   }, [currentLocation]);
 
+  const filters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
+  const sortBy = searchState.sortBy || 'triage';
+  const hasSearchCriteria = useMemo(() => {
+    const hasWhere = !!searchState.where.location || !!searchState.where.radiusKm;
+    const hasWhen =
+      !!searchState.when.preset ||
+      !!searchState.when.startDate ||
+      !!searchState.when.endDate ||
+      !!searchState.when.includePast;
+    const hasWhat =
+      searchState.what.categories.length > 0 ||
+      searchState.what.subcategories.length > 0 ||
+      searchState.what.tags.length > 0;
+    return hasWhere || hasWhen || hasWhat;
+  }, [
+    searchState.where.location,
+    searchState.where.radiusKm,
+    searchState.when.preset,
+    searchState.when.startDate,
+    searchState.when.endDate,
+    searchState.when.includePast,
+    searchState.what.categories,
+    searchState.what.subcategories,
+    searchState.what.tags,
+  ]);
   const filteredAndSortedEvents = useMemo(() => {
-    const base = filterEvents(fetchedEvents || [], filters, focusedIds);
-    return sortEvents(base, filters.sortBy || 'date', userLocation);
-  }, [fetchedEvents, filters, focusedIds, userLocation]);
+    const base = searchApplied ? searchResults : fetchedEvents || [];
+    return sortEvents(base, searchApplied ? sortBy : 'date', userLocation);
+  }, [fetchedEvents, searchApplied, searchResults, sortBy, userLocation]);
+  const searchSummary = useMemo(() => {
+    if (!searchApplied) return undefined;
+    return buildSearchSummary(searchState, categories, subcategories, tags);
+  }, [categories, searchApplied, searchState, subcategories, tags]);
+
+  useEffect(() => {
+    if (!hasSearchCriteria && searchApplied) {
+      setSearchApplied(false);
+    }
+  }, [hasSearchCriteria, searchApplied]);
+
+  const effectiveRadiusKm = useMemo(() => {
+    if (searchState.where.radiusKm !== undefined) {
+      return searchState.where.radiusKm > 0 ? searchState.where.radiusKm : 10;
+    }
+    if (searchState.where.location) return 10;
+    return undefined;
+  }, [searchState.where.location, searchState.where.radiusKm]);
+
+  const searchCenter = useMemo(() => {
+    if (searchState.where.location) {
+      return { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude };
+    }
+    if (searchState.where.radiusKm && userLocation) {
+      return userLocation;
+    }
+    return null;
+  }, [searchState.where.location, searchState.where.radiusKm, userLocation]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!searchApplied || !hasSearchCriteria) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    const run = async () => {
+      try {
+        let baseEvents: EventWithCreator[] = [];
+        if (searchCenter && effectiveRadiusKm) {
+          const latDelta = effectiveRadiusKm / 111;
+          const lonDelta =
+            effectiveRadiusKm /
+            (111 * Math.max(Math.cos((searchCenter.latitude * Math.PI) / 180), 0.1));
+          const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
+          const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
+
+          const featureCollection = await EventsService.listEventsByBBox({
+            ne,
+            sw,
+            limit: 300,
+            includePast: !!searchState.when.includePast,
+          });
+          const ids =
+            featureCollection?.features
+              ?.map((f: any) => f?.properties?.id)
+              .filter(Boolean) || [];
+          const uniqueIds = Array.from(new Set(ids)) as string[];
+          baseEvents = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+        } else {
+          baseEvents = await EventsService.listEvents({ limit: 300, includePast: !!searchState.when.includePast });
+        }
+
+        const filtered = filterEvents(baseEvents, filters, null);
+        if (!cancelled) {
+          setSearchResults(filtered);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveRadiusKm, filters, hasSearchCriteria, searchApplied, searchCenter, searchState.when.includePast]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -133,6 +260,18 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={[styles.topOverlay, { marginTop: insets.top + spacing.xs }]}>
+        <View style={styles.searchRow}>
+          <GlobalSearchBar onPress={() => setSearchVisible(true)} summary={searchSummary} />
+          <TriageControl
+            value={sortBy}
+            onChange={(value) => searchState.setSortBy(value)}
+            hasLocation={!!userLocation}
+            showLabel={false}
+          />
+        </View>
+      </View>
+
       <Text style={styles.sectionTitle}>Pour vous</Text>
       <FlatList
         horizontal
@@ -173,17 +312,6 @@ export default function HomeScreen() {
         }
       />
 
-      <View style={styles.filtersRow}>
-        <EventFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          onReset={() => {
-            resetFilters();
-          }}
-          activeFiltersCount={getActiveFilterCount()}
-        />
-      </View>
-
       <FlatList
         data={filteredAndSortedEvents}
         renderItem={({ item }: { item: EventWithCreator }) => (
@@ -202,9 +330,20 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary[600]} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun événement trouvé</Text>
+            <Text style={styles.emptyText}>
+              {searchLoading ? 'Recherche en cours...' : 'Aucun événement trouvé'}
+            </Text>
           </View>
         }
+      />
+
+      <SearchOverlayModal
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+        onApply={() => {
+          setSearchApplied(true);
+          setSearchVisible(false);
+        }}
       />
     </View>
   );
@@ -214,7 +353,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral[100],
-    paddingHorizontal: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
@@ -230,8 +368,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h4,
     color: colors.neutral[900],
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   carouselContent: {
     gap: spacing.md,
@@ -240,6 +379,7 @@ const styles = StyleSheet.create({
   storiesContent: {
     gap: spacing.md,
     paddingBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
   },
   storyItem: {
@@ -311,11 +451,21 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.neutral[0],
   },
-  filtersRow: {
-    marginBottom: spacing.md,
+  topOverlay: {
+    marginTop: spacing.md,
+    marginHorizontal: spacing.md,
+    maxWidth: 400,
+    zIndex: 10,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
   },
   listContent: {
     paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.sm,
     gap: spacing.md,
   },
   emptyContainer: {

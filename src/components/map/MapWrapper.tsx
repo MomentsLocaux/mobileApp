@@ -28,6 +28,7 @@ export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
   setShape: (fc: FeatureCollection) => void;
   fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number) => void;
+  getVisibleBounds: () => Promise<{ ne: [number, number]; sw: [number, number] } | null>;
   focusOnCoordinate: (options: {
     longitude: number;
     latitude: number;
@@ -124,6 +125,18 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           if (c.longitude > maxLon) maxLon = c.longitude;
         });
         cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, 300);
+      },
+      getVisibleBounds: async () => {
+        if (!mapViewRef.current) return null;
+        try {
+          const bounds = await mapViewRef.current.getVisibleBounds();
+          if (Array.isArray(bounds) && bounds.length === 2) {
+            return { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+          }
+        } catch (e) {
+          console.warn('getVisibleBounds failed', e);
+        }
+        return null;
       },
       focusOnCoordinate: ({ longitude, latitude, zoom: zoomLevel, paddingBottom }) => {
         cameraRef.current?.setCamera({

@@ -1,6 +1,6 @@
 export type TimeFilter = 'today' | 'tomorrow' | 'weekend' | 'live';
 export type PopularityFilter = 'trending' | 'popular' | 'top';
-export type SortOption = 'distance' | 'popularity' | 'date';
+export type SortOption = 'triage' | 'distance' | 'popularity' | 'date';
 
 export interface EventFilters {
   category?: string;

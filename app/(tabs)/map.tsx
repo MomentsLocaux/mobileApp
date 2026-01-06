@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapPin, Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
 import { SocialService } from '../../src/services/social.service';
@@ -18,12 +19,19 @@ import {
 } from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useAuth } from '@/hooks';
+import { buildFiltersFromSearch } from '../../src/utils/search-filters';
+import { filterEvents } from '../../src/utils/filter-events';
+import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import { GlobalSearchBar } from '../../src/components/search/GlobalSearchBar';
 import { SearchOverlayModal } from '../../src/components/search/SearchOverlayModal';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { buildSearchSummary } from '@/utils/search-summary';
+import { TriageControl } from '@/components/search/TriageControl';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
@@ -36,12 +44,17 @@ export default function MapScreen() {
   useLocation();
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const { activeEventId, setActiveEvent } = useSearchResultsStore();
-  const { when } = useSearchStore();
+  const searchState = useSearchStore();
   const { profile } = useAuth();
   const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
   const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding, mapPaddingLevel } =
     useMapResultsUIStore();
   const [searchVisible, setSearchVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  useTaxonomy();
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const tags = useTaxonomyStore((s) => s.tags);
 
   const [loading] = useState(false);
   const [navEvent, setNavEvent] = useState<any | null>(null);
@@ -53,13 +66,15 @@ export default function MapScreen() {
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
   const tabTranslate = useSharedValue(0);
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
-  const includePast = !!when.includePast;
+  const includePast = !!searchState.when.includePast;
   const focusHandledRef = useRef(false);
   const [sheetEvents, setSheetEvents] = useState<EventWithCreator[]>([]);
   const [sheetMode, setSheetMode] = useState<'viewport' | 'single'>('viewport');
   const [visibleEventCount, setVisibleEventCount] = useState(0);
   const bboxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
+  const [searchApplied, setSearchApplied] = useState(false);
+  const hasPeekedRef = useRef(false);
   const getPaddingFromIndex = useCallback((idx: number) => {
     return idx === 2 ? 360 : idx === 1 ? 240 : 120;
   }, []);
@@ -91,26 +106,73 @@ export default function MapScreen() {
     }
   }, [mapPaddingLevel]);
 
+  const hasSearchCriteria = useMemo(() => {
+    const hasWhere = !!searchState.where.location || !!searchState.where.radiusKm;
+    const hasWhen =
+      !!searchState.when.preset ||
+      !!searchState.when.startDate ||
+      !!searchState.when.endDate ||
+      !!searchState.when.includePast;
+    const hasWhat =
+      searchState.what.categories.length > 0 ||
+      searchState.what.subcategories.length > 0 ||
+      searchState.what.tags.length > 0;
+    return hasWhere || hasWhen || hasWhat;
+  }, [
+    searchState.where.location,
+    searchState.where.radiusKm,
+    searchState.when.preset,
+    searchState.when.startDate,
+    searchState.when.endDate,
+    searchState.when.includePast,
+    searchState.what.categories,
+    searchState.what.subcategories,
+    searchState.what.tags,
+  ]);
+
+  const searchActive = searchApplied && hasSearchCriteria;
+  const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
+  const sortBy = searchState.sortBy || 'triage';
+  const sortCenter = searchState.where.location
+    ? { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude }
+    : userLocation;
+  const searchSummary = useMemo(() => {
+    if (!searchApplied) return undefined;
+    return buildSearchSummary(searchState, categories, subcategories, tags);
+  }, [categories, searchApplied, searchState, subcategories, tags]);
+
+  const refreshBounds = useCallback(async () => {
+    const bounds = await mapRef.current?.getVisibleBounds?.();
+    if (bounds) {
+      handleBoundsChange(bounds);
+    }
+  }, [handleBoundsChange]);
+
+  const fitToRadius = useCallback(
+    (latitude: number, longitude: number, radiusKm: number) => {
+      const latDelta = radiusKm / 111; // ~111 km par degré de latitude
+      const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1)); // éviter division par 0
+      const coords = [
+        { latitude: latitude - latDelta, longitude: longitude - lonDelta },
+        { latitude: latitude + latDelta, longitude: longitude + lonDelta },
+      ];
+      const paddingBottom = (mapPadding?.bottom ?? 0) + 40;
+
+      isProgrammaticMoveRef.current = true;
+      mapRef.current?.fitToCoordinates(coords, paddingBottom);
+      setTimeout(() => {
+        isProgrammaticMoveRef.current = false;
+        refreshBounds();
+      }, 450);
+    },
+    [mapPadding, refreshBounds]
+  );
+
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
     // Recentrer sur l'utilisateur avec une zone équivalente à ~15 km de circonférence (~7.5 km de diamètre) autour
-    const radiusKm = 7.5; // moitié de la circonférence ciblée
-    const lat = userLocation.latitude;
-    const lon = userLocation.longitude;
-    const latDelta = radiusKm / 111; // ~111 km par degré de latitude
-    const lonDelta = radiusKm / (111 * Math.max(Math.cos((lat * Math.PI) / 180), 0.1)); // éviter division par 0
-    const coords = [
-      { latitude: lat - latDelta, longitude: lon - lonDelta },
-      { latitude: lat + latDelta, longitude: lon + lonDelta },
-    ];
-    const paddingBottom = (mapPadding?.bottom ?? 0) + 40;
-
-    isProgrammaticMoveRef.current = true;
-    mapRef.current?.fitToCoordinates(coords, paddingBottom);
-    setTimeout(() => {
-      isProgrammaticMoveRef.current = false;
-    }, 400);
-  }, [mapPadding, userLocation]);
+    fitToRadius(userLocation.latitude, userLocation.longitude, 7.5);
+  }, [fitToRadius, userLocation]);
 
   useEffect(() => {
     if (userLocation && !hasCenteredOnUserRef.current) {
@@ -119,6 +181,12 @@ export default function MapScreen() {
     }
   }, [recenterToUser, userLocation]);
 
+  useEffect(() => {
+    if (!hasSearchCriteria && searchApplied) {
+      setSearchApplied(false);
+    }
+  }, [hasSearchCriteria, searchApplied]);
+
   // À chaque retour sur l’onglet carte, on repart en mode peek (pas d’ouverture auto).
   useFocusEffect(
     useCallback(() => {
@@ -126,6 +194,7 @@ export default function MapScreen() {
       hideBottomBar();
       setSheetMode('viewport');
       setActiveEvent(undefined);
+      hasPeekedRef.current = false;
       // On laisse les résultats existants pour que le peek affiche immédiatement le comptage.
     }, [hideBottomBar, setActiveEvent, setBottomSheetIndex])
   );
@@ -152,7 +221,7 @@ export default function MapScreen() {
           ne: bounds.ne,
           sw: bounds.sw,
           limit: 300,
-          includePast,
+          includePast: searchActive ? true : includePast,
         });
         const ids =
           featureCollection?.features
@@ -161,23 +230,49 @@ export default function MapScreen() {
         const uniqueIds = Array.from(new Set(ids)) as string[];
         const limitedIds = uniqueIds.slice(0, 120); // cap to avoid timeouts
         const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
+        const filteredEvents = searchActive ? filterEvents(events, searchFilters, null) : events;
+        const sortedEvents = searchActive ? sortEvents(filteredEvents, sortBy, sortCenter) : filteredEvents;
+        const filteredIds = new Set(filteredEvents.map((e) => e.id));
+        const filteredFeatures = searchActive
+          ? (featureCollection?.features || []).filter((f: any) => filteredIds.has(f?.properties?.id))
+          : featureCollection?.features || [];
         setSheetMode('viewport');
         setActiveEvent(undefined);
-        setSheetEvents(events);
-        setVisibleEventCount(featureCollection?.features?.length || 0);
-        mapRef.current?.setShape(featureCollection as any);
+        setSheetEvents(sortedEvents);
+        setVisibleEventCount(filteredFeatures.length);
+        mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
+        if (!hasPeekedRef.current && bottomSheetIndex === 0 && sheetMode === 'viewport') {
+          resultsSheetRef.current?.open?.(0);
+          hasPeekedRef.current = true;
+        }
       } catch (e) {
         console.warn('bbox fetch error', e);
       }
     }, 300);
-  }, [includePast, setActiveEvent]);
+  }, [bottomSheetIndex, includePast, searchActive, searchFilters, setActiveEvent, sheetMode, sortBy, sortCenter]);
 
   useEffect(() => {
     if (!lastBoundsRef.current) return;
     const bounds = lastBoundsRef.current;
     lastBoundsRef.current = null;
     handleBoundsChange(bounds);
-  }, [handleBoundsChange, includePast]);
+  }, [handleBoundsChange, includePast, searchActive]);
+
+  const applySearch = useCallback(() => {
+    setSearchApplied(true);
+    const location = searchState.where.location;
+    const selectedRadius = searchState.where.radiusKm;
+    const effectiveRadius = selectedRadius && selectedRadius > 0 ? selectedRadius : 10;
+    if (location) {
+      fitToRadius(location.latitude, location.longitude, effectiveRadius);
+      return;
+    }
+    if (searchState.where.radiusKm && userLocation) {
+      fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
+      return;
+    }
+    refreshBounds();
+  }, [fitToRadius, refreshBounds, searchState.where.location, searchState.where.radiusKm, userLocation]);
 
   const openEventInSheet = useCallback(
     (event: EventWithCreator, snapIndex = 1) => {
@@ -335,8 +430,16 @@ export default function MapScreen() {
         }}
       />
 
-      <View style={styles.topOverlay}>
-        <GlobalSearchBar onPress={() => setSearchVisible(true)} />
+      <View style={[styles.topOverlay, { top: insets.top + spacing.xs }]}>
+        <View style={styles.searchRow}>
+          <GlobalSearchBar onPress={() => setSearchVisible(true)} summary={searchSummary} />
+          <TriageControl
+            value={sortBy}
+            onChange={(value) => searchState.setSortBy(value)}
+            hasLocation={!!userLocation}
+            showLabel={false}
+          />
+        </View>
         <View style={styles.layerSwitcher}>
           {(['standard', 'satellite'] as const).map((mode) => (
             <TouchableOpacity
@@ -380,7 +483,7 @@ export default function MapScreen() {
 
       {userLocation && (
         <TouchableOpacity
-          style={styles.recenterTopButton}
+          style={[styles.recenterTopButton, { bottom: insets.bottom + 96 }]}
           onPress={recenterToUser}
         >
           <Navigation size={18} color={colors.neutral[0]} />
@@ -390,7 +493,10 @@ export default function MapScreen() {
       <SearchOverlayModal
         visible={searchVisible}
         onClose={() => setSearchVisible(false)}
-        onApply={() => setSearchVisible(false)}
+        onApply={() => {
+          applySearch();
+          setSearchVisible(false);
+        }}
       />
 
       <SearchResultsBottomSheet
@@ -479,6 +585,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
     gap: spacing.sm,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
   bottomOverlay: {
     position: 'absolute',
     bottom: spacing.md,
@@ -552,7 +664,6 @@ const styles = StyleSheet.create({
   },
   recenterTopButton: {
     position: 'absolute',
-    top: spacing.md,
     right: spacing.md,
     width: 44,
     height: 44,

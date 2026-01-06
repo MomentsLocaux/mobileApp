@@ -9,7 +9,11 @@ interface Props {
   summary?: string;
 }
 
-export const GlobalSearchBar: React.FC<Props> = ({ placeholder = 'Rechercher un moment', onPress, summary }) => {
+export const GlobalSearchBar: React.FC<Props> = ({
+  placeholder = 'Rechercher un évènement',
+  onPress,
+  summary,
+}) => {
   return (
     <Pressable style={styles.container} onPress={onPress}>
       <Search size={18} color={colors.neutral[500]} />
@@ -22,12 +26,15 @@ export const GlobalSearchBar: React.FC<Props> = ({ placeholder = 'Rechercher un 
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.neutral[0],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.neutral[100],
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,

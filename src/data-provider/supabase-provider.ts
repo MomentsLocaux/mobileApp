@@ -95,7 +95,7 @@ export const supabaseProvider: (Pick<
 > &
   IBugsProvider) = {
   async listEvents(filters: Record<string, unknown> = {}) {
-    const { limit, creatorId } = filters as { limit?: number; creatorId?: string };
+    const { limit, creatorId, includePast } = filters as { limit?: number; creatorId?: string; includePast?: boolean };
     const appliedLimit = typeof limit === 'number' ? limit : 200;
     const nowIso = new Date().toISOString();
 
@@ -109,8 +109,8 @@ export const supabaseProvider: (Pick<
       query = query.eq('creator_id', creatorId);
     }
     // Par défaut, ne retourner que les événements en cours (starts_at <= now <= ends_at ou ends_at null)
-    // Pour un créateur, on retourne tout l'historique sans filtre temporel.
-    if (!creatorId) {
+    // Pour un créateur ou si includePast est true, on retourne tout l'historique sans filtre temporel.
+    if (!creatorId && !includePast) {
       query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
     }
 

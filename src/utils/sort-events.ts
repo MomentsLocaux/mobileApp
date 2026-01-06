@@ -40,7 +40,58 @@ export function sortEvents(
     return null;
   };
 
+  const scoreTriage = (event: EventWithCreator) => {
+    const now = Date.now();
+    const startsAt = new Date(event.starts_at).getTime();
+    const endsAt = event.ends_at ? new Date(event.ends_at).getTime() : NaN;
+
+    let timeScore = 0.2;
+    if (!isNaN(startsAt)) {
+      if (!isNaN(endsAt) && now >= startsAt && now <= endsAt) {
+        timeScore = 1.2;
+      } else {
+        const diffHours = (startsAt - now) / 3600000;
+        if (diffHours >= 0) {
+          timeScore = 1 / (1 + diffHours / 24);
+        } else {
+          timeScore = 0.3 / (1 + Math.abs(diffHours) / 24);
+        }
+      }
+    }
+
+    let distanceScore = 0.5;
+    if (userLocation) {
+      const coords = extractCoords(event);
+      if (coords) {
+        const dist = calculateDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          coords.lat,
+          coords.lon
+        );
+        distanceScore = 1 / (1 + dist);
+      }
+    }
+
+    const popularityRaw =
+      (event.interests_count || 0) +
+      (event.likes_count || 0) * 0.7 +
+      (event.comments_count || 0) * 0.5 +
+      (event.checkins_count || 0) * 0.8;
+    const popularityScore = Math.log1p(popularityRaw);
+
+    const qualityScore =
+      (event.cover_url ? 0.5 : 0) +
+      (event.venue_name ? 0.3 : 0) +
+      (event.description && event.description.trim().length > 40 ? 0.2 : 0);
+
+    return 0.35 * timeScore + 0.25 * distanceScore + 0.25 * popularityScore + 0.15 * qualityScore;
+  };
+
   switch (sortBy) {
+    case 'triage':
+      sorted.sort((a, b) => scoreTriage(b) - scoreTriage(a));
+      break;
     case 'distance':
       if (!userLocation) {
         console.warn('Cannot sort by distance without user location');

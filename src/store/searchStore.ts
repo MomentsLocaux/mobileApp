@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { SortOption } from '../types/filters';
 type Preset = 'today' | 'tomorrow' | 'weekend';
 
 export interface SearchWhereState {
@@ -37,19 +38,22 @@ export interface SearchState {
   when: SearchWhenState;
   who: SearchWhoState;
   what: SearchWhatState;
+  sortBy?: SortOption;
   setWhere: (payload: Partial<SearchWhereState>) => void;
   setWhen: (payload: Partial<SearchWhenState>) => void;
   setWho: (updater: Partial<SearchWhoState>) => void;
   setWhat: (payload: Partial<SearchWhatState>) => void;
+  setSortBy: (sortBy?: SortOption) => void;
   addHistory: (label: string) => void;
   resetSearch: () => void;
 }
 
-const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWhat' | 'addHistory' | 'resetSearch'> = {
+const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWhat' | 'setSortBy' | 'addHistory' | 'resetSearch'> = {
   where: { history: [] },
   when: { includePast: false },
   who: { adults: 1, children: 0, babies: 0 },
   what: { categories: [], subcategories: [], tags: [] },
+  sortBy: 'triage',
 };
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -85,6 +89,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set((state) => ({
       what: { ...state.what, ...payload },
     })),
+
+  setSortBy: (sortBy) => set({ sortBy }),
 
   addHistory: (label: string) =>
     set((state) => {

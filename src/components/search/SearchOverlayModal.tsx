@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Pressable,
+  Animated,
 } from 'react-native';
 import { X, MapPin, Calendar, Users, Tag, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
@@ -16,6 +18,11 @@ import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import type { DateRangeValue } from '@/types/eventDate.model';
+import { useLocationStore } from '@/store';
+import { EventsService } from '@/services/events.service';
+import { buildFiltersFromSearch } from '@/utils/search-filters';
+import { filterEvents } from '@/utils/filter-events';
+import type { SearchState } from '../../store/searchStore';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
 
@@ -31,10 +38,14 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
   const [results, setResults] = useState<Array<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [showRangePicker, setShowRangePicker] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
   const tags = useTaxonomyStore((s) => s.tags);
+  const { currentLocation } = useLocationStore();
+  const [searchCount, setSearchCount] = useState<number | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
 
   const {
     where,
@@ -45,6 +56,8 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
     setWhen,
     setWho,
     setWhat,
+    setSortBy,
+    sortBy,
     addHistory,
   } = useSearchStore();
 
@@ -68,6 +81,16 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
     };
   }, [query]);
 
+  useEffect(() => {
+    if (!visible) return;
+    anim.setValue(0);
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [anim, visible]);
+
   const handleSelectLocation = (item: typeof results[number]) => {
     setWhere({
       location: {
@@ -77,13 +100,45 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
         city: item.city,
         postalCode: item.postalCode,
       },
-      radiusKm: undefined,
+      radiusKm: where.radiusKm ?? 10,
     });
     addHistory(item.label);
     setActiveSection('when');
   };
 
   const includePast = when.includePast ?? false;
+  const userCoords = useMemo(() => {
+    if (!currentLocation) return null;
+    return {
+      latitude: currentLocation.coords.latitude,
+      longitude: currentLocation.coords.longitude,
+    };
+  }, [currentLocation]);
+
+  const hasSearchCriteria = useMemo(() => {
+    const hasWhere = !!where.location || !!where.radiusKm;
+    const hasWhen = !!when.preset || !!when.startDate || !!when.endDate || includePast;
+    const hasWhat = what.categories.length > 0 || what.subcategories.length > 0 || what.tags.length > 0;
+    return hasWhere || hasWhen || hasWhat;
+  }, [where.location, where.radiusKm, when.preset, when.startDate, when.endDate, includePast, what]);
+
+  const effectiveRadiusKm = useMemo(() => {
+    if (where.radiusKm !== undefined) {
+      return where.radiusKm > 0 ? where.radiusKm : 10;
+    }
+    if (where.location) return 10;
+    return undefined;
+  }, [where.location, where.radiusKm]);
+
+  const searchCenter = useMemo(() => {
+    if (where.location) {
+      return { latitude: where.location.latitude, longitude: where.location.longitude };
+    }
+    if (where.radiusKm && userCoords) {
+      return userCoords;
+    }
+    return null;
+  }, [where.location, where.radiusKm, userCoords]);
 
   const summary = useMemo(() => {
     const whereLabel = where.location?.label || 'Choisir un lieu';
@@ -117,33 +172,90 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
     });
   };
 
-  const isLastSection = activeSection === 'what';
-  const isFirstSection = activeSection === 'where';
-
-  const footerLabel = isFirstSection ? 'Rechercher' : isLastSection ? 'Rechercher' : 'Suivant';
-
-  const goNext = () => {
-    if (activeSection === 'where') {
-      onApply();
-      onClose();
+  useEffect(() => {
+    let cancelled = false;
+    if (!hasSearchCriteria || !searchCenter || !effectiveRadiusKm) {
+      setSearchCount(null);
+      setCountLoading(false);
       return;
     }
-    if (activeSection === 'when') {
-      setActiveSection('who');
-    } else if (activeSection === 'who') {
-      setActiveSection('what');
-    } else {
-      onApply();
-      onClose();
-    }
+
+    setCountLoading(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const latDelta = effectiveRadiusKm / 111;
+        const lonDelta =
+          effectiveRadiusKm /
+          (111 * Math.max(Math.cos((searchCenter.latitude * Math.PI) / 180), 0.1));
+        const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
+        const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
+
+        const featureCollection = await EventsService.listEventsByBBox({
+          ne,
+          sw,
+          limit: 300,
+          includePast,
+        });
+
+        const ids =
+          featureCollection?.features
+            ?.map((f: any) => f?.properties?.id)
+            .filter(Boolean) || [];
+        const uniqueIds = Array.from(new Set(ids)) as string[];
+        const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+        const filters = buildFiltersFromSearch({ where, when, who, what } as SearchState, userCoords);
+        const filteredEvents = filterEvents(events, filters, null);
+        if (!cancelled) {
+          setSearchCount(filteredEvents.length);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSearchCount(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setCountLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [effectiveRadiusKm, hasSearchCriteria, includePast, searchCenter, userCoords, where, when, who, what]);
+
+  const countLabel = countLoading
+    ? 'Recherche...'
+    : searchCount !== null
+      ? `Voir les ${searchCount} évènement${searchCount > 1 ? 's' : ''}`
+      : 'Rechercher';
+  const footerLabel = countLabel;
+
+  const backdropStyle = {
+    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+  };
+
+  const cardStyle = {
+    transform: [
+      {
+        translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }),
+      },
+      {
+        scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] }),
+      },
+    ],
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="none" transparent statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <Animated.View style={[styles.backdrop, backdropStyle]} />
+        <Pressable style={styles.backdropPressable} onPress={onClose} />
+        <Animated.View style={[styles.modal, cardStyle]}>
+          <View style={styles.grabber} />
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Rechercher un moment</Text>
+            <Text style={styles.modalTitle}>Rechercher un évènement</Text>
             <TouchableOpacity onPress={onClose}>
               <X size={22} color={colors.neutral[700]} />
             </TouchableOpacity>
@@ -174,9 +286,13 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                     })
                   }
                 />
-                {where.location?.label && (
-                  <Chip label={where.location.label} active />
-                )}
+              {where.location?.label && (
+                <Chip
+                  label={`${where.location.label} ✕`}
+                  active
+                  onPress={() => setWhere({ location: undefined })}
+                />
+              )}
               </View>
               <View style={styles.sliderRow}>
                 <Text style={styles.meta}>Dans un rayon de {where.radiusKm ?? 0} km</Text>
@@ -389,6 +505,29 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                   />
                 ))}
               </View>
+              <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tri</Text>
+              <View style={styles.rowWrap}>
+                <Chip
+                  label="Pertinence"
+                  active={sortBy === 'triage' || !sortBy}
+                  onPress={() => setSortBy('triage')}
+                />
+                <Chip
+                  label="Date"
+                  active={sortBy === 'date'}
+                  onPress={() => setSortBy('date')}
+                />
+                <Chip
+                  label="Distance"
+                  active={sortBy === 'distance'}
+                  onPress={() => setSortBy('distance')}
+                />
+                <Chip
+                  label="Popularité"
+                  active={sortBy === 'popularity'}
+                  onPress={() => setSortBy('popularity')}
+                />
+              </View>
             </SectionCard>
           </ScrollView>
 
@@ -396,12 +535,18 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
             <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
               <Text style={styles.resetText}>Tout effacer</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryBtn} onPress={goNext}>
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => {
+                onApply();
+                onClose();
+              }}
+            >
               <Text style={styles.primaryText}>{footerLabel}</Text>
               <ChevronRight size={16} color={colors.neutral[0]} />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -485,14 +630,33 @@ const formatDate = (value: string | Date) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xl,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
+  },
+  backdropPressable: {
+    ...StyleSheet.absoluteFillObject,
   },
   modal: {
     backgroundColor: colors.neutral[0],
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    maxHeight: '90%',
+    borderRadius: borderRadius.xl,
+    maxHeight: '88%',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  grabber: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.neutral[200],
+    alignSelf: 'center',
+    marginTop: spacing.sm,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
-import { Tabs, Redirect, useRouter, usePathname } from 'expo-router';
-import { Map, Home, Users, ShoppingBag, User, PlusCircle, Send, Compass, UserCircle2, Target, Bug, Heart } from 'lucide-react-native';
+import { Tabs, Redirect, useRouter } from 'expo-router';
+import { Map, Home, Users, User, PlusCircle, Send, Compass, UserCircle2, Target, Heart, ShoppingBag } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
@@ -10,7 +10,6 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -51,7 +50,7 @@ export default function TabsLayout() {
       <Tabs
         initialRouteName="map"
         screenOptions={{
-          headerShown: true,
+          headerShown: false,
           tabBarActiveTintColor: colors.primary[600],
           tabBarInactiveTintColor: colors.neutral[500],
           tabBarShowLabel: false,
@@ -62,44 +61,6 @@ export default function TabsLayout() {
             paddingBottom: 8,
             paddingTop: 8,
           },
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => {
-                  if (isGuest) {
-                    openGuestGate('Signaler un bug');
-                    return;
-                  }
-                  router.push({
-                    pathname: '/bug-report',
-                    params: { page: pathname || '' },
-                  } as any);
-                }}
-                accessibilityLabel="Reporter un bug"
-              >
-                <Bug size={22} color={isGuest ? colors.neutral[400] : colors.neutral[700]} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.avatarButton, isGuest && styles.tabDisabled]}
-                onPress={() => {
-                  if (isGuest) {
-                    openGuestGate('Accéder à votre profil');
-                    return;
-                  }
-                  toggleDrawer(true);
-                }}
-                accessibilityLabel="Ouvrir le menu profil"
-              >
-                {profile?.avatar_url ? (
-                  <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-                ) : (
-                  <UserCircle2 size={28} color={colors.neutral[700]} />
-                )}
-              </TouchableOpacity>
-            </View>
-          ),
-          headerTitle: '',
         }}
       >
         <Tabs.Screen
@@ -169,26 +130,29 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="shop"
+          name="profile"
           options={{
-            title: 'Boutique',
-            tabBarIcon: ({ size, color }) => (
-              <ShoppingBag size={size} color={isGuest ? colors.neutral[400] : color} />
-            ),
+            title: 'Profil',
+            tabBarIcon: ({ size, color }) =>
+              profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.tabAvatar} />
+              ) : (
+                <User size={size} color={isGuest ? colors.neutral[400] : color} />
+              ),
             tabBarButton: (props) => (
               <TouchableOpacity
                 {...props}
                 style={[props.style, isGuest && styles.tabDisabled]}
                 onPress={() => {
-                  if (isGuest) return openGuestGate('Accéder à la boutique');
-                  props.onPress?.(undefined as any);
+                  if (isGuest) return openGuestGate('Accéder à votre profil');
+                  toggleDrawer(true);
                 }}
               />
             ),
           }}
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
-        <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="shop" options={{ href: null }} />
         <Tabs.Screen name="favorites" options={{ href: null }} />
         <Tabs.Screen name="missions" options={{ href: null }} />
       </Tabs>
@@ -279,6 +243,14 @@ export default function TabsLayout() {
             }}
           />
         <DrawerLink
+          icon={ShoppingBag}
+          label="Boutique"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/(tabs)/shop' as any);
+          }}
+        />
+        <DrawerLink
           icon={Heart}
           label="Mes favoris"
           onPress={() => {
@@ -296,17 +268,6 @@ export default function TabsLayout() {
             }}
           />
         )}
-        <DrawerLink
-          icon={Bug}
-          label="Reporter un bug"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push({
-              pathname: '/bug-report',
-              params: { page: pathname || '' },
-            } as any);
-          }}
-        />
         </View>
       </Animated.View>
 
@@ -343,34 +304,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.neutral[50],
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingRight: 8,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
-  },
-  avatarButton: {
-    marginRight: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  tabAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
   },
   backdrop: {
     position: 'absolute',
