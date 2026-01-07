@@ -343,7 +343,7 @@ export default function MapScreen() {
 
   const focusOnBounds = useCallback(
     (bounds: { ne: [number, number]; sw: [number, number] } | null, snapIndex: number) => {
-      if (!bounds) return;
+      if (!bounds || !bounds.ne || !bounds.sw) return;
       const paddingBottom = getPaddingFromIndex(snapIndex);
       const coords = [
         { longitude: bounds.sw[0], latitude: bounds.sw[1] },
