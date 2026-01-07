@@ -11,27 +11,17 @@ import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
 import { SocialService } from '../../src/services/social.service';
 import { useLocation } from '../../src/hooks';
-import {
-  useLocationStore,
-  useSearchResultsStore,
-  useSearchStore,
-  useMapResultsUIStore,
-} from '../../src/store';
+import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useAuth } from '@/hooks';
 import { buildFiltersFromSearch } from '../../src/utils/search-filters';
 import { filterEvents } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
-import { GlobalSearchBar } from '../../src/components/search/GlobalSearchBar';
-import { SearchOverlayModal } from '../../src/components/search/SearchOverlayModal';
+import { SearchBar } from '../../src/components/search/SearchBar';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
-import { useTaxonomy } from '@/hooks/useTaxonomy';
-import { useTaxonomyStore } from '@/store/taxonomyStore';
-import { buildSearchSummary } from '@/utils/search-summary';
-import { TriageControl } from '@/components/search/TriageControl';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
@@ -40,26 +30,33 @@ const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 export default function MapScreen() {
   const router = useRouter();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
-  // Trigger location permission + retrieval once the map tab mounts
   useLocation();
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
-  const { activeEventId, setActiveEvent } = useSearchResultsStore();
   const searchState = useSearchStore();
   const { profile } = useAuth();
   const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
-  const { bottomSheetIndex, setBottomSheetIndex, bottomBarVisible, showBottomBar, hideBottomBar, updateMapPadding, mapPaddingLevel } =
-    useMapResultsUIStore();
-  const [searchVisible, setSearchVisible] = useState(false);
+  const {
+    bottomSheetIndex,
+    setBottomSheetIndex,
+    bottomBarVisible,
+    showBottomBar,
+    hideBottomBar,
+    updateMapPadding,
+    mapPaddingLevel,
+    // New state machine from store
+    sheetStatus,
+    sheetEvents,
+    visibleEventCount,
+    activeEventId,
+    setStatus,
+    displayViewportResults,
+    selectSingleEvent,
+    closeSheet,
+  } = useMapResultsUIStore();
   const insets = useSafeAreaInsets();
-  useTaxonomy();
-  const categories = useTaxonomyStore((s) => s.categories);
-  const subcategories = useTaxonomyStore((s) => s.subcategories);
-  const tags = useTaxonomyStore((s) => s.tags);
 
-  const [loading] = useState(false);
   const [navEvent, setNavEvent] = useState<any | null>(null);
   const [zoom, setZoom] = useState(12);
-  const lastBoundsRef = useRef<{ ne: [number, number]; sw: [number, number] } | null>(null);
   const isProgrammaticMoveRef = useRef(false);
   const hasCenteredOnUserRef = useRef(false);
   const mapRef = useRef<MapWrapperHandle>(null);
@@ -68,13 +65,11 @@ export default function MapScreen() {
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
   const includePast = !!searchState.when.includePast;
   const focusHandledRef = useRef(false);
-  const [sheetEvents, setSheetEvents] = useState<EventWithCreator[]>([]);
-  const [sheetMode, setSheetMode] = useState<'viewport' | 'single'>('viewport');
-  const [visibleEventCount, setVisibleEventCount] = useState(0);
   const bboxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const [searchApplied, setSearchApplied] = useState(false);
-  const hasPeekedRef = useRef(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+
   const getPaddingFromIndex = useCallback((idx: number) => {
     return idx === 2 ? 360 : idx === 1 ? 240 : 120;
   }, []);
@@ -118,17 +113,7 @@ export default function MapScreen() {
       searchState.what.subcategories.length > 0 ||
       searchState.what.tags.length > 0;
     return hasWhere || hasWhen || hasWhat;
-  }, [
-    searchState.where.location,
-    searchState.where.radiusKm,
-    searchState.when.preset,
-    searchState.when.startDate,
-    searchState.when.endDate,
-    searchState.when.includePast,
-    searchState.what.categories,
-    searchState.what.subcategories,
-    searchState.what.tags,
-  ]);
+  }, [searchState]);
 
   const searchActive = searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
@@ -136,41 +121,183 @@ export default function MapScreen() {
   const sortCenter = searchState.where.location
     ? { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude }
     : userLocation;
-  const searchSummary = useMemo(() => {
-    if (!searchApplied) return undefined;
-    return buildSearchSummary(searchState, categories, subcategories, tags);
-  }, [categories, searchApplied, searchState, subcategories, tags]);
+
+  // À chaque retour sur l’onglet carte, on repart en mode peek.
+  useFocusEffect(
+    useCallback(() => {
+      setBottomSheetIndex(0);
+      hideBottomBar();
+      setStatus('browsing');
+    }, [hideBottomBar, setBottomSheetIndex, setStatus])
+  );
+
+  const handleBoundsChange = useCallback(
+    (bounds: { ne: [number, number]; sw: [number, number] }) => {
+      if (isProgrammaticMoveRef.current) return;
+      if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
+
+      setStatus('browsing');
+
+      bboxTimeoutRef.current = setTimeout(async () => {
+        setStatus('loading');
+        try {
+          const effectiveSearchActive = searchApplied && hasSearchCriteria;
+          const includePastForFetch = effectiveSearchActive ? includePast : false;
+
+          const featureCollection = await EventsService.listEventsByBBox({
+            ne: bounds.ne,
+            sw: bounds.sw,
+            limit: 300,
+            includePast: includePastForFetch,
+          });
+
+          const ids = featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
+          const uniqueIds = Array.from(new Set(ids)) as string[];
+          const limitedIds = uniqueIds.slice(0, 120);
+          const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
+
+          const filteredEvents = effectiveSearchActive ? filterEvents(events, searchFilters, null) : events;
+          const sortedEvents = effectiveSearchActive ? sortEvents(filteredEvents, sortBy, sortCenter) : filteredEvents;
+
+          const filteredIds = new Set(sortedEvents.map((e) => e.id));
+          const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
+            filteredIds.has(f?.properties?.id)
+          );
+
+          mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
+          displayViewportResults(sortedEvents);
+          resultsSheetRef.current?.open?.(0); // Peek
+        } catch (e) {
+          console.warn('bbox fetch error', e);
+          setStatus('browsing'); // Reset status on error
+        }
+      }, 400); // Increased debounce
+    },
+    [
+      searchApplied,
+      hasSearchCriteria,
+      includePast,
+      searchFilters,
+      sortBy,
+      sortCenter,
+      setStatus,
+      displayViewportResults,
+    ]
+  );
 
   const refreshBounds = useCallback(async () => {
     const bounds = await mapRef.current?.getVisibleBounds?.();
     if (bounds) {
+      isProgrammaticMoveRef.current = false; // Ensure we can refresh
       handleBoundsChange(bounds);
     }
   }, [handleBoundsChange]);
 
+  const withProgrammaticMove = useCallback((moveFn: () => void, duration = 450) => {
+    isProgrammaticMoveRef.current = true;
+    moveFn();
+    setTimeout(() => {
+      isProgrammaticMoveRef.current = false;
+    }, duration);
+  }, []);
+
   const fitToRadius = useCallback(
     (latitude: number, longitude: number, radiusKm: number) => {
-      const latDelta = radiusKm / 111; // ~111 km par degré de latitude
-      const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1)); // éviter division par 0
+      const latDelta = radiusKm / 111;
+      const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1));
       const coords = [
         { latitude: latitude - latDelta, longitude: longitude - lonDelta },
         { latitude: latitude + latDelta, longitude: longitude + lonDelta },
       ];
       const paddingBottom = (mapPadding?.bottom ?? 0) + 40;
-
-      isProgrammaticMoveRef.current = true;
-      mapRef.current?.fitToCoordinates(coords, paddingBottom);
-      setTimeout(() => {
-        isProgrammaticMoveRef.current = false;
-        refreshBounds();
-      }, 450);
+      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, paddingBottom));
     },
-    [mapPadding, refreshBounds]
+    [mapPadding, withProgrammaticMove]
   );
+
+  const applySearch = useCallback(() => {
+    setSearchApplied(true);
+    setStatus('loading');
+    const location = searchState.where.location;
+    const selectedRadius = searchState.where.radiusKm;
+    const effectiveRadius = selectedRadius && selectedRadius > 0 ? selectedRadius : 10;
+    
+    const moveAction = () => {
+      if (location) {
+        fitToRadius(location.latitude, location.longitude, effectiveRadius);
+      } else if (searchState.where.radiusKm && userLocation) {
+        fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
+      } else {
+        refreshBounds();
+      }
+    };
+    
+    withProgrammaticMove(() => {
+      moveAction();
+      setTimeout(refreshBounds, 500); // Refresh after move is complete
+    }, 600);
+    
+  }, [fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove]);
+
+  const handleFeaturePress = useCallback(
+    async (id: string) => {
+      setStatus('loading');
+      try {
+        const evt = eventCacheRef.current.has(id)
+          ? eventCacheRef.current.get(id)!
+          : await EventsService.getEventById(id);
+
+        if (evt) {
+          if (!eventCacheRef.current.has(id)) {
+            eventCacheRef.current.set(id, evt);
+          }
+          selectSingleEvent(evt, 1);
+        } else {
+          setStatus('browsing');
+        }
+      } catch (e) {
+        console.warn('getEventById error', e);
+        setStatus('browsing');
+      }
+    },
+    [selectSingleEvent, setStatus]
+  );
+
+  const focusOnEvent = useCallback(
+    (event: EventWithCreator, snapIndex: number) => {
+      if (!event || typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
+      const paddingBottom = getPaddingFromIndex(snapIndex);
+      const targetZoom = Math.max(zoom, 14); // Zoom in closer
+      withProgrammaticMove(() => {
+        mapRef.current?.focusOnCoordinate({
+          longitude: event.longitude,
+          latitude: event.latitude,
+          zoom: targetZoom,
+          paddingBottom,
+        });
+      });
+    },
+    [getPaddingFromIndex, zoom, withProgrammaticMove]
+  );
+
+  // Effect to handle side-effects of state changes
+  useEffect(() => {
+    if (sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
+      focusOnEvent(sheetEvents[0], bottomSheetIndex);
+      resultsSheetRef.current?.open?.(bottomSheetIndex);
+    }
+  }, [sheetStatus, activeEventId, focusOnEvent]); // Re-run when activeEventId changes
+
+  // Handle deep-linked event focus
+  useEffect(() => {
+    if (focus && !focusHandledRef.current) {
+      focusHandledRef.current = true;
+      handleFeaturePress(String(focus));
+    }
+  }, [focus, handleFeaturePress]);
 
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
-    // Recentrer sur l'utilisateur avec une zone équivalente à ~15 km de circonférence (~7.5 km de diamètre) autour
     fitToRadius(userLocation.latitude, userLocation.longitude, 7.5);
   }, [fitToRadius, userLocation]);
 
@@ -184,151 +311,9 @@ export default function MapScreen() {
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
       setSearchApplied(false);
+      refreshBounds();
     }
-  }, [hasSearchCriteria, searchApplied]);
-
-  // À chaque retour sur l’onglet carte, on repart en mode peek (pas d’ouverture auto).
-  useFocusEffect(
-    useCallback(() => {
-      setBottomSheetIndex(0);
-      hideBottomBar();
-      setSheetMode('viewport');
-      setActiveEvent(undefined);
-      hasPeekedRef.current = false;
-      // On laisse les résultats existants pour que le peek affiche immédiatement le comptage.
-    }, [hideBottomBar, setActiveEvent, setBottomSheetIndex])
-  );
-
-  const handleBoundsChange = useCallback((bounds: { ne: [number, number]; sw: [number, number] }) => {
-    if (isProgrammaticMoveRef.current) return;
-    const prev = lastBoundsRef.current;
-    const same =
-      prev &&
-      Math.abs(prev.ne[0] - bounds.ne[0]) < 0.002 &&
-      Math.abs(prev.ne[1] - bounds.ne[1]) < 0.002 &&
-      Math.abs(prev.sw[0] - bounds.sw[0]) < 0.002 &&
-      Math.abs(prev.sw[1] - bounds.sw[1]) < 0.002;
-    if (same) return;
-    lastBoundsRef.current = bounds;
-
-    if (bboxTimeoutRef.current) {
-      clearTimeout(bboxTimeoutRef.current);
-    }
-
-    bboxTimeoutRef.current = setTimeout(async () => {
-      try {
-        const featureCollection = await EventsService.listEventsByBBox({
-          ne: bounds.ne,
-          sw: bounds.sw,
-          limit: 300,
-          includePast: searchActive ? true : includePast,
-        });
-        const ids =
-          featureCollection?.features
-            ?.map((f: any) => f?.properties?.id)
-            .filter(Boolean) || [];
-        const uniqueIds = Array.from(new Set(ids)) as string[];
-        const limitedIds = uniqueIds.slice(0, 120); // cap to avoid timeouts
-        const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
-        const filteredEvents = searchActive ? filterEvents(events, searchFilters, null) : events;
-        const sortedEvents = searchActive ? sortEvents(filteredEvents, sortBy, sortCenter) : filteredEvents;
-        const filteredIds = new Set(filteredEvents.map((e) => e.id));
-        const filteredFeatures = searchActive
-          ? (featureCollection?.features || []).filter((f: any) => filteredIds.has(f?.properties?.id))
-          : featureCollection?.features || [];
-        setSheetMode('viewport');
-        setActiveEvent(undefined);
-        setSheetEvents(sortedEvents);
-        setVisibleEventCount(filteredFeatures.length);
-        mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
-        if (!hasPeekedRef.current && bottomSheetIndex === 0 && sheetMode === 'viewport') {
-          resultsSheetRef.current?.open?.(0);
-          hasPeekedRef.current = true;
-        }
-      } catch (e) {
-        console.warn('bbox fetch error', e);
-      }
-    }, 300);
-  }, [bottomSheetIndex, includePast, searchActive, searchFilters, setActiveEvent, sheetMode, sortBy, sortCenter]);
-
-  useEffect(() => {
-    if (!lastBoundsRef.current) return;
-    const bounds = lastBoundsRef.current;
-    lastBoundsRef.current = null;
-    handleBoundsChange(bounds);
-  }, [handleBoundsChange, includePast, searchActive]);
-
-  const applySearch = useCallback(() => {
-    setSearchApplied(true);
-    const location = searchState.where.location;
-    const selectedRadius = searchState.where.radiusKm;
-    const effectiveRadius = selectedRadius && selectedRadius > 0 ? selectedRadius : 10;
-    if (location) {
-      fitToRadius(location.latitude, location.longitude, effectiveRadius);
-      return;
-    }
-    if (searchState.where.radiusKm && userLocation) {
-      fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
-      return;
-    }
-    refreshBounds();
-  }, [fitToRadius, refreshBounds, searchState.where.location, searchState.where.radiusKm, userLocation]);
-
-  const openEventInSheet = useCallback(
-    (event: EventWithCreator, snapIndex = 1) => {
-      if (!event) return;
-      setSheetEvents([event]);
-      setSheetMode('single');
-      setActiveEvent(event.id);
-      requestAnimationFrame(() => {
-        setBottomSheetIndex(snapIndex);
-        resultsSheetRef.current?.open?.(snapIndex);
-        showBottomBar();
-        updateMapPadding(snapIndex === 2 ? 'high' : 'medium');
-        focusOnEvent(event, snapIndex);
-      });
-    },
-    [focusOnEvent, setActiveEvent, setBottomSheetIndex, showBottomBar, updateMapPadding]
-  );
-
-  const handleFeaturePress = useCallback(
-    async (id: string) => {
-      try {
-        if (eventCacheRef.current.has(id)) {
-          openEventInSheet(eventCacheRef.current.get(id)!, 1);
-          return;
-        }
-        const evt = await EventsService.getEventById(id);
-        if (evt) {
-          eventCacheRef.current.set(id, evt);
-          openEventInSheet(evt, 1);
-        }
-      } catch (e) {
-        console.warn('getEventById error', e);
-      }
-    },
-    [openEventInSheet]
-  );
-
-  useEffect(() => {
-    // reset when focus param changes
-    focusHandledRef.current = false;
-  }, [focus]);
-
-  useEffect(() => {
-    if (!focus) return;
-    (async () => {
-      try {
-        const evt = await EventsService.getEventById(String(focus));
-        if (evt && !focusHandledRef.current) {
-          openEventInSheet(evt, 1);
-          focusHandledRef.current = true;
-        }
-      } catch (e) {
-        console.warn('focus fetch error', e);
-      }
-    })();
-  }, [focus, openEventInSheet]);
+  }, [hasSearchCriteria, searchApplied, refreshBounds]);
 
   useEffect(() => {
     tabTranslate.value = withTiming(bottomBarVisible ? 0 : 80, { duration: 220 });
@@ -339,28 +324,8 @@ export default function MapScreen() {
   }));
 
   const mapStyle = useMemo(() => {
-    switch (mapMode) {
-      case 'satellite':
-        return Mapbox.StyleURL.SatelliteStreet;
-      default:
-        return Mapbox.StyleURL.Street;
-    }
+    return mapMode === 'satellite' ? Mapbox.StyleURL.SatelliteStreet : Mapbox.StyleURL.Street;
   }, [mapMode]);
-
-  const focusOnEvent = useCallback(
-    (event: EventWithCreator, snapIndex: number) => {
-      if (!event || typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
-      const paddingBottom = getPaddingFromIndex(snapIndex);
-      const targetZoom = Math.max(2, zoom - 0.5);
-      mapRef.current?.focusOnCoordinate({
-        longitude: event.longitude,
-        latitude: event.latitude,
-        zoom: targetZoom,
-        paddingBottom,
-      });
-    },
-    [getPaddingFromIndex, zoom]
-  );
 
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
 
@@ -384,28 +349,11 @@ export default function MapScreen() {
         { longitude: bounds.sw[0], latitude: bounds.sw[1] },
         { longitude: bounds.ne[0], latitude: bounds.ne[1] },
       ];
-      isProgrammaticMoveRef.current = true;
-      mapRef.current?.fitToCoordinates(coords, paddingBottom);
-      setTimeout(() => {
-        isProgrammaticMoveRef.current = false;
-      }, 300);
+      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, paddingBottom));
     },
-    [getPaddingFromIndex]
+    [getPaddingFromIndex, withProgrammaticMove]
   );
-
-  if (Platform.OS === 'web' && (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('placeholder'))) {
-    return (
-      <GestureHandlerRootView style={styles.container}>
-        <View style={styles.fallback}>
-          <MapPin size={48} color={colors.neutral[400]} />
-          <Text style={styles.fallbackText}>
-            Token Mapbox manquant. Configurez EXPO_PUBLIC_MAPBOX_TOKEN dans .env
-          </Text>
-        </View>
-      </GestureHandlerRootView>
-    );
-  }
-
+  
   if (locationLoading && !userLocation) {
     return (
       <GestureHandlerRootView style={styles.loadingContainer}>
@@ -425,37 +373,24 @@ export default function MapScreen() {
         onZoomChange={setZoom}
         styleURL={mapStyle}
         mapPadding={mapPadding}
-        onVisibleBoundsChange={(bounds) => {
-          handleBoundsChange(bounds);
-        }}
+        onVisibleBoundsChange={handleBoundsChange}
       />
 
       <View style={[styles.topOverlay, { top: insets.top + spacing.xs }]}>
-        <View style={styles.searchRow}>
-          <GlobalSearchBar onPress={() => setSearchVisible(true)} summary={searchSummary} />
-          <TriageControl
-            value={sortBy}
-            onChange={(value) => searchState.setSortBy(value)}
-            hasLocation={!!userLocation}
-            showLabel={false}
-          />
-        </View>
+        <SearchBar
+          onApply={applySearch}
+          hasLocation={!!userLocation}
+          applied={searchApplied}
+          onExpandedChange={setSearchExpanded}
+        />
         <View style={styles.layerSwitcher}>
           {(['standard', 'satellite'] as const).map((mode) => (
             <TouchableOpacity
               key={mode}
-              style={[
-                styles.layerButton,
-                mapMode === mode && styles.layerButtonActive,
-              ]}
+              style={[styles.layerButton, mapMode === mode && styles.layerButtonActive]}
               onPress={() => setMapMode(mode)}
             >
-              <Text
-                style={[
-                  styles.layerButtonText,
-                  mapMode === mode && styles.layerButtonTextActive,
-                ]}
-              >
+              <Text style={[styles.layerButtonText, mapMode === mode && styles.layerButtonTextActive]}>
                 {mode === 'standard' ? 'Standard' : 'Satellite'}
               </Text>
             </TouchableOpacity>
@@ -463,25 +398,7 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {Platform.OS === 'web' && (
-        <View style={styles.zoomControl}>
-          <TouchableOpacity
-            style={styles.zoomButton}
-            onPress={() => setZoom(Math.min(18, zoom + 1))}
-          >
-            <Text style={styles.zoomButtonText}>+</Text>
-          </TouchableOpacity>
-          <Text style={styles.zoomLevel}>{Math.round(zoom)}</Text>
-          <TouchableOpacity
-            style={styles.zoomButton}
-            onPress={() => setZoom(Math.max(2, zoom - 1))}
-          >
-            <Text style={styles.zoomButtonText}>−</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {userLocation && (
+      {userLocation && !searchExpanded && (
         <TouchableOpacity
           style={[styles.recenterTopButton, { bottom: insets.bottom + 96 }]}
           onPress={recenterToUser}
@@ -490,22 +407,11 @@ export default function MapScreen() {
         </TouchableOpacity>
       )}
 
-      <SearchOverlayModal
-        visible={searchVisible}
-        onClose={() => setSearchVisible(false)}
-        onApply={() => {
-          applySearch();
-          setSearchVisible(false);
-        }}
-      />
-
       <SearchResultsBottomSheet
         ref={resultsSheetRef}
         events={sheetEvents}
         activeEventId={activeEventId}
-        onSelectEvent={(event) => {
-          setActiveEvent(event.id);
-        }}
+        onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
         onNavigate={(event) => setNavEvent(event)}
         onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
         onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
@@ -513,25 +419,28 @@ export default function MapScreen() {
         isFavorite={(id) => favoritesSet.has(id)}
         onIndexChange={(idx) => {
           setBottomSheetIndex(idx);
+          const paddingLevel = idx === 2 ? 'high' : idx === 1 ? 'medium' : 'low';
+          updateMapPadding(paddingLevel);
+          
           if (idx <= 0) {
             hideBottomBar();
-            setSheetMode('viewport');
-            setActiveEvent(undefined);
-            setSheetEvents((events) => events);
+            closeSheet();
           } else {
             showBottomBar();
           }
-          const paddingLevel = idx === 2 ? 'high' : idx === 1 ? 'medium' : 'low';
-          updateMapPadding(paddingLevel);
-          // Si l'utilisateur ouvre manuellement la sheet en mode viewport, recadrer sur la zone visible,
-          // mais ne pas bouger la carte lorsque la sheet est au maximum (idx 2).
-          if (idx === 1 && sheetMode === 'viewport') {
-            focusOnBounds(lastBoundsRef.current, idx);
+
+          if (idx === 1 && sheetStatus === 'viewportResults') {
+            const bounds = mapRef.current?.getVisibleBounds ? mapRef.current.getVisibleBounds() : null;
+            if (bounds) focusOnBounds(bounds, idx);
+          }
+           if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
+            focusOnEvent(sheetEvents[0], idx);
           }
         }}
-        mode={sheetMode}
-        peekCount={sheetMode === 'single' ? 0 : visibleEventCount}
+        mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
+        peekCount={sheetStatus === 'singleEvent' ? 0 : visibleEventCount}
         index={bottomSheetIndex}
+        isLoading={sheetStatus === 'loading'}
       />
 
       <NavigationOptionsSheet
@@ -585,52 +494,21 @@ const styles = StyleSheet.create({
     zIndex: 10,
     gap: spacing.sm,
   },
-  searchRow: {
-    flexDirection: 'row',
+  recenterTopButton: {
+    position: 'absolute',
+    right: spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[600],
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  bottomOverlay: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 10,
-  },
-  zoomControl: {
-    position: 'absolute',
-    bottom: spacing.md,
-    right: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderRadius: borderRadius.lg,
-    padding: spacing.xs,
     shadowColor: colors.neutral[900],
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    zIndex: 10,
-  },
-  zoomButton: {
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[50],
-    borderRadius: borderRadius.md,
-    marginVertical: spacing.xs,
-  },
-  zoomButtonText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.neutral[700],
-  },
-  zoomLevel: {
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.neutral[600],
-    paddingVertical: spacing.xs,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 12,
   },
   tabSpacer: {
     height: spacing.lg,
@@ -661,21 +539,5 @@ const styles = StyleSheet.create({
   },
   layerButtonTextActive: {
     color: colors.primary[700],
-  },
-  recenterTopButton: {
-    position: 'absolute',
-    right: spacing.md,
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
-    zIndex: 12,
   },
 });

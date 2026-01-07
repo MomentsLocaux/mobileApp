@@ -22,14 +22,9 @@ import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
-import { GlobalSearchBar } from '@/components/search/GlobalSearchBar';
-import { SearchOverlayModal } from '@/components/search/SearchOverlayModal';
+import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
-import { useTaxonomy } from '@/hooks/useTaxonomy';
-import { useTaxonomyStore } from '@/store/taxonomyStore';
-import { TriageControl } from '@/components/search/TriageControl';
-import { buildSearchSummary } from '@/utils/search-summary';
 
 type StoryItem = {
   creatorId: string;
@@ -48,15 +43,10 @@ export default function HomeScreen() {
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
   const [refreshing, setRefreshing] = useState(false);
   const [stories, setStories] = useState<StoryItem[]>([]);
-  const [searchVisible, setSearchVisible] = useState(false);
   const [searchApplied, setSearchApplied] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const insets = useSafeAreaInsets();
-  useTaxonomy();
-  const categories = useTaxonomyStore((s) => s.categories);
-  const subcategories = useTaxonomyStore((s) => s.subcategories);
-  const tags = useTaxonomyStore((s) => s.tags);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -95,10 +85,6 @@ export default function HomeScreen() {
     const base = searchApplied ? searchResults : fetchedEvents || [];
     return sortEvents(base, searchApplied ? sortBy : 'date', userLocation);
   }, [fetchedEvents, searchApplied, searchResults, sortBy, userLocation]);
-  const searchSummary = useMemo(() => {
-    if (!searchApplied) return undefined;
-    return buildSearchSummary(searchState, categories, subcategories, tags);
-  }, [categories, searchApplied, searchState, subcategories, tags]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -261,15 +247,11 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.topOverlay, { marginTop: insets.top + spacing.xs }]}>
-        <View style={styles.searchRow}>
-          <GlobalSearchBar onPress={() => setSearchVisible(true)} summary={searchSummary} />
-          <TriageControl
-            value={sortBy}
-            onChange={(value) => searchState.setSortBy(value)}
-            hasLocation={!!userLocation}
-            showLabel={false}
-          />
-        </View>
+        <SearchBar
+          onApply={() => setSearchApplied(true)}
+          hasLocation={!!userLocation}
+          applied={searchApplied}
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Pour vous</Text>
@@ -337,14 +319,6 @@ export default function HomeScreen() {
         }
       />
 
-      <SearchOverlayModal
-        visible={searchVisible}
-        onClose={() => setSearchVisible(false)}
-        onApply={() => {
-          setSearchApplied(true);
-          setSearchVisible(false);
-        }}
-      />
     </View>
   );
 }
@@ -456,12 +430,6 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     maxWidth: 400,
     zIndex: 10,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
   },
   listContent: {
     paddingBottom: spacing.xl,

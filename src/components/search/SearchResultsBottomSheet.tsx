@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -23,6 +23,7 @@ interface Props {
   mode: 'single' | 'cluster' | 'viewport' | 'idle';
   peekCount: number;
   index?: number;
+  isLoading?: boolean;
 }
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
@@ -40,6 +41,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       mode,
       peekCount,
       index = 0,
+      isLoading = false,
     },
     ref
   ) => {
@@ -47,7 +49,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const snapPoints = useMemo(() => ['16%', '50%', '90%'], []);
     const hasEvents = events.length > 0;
     const showList = mode === 'single' || (index > 0 && mode !== 'idle');
-    const showEmpty = index > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents;
+    const showEmpty = index > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents && !isLoading;
 
     useImperativeHandle(ref, () => ({
       open: (index = 1) => {
@@ -67,7 +69,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
       return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
-    }, [activeEventId, events, hasEvents, mode, peekCount]);
+    }, [activeEventId, events, hasEvents, mode, peekCount, index]);
 
     return (
       <BottomSheet
@@ -80,15 +82,24 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         onChange={(idx) => onIndexChange?.(idx)}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{headerTitle}</Text>
-          {events.length > 0 && (
-            <Text style={styles.headerSubtitle}>
-              {events.length} résultat{events.length > 1 ? 's' : ''}
-            </Text>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={colors.primary[600]} />
+              <Text style={styles.loadingText}>Chargement...</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.headerTitle}>{headerTitle}</Text>
+              {events.length > 0 && (
+                <Text style={styles.headerSubtitle}>
+                  {events.length} résultat{events.length > 1 ? 's' : ''}
+                </Text>
+              )}
+            </>
           )}
         </View>
 
-        {showList && mode === 'single' && hasEvents && (
+        {showList && mode === 'single' && hasEvents && !isLoading && (
           <View style={styles.singleContainer}>
             <EventResultCard
               event={events[0]}
@@ -103,7 +114,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {!showList && mode !== 'idle' && (
+        {!showList && mode !== 'idle' && !isLoading && (
           <TouchableOpacity
             style={styles.peekContainer}
             activeOpacity={0.8}
@@ -123,7 +134,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {showList && mode !== 'single' && hasEvents && (
+        {showList && mode !== 'single' && hasEvents && !isLoading && (
           <BottomSheetFlatList
             data={events}
             keyExtractor={(item) => item.id}
@@ -157,6 +168,8 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    minHeight: 60, // Ensure header height is consistent
+    justifyContent: 'center',
   },
   headerTitle: {
     ...typography.h4,
@@ -167,6 +180,16 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
     marginTop: spacing.xs,
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.neutral[600],
+  },
+
   listContent: {
     paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xl,
