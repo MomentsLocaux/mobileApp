@@ -1,5 +1,5 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
-import { Map, Home, Users, User, PlusCircle, Send, Compass, UserCircle2, Target, Heart, ShoppingBag } from 'lucide-react-native';
+import { Map, Home, Users, User, PlusCircle, Send, Compass, UserCircle2, Target, Heart, ShoppingBag, Bug } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
@@ -256,6 +256,14 @@ export default function TabsLayout() {
           onPress={() => {
             toggleDrawer(false);
             router.push('/(tabs)/favorites' as any);
+          }}
+        />
+        <DrawerLink
+          icon={Bug}
+          label="Reporter un bug"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/bug-report' as any);
           }}
         />
         {(profile?.role === 'moderateur' || profile?.role === 'admin') && (

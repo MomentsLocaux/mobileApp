@@ -58,6 +58,8 @@ export const EventImageCarousel: React.FC<Props> = ({
         scrollEnabled={validImages.length > 1}
         nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
+        onStartShouldSetResponderCapture={() => true}
+        onMoveShouldSetResponderCapture={() => true}
         onLayout={handleLayout}
         onScrollBeginDrag={onSwipeStart}
         onScrollEndDrag={onSwipeEnd}

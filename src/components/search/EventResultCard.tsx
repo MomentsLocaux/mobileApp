@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
 import { MapPin, Calendar, Tag, Navigation2, Heart } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -60,14 +60,15 @@ export const EventResultCard: React.FC<Props> = ({
   }, [event.cover_url, event.media]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
+    <Pressable
       style={[styles.card, active && styles.cardActive]}
       onPress={() => {
         if (isSwiping) return;
         onSelect?.();
         onPress();
       }}
+      onStartShouldSetResponder={() => false}
+      onMoveShouldSetResponder={() => false}
     >
       <View style={styles.imageWrapper}>
         <EventImageCarousel
@@ -145,7 +146,7 @@ export const EventResultCard: React.FC<Props> = ({
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

@@ -57,7 +57,9 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
     setWho,
     setWhat,
     setSortBy,
+    setSortOrder,
     sortBy,
+    sortOrder,
     addHistory,
   } = useSearchStore();
 
@@ -515,7 +517,18 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                 <Chip
                   label="Date"
                   active={sortBy === 'date'}
-                  onPress={() => setSortBy('date')}
+                  onPress={() => {
+                    setSortBy('date');
+                    if (!sortOrder) setSortOrder('asc');
+                  }}
+                />
+                <Chip
+                  label="Création"
+                  active={sortBy === 'created'}
+                  onPress={() => {
+                    setSortBy('created');
+                    if (!sortOrder) setSortOrder('desc');
+                  }}
                 />
                 <Chip
                   label="Distance"
@@ -528,6 +541,23 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                   onPress={() => setSortBy('popularity')}
                 />
               </View>
+              {(sortBy === 'date' || sortBy === 'created') && (
+                <>
+                  <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Ordre</Text>
+                  <View style={styles.rowWrap}>
+                    <Chip
+                      label="Ascendant"
+                      active={sortOrder === 'asc'}
+                      onPress={() => setSortOrder('asc')}
+                    />
+                    <Chip
+                      label="Descendant"
+                      active={sortOrder === 'desc'}
+                      onPress={() => setSortOrder('desc')}
+                    />
+                  </View>
+                </>
+              )}
             </SectionCard>
           </ScrollView>
 

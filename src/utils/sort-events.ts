@@ -1,5 +1,5 @@
 import type { EventWithCreator } from '../types/database';
-import type { SortOption } from '../types/filters';
+import type { SortOption, SortOrder } from '../types/filters';
 
 function calculateDistance(
   lat1: number,
@@ -23,9 +23,11 @@ function calculateDistance(
 export function sortEvents(
   events: EventWithCreator[],
   sortBy: SortOption,
-  userLocation?: { latitude: number; longitude: number } | null
+  userLocation?: { latitude: number; longitude: number } | null,
+  sortOrder?: SortOrder
 ): EventWithCreator[] {
   const sorted = [...events];
+  const order = sortOrder ?? (sortBy === 'created' ? 'desc' : 'asc');
 
   const extractCoords = (event: EventWithCreator) => {
     if (Array.isArray((event as any)?.location?.coordinates)) {
@@ -133,7 +135,14 @@ export function sortEvents(
       sorted.sort((a, b) => {
         const dateA = new Date(a.starts_at).getTime();
         const dateB = new Date(b.starts_at).getTime();
-        return dateA - dateB;
+        return order === 'asc' ? dateA - dateB : dateB - dateA;
+      });
+      break;
+    case 'created':
+      sorted.sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return order === 'asc' ? dateA - dateB : dateB - dateA;
       });
       break;
   }

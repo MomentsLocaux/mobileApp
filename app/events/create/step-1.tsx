@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
@@ -20,6 +20,7 @@ import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 
 export default function CreateEventStep1() {
   const router = useRouter();
@@ -51,6 +52,8 @@ export default function CreateEventStep1() {
   const [prefilling, setPrefilling] = useState(false);
   const resetOnCreateRef = React.useRef(false);
   const isGuest = !session;
+  const insets = useSafeAreaInsets();
+  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
 
   const extractStoragePath = (url: string | null | undefined) => {
     if (!url) return '';
@@ -135,7 +138,11 @@ export default function CreateEventStep1() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
+      >
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
             <ChevronLeft size={20} color={colors.neutral[800]} />
@@ -153,10 +160,20 @@ export default function CreateEventStep1() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <CoverImageUploader />
           <AdditionalImagesUploader />
-          <CreateEventForm onOpenLocation={() => setLocationModalVisible(true)} onValidate={setFormValid} />
+          <CreateEventForm
+            onOpenLocation={() => setLocationModalVisible(true)}
+            onValidate={setFormValid}
+            onInputFocus={handleInputFocus}
+            onInputLayout={registerField}
+          />
           {prefilling && <Text style={styles.loadingText}>Pré-remplissage en cours…</Text>}
         </ScrollView>
       </KeyboardAvoidingView>

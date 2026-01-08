@@ -1,10 +1,23 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { X } from 'lucide-react-native';
 import { Button, Card } from '@/components/ui';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { BugsService } from '@/services/bugs.service';
 import { useAuth } from '@/hooks';
+import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 
 const CATEGORIES = ['bug', 'ux', 'suggestion'] as const;
 const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
@@ -14,6 +27,8 @@ export default function BugReportScreen() {
   const params = useLocalSearchParams<{ page?: string }>();
   const pathname = usePathname();
   const { profile, session } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
 
   const defaultPage = useMemo(
     () => (typeof params.page === 'string' && params.page ? params.page : pathname || ''),
@@ -90,11 +105,25 @@ export default function BugReportScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Reporter un bug</Text>
-      <Text style={styles.subtitle}>
-        Merci de décrire le problème rencontré. Les champs marqués sont obligatoires.
-      </Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top}
+    >
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)/map')}>
+            <X size={20} color={colors.neutral[700]} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.title}>Reporter un bug</Text>
+        <Text style={styles.subtitle}>
+          Merci de décrire le problème rencontré. Les champs marqués sont obligatoires.
+        </Text>
 
       <Card style={styles.card}>
         <View style={styles.field}>
@@ -115,6 +144,8 @@ export default function BugReportScreen() {
             value={page}
             onChangeText={setPage}
             autoCapitalize="none"
+            onLayout={registerField('page')}
+            onFocus={() => handleInputFocus('page')}
           />
         </View>
 
@@ -128,6 +159,8 @@ export default function BugReportScreen() {
             multiline
             numberOfLines={5}
             textAlignVertical="top"
+            onLayout={registerField('description')}
+            onFocus={() => handleInputFocus('description')}
           />
         </View>
 
@@ -141,7 +174,8 @@ export default function BugReportScreen() {
           disabled={submitting}
         />
       </Card>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -153,6 +187,21 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.md,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[0],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
   },
   title: {
     ...typography.h2,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 
@@ -8,10 +9,20 @@ type Props = {
   duration?: string;
   contact?: string;
   externalLink?: string;
+  onInputFocus?: (key: string) => void;
+  onInputLayout?: (key: string) => (event: LayoutChangeEvent) => void;
   onChange: (data: { price?: string; duration?: string; contact?: string; externalLink?: string }) => void;
 };
 
-export const OptionalInfoSection = ({ price, duration, contact, externalLink, onChange }: Props) => {
+export const OptionalInfoSection = ({
+  price,
+  duration,
+  contact,
+  externalLink,
+  onInputFocus,
+  onInputLayout,
+  onChange,
+}: Props) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -28,6 +39,8 @@ export const OptionalInfoSection = ({ price, duration, contact, externalLink, on
             placeholder="Gratuit, 5€..."
             value={price}
             onChangeText={(text) => onChange({ price: text })}
+            onLayout={onInputLayout?.('price')}
+            onFocus={() => onInputFocus?.('price')}
           />
 
           <Text style={styles.label}>Durée estimée</Text>
@@ -36,6 +49,8 @@ export const OptionalInfoSection = ({ price, duration, contact, externalLink, on
             placeholder="Ex: 2h"
             value={duration}
             onChangeText={(text) => onChange({ duration: text })}
+            onLayout={onInputLayout?.('duration')}
+            onFocus={() => onInputFocus?.('duration')}
           />
 
           <Text style={styles.label}>Contact</Text>
@@ -45,6 +60,8 @@ export const OptionalInfoSection = ({ price, duration, contact, externalLink, on
             value={contact}
             onChangeText={(text) => onChange({ contact: text })}
             autoCapitalize="none"
+            onLayout={onInputLayout?.('contact')}
+            onFocus={() => onInputFocus?.('contact')}
           />
 
           <Text style={styles.label}>Lien externe</Text>
@@ -54,6 +71,8 @@ export const OptionalInfoSection = ({ price, duration, contact, externalLink, on
             value={externalLink}
             onChangeText={(text) => onChange({ externalLink: text })}
             autoCapitalize="none"
+            onLayout={onInputLayout?.('externalLink')}
+            onFocus={() => onInputFocus?.('externalLink')}
           />
         </View>
       )}

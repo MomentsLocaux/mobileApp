@@ -5,8 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
@@ -18,6 +20,7 @@ import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 
 export default function CreateEventStep2() {
   const router = useRouter();
@@ -47,6 +50,8 @@ export default function CreateEventStep2() {
   const setDuration = useCreateEventStore((s) => s.setDuration);
   const setContact = useCreateEventStore((s) => s.setContact);
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
+  const insets = useSafeAreaInsets();
+  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
 
   const dateLabel = useMemo(() => {
     if (!startDate) return '';
@@ -84,59 +89,72 @@ export default function CreateEventStep2() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Détails de l'événement</Text>
-        <View style={styles.headerBtn} />
-      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+            <ChevronLeft size={20} color={colors.neutral[800]} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Détails de l'événement</Text>
+          <View style={styles.headerBtn} />
+        </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <CategorySelector
-          selected={category}
-          subcategory={subcategory}
-          onSelect={setCategory}
-          onSelectSubcategory={setSubcategory}
-        />
-        <TagsSelector selected={tags} onChange={setTags} />
-        <VisibilitySelector value={visibility} onChange={setVisibility} />
-        <OptionalInfoSection
-          price={price}
-          duration={duration}
-          contact={contact}
-          externalLink={externalLink}
-          onChange={(data) => {
-            if (data.price !== undefined) setPrice(data.price);
-            if (data.duration !== undefined) setDuration(data.duration);
-            if (data.contact !== undefined) setContact(data.contact);
-            if (data.externalLink !== undefined) setExternalLink(data.externalLink);
-          }}
-        />
-        <EventPreviewMiniMap
-          coverUrl={coverImage?.publicUrl}
-          title={title}
-          dateLabel={dateLabel}
-          category={category}
-          city={location?.city}
-          location={location}
-        />
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.publishBtn, !canPublish && styles.publishDisabled]}
-          disabled={!canPublish}
-          onPress={() =>
-            router.push({
-              pathname: '/events/create/preview',
-              params: edit ? { edit } : {},
-            } as any)
-          }
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.publishText}>Publier l'événement</Text>
-        </TouchableOpacity>
-      </View>
+          <CategorySelector
+            selected={category}
+            subcategory={subcategory}
+            onSelect={setCategory}
+            onSelectSubcategory={setSubcategory}
+          />
+          <TagsSelector selected={tags} onChange={setTags} />
+          <VisibilitySelector value={visibility} onChange={setVisibility} />
+          <OptionalInfoSection
+            price={price}
+            duration={duration}
+            contact={contact}
+            externalLink={externalLink}
+            onInputFocus={handleInputFocus}
+            onInputLayout={registerField}
+            onChange={(data) => {
+              if (data.price !== undefined) setPrice(data.price);
+              if (data.duration !== undefined) setDuration(data.duration);
+              if (data.contact !== undefined) setContact(data.contact);
+              if (data.externalLink !== undefined) setExternalLink(data.externalLink);
+            }}
+          />
+          <EventPreviewMiniMap
+            coverUrl={coverImage?.publicUrl}
+            title={title}
+            dateLabel={dateLabel}
+            category={category}
+            city={location?.city}
+            location={location}
+          />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.publishBtn, !canPublish && styles.publishDisabled]}
+            disabled={!canPublish}
+            onPress={() =>
+              router.push({
+                pathname: '/events/create/preview',
+                params: edit ? { edit } : {},
+              } as any)
+            }
+          >
+            <Text style={styles.publishText}>Publier l'événement</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

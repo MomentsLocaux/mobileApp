@@ -46,10 +46,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     ref
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
-    const snapPoints = useMemo(() => ['16%', '47%', '87%'], []);
+    const snapPoints = useMemo(
+      () => (mode === 'single' ? ['16%', '47%'] : ['16%', '47%', '87%']),
+      [mode]
+    );
     const hasEvents = events.length > 0;
-    const showList = mode === 'single' || (index > 0 && mode !== 'idle');
-    const showEmpty = index > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents && !isLoading;
+    const effectiveIndex = mode === 'single' ? Math.min(index, 1) : index;
+    const showList = mode === 'single' || (effectiveIndex > 0 && mode !== 'idle');
+    const showEmpty = effectiveIndex > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents && !isLoading;
 
     useImperativeHandle(ref, () => ({
       open: (index = 1) => {
@@ -62,21 +66,22 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       if (mode === 'single' && hasEvents) {
         return events[0].title;
       }
-      if (index === 0 || mode === 'idle') {
+      if (effectiveIndex === 0 || mode === 'idle') {
         return `${peekCount} moment${peekCount > 1 ? 's' : ''} dans cette zone`;
       }
       if (!events.length) return 'Aucun résultat';
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
       return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
-    }, [activeEventId, events, hasEvents, mode, peekCount, index]);
+    }, [activeEventId, events, hasEvents, mode, peekCount, effectiveIndex]);
 
     return (
       <BottomSheet
         ref={sheetRef}
-        index={index}
+        index={effectiveIndex}
         snapPoints={snapPoints}
         enablePanDownToClose={false}
+        enableOverDrag={mode !== 'single'}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
         onChange={(idx) => onIndexChange?.(idx)}

@@ -3,18 +3,21 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Image,
   TouchableOpacity,
   Alert,
   Platform,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Upload, User as UserIcon, ChevronLeft } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../hooks';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
 import { ProfileService } from '../../services/profile.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/roleHelpers';
@@ -29,6 +32,8 @@ export default function ProfileEditScreen() {
   const [coverUri, setCoverUri] = useState(profile?.cover_url || '');
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
 
   const handleSave = async () => {
     if (!user || !profile) return;
@@ -179,7 +184,17 @@ export default function ProfileEditScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top}
+    >
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={{ paddingBottom: spacing.xl + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.navRow}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ChevronLeft size={20} color={colors.neutral[700]} />
@@ -237,6 +252,8 @@ export default function ProfileEditScreen() {
           placeholder="Votre nom"
           value={displayName}
           onChangeText={setDisplayName}
+          onLayout={registerField('displayName')}
+          onFocus={() => handleInputFocus('displayName')}
         />
 
         <Input
@@ -246,6 +263,8 @@ export default function ProfileEditScreen() {
           onChangeText={setBio}
           multiline
           numberOfLines={4}
+          onLayout={registerField('bio')}
+          onFocus={() => handleInputFocus('bio')}
         />
 
         <View style={styles.infoBox}>
@@ -266,7 +285,8 @@ export default function ProfileEditScreen() {
           style={styles.saveButton}
         />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

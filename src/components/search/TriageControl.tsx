@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SlidersHorizontal } from 'lucide-react-native';
-import type { SortOption } from '@/types/filters';
+import type { SortOption, SortOrder } from '@/types/filters';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 
 const LABELS: Record<SortOption, string> = {
   triage: 'Pertinence',
   date: 'Date',
+  created: 'Création',
   distance: 'Distance',
   popularity: 'Popularité',
 };
@@ -14,16 +15,27 @@ const LABELS: Record<SortOption, string> = {
 interface Props {
   value: SortOption;
   onChange: (value: SortOption) => void;
+  sortOrder?: SortOrder;
+  onSortOrderChange?: (order: SortOrder) => void;
   hasLocation: boolean;
   showLabel?: boolean;
 }
 
-export const TriageControl: React.FC<Props> = ({ value, onChange, hasLocation, showLabel = true }) => {
+export const TriageControl: React.FC<Props> = ({
+  value,
+  onChange,
+  sortOrder,
+  onSortOrderChange,
+  hasLocation,
+  showLabel = true,
+}) => {
   const [open, setOpen] = useState(false);
   const options = useMemo<SortOption[]>(
-    () => ['triage', 'date', 'distance', 'popularity'],
+    () => ['triage', 'date', 'created', 'distance', 'popularity'],
     []
   );
+  const showOrder = value === 'date' || value === 'created';
+  const orderLabel = sortOrder === 'desc' ? 'Descendant' : 'Ascendant';
 
   return (
     <>
@@ -32,7 +44,12 @@ export const TriageControl: React.FC<Props> = ({ value, onChange, hasLocation, s
         onPress={() => setOpen(true)}
       >
         <SlidersHorizontal size={16} color={colors.neutral[700]} />
-        {showLabel ? <Text style={styles.pillText}>{LABELS[value]}</Text> : null}
+        {showLabel ? (
+          <Text style={styles.pillText}>
+            {LABELS[value]}
+            {showOrder && sortOrder ? ` · ${orderLabel}` : ''}
+          </Text>
+        ) : null}
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -48,6 +65,9 @@ export const TriageControl: React.FC<Props> = ({ value, onChange, hasLocation, s
                 onPress={() => {
                   if (disabled) return;
                   onChange(option);
+                  if ((option === 'date' || option === 'created') && !sortOrder) {
+                    onSortOrderChange?.(option === 'created' ? 'desc' : 'asc');
+                  }
                   setOpen(false);
                 }}
               >
@@ -63,6 +83,21 @@ export const TriageControl: React.FC<Props> = ({ value, onChange, hasLocation, s
               </TouchableOpacity>
             );
           })}
+          {showOrder && onSortOrderChange ? (
+            <View style={styles.orderRow}>
+              {(['asc', 'desc'] as const).map((order) => (
+                <TouchableOpacity
+                  key={order}
+                  style={[styles.orderChip, sortOrder === order && styles.orderChipActive]}
+                  onPress={() => onSortOrderChange(order)}
+                >
+                  <Text style={[styles.orderText, sortOrder === order && styles.orderTextActive]}>
+                    {order === 'asc' ? 'Ascendant' : 'Descendant'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
         </View>
       </Modal>
     </>
@@ -123,5 +158,29 @@ const styles = StyleSheet.create({
   },
   optionTextDisabled: {
     color: colors.neutral[500],
+  },
+  orderRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  orderChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  orderChipActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[300],
+  },
+  orderText: {
+    ...typography.caption,
+    color: colors.neutral[700],
+    fontWeight: '600',
+  },
+  orderTextActive: {
+    color: colors.primary[700],
   },
 });

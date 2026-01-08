@@ -82,7 +82,9 @@ export const SearchBar: React.FC<Props> = ({
     setWho,
     setWhat,
     setSortBy,
+    setSortOrder,
     sortBy,
+    sortOrder,
     addHistory,
   } = useSearchStore();
 
@@ -385,6 +387,8 @@ export const SearchBar: React.FC<Props> = ({
         <TriageControl
           value={sortBy || 'triage'}
           onChange={(value) => setSortBy(value)}
+          sortOrder={sortOrder}
+          onSortOrderChange={(order) => setSortOrder(order)}
           hasLocation={hasLocation}
           showLabel={false}
         />

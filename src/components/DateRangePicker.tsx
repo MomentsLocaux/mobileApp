@@ -1,13 +1,6 @@
 import React, { useMemo } from 'react';
-import {
-  Modal,
-  SafeAreaView,
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
+import { Modal, View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDateRangeSelection } from '@/hooks/useDateRangeSelection';
 import type { DateRangeMode, DateRangeValue, DateRangeContext } from '@/types/eventDate.model';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';

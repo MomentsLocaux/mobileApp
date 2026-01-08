@@ -9,6 +9,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -16,9 +17,11 @@ import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 type Props = {
   onOpenLocation: () => void;
   onValidate: (valid: boolean) => void;
+  onInputFocus?: (key: string) => void;
+  onInputLayout?: (key: string) => (event: LayoutChangeEvent) => void;
 };
 
-export const CreateEventForm = ({ onOpenLocation, onValidate }: Props) => {
+export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onInputLayout }: Props) => {
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
   const endDate = useCreateEventStore((s) => s.endDate);
@@ -152,6 +155,8 @@ export const CreateEventForm = ({ onOpenLocation, onValidate }: Props) => {
         value={title}
         maxLength={80}
         onChangeText={setTitle}
+        onLayout={onInputLayout?.('title')}
+        onFocus={() => onInputFocus?.('title')}
       />
 
       <View style={styles.inlineRow}>
@@ -189,15 +194,17 @@ export const CreateEventForm = ({ onOpenLocation, onValidate }: Props) => {
 
       <View style={styles.section}>
         <Text style={styles.label}>Ajouter plus d'informations (facultatif)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Description"
-          value={description}
-          onChangeText={(text) => {
-            if (text.length <= 1000) setDescription(text);
-          }}
-          multiline
-        />
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        placeholder="Description"
+        value={description}
+        onChangeText={(text) => {
+          if (text.length <= 1000) setDescription(text);
+        }}
+        multiline
+        onLayout={onInputLayout?.('description')}
+        onFocus={() => onInputFocus?.('description')}
+      />
         <Text style={styles.counter}>{(description || '').length}/1000</Text>
       </View>
 

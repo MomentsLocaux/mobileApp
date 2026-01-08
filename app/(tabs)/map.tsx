@@ -118,6 +118,7 @@ export default function MapScreen() {
   const searchActive = searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
+  const sortOrder = searchState.sortOrder;
   const sortCenter = searchState.where.location
     ? { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude }
     : userLocation;
@@ -157,7 +158,9 @@ export default function MapScreen() {
           const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
 
           const filteredEvents = effectiveSearchActive ? filterEvents(events, searchFilters, null) : events;
-          const sortedEvents = effectiveSearchActive ? sortEvents(filteredEvents, sortBy, sortCenter) : filteredEvents;
+          const sortedEvents = effectiveSearchActive
+            ? sortEvents(filteredEvents, sortBy, sortCenter, sortOrder)
+            : filteredEvents;
 
           const filteredIds = new Set(sortedEvents.map((e) => e.id));
           const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
@@ -283,10 +286,14 @@ export default function MapScreen() {
   // Effect to handle side-effects of state changes
   useEffect(() => {
     if (sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
-      focusOnEvent(sheetEvents[0], bottomSheetIndex);
-      resultsSheetRef.current?.open?.(bottomSheetIndex);
+      const targetIndex = bottomSheetIndex > 0 ? bottomSheetIndex : 1;
+      if (bottomSheetIndex === 0) {
+        setBottomSheetIndex(targetIndex);
+      }
+      focusOnEvent(sheetEvents[0], targetIndex);
+      resultsSheetRef.current?.open?.(targetIndex);
     }
-  }, [sheetStatus, activeEventId, focusOnEvent]); // Re-run when activeEventId changes
+  }, [sheetStatus, activeEventId, focusOnEvent, bottomSheetIndex, sheetEvents, setBottomSheetIndex]); // Re-run when activeEventId changes
 
   // Handle deep-linked event focus
   useEffect(() => {

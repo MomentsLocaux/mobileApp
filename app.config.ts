@@ -30,6 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.momentslocs.app',
+    softwareKeyboardLayoutMode: 'resize',
     permissions: [
       'android.permission.CAMERA',
       // Android 13+ requires READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE

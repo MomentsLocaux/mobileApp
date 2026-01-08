@@ -1,6 +1,7 @@
 export type TimeFilter = 'today' | 'tomorrow' | 'weekend' | 'live';
 export type PopularityFilter = 'trending' | 'popular' | 'top';
-export type SortOption = 'triage' | 'distance' | 'popularity' | 'date';
+export type SortOption = 'triage' | 'distance' | 'popularity' | 'date' | 'created';
+export type SortOrder = 'asc' | 'desc';
 
 export interface EventFilters {
   category?: string;
@@ -24,4 +25,5 @@ export interface EventFilters {
 
 export interface MapFilters extends EventFilters {
   sortBy?: SortOption;
+  sortOrder?: SortOrder;
 }

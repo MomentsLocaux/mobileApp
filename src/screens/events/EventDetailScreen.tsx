@@ -164,7 +164,7 @@ export default function EventDetailScreen() {
             // 2. Suppression en base de données
             const success = await EventsService.deleteEvent(event.id);
             if (success) {
-              router.replace('/(tabs)');
+              router.replace('/(tabs)/map');
             }
           },
         },
@@ -188,6 +188,20 @@ export default function EventDetailScreen() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatDateRange = (start: string, end?: string | null) => {
+    if (!end) return formatDate(start);
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const sameDay = startDate.toDateString() === endDate.toDateString();
+    if (sameDay) return formatDate(start);
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  };
+
+  const formatTimeRange = (start: string, end?: string | null) => {
+    if (!end) return formatTime(start);
+    return `${formatTime(start)} - ${formatTime(end)}`;
   };
 
   const images = useMemo(() => {
@@ -221,7 +235,7 @@ export default function EventDetailScreen() {
     <>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)')}>
+        <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)/map')}>
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
       </View>
@@ -301,8 +315,8 @@ export default function EventDetailScreen() {
           <View style={styles.infoRow}>
             <Calendar size={20} color={colors.primary[600]} />
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Date</Text>
-              <Text style={styles.infoValue}>{formatDate(event.starts_at)}</Text>
+              <Text style={styles.infoLabel}>Dates</Text>
+              <Text style={styles.infoValue}>{formatDateRange(event.starts_at, event.ends_at)}</Text>
             </View>
           </View>
 
@@ -310,9 +324,7 @@ export default function EventDetailScreen() {
             <Clock size={20} color={colors.primary[600]} />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Horaire</Text>
-              <Text style={styles.infoValue}>
-                {formatTime(event.starts_at)} - {formatTime(event.ends_at)}
-              </Text>
+              <Text style={styles.infoValue}>{formatTimeRange(event.starts_at, event.ends_at)}</Text>
             </View>
           </View>
 

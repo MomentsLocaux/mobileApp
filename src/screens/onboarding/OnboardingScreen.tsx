@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, ChevronLeft } from 'lucide-react-native';
@@ -17,6 +19,8 @@ import { ProfileService } from '@/services/profile.service';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 
 const ROLE_OPTIONS = [
   { value: 'particulier', label: 'Particulier', description: 'Je découvre et participe.' },
@@ -28,6 +32,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { profile, user, refreshProfile } = useAuth();
   const { pickImage } = useImagePicker();
+  const insets = useSafeAreaInsets();
+  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
@@ -152,7 +158,17 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView
+      style={styles.wrapper}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top}
+    >
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ChevronLeft size={20} color={colors.neutral[700]} />
@@ -183,6 +199,8 @@ export default function OnboardingScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               maxLength={50}
+              onLayout={registerField('displayName')}
+              onFocus={() => handleInputFocus('displayName')}
             />
           </View>
 
@@ -219,6 +237,8 @@ export default function OnboardingScreen() {
               value={addressSearch}
               onChangeText={searchAddress}
               autoCapitalize="none"
+              onLayout={registerField('addressSearch')}
+              onFocus={() => handleInputFocus('addressSearch')}
             />
           </View>
           {locationLoading && <Text style={styles.meta}>Recherche en cours...</Text>}
@@ -280,6 +300,8 @@ export default function OnboardingScreen() {
               value={instagram}
               onChangeText={setInstagram}
               autoCapitalize="none"
+              onLayout={registerField('instagram')}
+              onFocus={() => handleInputFocus('instagram')}
             />
           </View>
 
@@ -291,6 +313,8 @@ export default function OnboardingScreen() {
               value={tiktok}
               onChangeText={setTiktok}
               autoCapitalize="none"
+              onLayout={registerField('tiktok')}
+              onFocus={() => handleInputFocus('tiktok')}
             />
           </View>
 
@@ -302,6 +326,8 @@ export default function OnboardingScreen() {
               value={facebook}
               onChangeText={setFacebook}
               autoCapitalize="none"
+              onLayout={registerField('facebook')}
+              onFocus={() => handleInputFocus('facebook')}
             />
           </View>
 
@@ -317,6 +343,8 @@ export default function OnboardingScreen() {
               multiline
               numberOfLines={4}
               maxLength={200}
+              onLayout={registerField('bio')}
+              onFocus={() => handleInputFocus('bio')}
             />
           </View>
         </View>
@@ -352,7 +380,8 @@ export default function OnboardingScreen() {
           disabled={!canContinue || isLoading || locationLoading}
         />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -364,6 +393,9 @@ const ImagePreview = ({ uri, label }: { uri: string; label: string }) => (
 );
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.neutral[50],
