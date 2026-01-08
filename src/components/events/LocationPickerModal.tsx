@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: spacing.md,
     backgroundColor: '#fff',
-    paddingTop: spacing.xl,
+    paddingTop: spacing.xxl,
   },
   header: {
     flexDirection: 'row',

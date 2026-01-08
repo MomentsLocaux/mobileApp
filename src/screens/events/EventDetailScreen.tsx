@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Linking,
+  Platform,
   TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,6 +22,7 @@ import {
   Clock,
   Users,
   Share2,
+  ChevronLeft,
   Edit,
   Trash2,
   Image as ImageIcon,
@@ -196,12 +199,24 @@ export default function EventDetailScreen() {
     const endDate = new Date(end);
     const sameDay = startDate.toDateString() === endDate.toDateString();
     if (sameDay) return formatDate(start);
+    if (endDate < startDate) {
+      return `${formatDate(end)} - ${formatDate(start)}`;
+    }
     return `${formatDate(start)} - ${formatDate(end)}`;
   };
 
   const formatTimeRange = (start: string, end?: string | null) => {
     if (!end) return formatTime(start);
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (endDate < startDate) {
+      return `${formatTime(end)} - ${formatTime(start)}`;
+    }
     return `${formatTime(start)} - ${formatTime(end)}`;
+  };
+
+  const formatCalendarDate = (date: Date) => {
+    return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   };
 
   const images = useMemo(() => {
@@ -210,6 +225,12 @@ export default function EventDetailScreen() {
       ...(event?.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
     ].filter(Boolean) as string[];
     return Array.from(new Set(urls)).slice(0, 4); // cover + 3 max
+  }, [event]);
+
+  const locationLabel = useMemo(() => {
+    if (!event) return '';
+    const cityLine = [event.postal_code, event.city].filter(Boolean).join(' ');
+    return [event.address, cityLine].filter(Boolean).join(', ') || 'Lieu à venir';
   }, [event]);
 
   if (loading) {
@@ -230,13 +251,51 @@ export default function EventDetailScreen() {
 
   const isOwner = !!profile?.id && profile.id === event.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
+  const handleBack = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/map');
+    }
+  };
+
+  const openCalendar = async () => {
+    const start = new Date(event.starts_at);
+    if (isNaN(start.getTime())) return;
+    const end = event.ends_at ? new Date(event.ends_at) : start;
+    const endDate = isNaN(end.getTime()) ? start : end;
+    const startMs = start.getTime();
+
+    if (Platform.OS === 'ios') {
+      await Linking.openURL(`calshow:${startMs}`);
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      const androidUrl = `content://com.android.calendar/time/${startMs}`;
+      const canOpen = await Linking.canOpenURL(androidUrl);
+      if (canOpen) {
+        await Linking.openURL(androidUrl);
+        return;
+      }
+    }
+
+    const calendarUrl =
+      'https://www.google.com/calendar/render' +
+      `?action=TEMPLATE&text=${encodeURIComponent(event.title || 'Événement')}` +
+      `&dates=${encodeURIComponent(`${formatCalendarDate(start)}/${formatCalendarDate(endDate)}`)}` +
+      `&details=${encodeURIComponent(event.description || '')}` +
+      `&location=${encodeURIComponent(locationLabel)}`;
+
+    await Linking.openURL(calendarUrl);
+  };
 
   return (
     <>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)/map')}>
-          <Text style={styles.closeText}>✕</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={handleBack}>
+          <ChevronLeft size={22} color={colors.neutral[700]} />
         </TouchableOpacity>
       </View>
 
@@ -311,43 +370,53 @@ export default function EventDetailScreen() {
           )}
         </View>
 
-        <Card padding="md" style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Calendar size={20} color={colors.primary[600]} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Dates</Text>
-              <Text style={styles.infoValue}>{formatDateRange(event.starts_at, event.ends_at)}</Text>
-            </View>
-          </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Calendrier</Text>
+          <TouchableOpacity style={styles.infoCard} activeOpacity={0.8} onPress={openCalendar}>
+            <Card padding="md">
+              <View style={styles.infoRow}>
+                <Calendar size={20} color={colors.primary[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Dates</Text>
+                  <Text style={styles.infoValue}>{formatDateRange(event.starts_at, event.ends_at)}</Text>
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.infoRow}>
-            <Clock size={20} color={colors.primary[600]} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Horaire</Text>
-              <Text style={styles.infoValue}>{formatTimeRange(event.starts_at, event.ends_at)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <MapPin size={20} color={colors.primary[600]} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Lieu</Text>
-              <Text style={styles.infoValue}>{event.address}</Text>
-            </View>
-          </View>
-
-          {event.interests_count > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Infos pratiques</Text>
+          <Card padding="md" style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Users size={20} color={colors.primary[600]} />
+              <Clock size={20} color={colors.primary[600]} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Intéressés</Text>
-                <Text style={styles.infoValue}>
-                  {event.interests_count} personne{event.interests_count > 1 ? 's' : ''}
-                </Text>
+                <Text style={styles.infoLabel}>Horaire</Text>
+                <Text style={styles.infoValue}>{formatTimeRange(event.starts_at, event.ends_at)}</Text>
               </View>
             </View>
-          )}
-        </Card>
+
+            <View style={styles.infoRow}>
+              <MapPin size={20} color={colors.primary[600]} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Lieu</Text>
+                <Text style={styles.infoValue}>{locationLabel}</Text>
+              </View>
+            </View>
+
+            {event.interests_count > 0 && (
+              <View style={styles.infoRow}>
+                <Users size={20} color={colors.primary[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Intéressés</Text>
+                  <Text style={styles.infoValue}>
+                    {event.interests_count} personne{event.interests_count > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Card>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Description</Text>
@@ -416,7 +485,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.sm,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   closeButton: {
     width: 36,
@@ -430,11 +499,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-  },
-  closeText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.neutral[700],
   },
   content: {
     padding: spacing.lg,
@@ -487,7 +551,7 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
   },
   infoCard: {
-    marginBottom: spacing.lg,
+    marginBottom: 0,
   },
   infoRow: {
     flexDirection: 'row',

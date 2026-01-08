@@ -5,13 +5,12 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Platform,
   Modal,
   Pressable,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { DateRangePicker } from '@/components/DateRangePicker';
 
 type Props = {
   onOpenLocation: () => void;
@@ -31,18 +30,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
   const setEndDate = useCreateEventStore((s) => s.setEndDate);
   const setDescription = useCreateEventStore((s) => s.setDescription);
 
-  const [showStartTime, setShowStartTime] = useState(false); // legacy fallback
-  const [showEndTime, setShowEndTime] = useState(false); // legacy fallback
-  const [datePicker, setDatePicker] = useState<{
-    visible: boolean;
-    type: 'start' | 'end';
-    temp: Date;
-  }>({ visible: false, type: 'start', temp: new Date() });
-  const [timePicker, setTimePicker] = useState<{
-    visible: boolean;
-    type: 'start' | 'end';
-    temp: Date;
-  }>({ visible: false, type: 'start', temp: new Date() });
+  const [showRangePicker, setShowRangePicker] = useState(false);
 
   const hasBaseValid = useMemo(() => {
     return !!title.trim() && !!startDate && !!location;
@@ -58,91 +46,47 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
     return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
-  const formatTime = (value?: string) => {
-    if (!value) return '';
-    const d = new Date(value);
-    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const formatDateRange = (start?: string, end?: string) => {
+    if (start && end) return `${formatDate(start)} - ${formatDate(end)}`;
+    if (start) return formatDate(start);
+    if (end) return formatDate(end);
+    return '';
   };
 
-  const openDateModal = (type: 'start' | 'end') => {
-    const base =
-      type === 'start'
-        ? startDate
-          ? new Date(startDate)
-          : new Date()
-        : endDate
-          ? new Date(endDate)
-          : startDate
-            ? new Date(startDate)
-            : new Date();
-    setDatePicker({ visible: true, type, temp: base });
+  const rangeValue = useMemo(() => {
+    return {
+      startDate: startDate ? startDate.split('T')[0] : null,
+      endDate: endDate ? endDate.split('T')[0] : null,
+    };
+  }, [startDate, endDate]);
+
+  const mergeDateWithTime = (dateStr: string, existing?: string) => {
+    const base = existing ? new Date(existing) : new Date();
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (!year || !month || !day) return base.toISOString();
+    const merged = new Date(base);
+    merged.setFullYear(year, month - 1, day);
+    merged.setSeconds(0, 0);
+    return merged.toISOString();
   };
 
-  const handleConfirmDate = () => {
-    const { type, temp } = datePicker;
-    const existing =
-      type === 'start'
-        ? startDate
-          ? new Date(startDate)
-          : new Date()
-        : endDate
-          ? new Date(endDate)
-          : startDate
-            ? new Date(startDate)
-            : new Date();
-    const merged = new Date(temp);
-    merged.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
-
-    if (type === 'start') {
-      setStartDate(merged.toISOString());
-      if (endDate && new Date(endDate) < merged) {
+  const handleRangeChange = (range: { startDate: string | null; endDate: string | null }) => {
+    if (range.startDate) {
+      const nextStart = mergeDateWithTime(range.startDate, startDate);
+      setStartDate(nextStart);
+      if (endDate && new Date(endDate) < new Date(nextStart)) {
         setEndDate(undefined);
       }
     } else {
-      setEndDate(merged.toISOString());
+      setStartDate(undefined);
     }
-    setDatePicker((s) => ({ ...s, visible: false }));
-  };
 
-  const handleDateChange = (_event: any, date?: Date) => {
-    if (!date) return;
-    setDatePicker((s) => ({ ...s, temp: date }));
-  };
-
-  const openTimeModal = (type: 'start' | 'end') => {
-    const base =
-      type === 'start'
-        ? startDate
-          ? new Date(startDate)
-          : new Date()
-        : endDate
-          ? new Date(endDate)
-          : startDate
-            ? new Date(startDate)
-            : new Date();
-    setTimePicker({ visible: true, type, temp: base });
-  };
-
-  const handleTimeChange = (_event: any, date?: Date) => {
-    if (!date) return;
-    setTimePicker((s) => ({ ...s, temp: date }));
-  };
-
-  const handleConfirmTime = () => {
-    const { type, temp } = timePicker;
-    if (type === 'start') {
-      const base = startDate ? new Date(startDate) : new Date();
-      const merged = new Date(base.setHours(temp.getHours(), temp.getMinutes()));
-      setStartDate(merged.toISOString());
-      if (endDate && new Date(endDate) < merged) {
-        setEndDate(undefined);
-      }
+    if (range.endDate) {
+      const nextEnd = mergeDateWithTime(range.endDate, endDate || startDate);
+      setEndDate(nextEnd);
     } else {
-      const base = endDate ? new Date(endDate) : new Date(startDate || Date.now());
-      const merged = new Date(base.setHours(temp.getHours(), temp.getMinutes()));
-      setEndDate(merged.toISOString());
+      setEndDate(undefined);
     }
-    setTimePicker((s) => ({ ...s, visible: false }));
   };
 
   return (
@@ -158,35 +102,20 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
         onFocus={() => onInputFocus?.('title')}
       />
 
-      <View style={styles.inlineRow}>
-        <Text style={styles.label}>Début</Text>
-        <View style={styles.row}>
-          <TouchableOpacity style={styles.pill} onPress={() => openDateModal('start')}>
-            <Text style={styles.pillText}>{formatDate(startDate) || 'Date'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.pill} onPress={() => openTimeModal('start')}>
-            <Text style={styles.pillText}>{formatTime(startDate) || 'Heure'}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.inlineRow}>
-        <Text style={styles.label}>Fin (facultatif)</Text>
-        <View style={styles.row}>
-          <TouchableOpacity style={styles.pill} onPress={() => openDateModal('end')}>
-            <Text style={styles.pillText}>{formatDate(endDate) || 'Date'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.pill} onPress={() => openTimeModal('end')}>
-            <Text style={styles.pillText}>{formatTime(endDate) || 'Heure'}</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.section}>
+        <Text style={styles.label}>Dates</Text>
+        <TouchableOpacity style={styles.pill} onPress={() => setShowRangePicker(true)}>
+          <Text style={styles.pillText}>
+            {formatDateRange(startDate, endDate) || 'Choisir des dates'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.label}>Emplacement</Text>
-        <TouchableOpacity style={styles.input} onPress={onOpenLocation} activeOpacity={0.8}>
-          <Text style={[styles.placeholderText, location && styles.valueText]}>
-            {location?.addressLabel || 'Emplacement'}
+        <TouchableOpacity style={styles.pill}  onPress={onOpenLocation} activeOpacity={0.8}>
+          <Text style={[styles.pillText, location && styles.valueText]}>
+            {location?.addressLabel || "Choisir l'emplacement"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -207,60 +136,15 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
         <Text style={styles.counter}>{(description || '').length}/1000</Text>
       </View>
 
-      <Modal
-        animationType="slide"
-        transparent
-        visible={datePicker.visible}
-        onRequestClose={() => setDatePicker((s) => ({ ...s, visible: false }))}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setDatePicker((s) => ({ ...s, visible: false }))} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <TouchableOpacity onPress={() => setDatePicker((s) => ({ ...s, visible: false }))}>
-              <Text style={styles.link}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleConfirmDate}>
-              <Text style={[styles.link, styles.linkStrong]}>Valider</Text>
-            </TouchableOpacity>
-          </View>
-          <DateTimePicker
-            value={datePicker.temp}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
-            onChange={handleDateChange}
-            locale="fr-FR"
-            style={{ alignSelf: 'center' }}
-          />
-        </View>
-      </Modal>
+      <DateRangePicker
+        open={showRangePicker}
+        mode="range"
+        value={rangeValue}
+        onChange={handleRangeChange}
+        onClose={() => setShowRangePicker(false)}
+        context="creation"
+      />
 
-      <Modal
-        animationType="slide"
-        transparent
-        visible={timePicker.visible}
-        onRequestClose={() => setTimePicker((s) => ({ ...s, visible: false }))}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setTimePicker((s) => ({ ...s, visible: false }))} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <TouchableOpacity onPress={() => setTimePicker((s) => ({ ...s, visible: false }))}>
-              <Text style={styles.link}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleConfirmTime}>
-              <Text style={[styles.link, styles.linkStrong]}>Valider</Text>
-            </TouchableOpacity>
-          </View>
-          <DateTimePicker
-            value={timePicker.temp}
-            mode="time"
-            is24Hour
-            display="spinner"
-            onChange={handleTimeChange}
-          />
-        </View>
-      </Modal>
     </View>
   );
 };

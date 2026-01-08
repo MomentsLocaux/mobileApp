@@ -129,7 +129,6 @@ export const SearchBar: React.FC<Props> = ({
     setQuery('');
     setResults([]);
     addHistory(item.label);
-    setActiveSection('when');
   };
 
   const includePast = when.includePast ?? false;

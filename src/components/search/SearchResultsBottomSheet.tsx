@@ -20,7 +20,7 @@ interface Props {
   onToggleFavorite?: (event: EventWithCreator) => void;
   isFavorite?: (id: string) => boolean;
   onIndexChange?: (index: number) => void;
-  mode: 'single' | 'cluster' | 'viewport' | 'idle';
+  mode: 'single' | 'viewport';
   peekCount: number;
   index?: number;
   isLoading?: boolean;
@@ -52,25 +52,25 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     );
     const hasEvents = events.length > 0;
     const effectiveIndex = mode === 'single' ? Math.min(index, 1) : index;
-    const clampedIndex = Math.max(0, effectiveIndex);
-    const showList = mode === 'single' || (clampedIndex > 0 && mode !== 'idle');
-    const showEmpty = clampedIndex > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents && !isLoading;
+    const maxIndex = snapPoints.length - 1;
+    const clampedIndex = Math.min(Math.max(0, effectiveIndex), maxIndex);
+    const showList = mode === 'single' || clampedIndex > 0;
+    const showEmpty = clampedIndex > 0 && mode !== 'single' && !hasEvents && !isLoading;
 
     useImperativeHandle(ref, () => ({
       open: (index = 1) => {
-        sheetRef.current?.snapToIndex(index);
+        const nextIndex = Math.min(Math.max(0, index), maxIndex);
+        sheetRef.current?.snapToIndex(nextIndex);
       },
       close: () => sheetRef.current?.close(),
     }));
 
     const headerTitle = useMemo(() => {
-      if (mode === 'single' && hasEvents) {
-        return events[0].title;
-      }
-      if (clampedIndex === 0 || mode === 'idle') {
+      if (mode === 'single' && hasEvents) return events[0].title;
+      if (!hasEvents) return 'Aucun résultat dans cette zone';
+      if (clampedIndex === 0) {
         return `${peekCount} moment${peekCount > 1 ? 's' : ''} dans cette zone`;
       }
-      if (!events.length) return 'Aucun résultat';
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
       return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
@@ -85,7 +85,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         enableOverDrag={mode !== 'single'}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
-        onChange={(idx) => onIndexChange?.(idx)}
+        onChange={(idx) => {
+          const nextIndex = Math.min(Math.max(0, idx), maxIndex);
+          if (nextIndex !== idx) {
+            sheetRef.current?.snapToIndex(nextIndex);
+          }
+          onIndexChange?.(nextIndex);
+        }}
       >
         <View style={styles.header}>
           {isLoading ? (
@@ -120,7 +126,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {!showList && mode !== 'idle' && !isLoading && (
+        {!showList && !isLoading && (
           <TouchableOpacity
             style={styles.peekContainer}
             activeOpacity={0.8}
@@ -128,7 +134,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               sheetRef.current?.snapToIndex(1);
             }}
           >
-            <Text style={styles.peekText}>{peekCount} moment{peekCount > 1 ? 's' : ''} dans cette zone</Text>
+            <Text style={styles.peekText}>Voir {peekCount} moment{peekCount > 1 ? 's' : ''}</Text>
           </TouchableOpacity>
         )}
 
@@ -208,11 +214,6 @@ const styles = StyleSheet.create({
   peekText: {
     ...typography.body,
     color: colors.neutral[700],
-  },
-  peekHint: {
-    ...typography.caption,
-    color: colors.neutral[500],
-    marginTop: spacing.xs,
   },
   singleContainer: {
     paddingHorizontal: spacing.xs,

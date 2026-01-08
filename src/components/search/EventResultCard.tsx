@@ -99,33 +99,35 @@ export const EventResultCard: React.FC<Props> = ({
           </TouchableOpacity>
         )}
         <View style={styles.infoOverlay} pointerEvents="box-none">
-          <Text style={styles.title} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <View style={styles.row}>
-            <MapPin size={16} color={colors.neutral[0]} />
-            <Text style={styles.meta} numberOfLines={1}>
-              {event.city || event.address || 'Lieu à venir'}
-              {typeof distanceKm === 'number' ? ` • ${distanceKm.toFixed(1)} km` : ''}
+          <View style={styles.infoContent} pointerEvents="none">
+            <Text style={styles.title} numberOfLines={2}>
+              {event.title}
             </Text>
-          </View>
-          <View style={styles.row}>
-            <Calendar size={16} color={colors.neutral[0]} />
-            <Text style={styles.meta} numberOfLines={1}>
-              {dateLabel}
-            </Text>
-          </View>
-          {tags.length > 0 && (
-            <View style={styles.tags}>
-              {tags.map((tag) => (
-                <View key={tag} style={styles.tag}>
-                  <Tag size={12} color={colors.neutral[0]} />
-                  <Text style={styles.tagText}>{tag}</Text>
-                </View>
-              ))}
+            <View style={styles.row}>
+              <MapPin size={16} color={colors.neutral[0]} />
+              <Text style={styles.meta} numberOfLines={1}>
+                {event.city || event.address || 'Lieu à venir'}
+                {typeof distanceKm === 'number' ? ` • ${distanceKm.toFixed(1)} km` : ''}
+              </Text>
             </View>
-          )}
-          <View style={styles.ctaRow}>
+            <View style={styles.row}>
+              <Calendar size={16} color={colors.neutral[0]} />
+              <Text style={styles.meta} numberOfLines={1}>
+                {dateLabel}
+              </Text>
+            </View>
+            {tags.length > 0 && (
+              <View style={styles.tags}>
+                {tags.map((tag) => (
+                  <View key={tag} style={styles.tag}>
+                    <Tag size={12} color={colors.neutral[0]} />
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+          <View style={styles.ctaRow} pointerEvents="auto">
             <TouchableOpacity style={styles.ctaButton} onPress={onNavigate}>
               <Navigation2 size={16} color={colors.neutral[900]} />
               <Text style={styles.ctaText}>Itinéraire</Text>
@@ -142,7 +144,7 @@ export const EventResultCard: React.FC<Props> = ({
                   fill={isFavorite ? colors.error[500] : 'transparent'}
                 />
               </TouchableOpacity>
-            )}
+              )}
           </View>
         </View>
       </View>
@@ -192,6 +194,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     backgroundColor: 'rgba(0,0,0,0.45)',
+    gap: spacing.xs,
+  },
+  infoContent: {
     gap: spacing.xs,
   },
   title: {
