@@ -43,6 +43,12 @@ export default function EventsLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="create/preview"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

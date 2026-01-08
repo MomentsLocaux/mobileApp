@@ -107,20 +107,35 @@ export const DateRangePicker = ({ open, mode, value, onChange, onClose, context 
                   const active = isBetween(day, range.startDate, range.endDate);
                   const isStart = range.startDate === day;
                   const isEnd = (range.endDate || range.startDate) === day;
+                  const isSingle = isStart && isEnd;
+                  const showRange = active && !isSingle;
                   return (
                     <Pressable
                       key={day}
-                      style={[
-                        styles.dayCell,
-                        active && styles.dayActive,
-                        isStart && styles.dayEndpoint,
-                        isEnd && styles.dayEndpoint,
-                      ]}
+                      style={styles.dayCell}
                       onPress={() => handleDayPress(day)}
                     >
-                      <Text style={[styles.dayText, active && styles.dayTextActive]}>
-                        {day.split('-')[2]}
-                      </Text>
+                      {showRange && (
+                        <View
+                          pointerEvents="none"
+                          style={[
+                            styles.dayRangeBg,
+                            isStart && styles.dayRangeStart,
+                            isEnd && styles.dayRangeEnd,
+                          ]}
+                        />
+                      )}
+                      <View style={[styles.dayBubble, (isStart || isEnd) && styles.dayBubbleActive]}>
+                        <Text
+                          style={[
+                            styles.dayText,
+                            active && styles.dayTextActive,
+                            (isStart || isEnd) && styles.dayTextEndpoint,
+                          ]}
+                        >
+                          {day.split('-')[2]}
+                        </Text>
+                      </View>
                     </Pressable>
                   );
                 })}
@@ -150,6 +165,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    paddingTop: spacing.xxl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -192,21 +208,47 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  dayRangeBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 32,
+    backgroundColor: colors.primary[100],
+    top: '50%',
+    marginTop: -16,
+  },
+  dayRangeStart: {
+    left: '50%',
+    borderTopRightRadius: borderRadius.full,
+    borderBottomRightRadius: borderRadius.full,
+  },
+  dayRangeEnd: {
+    right: '50%',
+    borderTopLeftRadius: borderRadius.full,
+    borderBottomLeftRadius: borderRadius.full,
+  },
+  dayBubble: {
+    width: 34,
+    height: 34,
     borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayBubbleActive: {
+    backgroundColor: colors.primary[600],
   },
   dayText: {
     ...typography.body,
     color: colors.neutral[800],
     fontWeight: '600',
   },
-  dayActive: {
-    backgroundColor: colors.primary[50],
-  },
-  dayEndpoint: {
-    backgroundColor: colors.primary[600],
-  },
   dayTextActive: {
-    color: colors.neutral[0],
+    color: colors.primary[700],
+  },
+  dayTextEndpoint: {
+    color: colors.neutral[900],
   },
   footer: {
     flexDirection: 'row',

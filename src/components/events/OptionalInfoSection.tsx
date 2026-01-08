@@ -10,6 +10,7 @@ type Props = {
   externalLink?: string;
   onInputFocus?: (key: string) => void;
   onInputRef?: (key: string) => (node: any) => void;
+  onOpen?: () => void;
   onChange: (data: { price?: string; duration?: string; contact?: string; externalLink?: string }) => void;
 };
 
@@ -20,13 +21,23 @@ export const OptionalInfoSection = ({
   externalLink,
   onInputFocus,
   onInputRef,
+  onOpen,
   onChange,
 }: Props) => {
   const [open, setOpen] = useState(false);
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => setOpen((v) => !v)}>
+      <TouchableOpacity
+        style={styles.header}
+        onPress={() =>
+          setOpen((v) => {
+            const next = !v;
+            if (next) onOpen?.();
+            return next;
+          })
+        }
+      >
         <Text style={styles.title}>Infos pratiques (facultatif)</Text>
         {open ? <ChevronUp size={18} color={colors.neutral[700]} /> : <ChevronDown size={18} color={colors.neutral[700]} />}
       </TouchableOpacity>

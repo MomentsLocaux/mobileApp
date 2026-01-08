@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
@@ -25,11 +28,22 @@ import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 export default function CreateEventStep1() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
+  const endDate = useCreateEventStore((s) => s.endDate);
   const location = useCreateEventStore((s) => s.location);
+  const description = useCreateEventStore((s) => s.description);
+  const category = useCreateEventStore((s) => s.category);
+  const subcategory = useCreateEventStore((s) => s.subcategory);
+  const tags = useCreateEventStore((s) => s.tags);
+  const visibility = useCreateEventStore((s) => s.visibility);
+  const price = useCreateEventStore((s) => s.price);
+  const contact = useCreateEventStore((s) => s.contact);
+  const externalLink = useCreateEventStore((s) => s.externalLink);
+  const videoLink = useCreateEventStore((s) => s.videoLink);
+  const gallery = useCreateEventStore((s) => s.gallery);
   const setCoverImage = useCreateEventStore((s) => s.setCoverImage);
   const setTitle = useCreateEventStore((s) => s.setTitle);
   const setStartDate = useCreateEventStore((s) => s.setStartDate);
@@ -50,6 +64,8 @@ export default function CreateEventStep1() {
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [formValid, setFormValid] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [existingStatus, setExistingStatus] = useState<string | null>(null);
   const resetOnCreateRef = React.useRef(false);
   const isGuest = !session;
   const insets = useSafeAreaInsets();
@@ -76,6 +92,7 @@ export default function CreateEventStep1() {
         const evt = await EventsService.getById(edit);
         if (!evt) return;
         resetStore();
+        setExistingStatus(evt.status ?? null);
         setTitle(evt.title || '');
         setDescription(evt.description || '');
         setStartDate(evt.starts_at || undefined);
@@ -122,6 +139,137 @@ export default function CreateEventStep1() {
     return !!coverImage && formValid && !!title.trim() && !!startDate && !!location;
   }, [coverImage, formValid, title, startDate, location]);
 
+  const canSaveDraft = !!title.trim() && !!location;
+
+  const handleSaveDraft = useCallback(async () => {
+    if (!user || savingDraft) return;
+    if (!canSaveDraft) {
+      Alert.alert('Brouillon incomplet', "Ajoute au minimum un titre et un lieu pour enregistrer un brouillon.");
+      return;
+    }
+
+    if (edit && existingStatus && existingStatus !== 'draft') {
+      Alert.alert('Impossible', "Cet événement est déjà publié, impossible de l'enregistrer en brouillon.");
+      return;
+    }
+
+    setSavingDraft(true);
+    try {
+      const contact_email = contact && contact.includes('@') ? contact : null;
+      const contact_phone = contact && !contact.includes('@') ? contact : null;
+      let priceValue: number | null = null;
+      if (price) {
+        const normalized = Number(price.replace(',', '.').replace(/[^0-9.-]/g, ''));
+        if (!Number.isNaN(normalized)) {
+          priceValue = normalized;
+        }
+      }
+
+      const payload = {
+        title: title.trim(),
+        description: description || '',
+        category: category || null,
+        subcategory: subcategory || null,
+        tags,
+        starts_at: startDate || new Date().toISOString(),
+        ends_at: endDate || null,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.addressLabel || '',
+        city: location.city || null,
+        postal_code: location.postalCode || null,
+        visibility: visibility === 'public' ? 'public' : 'prive',
+        is_free: !price || price.toLowerCase().includes('gratuit'),
+        price: priceValue,
+        cover_url: coverImage?.publicUrl || null,
+        max_participants: null,
+        registration_required: null,
+        external_url: externalLink || videoLink || null,
+        contact_email,
+        contact_phone,
+        status: 'draft',
+        creator_id: user.id,
+      };
+
+      const activeImages = gallery
+        .filter((g) => g.status !== 'removed' && g.publicUrl && g.publicUrl.trim().length > 0)
+        .slice(0, 3);
+      const activeMedias = activeImages.map((g, index) => ({
+        id: g.id,
+        url: g.publicUrl,
+        order: index,
+      }));
+
+      if (edit) {
+        await EventsService.update(edit, payload as any);
+        if ((EventsService as any).setMedia && activeMedias.length > 0) {
+          await EventsService.setMedia(edit, activeMedias as any);
+        }
+      } else {
+        const created = await EventsService.create(payload as any);
+        if ((EventsService as any).setMedia && activeMedias.length > 0) {
+          await EventsService.setMedia(created.id, activeMedias as any);
+        }
+      }
+
+      resetStore();
+      router.back();
+    } catch (e) {
+      console.warn('save draft', e);
+      Alert.alert('Erreur', "Impossible d'enregistrer le brouillon pour le moment.");
+    } finally {
+      setSavingDraft(false);
+    }
+  }, [
+    user,
+    savingDraft,
+    canSaveDraft,
+    edit,
+    existingStatus,
+    title,
+    description,
+    category,
+    subcategory,
+    tags,
+    startDate,
+    endDate,
+    location,
+    visibility,
+    price,
+    coverImage,
+    externalLink,
+    videoLink,
+    contact,
+    gallery,
+    resetStore,
+    router,
+  ]);
+
+  const handleCancelCreation = useCallback(() => {
+    resetStore();
+    router.back();
+  }, [resetStore, router]);
+
+  const handleAttemptExit = useCallback(() => {
+    if (savingDraft) return;
+    Alert.alert("Quitter la création", "Souhaitez-vous sauvegarder un brouillon avant de quitter ?", [
+      { text: 'Continuer', style: 'cancel' },
+      { text: 'Annuler la création', style: 'destructive', onPress: handleCancelCreation },
+      { text: 'Sauvegarder le brouillon', onPress: handleSaveDraft },
+    ]);
+  }, [handleCancelCreation, handleSaveDraft, savingDraft]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleAttemptExit();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [handleAttemptExit])
+  );
+
   if (isGuest) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -144,7 +292,7 @@ export default function CreateEventStep1() {
         keyboardVerticalOffset={insets.top}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.headerBtn} onPress={handleAttemptExit}>
             <ChevronLeft size={20} color={colors.neutral[800]} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Nouvel évènement</Text>

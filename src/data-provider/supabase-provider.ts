@@ -107,6 +107,8 @@ export const supabaseProvider: (Pick<
     query = query.limit(appliedLimit);
     if (creatorId) {
       query = query.eq('creator_id', creatorId);
+    } else {
+      query = query.neq('status', 'draft');
     }
     // Par défaut, ne retourner que les événements en cours (starts_at <= now <= ends_at ou ends_at null)
     // Pour un créateur ou si includePast est true, on retourne tout l'historique sans filtre temporel.
@@ -154,7 +156,8 @@ export const supabaseProvider: (Pick<
       .gte('longitude', minLon)
       .lte('longitude', maxLon)
       .gte('latitude', minLat)
-      .lte('latitude', maxLat);
+      .lte('latitude', maxLat)
+      .neq('status', 'draft');
 
     if (!includePast) {
       query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);

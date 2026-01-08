@@ -250,14 +250,51 @@ export default function ProfileScreen() {
               <Text style={styles.emptySheetText}>Aucun événement créé</Text>
             ) : (
               <ScrollView style={{ maxHeight: 420 }}>
-                {myEvents.map((event) => (
+                {myEvents.map((event) => {
+                  const isDraft = event.status === 'draft';
+                  const now = new Date();
+                  const startDate = event.starts_at ? new Date(event.starts_at) : null;
+                  const endDate = event.ends_at ? new Date(event.ends_at) : null;
+                  let timeLabel: string | null = null;
+                  if (!isDraft && startDate && !isNaN(startDate.getTime())) {
+                    if (endDate && !isNaN(endDate.getTime()) && endDate < now) {
+                      timeLabel = 'Passé';
+                    } else if (startDate > now) {
+                      timeLabel = 'À venir';
+                    } else {
+                      timeLabel = 'En cours';
+                    }
+                  }
+                  return (
                   <Card key={event.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                    <TouchableOpacity onPress={() => router.push(`/events/${event.id}` as any)}>
-                      <Text style={styles.eventTitle}>{event.title}</Text>
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push(
+                          (isDraft ? `/events/create/step-1?edit=${event.id}` : `/events/${event.id}`) as any
+                        )
+                      }
+                    >
+                      <View style={styles.eventTitleRow}>
+                        <Text style={styles.eventTitle}>{event.title || 'Brouillon sans titre'}</Text>
+                        {isDraft && <Text style={styles.eventDraft}>Brouillon</Text>}
+                        {!isDraft && timeLabel && (
+                          <Text
+                            style={[
+                              styles.eventStatus,
+                              timeLabel === 'Passé' && styles.eventStatusPast,
+                              timeLabel === 'En cours' && styles.eventStatusLive,
+                              timeLabel === 'À venir' && styles.eventStatusUpcoming,
+                            ]}
+                          >
+                            {timeLabel}
+                          </Text>
+                        )}
+                      </View>
                       <Text style={styles.eventMeta}>{event.city || event.address || ''}</Text>
                     </TouchableOpacity>
                   </Card>
-                ))}
+                );
+                })}
               </ScrollView>
             )}
           </Animated.View>
@@ -450,6 +487,38 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[900],
     fontWeight: '600',
+  },
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  eventDraft: {
+    ...typography.caption,
+    color: colors.warning[700],
+    backgroundColor: colors.warning[50],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  eventStatus: {
+    ...typography.caption,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  eventStatusPast: {
+    color: colors.neutral[600],
+    backgroundColor: colors.neutral[100],
+  },
+  eventStatusLive: {
+    color: colors.success[700],
+    backgroundColor: colors.success[50],
+  },
+  eventStatusUpcoming: {
+    color: colors.primary[700],
+    backgroundColor: colors.primary[50],
   },
   eventMeta: {
     ...typography.bodySmall,

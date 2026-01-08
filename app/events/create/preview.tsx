@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: {
     padding: spacing.sm,
-    minWidth: 48,
+    minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
   },

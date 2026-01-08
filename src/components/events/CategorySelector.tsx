@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -9,9 +9,16 @@ type Props = {
   onSelect: (value: string) => void;
   subcategory?: string;
   onSelectSubcategory?: (value: string | undefined) => void;
+  onSubcategoryLayout?: (event: LayoutChangeEvent) => void;
 };
 
-export const CategorySelector = ({ selected, onSelect, subcategory, onSelectSubcategory }: Props) => {
+export const CategorySelector = ({
+  selected,
+  onSelect,
+  subcategory,
+  onSelectSubcategory,
+  onSubcategoryLayout,
+}: Props) => {
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
@@ -36,7 +43,7 @@ export const CategorySelector = ({ selected, onSelect, subcategory, onSelectSubc
         })}
       </View>
       {selected && onSelectSubcategory && (
-        <View style={{ gap: spacing.sm }}>
+        <View style={{ gap: spacing.sm }} onLayout={onSubcategoryLayout}>
           <TouchableOpacity
             style={styles.collapseHeader}
             onPress={() => setShowSubcategories((prev) => !prev)}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,7 +17,6 @@ import { CategorySelector } from '@/components/events/CategorySelector';
 import { TagsSelector } from '@/components/events/TagsSelector';
 import { VisibilitySelector } from '@/components/events/VisibilitySelector';
 import { OptionalInfoSection } from '@/components/events/OptionalInfoSection';
-import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -26,12 +26,9 @@ export default function CreateEventStep2() {
   const router = useRouter();
   const { session } = useAuth();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
-  const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
-  const endDate = useCreateEventStore((s) => s.endDate);
   const location = useCreateEventStore((s) => s.location);
-  const description = useCreateEventStore((s) => s.description);
   const category = useCreateEventStore((s) => s.category);
   const subcategory = useCreateEventStore((s) => s.subcategory);
   const tags = useCreateEventStore((s) => s.tags);
@@ -40,8 +37,6 @@ export default function CreateEventStep2() {
   const duration = useCreateEventStore((s) => s.duration);
   const contact = useCreateEventStore((s) => s.contact);
   const externalLink = useCreateEventStore((s) => s.externalLink);
-  const videoLink = useCreateEventStore((s) => s.videoLink);
-  const gallery = useCreateEventStore((s) => s.gallery);
   const setCategory = useCreateEventStore((s) => s.setCategory);
   const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
   const setTags = useCreateEventStore((s) => s.setTags);
@@ -53,17 +48,27 @@ export default function CreateEventStep2() {
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
-  const dateLabel = useMemo(() => {
-    if (!startDate) return '';
-    const d = new Date(startDate);
-    return d.toLocaleString('fr-FR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }, [startDate]);
+  const sectionPositions = useRef({
+    subcategory: 0,
+    tags: 0,
+    visibility: 0,
+    optional: 0,
+  });
+
+  const registerSection = useCallback((key: keyof typeof sectionPositions.current) => {
+    return (event: LayoutChangeEvent) => {
+      sectionPositions.current[key] = event.nativeEvent.layout.y;
+    };
+  }, []);
+
+  const scrollToSection = useCallback(
+    (key: keyof typeof sectionPositions.current) => {
+      const y = sectionPositions.current[key];
+      if (!scrollViewRef.current) return;
+      scrollViewRef.current.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    },
+    [scrollViewRef]
+  );
 
   const canPublish = useMemo(() => !!category && !!title && !!startDate && !!location, [
     category,
@@ -113,33 +118,47 @@ export default function CreateEventStep2() {
           <CategorySelector
             selected={category}
             subcategory={subcategory}
-            onSelect={setCategory}
-            onSelectSubcategory={setSubcategory}
-          />
-          <TagsSelector selected={tags} onChange={setTags} />
-          <VisibilitySelector value={visibility} onChange={setVisibility} />
-          <OptionalInfoSection
-            price={price}
-            duration={duration}
-            contact={contact}
-            externalLink={externalLink}
-            onInputFocus={handleInputFocus}
-            onInputRef={registerFieldRef}
-            onChange={(data) => {
-              if (data.price !== undefined) setPrice(data.price);
-              if (data.duration !== undefined) setDuration(data.duration);
-              if (data.contact !== undefined) setContact(data.contact);
-              if (data.externalLink !== undefined) setExternalLink(data.externalLink);
+            onSelect={(value) => {
+              setCategory(value);
+              requestAnimationFrame(() => scrollToSection('subcategory'));
             }}
+            onSelectSubcategory={(value) => {
+              setSubcategory(value);
+              requestAnimationFrame(() => scrollToSection('tags'));
+            }}
+            onSubcategoryLayout={registerSection('subcategory')}
           />
-          <EventPreviewMiniMap
-            coverUrl={coverImage?.publicUrl}
-            title={title}
-            dateLabel={dateLabel}
-            category={category}
-            city={location?.city}
-            location={location}
-          />
+          <View onLayout={registerSection('tags')}>
+            <TagsSelector
+              selected={tags}
+              onChange={(next) => {
+                setTags(next);
+                if (next.length > 0) {
+                  requestAnimationFrame(() => scrollToSection('visibility'));
+                }
+              }}
+            />
+          </View>
+          <View onLayout={registerSection('visibility')}>
+            <VisibilitySelector value={visibility} onChange={setVisibility} />
+          </View>
+          <View onLayout={registerSection('optional')}>
+            <OptionalInfoSection
+              price={price}
+              duration={duration}
+              contact={contact}
+              externalLink={externalLink}
+              onOpen={() => requestAnimationFrame(() => scrollToSection('optional'))}
+              onInputFocus={handleInputFocus}
+              onInputRef={registerFieldRef}
+              onChange={(data) => {
+                if (data.price !== undefined) setPrice(data.price);
+                if (data.duration !== undefined) setDuration(data.duration);
+                if (data.contact !== undefined) setContact(data.contact);
+                if (data.externalLink !== undefined) setExternalLink(data.externalLink);
+              }}
+            />
+          </View>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -175,7 +194,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: {
     padding: spacing.sm,
-    minWidth: 48,
+    minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
   },

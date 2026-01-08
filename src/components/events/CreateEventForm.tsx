@@ -160,7 +160,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[800],
     fontWeight: '700',
-    width: 110,
   },
   input: {
     borderWidth: 1,
