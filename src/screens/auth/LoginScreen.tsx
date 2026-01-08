@@ -145,6 +145,13 @@ export default function LoginScreen() {
             style={styles.loginButton}
           />
 
+          <Button
+            title="Se connecter en tant qu'invité"
+            variant="outline"
+            onPress={() => router.replace('/(tabs)/map')}
+            fullWidth
+          />
+
           {!showForm && (
             <TouchableOpacity
               onPress={() => {

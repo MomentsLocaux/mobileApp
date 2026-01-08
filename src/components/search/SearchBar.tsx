@@ -33,7 +33,6 @@ import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { filterEvents } from '@/utils/filter-events';
 import type { SearchState } from '@/store/searchStore';
 import { buildSearchSummary } from '@/utils/search-summary';
-import { TriageControl } from './TriageControl';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -81,10 +80,7 @@ export const SearchBar: React.FC<Props> = ({
     setWhen,
     setWho,
     setWhat,
-    setSortBy,
-    setSortOrder,
     sortBy,
-    sortOrder,
     addHistory,
   } = useSearchStore();
 
@@ -385,14 +381,6 @@ export const SearchBar: React.FC<Props> = ({
             {summaryText || placeholder}
           </Text>
         </Pressable>
-        <TriageControl
-          value={sortBy || 'triage'}
-          onChange={(value) => setSortBy(value)}
-          sortOrder={sortOrder}
-          onSortOrderChange={(order) => setSortOrder(order)}
-          hasLocation={hasLocation}
-          showLabel={false}
-        />
       </Animated.View>
 
       {overlayVisible && (
