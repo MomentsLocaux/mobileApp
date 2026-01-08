@@ -69,10 +69,17 @@ export default function MapScreen() {
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const [searchApplied, setSearchApplied] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const useSearchRadiusBoundsRef = useRef(false);
 
   const getPaddingFromIndex = useCallback((idx: number) => {
     return idx === 2 ? 360 : idx === 1 ? 240 : 120;
   }, []);
+
+  const getFitPadding = useCallback(() => {
+    const base = mapPadding?.bottom ?? 0;
+    if (base <= 0) return 20;
+    return Math.min(40, base);
+  }, [mapPadding]);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -117,6 +124,10 @@ export default function MapScreen() {
 
   const searchActive = searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
+  const searchFiltersWithoutRadius = useMemo(() => {
+    const { radiusKm, centerLat, centerLon, ...rest } = searchFilters;
+    return rest;
+  }, [searchFilters]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
   const sortCenter = searchState.where.location
@@ -133,17 +144,22 @@ export default function MapScreen() {
   );
 
   const handleBoundsChange = useCallback(
-    (bounds: { ne: [number, number]; sw: [number, number] }) => {
-      if (isProgrammaticMoveRef.current) return;
+    (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
+      if (isProgrammaticMoveRef.current && !options?.forceSearchRadius) return;
       if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
 
       setStatus('browsing');
+      if (searchActive && !options?.forceSearchRadius) {
+        useSearchRadiusBoundsRef.current = false;
+      }
 
       bboxTimeoutRef.current = setTimeout(async () => {
         setStatus('loading');
         try {
           const effectiveSearchActive = searchApplied && hasSearchCriteria;
           const includePastForFetch = effectiveSearchActive ? includePast : false;
+          const useRadiusBounds = effectiveSearchActive && useSearchRadiusBoundsRef.current;
+          const effectiveFilters = useRadiusBounds ? searchFilters : searchFiltersWithoutRadius;
 
           const featureCollection = await EventsService.listEventsByBBox({
             ne: bounds.ne,
@@ -157,7 +173,7 @@ export default function MapScreen() {
           const limitedIds = uniqueIds.slice(0, 120);
           const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
 
-          const filteredEvents = effectiveSearchActive ? filterEvents(events, searchFilters, null) : events;
+          const filteredEvents = effectiveSearchActive ? filterEvents(events, effectiveFilters, null) : events;
           const sortedEvents = effectiveSearchActive
             ? sortEvents(filteredEvents, sortBy, sortCenter, sortOrder)
             : filteredEvents;
@@ -181,10 +197,12 @@ export default function MapScreen() {
       hasSearchCriteria,
       includePast,
       searchFilters,
+      searchFiltersWithoutRadius,
       sortBy,
       sortCenter,
       setStatus,
       displayViewportResults,
+      searchActive,
     ]
   );
 
@@ -204,18 +222,27 @@ export default function MapScreen() {
     }, duration);
   }, []);
 
+  const getBoundsFromRadius = useCallback((latitude: number, longitude: number, radiusKm: number) => {
+    const latDelta = radiusKm / 111;
+    const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1));
+    return {
+      ne: [longitude + lonDelta, latitude + latDelta] as [number, number],
+      sw: [longitude - lonDelta, latitude - latDelta] as [number, number],
+    };
+  }, []);
+
   const fitToRadius = useCallback(
     (latitude: number, longitude: number, radiusKm: number) => {
-      const latDelta = radiusKm / 111;
-      const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1));
+      const bounds = getBoundsFromRadius(latitude, longitude, radiusKm);
       const coords = [
-        { latitude: latitude - latDelta, longitude: longitude - lonDelta },
-        { latitude: latitude + latDelta, longitude: longitude + lonDelta },
+        { latitude: bounds.sw[1], longitude: bounds.sw[0] },
+        { latitude: bounds.ne[1], longitude: bounds.ne[0] },
       ];
-      const paddingBottom = (mapPadding?.bottom ?? 0) + 40;
-      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, paddingBottom));
+      const fitPadding = getFitPadding();
+      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, fitPadding));
+      return bounds;
     },
-    [mapPadding, withProgrammaticMove]
+    [getBoundsFromRadius, getFitPadding, withProgrammaticMove]
   );
 
   const applySearch = useCallback(() => {
@@ -227,20 +254,30 @@ export default function MapScreen() {
     
     const moveAction = () => {
       if (location) {
-        fitToRadius(location.latitude, location.longitude, effectiveRadius);
-      } else if (searchState.where.radiusKm && userLocation) {
-        fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
-      } else {
-        refreshBounds();
+        useSearchRadiusBoundsRef.current = true;
+        return fitToRadius(location.latitude, location.longitude, effectiveRadius);
       }
+      if (searchState.where.radiusKm && userLocation) {
+        useSearchRadiusBoundsRef.current = true;
+        return fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
+      }
+      useSearchRadiusBoundsRef.current = false;
+      return null;
     };
-    
+
     withProgrammaticMove(() => {
-      moveAction();
-      setTimeout(refreshBounds, 500); // Refresh after move is complete
+      const bounds = moveAction();
+      setTimeout(() => {
+        if (bounds) {
+          isProgrammaticMoveRef.current = false;
+          handleBoundsChange(bounds, { forceSearchRadius: true });
+        } else {
+          refreshBounds();
+        }
+      }, 650); // After map move settles
     }, 600);
     
-  }, [fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove]);
+  }, [fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove, handleBoundsChange]);
 
   const handleFeaturePress = useCallback(
     async (id: string) => {
@@ -318,6 +355,7 @@ export default function MapScreen() {
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
       setSearchApplied(false);
+      useSearchRadiusBoundsRef.current = false;
       refreshBounds();
     }
   }, [hasSearchCriteria, searchApplied, refreshBounds]);
@@ -407,7 +445,7 @@ export default function MapScreen() {
 
       {userLocation && !searchExpanded && (
         <TouchableOpacity
-          style={[styles.recenterTopButton, { bottom: insets.bottom + 96 }]}
+          style={[styles.recenterTopButton, { bottom: insets.bottom + 16 }]}
           onPress={recenterToUser}
         >
           <Navigation size={18} color={colors.neutral[0]} />
@@ -425,6 +463,7 @@ export default function MapScreen() {
         onToggleFavorite={handleToggleFavorite}
         isFavorite={(id) => favoritesSet.has(id)}
         onIndexChange={(idx) => {
+          if (idx < 0) return;
           setBottomSheetIndex(idx);
           const paddingLevel = idx === 2 ? 'high' : idx === 1 ? 'medium' : 'low';
           updateMapPadding(paddingLevel);
@@ -515,7 +554,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
     elevation: 4,
-    zIndex: 12,
   },
   tabSpacer: {
     height: spacing.lg,

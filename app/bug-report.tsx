@@ -28,7 +28,7 @@ export default function BugReportScreen() {
   const pathname = usePathname();
   const { profile, session } = useAuth();
   const insets = useSafeAreaInsets();
-  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
+  const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
   const defaultPage = useMemo(
     () => (typeof params.page === 'string' && params.page ? params.page : pathname || ''),
@@ -114,6 +114,8 @@ export default function BugReportScreen() {
         ref={scrollViewRef}
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)/map')}>
@@ -144,7 +146,7 @@ export default function BugReportScreen() {
             value={page}
             onChangeText={setPage}
             autoCapitalize="none"
-            onLayout={registerField('page')}
+            ref={registerFieldRef('page')}
             onFocus={() => handleInputFocus('page')}
           />
         </View>
@@ -159,7 +161,7 @@ export default function BugReportScreen() {
             multiline
             numberOfLines={5}
             textAlignVertical="top"
-            onLayout={registerField('description')}
+            ref={registerFieldRef('description')}
             onFocus={() => handleInputFocus('description')}
           />
         </View>

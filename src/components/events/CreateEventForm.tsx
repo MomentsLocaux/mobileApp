@@ -9,7 +9,6 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import type { LayoutChangeEvent } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -18,10 +17,10 @@ type Props = {
   onOpenLocation: () => void;
   onValidate: (valid: boolean) => void;
   onInputFocus?: (key: string) => void;
-  onInputLayout?: (key: string) => (event: LayoutChangeEvent) => void;
+  onInputRef?: (key: string) => (node: any) => void;
 };
 
-export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onInputLayout }: Props) => {
+export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onInputRef }: Props) => {
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
   const endDate = useCreateEventStore((s) => s.endDate);
@@ -155,7 +154,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
         value={title}
         maxLength={80}
         onChangeText={setTitle}
-        onLayout={onInputLayout?.('title')}
+        ref={onInputRef?.('title')}
         onFocus={() => onInputFocus?.('title')}
       />
 
@@ -202,7 +201,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
           if (text.length <= 1000) setDescription(text);
         }}
         multiline
-        onLayout={onInputLayout?.('description')}
+        ref={onInputRef?.('description')}
         onFocus={() => onInputFocus?.('description')}
       />
         <Text style={styles.counter}>{(description || '').length}/1000</Text>

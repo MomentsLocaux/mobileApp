@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { View, TextInput, Text, StyleSheet, type TextInputProps } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
 
@@ -8,17 +8,18 @@ interface InputProps extends TextInputProps {
   helperText?: string;
 }
 
-export const Input: React.FC<InputProps> = ({
+export const Input = forwardRef<TextInput, InputProps>(({
   label,
   error,
   helperText,
   style,
   ...props
-}) => {
+}, ref) => {
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
+        ref={ref}
         style={[styles.input, error && styles.inputError, style]}
         placeholderTextColor={colors.neutral[400]}
         {...props}
@@ -27,7 +28,8 @@ export const Input: React.FC<InputProps> = ({
       {helperText && !error && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
   );
-};
+});
+Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
   container: {

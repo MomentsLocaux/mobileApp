@@ -33,7 +33,7 @@ export default function OnboardingScreen() {
   const { profile, user, refreshProfile } = useAuth();
   const { pickImage } = useImagePicker();
   const insets = useSafeAreaInsets();
-  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
+  const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
@@ -168,6 +168,8 @@ export default function OnboardingScreen() {
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -199,7 +201,7 @@ export default function OnboardingScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               maxLength={50}
-              onLayout={registerField('displayName')}
+              ref={registerFieldRef('displayName')}
               onFocus={() => handleInputFocus('displayName')}
             />
           </View>
@@ -237,7 +239,7 @@ export default function OnboardingScreen() {
               value={addressSearch}
               onChangeText={searchAddress}
               autoCapitalize="none"
-              onLayout={registerField('addressSearch')}
+              ref={registerFieldRef('addressSearch')}
               onFocus={() => handleInputFocus('addressSearch')}
             />
           </View>
@@ -300,7 +302,7 @@ export default function OnboardingScreen() {
               value={instagram}
               onChangeText={setInstagram}
               autoCapitalize="none"
-              onLayout={registerField('instagram')}
+              ref={registerFieldRef('instagram')}
               onFocus={() => handleInputFocus('instagram')}
             />
           </View>
@@ -313,7 +315,7 @@ export default function OnboardingScreen() {
               value={tiktok}
               onChangeText={setTiktok}
               autoCapitalize="none"
-              onLayout={registerField('tiktok')}
+              ref={registerFieldRef('tiktok')}
               onFocus={() => handleInputFocus('tiktok')}
             />
           </View>
@@ -326,7 +328,7 @@ export default function OnboardingScreen() {
               value={facebook}
               onChangeText={setFacebook}
               autoCapitalize="none"
-              onLayout={registerField('facebook')}
+              ref={registerFieldRef('facebook')}
               onFocus={() => handleInputFocus('facebook')}
             />
           </View>
@@ -343,7 +345,7 @@ export default function OnboardingScreen() {
               multiline
               numberOfLines={4}
               maxLength={200}
-              onLayout={registerField('bio')}
+              ref={registerFieldRef('bio')}
               onFocus={() => handleInputFocus('bio')}
             />
           </View>

@@ -53,7 +53,7 @@ export default function CreateEventStep1() {
   const resetOnCreateRef = React.useRef(false);
   const isGuest = !session;
   const insets = useSafeAreaInsets();
-  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
+  const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
   const extractStoragePath = (url: string | null | undefined) => {
     if (!url) return '';
@@ -165,6 +165,8 @@ export default function CreateEventStep1() {
           contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           <CoverImageUploader />
           <AdditionalImagesUploader />
@@ -172,7 +174,7 @@ export default function CreateEventStep1() {
             onOpenLocation={() => setLocationModalVisible(true)}
             onValidate={setFormValid}
             onInputFocus={handleInputFocus}
-            onInputLayout={registerField}
+            onInputRef={registerFieldRef}
           />
           {prefilling && <Text style={styles.loadingText}>Pré-remplissage en cours…</Text>}
         </ScrollView>

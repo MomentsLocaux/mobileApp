@@ -126,6 +126,8 @@ export const SearchBar: React.FC<Props> = ({
       },
       radiusKm: where.radiusKm ?? 10,
     });
+    setQuery('');
+    setResults([]);
     addHistory(item.label);
     setActiveSection('when');
   };
@@ -430,15 +432,6 @@ export const SearchBar: React.FC<Props> = ({
                     style={styles.input}
                   />
                   <View style={styles.row}>
-                    <Chip
-                      label="À proximité"
-                      active={!!where.radiusKm}
-                      onPress={() =>
-                        setWhere({
-                          radiusKm: where.radiusKm ? undefined : 40,
-                        })
-                      }
-                    />
                     {where.location?.label && (
                       <Chip
                         label={`${where.location.label} ✕`}

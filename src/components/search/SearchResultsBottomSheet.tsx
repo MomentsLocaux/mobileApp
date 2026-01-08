@@ -52,8 +52,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     );
     const hasEvents = events.length > 0;
     const effectiveIndex = mode === 'single' ? Math.min(index, 1) : index;
-    const showList = mode === 'single' || (effectiveIndex > 0 && mode !== 'idle');
-    const showEmpty = effectiveIndex > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents && !isLoading;
+    const clampedIndex = Math.max(0, effectiveIndex);
+    const showList = mode === 'single' || (clampedIndex > 0 && mode !== 'idle');
+    const showEmpty = clampedIndex > 0 && mode !== 'single' && mode !== 'idle' && !hasEvents && !isLoading;
 
     useImperativeHandle(ref, () => ({
       open: (index = 1) => {
@@ -66,19 +67,19 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       if (mode === 'single' && hasEvents) {
         return events[0].title;
       }
-      if (effectiveIndex === 0 || mode === 'idle') {
+      if (clampedIndex === 0 || mode === 'idle') {
         return `${peekCount} moment${peekCount > 1 ? 's' : ''} dans cette zone`;
       }
       if (!events.length) return 'Aucun résultat';
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
       return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
-    }, [activeEventId, events, hasEvents, mode, peekCount, effectiveIndex]);
+    }, [activeEventId, events, hasEvents, mode, peekCount, clampedIndex]);
 
     return (
       <BottomSheet
         ref={sheetRef}
-        index={effectiveIndex}
+        index={clampedIndex}
         snapPoints={snapPoints}
         enablePanDownToClose={false}
         enableOverDrag={mode !== 'single'}
@@ -128,7 +129,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             }}
           >
             <Text style={styles.peekText}>{peekCount} moment{peekCount > 1 ? 's' : ''} dans cette zone</Text>
-            <Text style={styles.peekHint}>Balaye vers le haut pour voir la liste</Text>
           </TouchableOpacity>
         )}
 

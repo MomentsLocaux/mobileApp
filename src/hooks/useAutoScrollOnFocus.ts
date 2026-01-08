@@ -1,25 +1,36 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { LayoutChangeEvent } from 'react-native';
 import { Keyboard, ScrollView } from 'react-native';
 
 export const useAutoScrollOnFocus = () => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const fieldPositions = useRef(new Map<string, number>());
+  const fieldRefs = useRef(new Map<string, any>());
   const pendingFocusKey = useRef<string | null>(null);
+  const scrollYRef = useRef(0);
 
-  const registerField = useCallback((key: string) => {
-    return (event: LayoutChangeEvent) => {
-      fieldPositions.current.set(key, event.nativeEvent.layout.y);
+  const registerFieldRef = useCallback((key: string) => {
+    return (node: any) => {
+      if (node) {
+        fieldRefs.current.set(key, node);
+      } else {
+        fieldRefs.current.delete(key);
+      }
     };
   }, []);
 
   const scrollToKey = useCallback((key: string) => {
-    const y = fieldPositions.current.get(key);
-    if (y === undefined) return;
+    const target = fieldRefs.current.get(key);
+    const scrollNode = scrollViewRef.current;
+    if (!target || !scrollNode || typeof target.measureInWindow !== 'function') return;
 
-    scrollViewRef.current?.scrollTo({
-      y: Math.max(0, y - 24),
-      animated: true,
+    target.measureInWindow((_x: number, targetY: number, _w: number, _h: number) => {
+      if (typeof scrollNode.measureInWindow !== 'function') return;
+      scrollNode.measureInWindow((_sx: number, scrollY: number) => {
+        const relativeY = targetY - scrollY + scrollYRef.current;
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, relativeY - 24),
+          animated: true,
+        });
+      });
     });
   }, []);
 
@@ -33,6 +44,10 @@ export const useAutoScrollOnFocus = () => {
     [scrollToKey]
   );
 
+  const handleScroll = useCallback((event: any) => {
+    scrollYRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => {
       const key = pendingFocusKey.current;
@@ -43,5 +58,5 @@ export const useAutoScrollOnFocus = () => {
     return () => showSub.remove();
   }, []);
 
-  return { scrollViewRef, registerField, handleInputFocus };
+  return { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll };
 };

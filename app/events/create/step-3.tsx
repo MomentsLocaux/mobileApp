@@ -232,9 +232,6 @@ export default function CreateEventStep3() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
-          <Text style={styles.secondaryText}>Modifier</Text>
-        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.primaryBtn, (!canPublish || loading) && styles.primaryDisabled]}
           disabled={!canPublish || loading}

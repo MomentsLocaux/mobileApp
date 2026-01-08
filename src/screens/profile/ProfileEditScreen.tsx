@@ -33,7 +33,7 @@ export default function ProfileEditScreen() {
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const insets = useSafeAreaInsets();
-  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
+  const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
   const handleSave = async () => {
     if (!user || !profile) return;
@@ -194,6 +194,8 @@ export default function ProfileEditScreen() {
         contentContainerStyle={{ paddingBottom: spacing.xl + insets.bottom }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
       <View style={styles.navRow}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -252,7 +254,7 @@ export default function ProfileEditScreen() {
           placeholder="Votre nom"
           value={displayName}
           onChangeText={setDisplayName}
-          onLayout={registerField('displayName')}
+          ref={registerFieldRef('displayName')}
           onFocus={() => handleInputFocus('displayName')}
         />
 
@@ -263,7 +265,7 @@ export default function ProfileEditScreen() {
           onChangeText={setBio}
           multiline
           numberOfLines={4}
-          onLayout={registerField('bio')}
+          ref={registerFieldRef('bio')}
           onFocus={() => handleInputFocus('bio')}
         />
 

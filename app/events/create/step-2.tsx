@@ -51,7 +51,7 @@ export default function CreateEventStep2() {
   const setContact = useCreateEventStore((s) => s.setContact);
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
   const insets = useSafeAreaInsets();
-  const { scrollViewRef, registerField, handleInputFocus } = useAutoScrollOnFocus();
+  const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
   const dateLabel = useMemo(() => {
     if (!startDate) return '';
@@ -107,6 +107,8 @@ export default function CreateEventStep2() {
           contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           <CategorySelector
             selected={category}
@@ -122,7 +124,7 @@ export default function CreateEventStep2() {
             contact={contact}
             externalLink={externalLink}
             onInputFocus={handleInputFocus}
-            onInputLayout={registerField}
+            onInputRef={registerFieldRef}
             onChange={(data) => {
               if (data.price !== undefined) setPrice(data.price);
               if (data.duration !== undefined) setDuration(data.duration);

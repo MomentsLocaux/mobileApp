@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
-import type { LayoutChangeEvent } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 
@@ -10,7 +9,7 @@ type Props = {
   contact?: string;
   externalLink?: string;
   onInputFocus?: (key: string) => void;
-  onInputLayout?: (key: string) => (event: LayoutChangeEvent) => void;
+  onInputRef?: (key: string) => (node: any) => void;
   onChange: (data: { price?: string; duration?: string; contact?: string; externalLink?: string }) => void;
 };
 
@@ -20,7 +19,7 @@ export const OptionalInfoSection = ({
   contact,
   externalLink,
   onInputFocus,
-  onInputLayout,
+  onInputRef,
   onChange,
 }: Props) => {
   const [open, setOpen] = useState(false);
@@ -39,7 +38,7 @@ export const OptionalInfoSection = ({
             placeholder="Gratuit, 5€..."
             value={price}
             onChangeText={(text) => onChange({ price: text })}
-            onLayout={onInputLayout?.('price')}
+            ref={onInputRef?.('price')}
             onFocus={() => onInputFocus?.('price')}
           />
 
@@ -49,7 +48,7 @@ export const OptionalInfoSection = ({
             placeholder="Ex: 2h"
             value={duration}
             onChangeText={(text) => onChange({ duration: text })}
-            onLayout={onInputLayout?.('duration')}
+            ref={onInputRef?.('duration')}
             onFocus={() => onInputFocus?.('duration')}
           />
 
@@ -60,7 +59,7 @@ export const OptionalInfoSection = ({
             value={contact}
             onChangeText={(text) => onChange({ contact: text })}
             autoCapitalize="none"
-            onLayout={onInputLayout?.('contact')}
+            ref={onInputRef?.('contact')}
             onFocus={() => onInputFocus?.('contact')}
           />
 
@@ -71,7 +70,7 @@ export const OptionalInfoSection = ({
             value={externalLink}
             onChangeText={(text) => onChange({ externalLink: text })}
             autoCapitalize="none"
-            onLayout={onInputLayout?.('externalLink')}
+            ref={onInputRef?.('externalLink')}
             onFocus={() => onInputFocus?.('externalLink')}
           />
         </View>
