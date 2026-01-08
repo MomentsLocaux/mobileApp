@@ -10,6 +10,7 @@ interface Props {
   event: EventWithCreator;
   distanceKm?: number;
   active?: boolean;
+  showCarousel?: boolean;
   onPress: () => void;
   onNavigate: () => void;
   onSelect?: () => void;
@@ -40,6 +41,7 @@ export const EventResultCard: React.FC<Props> = ({
   event,
   distanceKm,
   active = false,
+  showCarousel = true,
   onPress,
   onNavigate,
   onSelect,
@@ -71,13 +73,22 @@ export const EventResultCard: React.FC<Props> = ({
       onMoveShouldSetResponder={() => false}
     >
       <View style={styles.imageWrapper}>
-        <EventImageCarousel
-          images={images}
-          height={260}
-          borderRadius={borderRadius.lg}
-          onSwipeStart={() => setIsSwiping(true)}
-          onSwipeEnd={() => setIsSwiping(false)}
-        />
+        {showCarousel ? (
+          <EventImageCarousel
+            images={images}
+            height={260}
+            borderRadius={borderRadius.lg}
+            onSwipeStart={() => setIsSwiping(true)}
+            onSwipeEnd={() => setIsSwiping(false)}
+          />
+        ) : images.length > 0 ? (
+          <Image
+            source={{ uri: images[0] }}
+            style={[styles.staticImage, { borderRadius: borderRadius.lg }]}
+          />
+        ) : (
+          <View style={[styles.staticImage, { borderRadius: borderRadius.lg }]} />
+        )}
         <View style={styles.topBadge}>
           <Text style={styles.topBadgeText}>{categoryLabel}</Text>
         </View>
@@ -171,6 +182,12 @@ const styles = StyleSheet.create({
   imageWrapper: {
     position: 'relative',
     width: '100%',
+  },
+  staticImage: {
+    width: '100%',
+    height: 260,
+    resizeMode: 'cover',
+    backgroundColor: colors.neutral[200],
   },
   topBadge: {
     position: 'absolute',

@@ -42,6 +42,10 @@ const EVENT_FULL_SELECT = `
   contact_email,
   contact_phone,
   operating_hours,
+  comments_count,
+  media_count,
+  rating_count,
+  rating_avg,
   location,
   created_at,
   updated_at,
@@ -309,13 +313,14 @@ export const supabaseProvider: (Pick<
     return (data || []) as CommentWithAuthor[];
   },
 
-  async createComment(payload: { eventId: string; authorId: string; message: string }) {
+  async createComment(payload: { eventId: string; authorId: string; message: string; rating?: number | null }) {
     const { data, error } = await supabase
       .from('event_comments')
       .insert({
         event_id: payload.eventId,
         author_id: payload.authorId,
         message: payload.message,
+        rating: payload.rating ?? null,
       } as any)
       .select(
         `

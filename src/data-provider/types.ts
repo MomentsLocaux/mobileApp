@@ -17,7 +17,12 @@ export interface IDataProvider {
   deleteEvent(id: string): Promise<boolean>;
 
   listComments(eventId: string): Promise<CommentWithAuthor[]>;
-  createComment(payload: { eventId: string; authorId: string; message: string }): Promise<CommentWithAuthor | null>;
+  createComment(payload: {
+    eventId: string;
+    authorId: string;
+    message: string;
+    rating?: number | null;
+  }): Promise<CommentWithAuthor | null>;
   deleteComment(id: string): Promise<boolean>;
 
   checkInEvent(eventId: string, lat: number, lon: number, token?: string): Promise<CheckInResult>;

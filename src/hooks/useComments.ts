@@ -24,9 +24,9 @@ export function useComments(eventId: string) {
   }, [eventId]);
 
   const addComment = useCallback(
-    async (message: string) => {
+    async (message: string, rating?: number | null) => {
       if (!user) throw new Error('Non authentifié');
-      const newComment = await CommentsService.create(eventId, user.id, message);
+      const newComment = await CommentsService.create(eventId, user.id, message, rating);
       if (newComment) {
         setComments((prev) => [newComment, ...prev]);
       }

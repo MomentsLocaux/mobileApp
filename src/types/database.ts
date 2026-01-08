@@ -159,6 +159,10 @@ export interface Event {
   contact_email: string | null;
   contact_phone: string | null;
   operating_hours: Json | null;
+  comments_count: number;
+  media_count: number;
+  rating_count: number;
+  rating_avg: number;
   created_at: string;
   updated_at: string;
   status: string | null;
@@ -179,6 +183,7 @@ export interface EventComment {
   event_id: string;
   author_id: string;
   message: string;
+  rating?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -296,7 +301,6 @@ export interface EventWithCreator extends Event {
   media: EventMedia[];
   likes_count: number;
   interests_count: number;
-  comments_count: number;
   checkins_count: number;
   is_liked?: boolean;
   is_interested?: boolean;

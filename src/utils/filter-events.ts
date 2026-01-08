@@ -193,7 +193,7 @@ export function filterEvents(
     }
 
     if (
-      filters.radiusKm &&
+      filters.radiusKm !== undefined &&
       filters.centerLat !== undefined &&
       filters.centerLon !== undefined &&
       event.latitude !== undefined &&

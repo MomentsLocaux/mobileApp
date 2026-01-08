@@ -57,6 +57,8 @@ export const EventImageCarousel: React.FC<Props> = ({
         pagingEnabled
         scrollEnabled={validImages.length > 1}
         nestedScrollEnabled
+        directionalLockEnabled
+        alwaysBounceHorizontal={validImages.length > 1}
         showsHorizontalScrollIndicator={false}
         onStartShouldSetResponderCapture={() => true}
         onMoveShouldSetResponderCapture={() => true}

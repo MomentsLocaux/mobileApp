@@ -296,9 +296,11 @@ export default function HomeScreen() {
 
       <FlatList
         data={filteredAndSortedEvents}
+        nestedScrollEnabled
         renderItem={({ item }: { item: EventWithCreator }) => (
           <EventResultCard
             event={item}
+            showCarousel={false}
             onPress={() => router.push(`/events/${item.id}` as any)}
             onSelect={() => {}}
             onNavigate={() => router.push(`/events/${item.id}` as any)}

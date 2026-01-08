@@ -33,6 +33,7 @@ import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { filterEvents } from '@/utils/filter-events';
 import type { SearchState } from '@/store/searchStore';
 import { buildSearchSummary } from '@/utils/search-summary';
+import type { EventWithCreator } from '@/types/database';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -145,7 +146,7 @@ export const SearchBar: React.FC<Props> = ({
 
   const effectiveRadiusKm = useMemo(() => {
     if (where.radiusKm !== undefined) {
-      return where.radiusKm > 0 ? where.radiusKm : 10;
+      return Math.max(0, where.radiusKm);
     }
     if (where.location) return 10;
     return undefined;
@@ -155,7 +156,7 @@ export const SearchBar: React.FC<Props> = ({
     if (where.location) {
       return { latitude: where.location.latitude, longitude: where.location.longitude };
     }
-    if (where.radiusKm && userCoords) {
+    if (where.radiusKm !== undefined && userCoords) {
       return userCoords;
     }
     return null;
@@ -208,7 +209,7 @@ export const SearchBar: React.FC<Props> = ({
 
   useEffect(() => {
     let cancelled = false;
-    if (!hasSearchCriteria || !searchCenter || !effectiveRadiusKm) {
+    if (!hasSearchCriteria) {
       setSearchCount(null);
       setCountLoading(false);
       return;
@@ -217,26 +218,31 @@ export const SearchBar: React.FC<Props> = ({
     setCountLoading(true);
     const timeout = setTimeout(async () => {
       try {
-        const latDelta = effectiveRadiusKm / 111;
-        const lonDelta =
-          effectiveRadiusKm /
-          (111 * Math.max(Math.cos((searchCenter.latitude * Math.PI) / 180), 0.1));
-        const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
-        const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
+        let events: EventWithCreator[] = [];
+        if (searchCenter && effectiveRadiusKm !== undefined) {
+          const latDelta = effectiveRadiusKm / 111;
+          const lonDelta =
+            effectiveRadiusKm /
+            (111 * Math.max(Math.cos((searchCenter.latitude * Math.PI) / 180), 0.1));
+          const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
+          const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
 
-        const featureCollection = await EventsService.listEventsByBBox({
-          ne,
-          sw,
-          limit: 300,
-          includePast,
-        });
+          const featureCollection = await EventsService.listEventsByBBox({
+            ne,
+            sw,
+            limit: 300,
+            includePast,
+          });
 
-        const ids =
-          featureCollection?.features
-            ?.map((f: any) => f?.properties?.id)
-            .filter(Boolean) || [];
-        const uniqueIds = Array.from(new Set(ids)) as string[];
-        const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+          const ids =
+            featureCollection?.features
+              ?.map((f: any) => f?.properties?.id)
+              .filter(Boolean) || [];
+          const uniqueIds = Array.from(new Set(ids)) as string[];
+          events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+        } else {
+          events = await EventsService.listEvents({ limit: 300, includePast });
+        }
         const filters = buildFiltersFromSearch({ where, when, who, what } as SearchState, userCoords);
         const filteredEvents = filterEvents(events, filters, null);
         if (!cancelled) {

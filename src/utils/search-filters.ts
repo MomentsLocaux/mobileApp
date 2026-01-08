@@ -23,7 +23,7 @@ export const buildFiltersFromSearch = (
   if (location) {
     filters.centerLat = location.latitude;
     filters.centerLon = location.longitude;
-    if (search.where.radiusKm) {
+    if (search.where.radiusKm !== undefined) {
       filters.radiusKm = search.where.radiusKm;
     }
   }
