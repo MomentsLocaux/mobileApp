@@ -8,6 +8,8 @@ export const CheckinService = {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
 
+    console.log('[CheckIn] response', { data, error });
+
     if (error) {
       const response = (error as { context?: Response }).context;
       if (response) {

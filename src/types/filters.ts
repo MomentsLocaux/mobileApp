@@ -8,6 +8,7 @@ export interface EventFilters {
   categories?: string[];
   subcategory?: string;
   subcategories?: string[];
+  name?: string;
   time?: TimeFilter;
   startDate?: string;
   endDate?: string;

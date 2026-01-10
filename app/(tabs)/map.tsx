@@ -118,7 +118,8 @@ export default function MapScreen() {
     const hasWhat =
       searchState.what.categories.length > 0 ||
       searchState.what.subcategories.length > 0 ||
-      searchState.what.tags.length > 0;
+      searchState.what.tags.length > 0 ||
+      !!searchState.what.query?.trim();
     return hasWhere || hasWhen || hasWhat;
   }, [searchState]);
 

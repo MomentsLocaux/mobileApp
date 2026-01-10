@@ -24,6 +24,11 @@ export interface Database {
         Insert: Omit<EventMedia, 'id' | 'created_at'>;
         Update: Partial<Omit<EventMedia, 'id'>>;
       };
+      event_media_submissions: {
+        Row: EventMediaSubmission;
+        Insert: Omit<EventMediaSubmission, 'id' | 'created_at' | 'reviewed_at' | 'reviewed_by'>;
+        Update: Partial<Omit<EventMediaSubmission, 'id'>>;
+      };
       event_comments: {
         Row: EventComment;
         Insert: Omit<EventComment, 'id' | 'created_at'>;
@@ -175,6 +180,17 @@ export interface EventMedia {
   url: string;
   type: 'image' | 'video';
   order: number;
+  created_at: string;
+}
+
+export interface EventMediaSubmission {
+  id: string;
+  event_id: string;
+  author_id: string;
+  url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   created_at: string;
 }
 

@@ -7,8 +7,10 @@ import {
   TextInput,
   ScrollView,
   Pressable,
+  Image,
   useWindowDimensions,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import Animated, {
   Easing,
   Extrapolate,
@@ -34,6 +36,8 @@ import { filterEvents } from '@/utils/filter-events';
 import type { SearchState } from '@/store/searchStore';
 import { buildSearchSummary } from '@/utils/search-summary';
 import type { EventWithCreator } from '@/types/database';
+import { CommunityService } from '@/services/community.service';
+import type { CommunityMember } from '@/types/community';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -44,6 +48,7 @@ interface Props {
   hasLocation: boolean;
   applied: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  enableCommunitySearch?: boolean;
 }
 
 export const SearchBar: React.FC<Props> = ({
@@ -52,7 +57,9 @@ export const SearchBar: React.FC<Props> = ({
   hasLocation,
   applied,
   onExpandedChange,
+  enableCommunitySearch = false,
 }) => {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [activeSection, setActiveSection] = useState<SectionKey>('where');
@@ -63,8 +70,14 @@ export const SearchBar: React.FC<Props> = ({
   const [searchCount, setSearchCount] = useState<number | null>(null);
   const [countLoading, setCountLoading] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
+  const [searchMode, setSearchMode] = useState<'events' | 'members'>('events');
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberCity, setMemberCity] = useState('');
+  const [memberResults, setMemberResults] = useState<CommunityMember[]>([]);
+  const [memberLoading, setMemberLoading] = useState(false);
   const barRef = useRef<View | null>(null);
   const whereInputRef = useRef<TextInput | null>(null);
+  const memberInputRef = useRef<TextInput | null>(null);
 
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
@@ -140,7 +153,11 @@ export const SearchBar: React.FC<Props> = ({
   const hasSearchCriteria = useMemo(() => {
     const hasWhere = !!where.location || !!where.radiusKm;
     const hasWhen = !!when.preset || !!when.startDate || !!when.endDate || includePast;
-    const hasWhat = what.categories.length > 0 || what.subcategories.length > 0 || what.tags.length > 0;
+    const hasWhat =
+      what.categories.length > 0 ||
+      what.subcategories.length > 0 ||
+      what.tags.length > 0 ||
+      !!what.query?.trim();
     return hasWhere || hasWhen || hasWhat;
   }, [where.location, where.radiusKm, when.preset, when.startDate, when.endDate, includePast, what]);
 
@@ -209,6 +226,11 @@ export const SearchBar: React.FC<Props> = ({
 
   useEffect(() => {
     let cancelled = false;
+    if (searchMode !== 'events') {
+      setSearchCount(null);
+      setCountLoading(false);
+      return;
+    }
     if (!hasSearchCriteria) {
       setSearchCount(null);
       setCountLoading(false);
@@ -263,7 +285,46 @@ export const SearchBar: React.FC<Props> = ({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [effectiveRadiusKm, hasSearchCriteria, includePast, searchCenter, userCoords, where, when, who, what]);
+  }, [effectiveRadiusKm, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords, where, when, who, what]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (searchMode !== 'members') {
+      setMemberResults([]);
+      setMemberLoading(false);
+      return;
+    }
+    const hasQuery = !!memberQuery.trim() || !!memberCity.trim();
+    if (!hasQuery) {
+      setMemberResults([]);
+      return;
+    }
+    setMemberLoading(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await CommunityService.searchMembers({
+          query: memberQuery.trim(),
+          city: memberCity.trim(),
+          limit: 12,
+        });
+        if (!cancelled) {
+          setMemberResults(res);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setMemberResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setMemberLoading(false);
+        }
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [memberCity, memberQuery, searchMode]);
 
   const countLabel = countLoading
     ? 'Recherche...'
@@ -291,7 +352,11 @@ export const SearchBar: React.FC<Props> = ({
         withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) })
       );
       setTimeout(() => {
-        whereInputRef.current?.focus();
+        if (searchMode === 'members') {
+          memberInputRef.current?.focus();
+        } else {
+          whereInputRef.current?.focus();
+        }
       }, 60);
     });
   };
@@ -378,13 +443,17 @@ export const SearchBar: React.FC<Props> = ({
     };
   });
 
+  const collapsedLabel =
+    summaryText ||
+    (enableCommunitySearch && searchMode === 'members' ? 'Rechercher un membre' : placeholder);
+
   return (
     <View style={styles.wrapper}>
       <Animated.View style={[styles.collapsedRow, barAnimatedStyle]} ref={barRef}>
         <Pressable style={styles.searchPill} onPress={openExpanded}>
           <Search size={18} color={colors.neutral[500]} />
           <Text style={styles.searchText} numberOfLines={1}>
-            {summaryText || placeholder}
+            {collapsedLabel}
           </Text>
         </Pressable>
       </Animated.View>
@@ -395,7 +464,31 @@ export const SearchBar: React.FC<Props> = ({
           <Pressable style={[styles.backdropPressable, overlayBoundsStyle]} onPress={closeExpanded} />
           <Animated.View style={[styles.expandedContainer, containerStyle]}>
             <View style={[styles.expandedHeader, { paddingTop: insets.top + spacing.md }]}>
-              <Text style={styles.expandedTitle}>Rechercher un événement</Text>
+              <View>
+                <Text style={styles.expandedTitle}>
+                  {searchMode === 'members' ? 'Rechercher un membre' : 'Rechercher un événement'}
+                </Text>
+                {enableCommunitySearch && (
+                  <View style={styles.modeSwitch}>
+                    <TouchableOpacity
+                      style={[styles.modePill, searchMode === 'events' && styles.modePillActive]}
+                      onPress={() => setSearchMode('events')}
+                    >
+                      <Text style={[styles.modeText, searchMode === 'events' && styles.modeTextActive]}>
+                        Événements
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modePill, searchMode === 'members' && styles.modePillActive]}
+                      onPress={() => setSearchMode('members')}
+                    >
+                      <Text style={[styles.modeText, searchMode === 'members' && styles.modeTextActive]}>
+                        Membres
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
               <TouchableOpacity style={styles.closeBtn} onPress={closeExpanded}>
                 <X size={20} color={colors.neutral[700]} />
               </TouchableOpacity>
@@ -408,216 +501,292 @@ export const SearchBar: React.FC<Props> = ({
                 { paddingBottom: insets.bottom + BOTTOM_BAR_GUTTER },
               ]}
             >
-              <Animated.View style={sectionStyle0}>
-                <SectionCard
-                  title="Où"
-                  summary={sectionSummary.whereLabel}
-                  active={activeSection === 'where'}
-                  icon={<MapPin size={18} color={colors.neutral[700]} />}
-                  onPress={() => setActiveSection('where')}
-                >
+              {searchMode === 'members' ? (
+                <View style={styles.memberPanel}>
+                  <Text style={styles.memberLabel}>Nom</Text>
                   <TextInput
-                    ref={whereInputRef}
-                    placeholder="Ville, adresse ou lieu"
+                    ref={memberInputRef}
+                    placeholder="Rechercher un membre"
                     placeholderTextColor={colors.neutral[400]}
-                    value={query}
-                    onChangeText={setQuery}
+                    value={memberQuery}
+                    onChangeText={setMemberQuery}
                     style={styles.input}
                   />
-                  <View style={styles.row}>
-                    {where.location?.label && (
-                      <Chip
-                        label={`${where.location.label} ✕`}
-                        active
-                        onPress={() => setWhere({ location: undefined })}
-                      />
-                    )}
-                  </View>
-                  <View style={styles.sliderRow}>
-                    <Text style={styles.meta}>Dans un rayon de {where.radiusKm ?? 0} km</Text>
-                    <View style={styles.counterControls}>
-                      <TouchableOpacity
-                        style={styles.counterBtn}
-                        onPress={() =>
-                          setWhere({
-                            radiusKm: Math.max(0, (where.radiusKm ?? 0) - 5),
-                          })
-                        }
-                      >
-                        <Text style={styles.counterBtnText}>-</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.counterValue}>{where.radiusKm ?? 0}</Text>
-                      <TouchableOpacity
-                        style={styles.counterBtn}
-                        onPress={() =>
-                          setWhere({
-                            radiusKm: Math.min(50, (where.radiusKm ?? 0) + 5),
-                          })
-                        }
-                      >
-                        <Text style={styles.counterBtnText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  {loading && <Text style={styles.meta}>Recherche...</Text>}
-                  {results.map((item) => (
-                    <TouchableOpacity
-                      key={`${item.latitude}-${item.longitude}-${item.label}`}
-                      style={styles.result}
-                      onPress={() => handleSelectLocation(item)}
-                    >
-                      <MapPin size={16} color={colors.primary[600]} />
-                      <Text style={styles.resultText}>{item.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </SectionCard>
-              </Animated.View>
+                  <Text style={styles.memberLabel}>Ville</Text>
+                  <TextInput
+                    placeholder="Ville"
+                    placeholderTextColor={colors.neutral[400]}
+                    value={memberCity}
+                    onChangeText={setMemberCity}
+                    style={styles.input}
+                  />
 
-              <Animated.View style={sectionStyle1}>
-                <SectionCard
-                  title="Quand"
-                  summary={sectionSummary.whenLabel}
-                  active={activeSection === 'when'}
-                  icon={<Calendar size={18} color={colors.neutral[700]} />}
-                  onPress={() => setActiveSection('when')}
-                >
-                  <View style={styles.row}>
-                    {(['today', 'tomorrow', 'weekend'] as const).map((preset) => (
-                      <Chip
-                        key={preset}
-                        label={presetLabel(preset)}
-                        active={when.preset === preset}
-                        onPress={() => {
-                          const nextPreset = when.preset === preset ? undefined : preset;
-                          setWhen({
-                            preset: nextPreset,
-                            startDate: undefined,
-                            endDate: undefined,
-                          });
-                        }}
-                      />
-                    ))}
-                  </View>
-                  <View style={styles.checkboxRow}>
+                  {memberLoading ? <Text style={styles.meta}>Recherche...</Text> : null}
+                  {!memberLoading && (memberQuery.trim() || memberCity.trim()) && memberResults.length === 0 ? (
+                    <Text style={styles.meta}>Aucun membre trouvé</Text>
+                  ) : null}
+
+                  {memberResults.map((member) => (
                     <TouchableOpacity
-                      style={[styles.checkbox, includePast && styles.checkboxActive]}
+                      key={member.user_id}
+                      style={styles.memberResult}
                       onPress={() => {
-                        if (includePast) {
-                          setWhen({ includePast: false });
-                          return;
-                        }
-                        setWhen({
-                          includePast: true,
-                          preset: undefined,
-                          startDate: undefined,
-                          endDate: undefined,
-                        });
+                        closeExpanded();
+                        router.push(`/community/${member.user_id}` as any);
                       }}
                     >
-                      {includePast && <View style={styles.checkboxMark} />}
+                      {member.avatar_url ? (
+                        <Image source={{ uri: member.avatar_url }} style={styles.memberAvatar} />
+                      ) : (
+                        <View style={styles.memberAvatarPlaceholder} />
+                      )}
+                      <View style={styles.memberMeta}>
+                        <Text style={styles.memberName}>{member.display_name}</Text>
+                        <Text style={styles.memberCity}>{member.city || 'Ville inconnue'}</Text>
+                      </View>
                     </TouchableOpacity>
-                    <Text style={styles.checkboxLabel}>N&apos;importe quand</Text>
-                  </View>
-                  <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
-                    <Text style={styles.meta}>Date(s)</Text>
-                    <Text style={styles.dateValue}>
-                      {when.startDate
-                        ? when.endDate
-                          ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
-                          : formatDate(when.startDate)
-                        : 'Choisir'}
-                    </Text>
-                  </TouchableOpacity>
-                </SectionCard>
-              </Animated.View>
-
-              <Animated.View style={sectionStyle2}>
-                <SectionCard
-                  title="Qui"
-                  summary={sectionSummary.whoLabel}
-                  active={activeSection === 'who'}
-                  icon={<Users size={18} color={colors.neutral[700]} />}
-                  onPress={() => setActiveSection('who')}
-                >
-                  <CounterRow
-                    label="Adultes"
-                    subtitle="13 ans et plus"
-                    value={who.adults}
-                    onChange={(v) => setWho({ adults: Math.max(1, v) })}
-                  />
-                  <CounterRow
-                    label="Enfants"
-                    subtitle="2 à 12 ans"
-                    value={who.children}
-                    onChange={(v) =>
-                      setWho({
-                        children: Math.max(0, v),
-                        adults: Math.max(1, who.adults, v > 0 ? 1 : 0),
-                      })
-                    }
-                  />
-                  <CounterRow
-                    label="Bébés"
-                    subtitle="- de 2 ans"
-                    value={who.babies}
-                    onChange={(v) =>
-                      setWho({
-                        babies: Math.max(0, v),
-                        adults: Math.max(1, who.adults, v > 0 ? 1 : 0),
-                      })
-                    }
-                  />
-                </SectionCard>
-              </Animated.View>
-
-              <Animated.View style={sectionStyle3}>
-                <SectionCard
-                  title="Catégorie"
-                  summary={sectionSummary.whatLabel}
-                  active={activeSection === 'what'}
-                  icon={<Tag size={18} color={colors.neutral[700]} />}
-                  onPress={() => setActiveSection('what')}
-                >
-                  <Text style={styles.sectionLabel}>Catégories</Text>
-                  <View style={styles.rowWrap}>
-                    {categories.map((cat) => (
-                      <Chip
-                        key={cat.id}
-                        label={cat.label}
-                        active={what.categories.includes(cat.id)}
-                        onPress={() => {
-                          const exists = what.categories.includes(cat.id);
-                          const next = exists
-                            ? what.categories.filter((c) => c !== cat.id)
-                            : [...what.categories, cat.id];
-                          const filteredSubs = (what.subcategories || []).filter((s) => {
-                            const sub = subcategories.find((sc) => sc.id === s);
-                            return sub ? next.includes(sub.category_id) : false;
-                          });
-                          setWhat({ categories: next, subcategories: filteredSubs });
-                        }}
+                  ))}
+                </View>
+              ) : (
+                <>
+                  <Animated.View style={sectionStyle0}>
+                    <SectionCard
+                      title="Où"
+                      summary={sectionSummary.whereLabel}
+                      active={activeSection === 'where'}
+                      icon={<MapPin size={18} color={colors.neutral[700]} />}
+                      onPress={() => setActiveSection('where')}
+                    >
+                      <TextInput
+                        ref={whereInputRef}
+                        placeholder="Ville, adresse ou lieu"
+                        placeholderTextColor={colors.neutral[400]}
+                        value={query}
+                        onChangeText={setQuery}
+                        style={styles.input}
                       />
-                    ))}
-                  </View>
-                </SectionCard>
-              </Animated.View>
+                      <View style={styles.row}>
+                        {where.location?.label && (
+                          <Chip
+                            label={`${where.location.label} ✕`}
+                            active
+                            onPress={() => setWhere({ location: undefined })}
+                          />
+                        )}
+                      </View>
+                      <View style={styles.sliderRow}>
+                        <Text style={styles.meta}>Dans un rayon de {where.radiusKm ?? 0} km</Text>
+                        <View style={styles.counterControls}>
+                          <TouchableOpacity
+                            style={styles.counterBtn}
+                            onPress={() =>
+                              setWhere({
+                                radiusKm: Math.max(0, (where.radiusKm ?? 0) - 5),
+                              })
+                            }
+                          >
+                            <Text style={styles.counterBtnText}>-</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.counterValue}>{where.radiusKm ?? 0}</Text>
+                          <TouchableOpacity
+                            style={styles.counterBtn}
+                            onPress={() =>
+                              setWhere({
+                                radiusKm: Math.min(50, (where.radiusKm ?? 0) + 5),
+                              })
+                            }
+                          >
+                            <Text style={styles.counterBtnText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      {loading && <Text style={styles.meta}>Recherche...</Text>}
+                      {results.map((item) => (
+                        <TouchableOpacity
+                          key={`${item.latitude}-${item.longitude}-${item.label}`}
+                          style={styles.result}
+                          onPress={() => handleSelectLocation(item)}
+                        >
+                          <MapPin size={16} color={colors.primary[600]} />
+                          <Text style={styles.resultText}>{item.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </SectionCard>
+                  </Animated.View>
+
+                  <Animated.View style={sectionStyle1}>
+                    <SectionCard
+                      title="Quand"
+                      summary={sectionSummary.whenLabel}
+                      active={activeSection === 'when'}
+                      icon={<Calendar size={18} color={colors.neutral[700]} />}
+                      onPress={() => setActiveSection('when')}
+                    >
+                      <View style={styles.row}>
+                        {(['today', 'tomorrow', 'weekend'] as const).map((preset) => (
+                          <Chip
+                            key={preset}
+                            label={presetLabel(preset)}
+                            active={when.preset === preset}
+                            onPress={() => {
+                              const nextPreset = when.preset === preset ? undefined : preset;
+                              setWhen({
+                                preset: nextPreset,
+                                startDate: undefined,
+                                endDate: undefined,
+                              });
+                            }}
+                          />
+                        ))}
+                      </View>
+                      <View style={styles.checkboxRow}>
+                        <TouchableOpacity
+                          style={[styles.checkbox, includePast && styles.checkboxActive]}
+                          onPress={() => {
+                            if (includePast) {
+                              setWhen({ includePast: false });
+                              return;
+                            }
+                            setWhen({
+                              includePast: true,
+                              preset: undefined,
+                              startDate: undefined,
+                              endDate: undefined,
+                            });
+                          }}
+                        >
+                          {includePast && <View style={styles.checkboxMark} />}
+                        </TouchableOpacity>
+                        <Text style={styles.checkboxLabel}>N&apos;importe quand</Text>
+                      </View>
+                      <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
+                        <Text style={styles.meta}>Date(s)</Text>
+                        <Text style={styles.dateValue}>
+                          {when.startDate
+                            ? when.endDate
+                              ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
+                              : formatDate(when.startDate)
+                            : 'Choisir'}
+                        </Text>
+                      </TouchableOpacity>
+                    </SectionCard>
+                  </Animated.View>
+
+                  <Animated.View style={sectionStyle2}>
+                    <SectionCard
+                      title="Qui"
+                      summary={sectionSummary.whoLabel}
+                      active={activeSection === 'who'}
+                      icon={<Users size={18} color={colors.neutral[700]} />}
+                      onPress={() => setActiveSection('who')}
+                    >
+                      <CounterRow
+                        label="Adultes"
+                        subtitle="13 ans et plus"
+                        value={who.adults}
+                        onChange={(v) => setWho({ adults: Math.max(1, v) })}
+                      />
+                      <CounterRow
+                        label="Enfants"
+                        subtitle="2 à 12 ans"
+                        value={who.children}
+                        onChange={(v) =>
+                          setWho({
+                            children: Math.max(0, v),
+                            adults: Math.max(1, who.adults, v > 0 ? 1 : 0),
+                          })
+                        }
+                      />
+                      <CounterRow
+                        label="Bébés"
+                        subtitle="- de 2 ans"
+                        value={who.babies}
+                        onChange={(v) =>
+                          setWho({
+                            babies: Math.max(0, v),
+                            adults: Math.max(1, who.adults, v > 0 ? 1 : 0),
+                          })
+                        }
+                      />
+                    </SectionCard>
+                  </Animated.View>
+
+                  <Animated.View style={sectionStyle3}>
+                    <SectionCard
+                      title="Catégorie"
+                      summary={sectionSummary.whatLabel}
+                      active={activeSection === 'what'}
+                      icon={<Tag size={18} color={colors.neutral[700]} />}
+                      onPress={() => setActiveSection('what')}
+                    >
+                      <Text style={styles.sectionLabel}>Nom de l&apos;événement</Text>
+                      <TextInput
+                        placeholder="Ex: marché, concert, expo"
+                        placeholderTextColor={colors.neutral[400]}
+                        value={what.query || ''}
+                        onChangeText={(value) => setWhat({ query: value })}
+                        style={styles.input}
+                      />
+                      <Text style={styles.sectionLabel}>Catégories</Text>
+                      <View style={styles.rowWrap}>
+                        {categories.map((cat) => (
+                          <Chip
+                            key={cat.id}
+                            label={cat.label}
+                            active={what.categories.includes(cat.id)}
+                            onPress={() => {
+                              const exists = what.categories.includes(cat.id);
+                              const next = exists
+                                ? what.categories.filter((c) => c !== cat.id)
+                                : [...what.categories, cat.id];
+                              const filteredSubs = (what.subcategories || []).filter((s) => {
+                                const sub = subcategories.find((sc) => sc.id === s);
+                                return sub ? next.includes(sub.category_id) : false;
+                              });
+                              setWhat({ categories: next, subcategories: filteredSubs });
+                            }}
+                          />
+                        ))}
+                      </View>
+                    </SectionCard>
+                  </Animated.View>
+                </>
+              )}
             </ScrollView>
 
-            <View style={[styles.footer, { marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }]}>
-              <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
-                <Text style={styles.resetText}>Tout effacer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.primaryBtn}
-                onPress={() => {
-                  onApply();
-                  closeExpanded();
-                }}
-              >
-                <Text style={styles.primaryText}>{countLabel}</Text>
-                <ChevronRight size={16} color={colors.neutral[0]} />
-              </TouchableOpacity>
-            </View>
+            {searchMode === 'events' ? (
+              <View style={[styles.footer, { marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }]}>
+                <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
+                  <Text style={styles.resetText}>Tout effacer</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => {
+                    onApply();
+                    closeExpanded();
+                  }}
+                >
+                  <Text style={styles.primaryText}>{countLabel}</Text>
+                  <ChevronRight size={16} color={colors.neutral[0]} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={[styles.footer, { marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }]}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setMemberQuery('');
+                    setMemberCity('');
+                    setMemberResults([]);
+                  }}
+                >
+                  <Text style={styles.resetText}>Tout effacer</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.primaryBtn} onPress={closeExpanded}>
+                  <Text style={styles.primaryText}>Fermer</Text>
+                  <ChevronRight size={16} color={colors.neutral[0]} />
+                </TouchableOpacity>
+              </View>
+            )}
           </Animated.View>
         </Animated.View>
       )}
@@ -778,6 +947,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  modeSwitch: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  modePill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[100],
+  },
+  modePillActive: {
+    backgroundColor: colors.neutral[900],
+  },
+  modeText: {
+    ...typography.caption,
+    color: colors.neutral[600],
+    fontWeight: '600',
+  },
+  modeTextActive: {
+    color: colors.neutral[0],
+  },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
@@ -872,6 +1063,45 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[800],
     flex: 1,
+  },
+  memberPanel: {
+    gap: spacing.sm,
+  },
+  memberLabel: {
+    ...typography.caption,
+    color: colors.neutral[600],
+  },
+  memberResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[100],
+  },
+  memberAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[200],
+  },
+  memberMeta: {
+    flex: 1,
+  },
+  memberName: {
+    ...typography.body,
+    color: colors.neutral[900],
+    fontWeight: '600',
+  },
+  memberCity: {
+    ...typography.caption,
+    color: colors.neutral[500],
   },
   counterRow: {
     flexDirection: 'row',

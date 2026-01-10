@@ -31,6 +31,7 @@ export interface SearchWhatState {
   categories: string[];
   subcategories: string[];
   tags: string[];
+  query?: string;
 }
 
 export interface SearchState {
@@ -54,7 +55,7 @@ const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWh
   where: { history: [] },
   when: { includePast: false },
   who: { adults: 1, children: 0, babies: 0 },
-  what: { categories: [], subcategories: [], tags: [] },
+  what: { categories: [], subcategories: [], tags: [], query: '' },
   sortBy: 'triage',
   sortOrder: undefined,
 };

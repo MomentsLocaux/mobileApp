@@ -3,6 +3,26 @@ import type { CommunityMember, LeaderboardEntry } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
 
 export const CommunityService = {
+  async searchMembers(options: { query?: string; city?: string; limit?: number }) {
+    const { query, city, limit = 12 } = options;
+    let db = supabase
+      .from('community_profile_stats')
+      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count')
+      .limit(limit);
+
+    if (query && query.trim()) {
+      db = db.ilike('display_name', `%${query.trim()}%`);
+    }
+
+    if (city && city.trim()) {
+      db = db.ilike('city', `%${city.trim()}%`);
+    }
+
+    const { data, error } = await db;
+    if (error) throw error;
+    return (data || []) as CommunityMember[];
+  },
+
   async listMembers(options: {
     city?: string | null;
     sort?: 'followers' | 'events' | 'lumo';

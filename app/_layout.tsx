@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import Toast from 'react-native-toast-message';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
@@ -84,6 +85,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
+      <Toast />
     </>
   );
 }

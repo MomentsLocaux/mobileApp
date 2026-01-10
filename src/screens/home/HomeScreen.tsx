@@ -68,7 +68,8 @@ export default function HomeScreen() {
     const hasWhat =
       searchState.what.categories.length > 0 ||
       searchState.what.subcategories.length > 0 ||
-      searchState.what.tags.length > 0;
+      searchState.what.tags.length > 0 ||
+      !!searchState.what.query?.trim();
     return hasWhere || hasWhen || hasWhat;
   }, [
     searchState.where.location,
@@ -80,6 +81,7 @@ export default function HomeScreen() {
     searchState.what.categories,
     searchState.what.subcategories,
     searchState.what.tags,
+    searchState.what.query,
   ]);
   const filteredAndSortedEvents = useMemo(() => {
     const base = searchApplied ? searchResults : fetchedEvents || [];
@@ -251,6 +253,7 @@ export default function HomeScreen() {
           onApply={() => setSearchApplied(true)}
           hasLocation={!!userLocation}
           applied={searchApplied}
+          enableCommunitySearch
         />
       </View>
 

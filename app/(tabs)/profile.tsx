@@ -20,6 +20,7 @@ import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
 import { EventsService } from '../../src/services/events.service';
 import type { EventWithCreator } from '../../src/types/database';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
+import { supabase } from '../../src/lib/supabase/client';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function ProfileScreen() {
   const [myEvents, setMyEvents] = useState<EventWithCreator[]>([]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [lumoBalance, setLumoBalance] = useState<number | null>(null);
+  const [loadingLumo, setLoadingLumo] = useState(false);
   const sheetTranslate = useRef(new Animated.Value(300)).current;
 
   const handleSignOut = async () => {
@@ -101,6 +104,33 @@ export default function ProfileScreen() {
       setLoadingEvents(false);
     }
   };
+
+  useEffect(() => {
+    const loadWallet = async () => {
+      if (!profile?.id) return;
+      setLoadingLumo(true);
+      try {
+        const { data, error } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', profile.id)
+          .maybeSingle();
+        if (error) {
+          console.warn('loadWallet error', error);
+          setLumoBalance(null);
+          return;
+        }
+        setLumoBalance(typeof data?.balance === 'number' ? data.balance : null);
+      } catch (err) {
+        console.warn('loadWallet error', err);
+        setLumoBalance(null);
+      } finally {
+        setLoadingLumo(false);
+      }
+    };
+
+    loadWallet();
+  }, [profile?.id]);
 
   if (isGuest) {
     return (
@@ -189,6 +219,12 @@ export default function ProfileScreen() {
               <Text style={styles.infoLabel}>Onboarding</Text>
               <Text style={styles.infoValue}>
                 {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Lumo</Text>
+              <Text style={styles.infoValue}>
+                {loadingLumo ? '...' : lumoBalance ?? 0}
               </Text>
             </View>
           </Card>

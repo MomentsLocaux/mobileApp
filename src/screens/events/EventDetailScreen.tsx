@@ -41,15 +41,18 @@ import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
-import type { EventWithCreator } from '../../types/database';
+import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { CheckinService } from '@/services/checkin.service';
-import { EventImageCarousel } from '@/components/events/EventImageCarousel';
+import { PlaceMediaGallery, type MediaImage } from '@/components/events/PlaceMediaGallery';
 import { supabase } from '@/lib/supabase/client';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
+import { EventPhotoContributionModal } from '@/components/events/EventPhotoContributionModal';
+import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
+import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
 const BOTTOM_BAR_HEIGHT = 72;
@@ -73,6 +76,10 @@ export default function EventDetailScreen() {
   const [activeSection, setActiveSection] = useState<'overview' | 'reviews' | 'photos' | 'info' | 'creator'>('overview');
   const [navSheetVisible, setNavSheetVisible] = useState(false);
   const [creatorEvents, setCreatorEvents] = useState<EventWithCreator[]>([]);
+  const [communityPhotos, setCommunityPhotos] = useState<EventMediaSubmission[]>([]);
+  const [pendingPhotos, setPendingPhotos] = useState<EventMediaSubmission[]>([]);
+  const [loadingCommunityPhotos, setLoadingCommunityPhotos] = useState(false);
+  const [contribModalVisible, setContribModalVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
   const sectionOpacity = useRef(new Animated.Value(1)).current;
@@ -91,11 +98,39 @@ export default function EventDetailScreen() {
     }, [id])
   );
 
+  const loadCommunityPhotos = useCallback(
+    async (evt: EventWithCreator | null) => {
+      if (!evt) return;
+      setLoadingCommunityPhotos(true);
+      try {
+        const approved = await EventMediaSubmissionsService.listApproved(evt.id);
+        setCommunityPhotos(approved);
+
+        const canReview =
+          profile?.id === evt.creator_id || profile?.role === 'admin' || profile?.role === 'moderateur';
+        if (canReview) {
+          const pending = await EventMediaSubmissionsService.listPendingForEvent(evt.id);
+          setPendingPhotos(pending);
+        } else {
+          setPendingPhotos([]);
+        }
+      } catch (err) {
+        console.warn('load community photos', err);
+      } finally {
+        setLoadingCommunityPhotos(false);
+      }
+    },
+    [profile?.id, profile?.role]
+  );
+
   const loadEventDetails = async () => {
     if (!id) return;
     const data = await EventsService.getEventById(id);
     setEvent(data);
     setLoading(false);
+    if (data) {
+      loadCommunityPhotos(data);
+    }
   };
 
   useEffect(() => {
@@ -126,6 +161,12 @@ export default function EventDetailScreen() {
     };
   }, [event?.creator_id, event?.id]);
 
+  useEffect(() => {
+    if (event) {
+      loadCommunityPhotos(event);
+    }
+  }, [event, loadCommunityPhotos]);
+
   const handleToggleFavorite = async () => {
     if (isGuest) {
       openGuestGate('Ajouter aux favoris');
@@ -138,6 +179,12 @@ export default function EventDetailScreen() {
   };
 
   const handleCheckIn = async () => {
+    console.log('[CheckIn] click', {
+      eventId: event?.id,
+      userId: profile?.id,
+      isGuest,
+      hasLocation: !!currentLocation,
+    });
     if (isGuest) {
       openGuestGate('Faire un check-in');
       return;
@@ -155,7 +202,21 @@ export default function EventDetailScreen() {
         session.access_token,
       );
       if (res.success) {
-        Alert.alert('Check-in réussi', res.rewards?.lumo ? `+${res.rewards.lumo} Lumo` : 'Check-in validé');
+        const message = res.rewards?.lumo ? `+${res.rewards.lumo} Lumo` : 'Check-in validé';
+        Alert.alert('Check-in réussi', message, [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (res.rewards?.lumo) {
+                Toast.show({
+                  type: 'success',
+                  text1: 'Lumo gagné',
+                  text2: `+${res.rewards.lumo} Lumo`,
+                });
+              }
+            },
+          },
+        ]);
       } else {
         Alert.alert('Check-in', res.message || 'Check-in non valide');
       }
@@ -266,20 +327,39 @@ export default function EventDetailScreen() {
     return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   };
 
-  const images = useMemo(() => {
-    const urls = [
-      event?.cover_url,
-      ...(event?.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
-    ].filter(Boolean) as string[];
-    return Array.from(new Set(urls)).slice(0, 4); // cover + 3 max
-  }, [event]);
-
   const mediaUrls = useMemo(() => {
     const urls = [
       event?.cover_url,
       ...(event?.media?.map((m) => m.url).filter(Boolean) as string[] | undefined || []),
     ].filter(Boolean) as string[];
     return Array.from(new Set(urls));
+  }, [event]);
+
+  const communityUrls = useMemo(
+    () => communityPhotos.map((photo) => photo.url).filter(Boolean),
+    [communityPhotos]
+  );
+
+  const mediaImages = useMemo<MediaImage[]>(() => {
+    if (!event) return [];
+    const media = (event.media || []).map((m, index) => ({
+      id: m.id || `${m.url}-${index}`,
+      uri: m.url,
+      authorId: (m as any).author_id,
+      isUserGenerated: true,
+    }));
+
+    const cover = event.cover_url
+      ? [{ id: `cover-${event.id}`, uri: event.cover_url, isUserGenerated: false }]
+      : [];
+
+    const merged = [...cover, ...media];
+    const seen = new Set<string>();
+    return merged.filter((item) => {
+      if (!item.uri || seen.has(item.uri)) return false;
+      seen.add(item.uri);
+      return true;
+    });
   }, [event]);
 
   const sections = useMemo(
@@ -369,11 +449,11 @@ export default function EventDetailScreen() {
       openGuestGate('Ajouter une photo');
       return;
     }
-    if (!isOwner && !isAdmin) {
-      Alert.alert('Action réservée', "Seul le créateur peut ajouter des photos.");
+    if (isOwner || isAdmin) {
+      router.push(`/events/create/step-1?edit=${event.id}` as any);
       return;
     }
-    router.push(`/events/create/step-1?edit=${event.id}` as any);
+    setContribModalVisible(true);
   };
 
   const handleGoToReviews = () => {
@@ -399,6 +479,34 @@ export default function EventDetailScreen() {
       Alert.alert('Erreur', "Impossible d'envoyer votre avis pour le moment.");
     } finally {
       setSubmittingComment(false);
+    }
+  };
+
+  const handleApproveSubmission = async (submissionId: string) => {
+    if (!event || !profile?.id) return;
+    try {
+      await EventMediaSubmissionsService.updateStatus({
+        submissionId,
+        status: 'approved',
+        reviewerId: profile.id,
+      });
+      loadCommunityPhotos(event);
+    } catch (err) {
+      Alert.alert('Erreur', "Impossible d'approuver cette photo.");
+    }
+  };
+
+  const handleRejectSubmission = async (submissionId: string) => {
+    if (!event || !profile?.id) return;
+    try {
+      await EventMediaSubmissionsService.updateStatus({
+        submissionId,
+        status: 'rejected',
+        reviewerId: profile.id,
+      });
+      loadCommunityPhotos(event);
+    } catch (err) {
+      Alert.alert('Erreur', "Impossible de refuser cette photo.");
     }
   };
 
@@ -608,18 +716,67 @@ export default function EventDetailScreen() {
 
   const renderPhotos = () => (
     <>
-      {mediaUrls.length === 0 ? (
-        <View style={styles.emptyPhotos}>
-          <ImageIcon size={28} color={colors.neutral[400]} />
-          <Text style={styles.emptyPhotosText}>Aucune photo pour le moment</Text>
+      <View style={styles.photoSection}>
+        <Text style={styles.sectionTitle}>Photos de l&apos;organisateur</Text>
+        {mediaUrls.length === 0 ? (
+          <View style={styles.emptyPhotos}>
+            <ImageIcon size={28} color={colors.neutral[400]} />
+            <Text style={styles.emptyPhotosText}>Aucune photo pour le moment</Text>
+          </View>
+        ) : (
+          <View style={styles.photoGrid}>
+            {mediaUrls.map((url) => (
+              <Image key={url} source={{ uri: url }} style={styles.photoItem} />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.photoSection}>
+        <Text style={styles.sectionTitle}>Photos de la communauté</Text>
+        {loadingCommunityPhotos ? (
+          <ActivityIndicator color={colors.primary[600]} />
+        ) : communityUrls.length === 0 ? (
+          <View style={styles.emptyPhotos}>
+            <ImageIcon size={28} color={colors.neutral[400]} />
+            <Text style={styles.emptyPhotosText}>Aucune photo pour le moment</Text>
+          </View>
+        ) : (
+          <View style={styles.photoGrid}>
+            {communityUrls.map((url) => (
+              <Image key={url} source={{ uri: url }} style={styles.photoItem} />
+            ))}
+          </View>
+        )}
+      </View>
+
+      {(isOwner || isAdmin) && pendingPhotos.length > 0 ? (
+        <View style={styles.photoSection}>
+          <Text style={styles.sectionTitle}>En attente de validation</Text>
+          <View style={styles.pendingGrid}>
+            {pendingPhotos.map((photo) => (
+              <View key={photo.id} style={styles.pendingItem}>
+                <Image source={{ uri: photo.url }} style={styles.pendingImage} />
+                <View style={styles.pendingActions}>
+                  <TouchableOpacity
+                    style={styles.pendingApprove}
+                    onPress={() => handleApproveSubmission(photo.id)}
+                  >
+                    <Text style={styles.pendingApproveText}>Valider</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.pendingReject}
+                    onPress={() => handleRejectSubmission(photo.id)}
+                  >
+                    <Text style={styles.pendingRejectText}>Refuser</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
-      ) : (
-        <View style={styles.photoGrid}>
-          {mediaUrls.map((url) => (
-            <Image key={url} source={{ uri: url }} style={styles.photoItem} />
-          ))}
-        </View>
-      )}
+      ) : null}
+
       <Button title="Ajouter une photo" onPress={handleAddPhoto} fullWidth />
     </>
   );
@@ -763,7 +920,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <EventImageCarousel images={images} height={300} borderRadius={0} />
+        <PlaceMediaGallery images={mediaImages} onAddPhoto={handleAddPhoto} />
 
         <View style={styles.content}>
           <ScrollView
@@ -850,6 +1007,16 @@ export default function EventDetailScreen() {
           router.push('/auth/login' as any);
         }}
       />
+
+      {event && profile?.id ? (
+        <EventPhotoContributionModal
+          visible={contribModalVisible}
+          eventId={event.id}
+          userId={profile.id}
+          onClose={() => setContribModalVisible(false)}
+          onSubmitted={() => loadCommunityPhotos(event)}
+        />
+      ) : null}
     </>
   );
 }
@@ -1130,6 +1297,58 @@ const styles = StyleSheet.create({
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
     borderRadius: borderRadius.md,
+  },
+  photoSection: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  pendingGrid: {
+    gap: spacing.sm,
+  },
+  pendingItem: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    overflow: 'hidden',
+  },
+  pendingImage: {
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.neutral[100],
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.sm,
+  },
+  pendingApprove: {
+    flex: 1,
+    backgroundColor: colors.primary[600],
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  pendingApproveText: {
+    ...typography.bodySmall,
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  pendingReject: {
+    flex: 1,
+    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+  },
+  pendingRejectText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
   },
   emptyPhotos: {
     alignItems: 'center',

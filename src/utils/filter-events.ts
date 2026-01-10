@@ -192,6 +192,14 @@ export function filterEvents(
       }
     }
 
+    if (filters.name) {
+      const query = filters.name.trim().toLowerCase();
+      if (query) {
+        const title = (event.title || '').toLowerCase();
+        if (!title.includes(query)) return false;
+      }
+    }
+
     if (
       filters.radiusKm !== undefined &&
       filters.centerLat !== undefined &&

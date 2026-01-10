@@ -52,5 +52,8 @@ export const buildSearchSummary = (
 
   const whatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Tous types';
 
-  return `${whereLabel} · ${whenLabel} · ${whatLabel}`;
+  const queryLabel = state.what.query?.trim();
+  const prefix = queryLabel ? `“${queryLabel}” · ` : '';
+
+  return `${prefix}${whereLabel} · ${whenLabel} · ${whatLabel}`;
 };

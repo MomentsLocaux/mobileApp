@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const MAX_DISTANCE_METERS = 500;
+const LUMO_TRIGGER_EVENT = 'checkin';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +37,10 @@ serve(async (req) => {
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.log('[event-checkin] missing env', {
+      hasUrl: !!SUPABASE_URL,
+      hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY,
+    });
     return new Response(JSON.stringify({ success: false, message: 'Configuration serveur manquante.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -45,6 +50,7 @@ serve(async (req) => {
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.replace('Bearer ', '');
   if (!token) {
+    console.log('[event-checkin] missing auth token');
     return new Response(JSON.stringify({ success: false, message: 'Authentification requise.' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -53,11 +59,11 @@ serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
-    global: { headers: { Authorization: authHeader } },
   });
 
   const { data: userData, error: userError } = await supabase.auth.getUser(token);
   if (userError || !userData?.user) {
+    console.log('[event-checkin] invalid user', { userError });
     return new Response(JSON.stringify({ success: false, message: 'Utilisateur invalide.' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -68,6 +74,7 @@ serve(async (req) => {
   try {
     payload = await req.json();
   } catch (error) {
+    console.log('[event-checkin] invalid json', { error });
     return new Response(JSON.stringify({ success: false, message: 'Données invalides.' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -79,11 +86,19 @@ serve(async (req) => {
   const lon = typeof payload.lon === 'number' ? payload.lon : Number(payload.lon);
 
   if (!eventId || Number.isNaN(lat) || Number.isNaN(lon)) {
+    console.log('[event-checkin] missing params', { eventId, lat, lon });
     return new Response(JSON.stringify({ success: false, message: 'Paramètres manquants.' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+
+  console.log('[event-checkin] request', {
+    eventId,
+    userId: userData.user.id,
+    lat,
+    lon,
+  });
 
   const { data: event, error: eventError } = await supabase
     .from('events')
@@ -92,6 +107,7 @@ serve(async (req) => {
     .maybeSingle();
 
   if (eventError || !event) {
+    console.log('[event-checkin] event not found', { eventId, eventError });
     return new Response(JSON.stringify({ success: false, message: 'Événement introuvable.' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -101,6 +117,7 @@ serve(async (req) => {
   const eventLat = Number(event.latitude);
   const eventLon = Number(event.longitude);
   if (Number.isNaN(eventLat) || Number.isNaN(eventLon)) {
+    console.log('[event-checkin] invalid event coordinates', { eventId, eventLat, eventLon });
     return new Response(JSON.stringify({ success: false, message: 'Coordonnées événement invalides.' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,6 +126,11 @@ serve(async (req) => {
 
   const distance = haversineDistance(lat, lon, eventLat, eventLon);
   if (distance > MAX_DISTANCE_METERS) {
+    console.log('[event-checkin] too far', {
+      eventId,
+      userId: userData.user.id,
+      distance: Math.round(distance),
+    });
     return new Response(
       JSON.stringify({
         success: false,
@@ -132,6 +154,7 @@ serve(async (req) => {
   });
 
   if (insertError) {
+    console.log('[event-checkin] insert error', { insertError });
     if (insertError.code === '23505') {
       return new Response(JSON.stringify({ success: false, message: 'Check-in déjà validé.' }), {
         status: 409,
@@ -145,11 +168,76 @@ serve(async (req) => {
     });
   }
 
+  let rewardedLumo = 0;
+  const { data: ruleData, error: ruleError } = await supabase
+    .from('lumo_rules')
+    .select('amount')
+    .eq('trigger_event', LUMO_TRIGGER_EVENT)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (ruleError) {
+    console.log('[event-checkin] rule error', { ruleError });
+  }
+  if (ruleData) {
+    console.log('[event-checkin] rule data', { ruleData });
+  }
+
+  if (!ruleError && ruleData?.amount) {
+    rewardedLumo = Number(ruleData.amount) || 0;
+  }
+
+  if (rewardedLumo > 0) {
+    const metadata = { event_id: eventId, distance: Math.round(distance) };
+
+    const { error: txError } = await supabase.from('lumo_transactions').insert({
+      user_id: userData.user.id,
+      amount: rewardedLumo,
+      type: 'credit',
+      source: 'checkin',
+      reason: 'Check-in validé',
+      metadata,
+    });
+
+    if (txError) {
+      console.log('[event-checkin] lumo transaction error', { txError });
+      return new Response(JSON.stringify({ success: false, message: 'Erreur lors du credit Lumo.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+
+    if (wallet) {
+      const nextBalance = Number(wallet.balance || 0) + rewardedLumo;
+      const { error: walletUpdateError } = await supabase
+        .from('wallets')
+        .update({ balance: nextBalance })
+        .eq('user_id', userData.user.id);
+      if (walletUpdateError) {
+        console.log('[event-checkin] wallet update error', { walletUpdateError });
+      }
+    } else {
+      const { error: walletInsertError } = await supabase
+        .from('wallets')
+        .insert({ user_id: userData.user.id, balance: rewardedLumo });
+      if (walletInsertError) {
+        console.log('[event-checkin] wallet insert error', { walletInsertError });
+      }
+    }
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
       message: 'Check-in validé.',
       distance: Math.round(distance),
+      rewards: rewardedLumo > 0 ? { lumo: rewardedLumo } : undefined,
     }),
     {
       status: 200,

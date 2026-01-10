@@ -120,7 +120,11 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
   const hasSearchCriteria = useMemo(() => {
     const hasWhere = !!where.location || !!where.radiusKm;
     const hasWhen = !!when.preset || !!when.startDate || !!when.endDate || includePast;
-    const hasWhat = what.categories.length > 0 || what.subcategories.length > 0 || what.tags.length > 0;
+    const hasWhat =
+      what.categories.length > 0 ||
+      what.subcategories.length > 0 ||
+      what.tags.length > 0 ||
+      !!what.query?.trim();
     return hasWhere || hasWhen || hasWhat;
   }, [where.location, where.radiusKm, when.preset, when.startDate, when.endDate, includePast, what]);
 

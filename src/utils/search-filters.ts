@@ -59,5 +59,9 @@ export const buildFiltersFromSearch = (
     filters.tags = search.what.tags;
   }
 
+  if (search.what.query && search.what.query.trim()) {
+    filters.name = search.what.query.trim();
+  }
+
   return filters;
 };
