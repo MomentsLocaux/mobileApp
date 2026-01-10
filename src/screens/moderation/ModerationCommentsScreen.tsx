@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl } from 'react-native';
 import { ArrowLeft, X, MessageSquare, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks';
 import { ModerationService } from '@/services/moderation.service';
+import { getReportReasonMeta } from '@/constants/report-reasons';
 import type { ModerationComment, ReportRecord } from '@/types/moderation';
 import { Button, Card } from '@/components/ui';
 
@@ -80,7 +81,10 @@ export default function ModerationCommentsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadComments} />}
+      >
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
         {!loading && comments.length === 0 && <Text style={styles.metaText}>Aucun commentaire signalé.</Text>}
         {comments.map((comment) => {
@@ -93,12 +97,15 @@ export default function ModerationCommentsScreen() {
               </View>
               <Text style={styles.cardBody}>{comment.message}</Text>
               <View style={styles.badgeRow}>
-                {commentReports.map((report) => (
-                  <View key={report.id} style={styles.badge}>
-                    <AlertTriangle size={12} color={colors.warning[700]} />
-                    <Text style={styles.badgeText}>{report.severity}</Text>
-                  </View>
-                ))}
+                {commentReports.map((report) => {
+                  const meta = getReportReasonMeta(report.reason);
+                  return (
+                    <View key={report.id} style={styles.badge}>
+                      <AlertTriangle size={12} color={colors.warning[700]} />
+                      <Text style={styles.badgeText}>{meta.label}</Text>
+                    </View>
+                  );
+                })}
               </View>
               <View style={styles.actionRow}>
                 <Button
@@ -166,9 +173,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
   header: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.xxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -177,7 +184,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   headerTitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     fontWeight: '700',
     color: colors.neutral[900],
   },

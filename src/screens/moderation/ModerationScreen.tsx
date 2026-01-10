@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import {
   Menu,
@@ -28,6 +29,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks';
 import { useRouter } from 'expo-router';
 import { ModerationService } from '@/services/moderation.service';
+import { getReportReasonMeta, REPORT_REASONS } from '@/constants/report-reasons';
 
 type ReportSeverity = 'minor' | 'harmful' | 'abusive' | 'illegal';
 type ReportStatus = 'new' | 'in_review' | 'closed';
@@ -148,7 +150,9 @@ const EventModerationRow = ({
   </View>
 );
 
-const ReportItem = ({ report }: { report: Report }) => (
+const ReportItem = ({ report }: { report: Report }) => {
+  const meta = getReportReasonMeta(report.reason);
+  return (
   <View style={styles.reportItem}>
     <View style={styles.reportAvatarWrap}>
       {report.reporter?.avatar_url ? (
@@ -160,11 +164,11 @@ const ReportItem = ({ report }: { report: Report }) => (
       )}
     </View>
     <View style={styles.reportContent}>
-      <Text style={styles.reportReason}>{report.reason || 'Signalement sans motif'}</Text>
+      <Text style={styles.reportReason}>{meta.label}</Text>
       <View style={styles.reportMeta}>
-        <View style={[styles.reportBadge, { backgroundColor: severityColor(report.severity) }]}>
-          <Text style={[styles.reportBadgeText, { color: severityTextColor(report.severity) }]}>
-            {report.severity}
+        <View style={[styles.reportBadge, { backgroundColor: severityColor(meta.severity) }]}>
+          <Text style={[styles.reportBadgeText, { color: severityTextColor(meta.severity) }]}>
+            {meta.severity}
           </Text>
         </View>
         <Text style={styles.reportTime}>{formatRelative(report.created_at)}</Text>
@@ -172,7 +176,8 @@ const ReportItem = ({ report }: { report: Report }) => (
     </View>
     <View style={styles.reportTarget}>{targetIcon(report.target_type)}</View>
   </View>
-);
+  );
+};
 
 const UserRiskRow = ({ profile, warning }: { profile: Profile; warning: Warning }) => (
   <View style={styles.userRow}>
@@ -262,7 +267,7 @@ export default function ModerationScreen() {
     bannedUsers: 0,
   });
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
       setLoading(true);
       try {
         const [
@@ -363,11 +368,11 @@ export default function ModerationScreen() {
       } finally {
         setLoading(false);
       }
-  };
+  }, []);
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [loadDashboard]);
 
   const handleRejectEvent = async (eventId: string) => {
     if (!profile?.id) return;
@@ -394,19 +399,16 @@ export default function ModerationScreen() {
   ];
 
   const severityStats = useMemo(() => {
-    const counts = reports.reduce(
-      (acc, report) => {
-        acc[report.severity] += 1;
-        return acc;
-      },
-      { minor: 0, harmful: 0, abusive: 0, illegal: 0 }
-    );
-    return [
-      { label: 'Minor', value: counts.minor, color: colors.info[400] },
-      { label: 'Harmful', value: counts.harmful, color: colors.warning[400] },
-      { label: 'Abusive', value: counts.abusive, color: colors.error[400] },
-      { label: 'Illegal', value: counts.illegal, color: colors.error[600] },
-    ];
+    const counts = reports.reduce<Record<string, number>>((acc, report) => {
+      const meta = getReportReasonMeta(report.reason);
+      acc[meta.code] = (acc[meta.code] || 0) + 1;
+      return acc;
+    }, {});
+    return (Object.values(REPORT_REASONS) || []).map((reason, idx) => ({
+      label: reason.label,
+      value: counts[reason.code] || 0,
+      color: idx % 2 === 0 ? colors.info[400] : colors.warning[400],
+    }));
   }, [reports]);
 
   const moderationStats = useMemo(
@@ -432,7 +434,11 @@ export default function ModerationScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDashboard} />}
+      >
         {loading && (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.info[600]} />
@@ -560,8 +566,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    paddingTop: spacing.l,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -570,7 +576,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   headerTitle: {
-    ...typography.h4,
+    ...typography.body,
     color: colors.neutral[900],
   },
   menuButton: {

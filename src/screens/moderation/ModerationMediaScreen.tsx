@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Image, RefreshControl } from 'react-native';
 import { ArrowLeft, X, Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks';
 import { ModerationService } from '@/services/moderation.service';
 import type { ModerationMediaSubmission } from '@/types/moderation';
 import { Button, Card } from '@/components/ui';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ModerationMediaScreen() {
   const router = useRouter();
@@ -22,7 +23,11 @@ export default function ModerationMediaScreen() {
   const loadSubmissions = useCallback(async () => {
     setLoading(true);
     try {
+      const session = await supabase.auth.getSession();
+      const role = (session.data.session?.user?.app_metadata as any)?.role || null;
+      console.log('[ModerationMedia] session role', role);
       const data = await ModerationService.listMediaSubmissions({ status: 'pending', limit: 50 });
+      console.log('[ModerationMedia] submissions pending', data.length, data.map((row) => ({ id: row.id, status: row.status })));
       setSubmissions(data);
     } finally {
       setLoading(false);
@@ -58,7 +63,10 @@ export default function ModerationMediaScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadSubmissions} />}
+      >
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
         {!loading && submissions.length === 0 && <Text style={styles.metaText}>Aucune photo en attente.</Text>}
         {submissions.map((submission) => (
@@ -130,9 +138,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
   header: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.xxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -141,7 +149,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   headerTitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     fontWeight: '700',
     color: colors.neutral[900],
   },

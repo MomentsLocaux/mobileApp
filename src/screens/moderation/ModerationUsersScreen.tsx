@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl } from 'react-native';
 import { ArrowLeft, X, User, ShieldAlert } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
@@ -57,7 +57,10 @@ export default function ModerationUsersScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadWarnings} />}
+      >
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
         {!loading && warnings.length === 0 && <Text style={styles.metaText}>Aucun utilisateur signalé.</Text>}
         {warnings.map((warning) => (
@@ -140,9 +143,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
   header: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.xxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   headerTitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     fontWeight: '700',
     color: colors.neutral[900],
   },

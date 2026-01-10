@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { ArrowLeft, X, Flag } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { ModerationService } from '@/services/moderation.service';
+import { getReportReasonMeta } from '@/constants/report-reasons';
 import type { ReportRecord } from '@/types/moderation';
 import { Button, Card } from '@/components/ui';
 
@@ -44,7 +45,10 @@ export default function ModerationReportsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadReports} />}
+      >
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
         {!loading && reports.length === 0 && <Text style={styles.metaText}>Aucun signalement.</Text>}
         {reports.map((report) => (
@@ -53,9 +57,9 @@ export default function ModerationReportsScreen() {
               <Flag size={16} color={colors.warning[700]} />
               <Text style={styles.cardTitle}>{report.target_type}</Text>
             </View>
-            <Text style={styles.cardMeta}>Sévérité: {report.severity}</Text>
+            <Text style={styles.cardMeta}>Sévérité: {getReportReasonMeta(report.reason).severity}</Text>
             <Text style={styles.cardMeta}>Statut: {report.status}</Text>
-            <Text style={styles.cardBody}>{report.reason || 'Aucune raison fournie'}</Text>
+            <Text style={styles.cardBody}>{getReportReasonMeta(report.reason).label}</Text>
             <View style={styles.actionRow}>
               <Button title="En revue" onPress={() => updateStatus(report.id, 'in_review')} fullWidth />
               <Button title="Clôturer" variant="outline" onPress={() => updateStatus(report.id, 'closed')} fullWidth />
@@ -73,9 +77,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
   header: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.xxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -84,7 +88,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   headerTitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     fontWeight: '700',
     color: colors.neutral[900],
   },
