@@ -15,9 +15,9 @@ import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../sr
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useAuth } from '@/hooks';
 import { buildFiltersFromSearch } from '../../src/utils/search-filters';
-import { filterEvents } from '../../src/utils/filter-events';
+import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
-import { colors, spacing, borderRadius } from '../../src/constants/theme';
+import { colors, spacing, borderRadius, typography } from '../../src/constants/theme';
 import { SearchBar } from '../../src/components/search/SearchBar';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
@@ -69,6 +69,7 @@ export default function MapScreen() {
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const [searchApplied, setSearchApplied] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const useSearchRadiusBoundsRef = useRef(false);
 
   const getPaddingFromIndex = useCallback((idx: number) => {
@@ -123,7 +124,7 @@ export default function MapScreen() {
     return hasWhere || hasWhen || hasWhat;
   }, [searchState]);
 
-  const searchActive = searchApplied && hasSearchCriteria;
+  const searchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const searchFiltersWithoutRadius = useMemo(() => {
     const { radiusKm, centerLat, centerLon, ...rest } = searchFilters;
@@ -157,8 +158,8 @@ export default function MapScreen() {
       bboxTimeoutRef.current = setTimeout(async () => {
         setStatus('loading');
         try {
-          const effectiveSearchActive = searchApplied && hasSearchCriteria;
-          const includePastForFetch = effectiveSearchActive ? includePast : false;
+          const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
+          const includePastForFetch = metaFilter === 'past' ? true : effectiveSearchActive ? includePast : false;
           const useRadiusBounds = effectiveSearchActive && useSearchRadiusBoundsRef.current;
           const effectiveFilters = useRadiusBounds ? searchFilters : searchFiltersWithoutRadius;
 
@@ -175,9 +176,10 @@ export default function MapScreen() {
           const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
 
           const filteredEvents = effectiveSearchActive ? filterEvents(events, effectiveFilters, null) : events;
+          const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
           const sortedEvents = effectiveSearchActive
-            ? sortEvents(filteredEvents, sortBy, sortCenter, sortOrder)
-            : filteredEvents;
+            ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
+            : metaFilteredEvents;
 
           const filteredIds = new Set(sortedEvents.map((e) => e.id));
           const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
@@ -194,6 +196,7 @@ export default function MapScreen() {
       }, 400); // Increased debounce
     },
     [
+      metaFilter,
       searchApplied,
       hasSearchCriteria,
       includePast,
@@ -247,6 +250,7 @@ export default function MapScreen() {
   );
 
   const applySearch = useCallback(() => {
+    setMetaFilter('all');
     setSearchApplied(true);
     setStatus('loading');
     const location = searchState.where.location;
@@ -429,6 +433,34 @@ export default function MapScreen() {
           applied={searchApplied}
           onExpandedChange={setSearchExpanded}
         />
+        <View style={styles.metaFilterRow}>
+          {([
+            { key: 'all', label: 'Tous' },
+            { key: 'live', label: 'En cours' },
+            { key: 'upcoming', label: 'À venir' },
+            { key: 'past', label: 'Passés' },
+          ] as const).map((item) => {
+            const active = metaFilter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
+                onPress={() => {
+                  setMetaFilter(item.key);
+                  if (item.key !== 'all') {
+                    setSearchApplied(false);
+                    useSearchRadiusBoundsRef.current = false;
+                  }
+                  refreshBounds();
+                }}
+              >
+                <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <View style={styles.layerSwitcher}>
           {(['standard', 'satellite'] as const).map((mode) => (
             <TouchableOpacity
@@ -540,6 +572,31 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     zIndex: 10,
     gap: spacing.sm,
+  },
+  metaFilterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  metaFilterPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[0],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  metaFilterPillActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[300],
+  },
+  metaFilterText: {
+    ...typography.caption,
+    color: colors.neutral[700],
+    fontWeight: '600',
+  },
+  metaFilterTextActive: {
+    color: colors.primary[700],
   },
   recenterTopButton: {
     position: 'absolute',

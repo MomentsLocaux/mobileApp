@@ -16,7 +16,7 @@ import { useAuth } from '@/hooks';
 import { useLocationStore, useSearchStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { SocialService } from '@/services/social.service';
-import { filterEvents } from '@/utils/filter-events';
+import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '@/utils/filter-events';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { EventResultCard } from '@/components/search/EventResultCard';
@@ -46,6 +46,7 @@ export default function HomeScreen() {
   const [searchApplied, setSearchApplied] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const insets = useSafeAreaInsets();
 
   const userLocation = useMemo(() => {
@@ -85,8 +86,9 @@ export default function HomeScreen() {
   ]);
   const filteredAndSortedEvents = useMemo(() => {
     const base = searchApplied ? searchResults : fetchedEvents || [];
-    return sortEvents(base, searchApplied ? sortBy : 'date', userLocation);
-  }, [fetchedEvents, searchApplied, searchResults, sortBy, userLocation]);
+    const metaFiltered = filterEventsByMetaStatus(base, metaFilter);
+    return sortEvents(metaFiltered, searchApplied ? sortBy : 'date', userLocation);
+  }, [fetchedEvents, metaFilter, searchApplied, searchResults, sortBy, userLocation]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -114,6 +116,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    if (metaFilter !== 'all') {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
     if (!searchApplied || !hasSearchCriteria) {
       setSearchResults([]);
       setSearchLoading(false);
@@ -167,7 +174,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveRadiusKm, filters, hasSearchCriteria, searchApplied, searchCenter, searchState.when.includePast]);
+  }, [effectiveRadiusKm, filters, hasSearchCriteria, metaFilter, searchApplied, searchCenter, searchState.when.includePast]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -250,7 +257,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={[styles.topOverlay, { marginTop: insets.top + spacing.xs }]}>
         <SearchBar
-          onApply={() => setSearchApplied(true)}
+          onApply={() => {
+            setMetaFilter('all');
+            setSearchApplied(true);
+          }}
           hasLocation={!!userLocation}
           applied={searchApplied}
           enableCommunitySearch
@@ -258,6 +268,32 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Pour vous</Text>
+      <View style={styles.metaFilterRow}>
+        {([
+          { key: 'all', label: 'Tous' },
+          { key: 'live', label: 'En cours' },
+          { key: 'upcoming', label: 'À venir' },
+          { key: 'past', label: 'Passés' },
+        ] as const).map((item) => {
+          const active = metaFilter === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
+              onPress={() => {
+                setMetaFilter(item.key);
+                if (item.key !== 'all') {
+                  setSearchApplied(false);
+                }
+              }}
+            >
+              <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       <FlatList
         horizontal
         data={[{ me: true }, ...stories]}
@@ -350,6 +386,33 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.sm,
+  },
+  metaFilterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  metaFilterPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[0],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  metaFilterPillActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[300],
+  },
+  metaFilterText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
+  },
+  metaFilterTextActive: {
+    color: colors.primary[700],
   },
   carouselContent: {
     gap: spacing.md,

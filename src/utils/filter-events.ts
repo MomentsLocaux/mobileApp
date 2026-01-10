@@ -232,3 +232,29 @@ export function getActiveFilterCount(filters: EventFilters): number {
 
   return count;
 }
+
+export type EventMetaFilter = 'all' | 'live' | 'upcoming' | 'past';
+
+export function filterEventsByMetaStatus(
+  events: EventWithCreator[],
+  metaFilter: EventMetaFilter
+): EventWithCreator[] {
+  if (metaFilter === 'all') return events;
+  const now = new Date();
+  return events.filter((event) => {
+    const startsAt = new Date(event.starts_at);
+    const endsAt = new Date(event.ends_at);
+    if (Number.isNaN(startsAt.getTime())) return false;
+    if (metaFilter === 'live') {
+      if (Number.isNaN(endsAt.getTime())) return false;
+      return now >= startsAt && now <= endsAt;
+    }
+    if (metaFilter === 'upcoming') {
+      return startsAt > now;
+    }
+    if (metaFilter === 'past') {
+      return !Number.isNaN(endsAt.getTime()) && endsAt < now;
+    }
+    return true;
+  });
+}
