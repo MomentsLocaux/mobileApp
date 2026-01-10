@@ -1,4 +1,4 @@
-export type ModerationTargetType = 'event' | 'comment' | 'user' | 'challenge';
+export type ModerationTargetType = 'event' | 'comment' | 'user' | 'challenge' | 'media';
 export type ModerationActionType =
   | 'approve'
   | 'refuse'

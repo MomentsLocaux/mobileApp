@@ -12,4 +12,12 @@ export class SocialService {
   static async like(_userId: string, eventId: string): Promise<boolean> {
     return dataProvider.like(eventId);
   }
+
+  static async likeComment(_userId: string, commentId: string): Promise<boolean> {
+    return dataProvider.likeComment(commentId);
+  }
+
+  static async likeMedia(_userId: string, mediaId: string): Promise<boolean> {
+    return dataProvider.likeMedia(mediaId);
+  }
 }

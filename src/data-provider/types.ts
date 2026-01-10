@@ -37,6 +37,16 @@ export interface IDataProvider {
     payload: { reason: string; severity?: string; details?: string; token?: string },
     token?: string,
   ): Promise<boolean>;
+  reportProfile(
+    profileId: string,
+    payload: { reason: string; severity?: string; details?: string; token?: string },
+    token?: string,
+  ): Promise<boolean>;
+  reportMedia(
+    mediaId: string,
+    payload: { reason: string; severity?: string; details?: string; token?: string },
+    token?: string,
+  ): Promise<boolean>;
 
   purchaseItem(
     payload: { itemId: string; method: 'lumo' | 'eur'; userId: string; token?: string },
@@ -55,6 +65,8 @@ export interface IDataProvider {
   toggleFavorite(eventId: string): Promise<boolean>;
   toggleInterest(eventId: string): Promise<boolean>;
   like(eventId: string): Promise<boolean>;
+  likeComment(commentId: string): Promise<boolean>;
+  likeMedia(mediaId: string): Promise<boolean>;
 
   submitBug(payload: {
     category: string;

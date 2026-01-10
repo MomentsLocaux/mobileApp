@@ -86,6 +86,8 @@ export const supabaseProvider: (Pick<
   | 'listComments'
   | 'createComment'
   | 'deleteComment'
+  | 'reportProfile'
+  | 'reportMedia'
   | 'getProfile'
   | 'updateProfile'
   | 'earnLumo'
@@ -93,6 +95,8 @@ export const supabaseProvider: (Pick<
   | 'toggleFavorite'
   | 'toggleInterest'
   | 'like'
+  | 'likeComment'
+  | 'likeMedia'
   | 'uploadAvatar'
   | 'uploadEventCover'
   | 'getEventsByIds'
@@ -339,6 +343,36 @@ export const supabaseProvider: (Pick<
     return true;
   },
 
+  async reportProfile(profileId: string, payload: { reason: string; severity?: string; details?: string }) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw formatSupabaseError(userError, 'reportProfile-auth');
+    const reporterId = userData.user?.id;
+    const { error } = await supabase.from('reports').insert({
+      target_type: 'user',
+      target_id: profileId,
+      reporter_id: reporterId,
+      reason: payload.reason,
+      severity: payload.severity || 'minor',
+    } as any);
+    if (error) throw formatSupabaseError(error, 'reportProfile');
+    return true;
+  },
+
+  async reportMedia(mediaId: string, payload: { reason: string; severity?: string; details?: string }) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw formatSupabaseError(userError, 'reportMedia-auth');
+    const reporterId = userData.user?.id;
+    const { error } = await supabase.from('reports').insert({
+      target_type: 'media',
+      target_id: mediaId,
+      reporter_id: reporterId,
+      reason: payload.reason,
+      severity: payload.severity || 'minor',
+    } as any);
+    if (error) throw formatSupabaseError(error, 'reportMedia');
+    return true;
+  },
+
   async getProfile(userId: string) {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     console.log('getProfile response', { userId, data, error });
@@ -405,6 +439,50 @@ export const supabaseProvider: (Pick<
   async like(eventId: string) {
     const { error } = await (supabase.rpc as any)('toggle_like', { event_id: eventId });
     if (error) throw formatSupabaseError(error, 'like');
+    return true;
+  },
+
+  async likeComment(commentId: string) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw formatSupabaseError(userError, 'likeComment-auth');
+    const userId = userData.user?.id;
+    if (!userId) throw formatSupabaseError('Utilisateur non authentifié', 'likeComment-auth');
+    const { error } = await supabase.from('comment_likes').insert({
+      comment_id: commentId,
+      user_id: userId,
+    } as any);
+    if (error && String(error.code) === '23505') {
+      const { error: deleteError } = await supabase
+        .from('comment_likes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', userId);
+      if (deleteError) throw formatSupabaseError(deleteError, 'likeComment');
+      return true;
+    }
+    if (error) throw formatSupabaseError(error, 'likeComment');
+    return true;
+  },
+
+  async likeMedia(mediaId: string) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw formatSupabaseError(userError, 'likeMedia-auth');
+    const userId = userData.user?.id;
+    if (!userId) throw formatSupabaseError('Utilisateur non authentifié', 'likeMedia-auth');
+    const { error } = await supabase.from('event_media_submission_likes').insert({
+      submission_id: mediaId,
+      user_id: userId,
+    } as any);
+    if (error && String(error.code) === '23505') {
+      const { error: deleteError } = await supabase
+        .from('event_media_submission_likes')
+        .delete()
+        .eq('submission_id', mediaId)
+        .eq('user_id', userId);
+      if (deleteError) throw formatSupabaseError(deleteError, 'likeMedia');
+      return true;
+    }
+    if (error) throw formatSupabaseError(error, 'likeMedia');
     return true;
   },
 

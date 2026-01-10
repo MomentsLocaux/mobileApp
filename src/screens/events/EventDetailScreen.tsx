@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Mail,
   Phone,
+  Flag,
 } from 'lucide-react-native';
 import { Button, Card } from '../../components/ui';
 import { EventsService } from '../../services/events.service';
@@ -52,6 +53,9 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { EventPhotoContributionModal } from '@/components/events/EventPhotoContributionModal';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
+import { ReportService } from '@/services/report.service';
+import type { ReportReasonCode } from '@/constants/report-reasons';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
@@ -72,6 +76,9 @@ export default function EventDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentRating, setCommentRating] = useState<number | null>(null);
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
+  const [likedMedia, setLikedMedia] = useState<Set<string>>(new Set());
+  const [reportTarget, setReportTarget] = useState<{ type: 'comment' | 'media'; id: string } | null>(null);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [activeSection, setActiveSection] = useState<'overview' | 'reviews' | 'photos' | 'info' | 'creator'>('overview');
   const [navSheetVisible, setNavSheetVisible] = useState(false);
@@ -176,6 +183,81 @@ export default function EventDetailScreen() {
     await SocialService.toggleFavorite(profile.id, event.id);
     toggleFavoriteStore(event);
     setEvent((prev) => (prev ? { ...prev, is_favorited: !prev.is_favorited } : null));
+  };
+
+  const handleToggleCommentLike = async (commentId: string) => {
+    if (isGuest) {
+      openGuestGate('Aimer un commentaire');
+      return;
+    }
+    try {
+      await SocialService.likeComment(profile?.id || '', commentId);
+      setLikedComments((prev) => {
+        const next = new Set(prev);
+        if (next.has(commentId)) {
+          next.delete(commentId);
+        } else {
+          next.add(commentId);
+        }
+        return next;
+      });
+    } catch (e) {
+      console.warn('likeComment', e);
+    }
+  };
+
+  const handleToggleMediaLike = async (mediaId: string) => {
+    if (isGuest) {
+      openGuestGate('Aimer une photo');
+      return;
+    }
+    try {
+      await SocialService.likeMedia(profile?.id || '', mediaId);
+      setLikedMedia((prev) => {
+        const next = new Set(prev);
+        if (next.has(mediaId)) {
+          next.delete(mediaId);
+        } else {
+          next.add(mediaId);
+        }
+        return next;
+      });
+    } catch (e) {
+      console.warn('likeMedia', e);
+    }
+  };
+
+  const handleOpenReport = (type: 'comment' | 'media', id: string) => {
+    if (isGuest) {
+      openGuestGate('Signaler');
+      return;
+    }
+    setReportTarget({ type, id });
+  };
+
+  const handleReportReason = async (reason: ReportReasonCode) => {
+    if (!reportTarget) return;
+    try {
+      if (reportTarget.type === 'comment') {
+        await ReportService.comment(reportTarget.id, { reason });
+      } else {
+        await ReportService.media(reportTarget.id, { reason });
+      }
+      Toast.show({
+        type: 'success',
+        text1: 'Merci !',
+        text2: 'Votre signalement a été envoyé.',
+      });
+    } catch (e) {
+      console.warn('report', e);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible d’envoyer le signalement.',
+      });
+    } finally {
+      setReportTarget(null);
+    }
   };
 
   const handleCheckIn = async () => {
@@ -335,10 +417,6 @@ export default function EventDetailScreen() {
     return Array.from(new Set(urls));
   }, [event]);
 
-  const communityUrls = useMemo(
-    () => communityPhotos.map((photo) => photo.url).filter(Boolean),
-    [communityPhotos]
-  );
 
   const mediaImages = useMemo<MediaImage[]>(() => {
     if (!event) return [];
@@ -671,6 +749,26 @@ export default function EventDetailScreen() {
                 )}
               </View>
               <Text style={styles.commentContent}>{comment.message}</Text>
+              <View style={styles.commentActions}>
+                <TouchableOpacity
+                  style={styles.commentActionButton}
+                  onPress={() => handleToggleCommentLike(comment.id)}
+                >
+                  <Heart
+                    size={16}
+                    color={likedComments.has(comment.id) ? colors.error[500] : colors.neutral[500]}
+                    fill={likedComments.has(comment.id) ? colors.error[500] : 'transparent'}
+                  />
+                  <Text style={styles.commentActionText}>J’aime</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.commentActionButton}
+                  onPress={() => handleOpenReport('comment', comment.id)}
+                >
+                  <Flag size={16} color={colors.neutral[500]} />
+                  <Text style={styles.commentActionText}>Signaler</Text>
+                </TouchableOpacity>
+              </View>
             </Card>
           ))}
         </View>
@@ -736,15 +834,29 @@ export default function EventDetailScreen() {
         <Text style={styles.sectionTitle}>Photos de la communauté</Text>
         {loadingCommunityPhotos ? (
           <ActivityIndicator color={colors.primary[600]} />
-        ) : communityUrls.length === 0 ? (
+        ) : communityPhotos.length === 0 ? (
           <View style={styles.emptyPhotos}>
             <ImageIcon size={28} color={colors.neutral[400]} />
             <Text style={styles.emptyPhotosText}>Aucune photo pour le moment</Text>
           </View>
         ) : (
           <View style={styles.photoGrid}>
-            {communityUrls.map((url) => (
-              <Image key={url} source={{ uri: url }} style={styles.photoItem} />
+            {communityPhotos.map((photo) => (
+              <View key={photo.id} style={styles.photoTile}>
+                <Image source={{ uri: photo.url }} style={styles.photoItem} />
+                <View style={styles.photoActions}>
+                  <TouchableOpacity onPress={() => handleToggleMediaLike(photo.id)}>
+                    <Heart
+                      size={16}
+                      color={likedMedia.has(photo.id) ? colors.error[500] : colors.neutral[600]}
+                      fill={likedMedia.has(photo.id) ? colors.error[500] : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleOpenReport('media', photo.id)}>
+                    <Flag size={16} color={colors.neutral[600]} />
+                  </TouchableOpacity>
+                </View>
+              </View>
             ))}
           </View>
         )}
@@ -1017,6 +1129,12 @@ export default function EventDetailScreen() {
           onSubmitted={() => loadCommunityPhotos(event)}
         />
       ) : null}
+
+      <ReportReasonModal
+        visible={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        onSelect={handleReportReason}
+      />
     </>
   );
 }
@@ -1238,6 +1356,21 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.neutral[700],
   },
+  commentActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  commentActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  commentActionText: {
+    ...typography.caption,
+    color: colors.neutral[600],
+    fontWeight: '600',
+  },
   commentInputCard: {
     marginBottom: spacing.md,
   },
@@ -1293,10 +1426,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
+  photoTile: {
+    width: PHOTO_SIZE,
+    gap: spacing.xs,
+  },
   photoItem: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
     borderRadius: borderRadius.md,
+  },
+  photoActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
   },
   photoSection: {
     gap: spacing.sm,

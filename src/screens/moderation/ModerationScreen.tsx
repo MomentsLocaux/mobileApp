@@ -23,6 +23,7 @@ import {
   Users,
   CheckCircle2,
   Ban,
+  Image as ImageIcon,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { supabase } from '@/lib/supabase/client';
@@ -33,7 +34,7 @@ import { getReportReasonMeta, REPORT_REASONS } from '@/constants/report-reasons'
 
 type ReportSeverity = 'minor' | 'harmful' | 'abusive' | 'illegal';
 type ReportStatus = 'new' | 'in_review' | 'closed';
-type ReportTargetType = 'event' | 'comment' | 'user';
+type ReportTargetType = 'event' | 'comment' | 'user' | 'media';
 
 type Report = {
   id: string;
@@ -109,6 +110,7 @@ const severityTextColor = (severity: ReportSeverity) => {
 const targetIcon = (target: ReportTargetType) => {
   if (target === 'event') return <CalendarCheck2 size={16} color={colors.info[700]} />;
   if (target === 'comment') return <MessageSquare size={16} color={colors.warning[700]} />;
+  if (target === 'media') return <ImageIcon size={16} color={colors.info[700]} />;
   return <Users size={16} color={colors.error[700]} />;
 };
 

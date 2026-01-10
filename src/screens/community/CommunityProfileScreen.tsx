@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Flag } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { CommunityService } from '../../services/community.service';
+import { ReportService } from '@/services/report.service';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import type { CommunityMember } from '../../types/community';
 import type { EventWithCreator } from '@/types/database';
 import { EventCard } from '@/components/events';
@@ -23,6 +25,7 @@ export default function CommunityProfileScreen() {
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'prive'>('all');
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -119,31 +122,37 @@ export default function CommunityProfileScreen() {
           <Text style={styles.meta}>{member.city || 'Sans ville'}</Text>
           {member.bio ? <Text style={styles.bio}>{member.bio}</Text> : null}
           {profile?.id !== member.user_id && (
-            <TouchableOpacity
-              style={[styles.followButton, isFollowing && styles.followButtonActive]}
-              onPress={async () => {
-                if (!id || followLoading) return;
-                setFollowLoading(true);
-                try {
-                  if (isFollowing) {
-                    await CommunityService.unfollow(id);
-                    setIsFollowing(false);
-                  } else {
-                    await CommunityService.follow(id);
-                    setIsFollowing(true);
+            <View style={styles.profileActions}>
+              <TouchableOpacity
+                style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                onPress={async () => {
+                  if (!id || followLoading) return;
+                  setFollowLoading(true);
+                  try {
+                    if (isFollowing) {
+                      await CommunityService.unfollow(id);
+                      setIsFollowing(false);
+                    } else {
+                      await CommunityService.follow(id);
+                      setIsFollowing(true);
+                    }
+                  } catch (e) {
+                    console.warn('follow toggle', e);
+                  } finally {
+                    setFollowLoading(false);
                   }
-                } catch (e) {
-                  console.warn('follow toggle', e);
-                } finally {
-                  setFollowLoading(false);
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
-                {isFollowing ? 'Suivi' : 'Suivre'}
-              </Text>
-            </TouchableOpacity>
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
+                  {isFollowing ? 'Suivi' : 'Suivre'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.reportButton} onPress={() => setReportVisible(true)}>
+                <Flag size={14} color={colors.neutral[700]} />
+                <Text style={styles.reportText}>Signaler</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </View>
@@ -214,6 +223,22 @@ export default function CommunityProfileScreen() {
           ))
         )}
       </View>
+
+      <ReportReasonModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        onSelect={async (reason) => {
+          try {
+            if (member?.user_id) {
+              await ReportService.profile(member.user_id, { reason });
+            }
+          } catch (e) {
+            console.warn('report profile', e);
+          } finally {
+            setReportVisible(false);
+          }
+        }}
+      />
     </ScrollView>
   );
 }
@@ -360,8 +385,14 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: colors.primary[700],
   },
-  followButton: {
+  profileActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     marginTop: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
@@ -382,6 +413,20 @@ const styles = StyleSheet.create({
   },
   followTextActive: {
     color: colors.neutral[800],
+  },
+  reportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[100],
+  },
+  reportText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
   },
   loadingEvents: {
     flexDirection: 'row',

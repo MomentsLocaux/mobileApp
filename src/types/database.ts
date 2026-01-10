@@ -39,6 +39,16 @@ export interface Database {
         Insert: Omit<EventLike, 'created_at'>;
         Update: never;
       };
+      comment_likes: {
+        Row: CommentLike;
+        Insert: Omit<CommentLike, 'created_at'>;
+        Update: never;
+      };
+      event_media_submission_likes: {
+        Row: EventMediaSubmissionLike;
+        Insert: Omit<EventMediaSubmissionLike, 'created_at'>;
+        Update: never;
+      };
       event_interests: {
         Row: EventInterest;
         Insert: Omit<EventInterest, 'created_at'>;
@@ -207,6 +217,18 @@ export interface EventComment {
 export interface EventLike {
   user_id: string;
   event_id: string;
+  created_at: string;
+}
+
+export interface CommentLike {
+  user_id: string;
+  comment_id: string;
+  created_at: string;
+}
+
+export interface EventMediaSubmissionLike {
+  user_id: string;
+  submission_id: string;
   created_at: string;
 }
 

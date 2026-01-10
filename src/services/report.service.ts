@@ -18,4 +18,20 @@ export const ReportService = {
       details: payload.details,
     });
   },
+  profile: (profileId: string, payload: { reason: ReportReasonCode; details?: string }) => {
+    const meta = getReportReasonMeta(payload.reason);
+    return dataProvider.reportProfile(profileId, {
+      reason: meta.code,
+      severity: meta.severity,
+      details: payload.details,
+    });
+  },
+  media: (mediaId: string, payload: { reason: ReportReasonCode; details?: string }) => {
+    const meta = getReportReasonMeta(payload.reason);
+    return dataProvider.reportMedia(mediaId, {
+      reason: meta.code,
+      severity: meta.severity,
+      details: payload.details,
+    });
+  },
 };

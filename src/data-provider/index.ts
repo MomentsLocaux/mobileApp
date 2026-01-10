@@ -21,6 +21,8 @@ export const dataProvider: DataProvider = {
 
   reportEvent: (eventId, payload, token) => apiProvider.reportEvent(eventId, payload, token),
   reportComment: (commentId, payload, token) => apiProvider.reportComment(commentId, payload, token),
+  reportProfile: (profileId, payload) => supabaseProvider.reportProfile(profileId, payload),
+  reportMedia: (mediaId, payload) => supabaseProvider.reportMedia(mediaId, payload),
 
   purchaseItem: (payload, token) => apiProvider.purchaseItem(payload, token),
 
@@ -33,6 +35,8 @@ export const dataProvider: DataProvider = {
   toggleFavorite: (eventId) => supabaseProvider.toggleFavorite(eventId),
   toggleInterest: (eventId) => supabaseProvider.toggleInterest(eventId),
   like: (eventId) => supabaseProvider.like(eventId),
+  likeComment: (commentId) => supabaseProvider.likeComment(commentId),
+  likeMedia: (mediaId) => supabaseProvider.likeMedia(mediaId),
 
   listEventsByCreator: (creatorId) => supabaseProvider.listEvents({ creatorId }),
   listEventsByBBox: (params) => (supabaseProvider as any).listEventsByBBox?.(params),
