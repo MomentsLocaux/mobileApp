@@ -70,6 +70,7 @@ export const spacing = {
   xs: 4,
   sm: 8,
   md: 16,
+  l: 20,
   lg: 24,
   xl: 32,
   xxl: 48,
@@ -105,9 +106,24 @@ export const typography = {
     fontWeight: '600' as const,
     lineHeight: 26,
   },
+  h5: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    lineHeight: 24,
+  },
+  h6: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+  },
   body: {
     fontSize: 16,
     fontWeight: '400' as const,
+    lineHeight: 24,
+  },
+  bodyBold: {
+    fontSize: 16,
+    fontWeight: '700' as const,
     lineHeight: 24,
   },
   bodySmall: {
@@ -134,6 +150,11 @@ export const typography = {
     fontSize: 12,
     fontWeight: '400' as const,
     lineHeight: 16,
+  },
+  subtitle: {
+    fontSize: 15,
+    fontWeight: '500' as const,
+    lineHeight: 22,
   },
 };
 

@@ -102,7 +102,7 @@ export default function CreateEventStep1() {
         setTags(evt.tags || []);
         setVisibility(evt.visibility === 'prive' ? 'unlisted' : 'public');
         setPrice(evt.price ? String(evt.price) : undefined);
-        setDuration(evt.duration || undefined);
+        setDuration(undefined);
         setContact(evt.contact_email || evt.contact_phone || undefined);
         setExternalLink(evt.external_url || undefined);
         setVideoLink(undefined);

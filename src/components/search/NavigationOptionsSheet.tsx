@@ -47,7 +47,10 @@ async function openNavigation(urls: ReturnType<typeof buildUrls>, preference: 'w
 export const NavigationOptionsSheet: React.FC<Props> = ({ visible, event, onClose }) => {
   const urls = useMemo(() => {
     if (!event) return null;
-    const coordsArray = event.location?.coordinates;
+    const coordsArray =
+      event.location && typeof event.location === 'object' && 'coordinates' in event.location
+        ? event.location.coordinates
+        : undefined;
     let lat: number | undefined;
     let lon: number | undefined;
 

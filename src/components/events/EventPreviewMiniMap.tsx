@@ -52,7 +52,9 @@ export const EventPreviewMiniMap = ({ coverUrl, title, dateLabel, category, city
               <MapboxGL.PointAnnotation
                 id="preview"
                 coordinate={[location.longitude, location.latitude]}
-              />
+              >
+                <View />
+              </MapboxGL.PointAnnotation>
             </MapboxGL.MapView>
           ) : (
             <View style={[StyleSheet.absoluteFill, styles.mapPlaceholder]} />

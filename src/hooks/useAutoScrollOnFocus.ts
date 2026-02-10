@@ -20,11 +20,12 @@ export const useAutoScrollOnFocus = () => {
   const scrollToKey = useCallback((key: string) => {
     const target = fieldRefs.current.get(key);
     const scrollNode = scrollViewRef.current;
+    const scrollNodeAny = scrollNode as any;
     if (!target || !scrollNode || typeof target.measureInWindow !== 'function') return;
 
     target.measureInWindow((_x: number, targetY: number, _w: number, _h: number) => {
-      if (typeof scrollNode.measureInWindow !== 'function') return;
-      scrollNode.measureInWindow((_sx: number, scrollY: number) => {
+      if (typeof scrollNodeAny?.measureInWindow !== 'function') return;
+      scrollNodeAny.measureInWindow((_sx: number, scrollY: number) => {
         const relativeY = targetY - scrollY + scrollYRef.current;
         scrollViewRef.current?.scrollTo({
           y: Math.max(0, relativeY - 24),

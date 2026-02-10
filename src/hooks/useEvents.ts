@@ -1,5 +1,7 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useEventsStore } from '@/store';
+import { EventsService } from '@/services/events.service';
+import type { EventWithCreator } from '@/types/database';
 
 interface UseEventsOptions {
   limit?: number;

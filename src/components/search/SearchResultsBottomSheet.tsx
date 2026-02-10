@@ -146,11 +146,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         )}
 
         {showList && mode !== 'single' && hasEvents && !isLoading && (
-          <BottomSheetFlatList
+          <BottomSheetFlatList<EventWithCreator>
             data={events}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: EventWithCreator) => item.id}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => (
+            renderItem={({ item }: { item: EventWithCreator }) => (
               <EventResultCard
                 event={item}
                 active={item.id === activeEventId}
@@ -168,6 +168,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     );
   }
 );
+SearchResultsBottomSheet.displayName = 'SearchResultsBottomSheet';
 
 const styles = StyleSheet.create({
   sheetBackground: {

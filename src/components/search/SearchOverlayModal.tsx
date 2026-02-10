@@ -340,12 +340,13 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                     <TouchableOpacity
                       key={h}
                       style={styles.result}
-                      onPress={() =>
+                      onPress={() => {
                         setWhere({
                           location: undefined,
                           radiusKm: undefined,
-                        }) || setQuery(h)
-                      }
+                        });
+                        setQuery(h);
+                      }}
                     >
                       <Text style={styles.resultText}>{h}</Text>
                     </TouchableOpacity>
@@ -519,7 +520,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                   onPress={() => setSortBy('triage')}
                 />
                 <Chip
-                  label="Date"
+                  label="Date début"
                   active={sortBy === 'date'}
                   onPress={() => {
                     setSortBy('date');
@@ -527,7 +528,15 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                   }}
                 />
                 <Chip
-                  label="Création"
+                  label="Date fin"
+                  active={sortBy === 'endDate'}
+                  onPress={() => {
+                    setSortBy('endDate');
+                    if (!sortOrder) setSortOrder('asc');
+                  }}
+                />
+                <Chip
+                  label="Date création"
                   active={sortBy === 'created'}
                   onPress={() => {
                     setSortBy('created');
@@ -545,7 +554,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                   onPress={() => setSortBy('popularity')}
                 />
               </View>
-              {(sortBy === 'date' || sortBy === 'created') && (
+              {(sortBy === 'date' || sortBy === 'endDate' || sortBy === 'created') && (
                 <>
                   <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Ordre</Text>
                   <View style={styles.rowWrap}>

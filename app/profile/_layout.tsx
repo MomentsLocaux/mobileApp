@@ -16,6 +16,13 @@ export default function ProfileLayout() {
       }}
     >
       <Stack.Screen
+        name="offers"
+        options={{
+          title: 'Offres & abonnements',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="edit"
         options={{
           title: 'Modifier le profil',

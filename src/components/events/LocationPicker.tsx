@@ -128,6 +128,7 @@ export function LocationPicker({
                 type: 'Point',
                 coordinates: [safeCoords.longitude, safeCoords.latitude],
               },
+              properties: {},
             }}
             onPress={(event) => {
               if (location.isLocked) return;

@@ -47,6 +47,7 @@ export const authProvider: IAuthProvider = {
       .from('profiles')
       .insert({
         id: userId,
+        email: email ?? null,
         display_name: email ? email.split('@')[0] : 'Utilisateur',
         role: 'particulier',
         onboarding_completed: false,

@@ -1,5 +1,19 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
-import { Map, Home, Users, User, PlusCircle, Send, Compass, UserCircle2, Target, Heart, ShoppingBag, Bug } from 'lucide-react-native';
+import {
+  Map,
+  Home,
+  Users,
+  User,
+  PlusCircle,
+  Send,
+  Compass,
+  UserCircle2,
+  Target,
+  Heart,
+  ShoppingBag,
+  Bug,
+  Settings,
+} from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
@@ -32,6 +46,45 @@ export default function TabsLayout() {
     inputRange: [0, 1],
     outputRange: [400, 0],
   });
+
+  const renderProtectedTabButton = (
+    props: any,
+    gateTitle: string,
+    onAllowed?: () => void
+  ) => {
+    const {
+      style,
+      onPress,
+      onLongPress,
+      children,
+      accessibilityState,
+      accessibilityLabel,
+      testID,
+    } = props;
+
+    return (
+      <TouchableOpacity
+        style={[style, isGuest && styles.tabDisabled]}
+        accessibilityState={accessibilityState}
+        accessibilityLabel={accessibilityLabel}
+        testID={testID}
+        onLongPress={onLongPress || undefined}
+        onPress={() => {
+          if (isGuest) {
+            openGuestGate(gateTitle);
+            return;
+          }
+          if (onAllowed) {
+            onAllowed();
+            return;
+          }
+          onPress?.();
+        }}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -70,16 +123,7 @@ export default function TabsLayout() {
             tabBarIcon: ({ size, color }) => (
               <Home size={size} color={isGuest ? colors.neutral[400] : color} />
             ),
-            tabBarButton: (props) => (
-              <TouchableOpacity
-                {...props}
-                style={[props.style, isGuest && styles.tabDisabled]}
-                onPress={() => {
-                  if (isGuest) return openGuestGate("Accéder à l'accueil");
-                  props.onPress?.(undefined as any);
-                }}
-              />
-            ),
+            tabBarButton: (props) => renderProtectedTabButton(props, "Accéder à l'accueil"),
           }}
         />
         <Tabs.Screen
@@ -117,16 +161,7 @@ export default function TabsLayout() {
             tabBarIcon: ({ size, color }) => (
               <Users size={size} color={isGuest ? colors.neutral[400] : color} />
             ),
-            tabBarButton: (props) => (
-              <TouchableOpacity
-                {...props}
-                style={[props.style, isGuest && styles.tabDisabled]}
-                onPress={() => {
-                  if (isGuest) return openGuestGate('Accéder à la communauté');
-                  props.onPress?.(undefined as any);
-                }}
-              />
-            ),
+            tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à la communauté'),
           }}
         />
         <Tabs.Screen
@@ -139,16 +174,8 @@ export default function TabsLayout() {
               ) : (
                 <User size={size} color={isGuest ? colors.neutral[400] : color} />
               ),
-            tabBarButton: (props) => (
-              <TouchableOpacity
-                {...props}
-                style={[props.style, isGuest && styles.tabDisabled]}
-                onPress={() => {
-                  if (isGuest) return openGuestGate('Accéder à votre profil');
-                  toggleDrawer(true);
-                }}
-              />
-            ),
+            tabBarButton: (props) =>
+              renderProtectedTabButton(props, 'Accéder à votre profil', () => toggleDrawer(true)),
           }}
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
@@ -176,21 +203,9 @@ export default function TabsLayout() {
               <UserCircle2 size={32} color={colors.neutral[600]} />
             </View>
           )}
-          <View>
-            <View style={styles.drawerTitleRow}>
-              <View>
-                <View>
-                  <View>
-                    <View />
-                  </View>
-                </View>
-              </View>
-            </View>
-            <View>
-              <View>
-                <View />
-              </View>
-            </View>
+          <View style={styles.drawerIdentity}>
+            <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
+            {profile?.email ? <Text style={styles.drawerEmail}>{profile.email}</Text> : null}
           </View>
         </View>
         <View style={styles.drawerLinks}>
@@ -202,14 +217,31 @@ export default function TabsLayout() {
               router.push('/events/create/step-1' as any);
             }}
           />
-          <DrawerLink
-            icon={User}
-            label="Mon profil"
-            onPress={() => {
-              toggleDrawer(false);
-              router.push('/(tabs)/profile' as any);
-            }}
-          />
+        <DrawerLink
+          icon={User}
+          label="Mon profil"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/(tabs)/profile' as any);
+          }}
+        />
+        <DrawerLink
+          icon={ShoppingBag}
+          label="Offres & abonnements"
+          highlight
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/profile/offers' as any);
+          }}
+        />
+        <DrawerLink
+          icon={Settings}
+          label="Paramètres"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/settings/index' as any);
+          }}
+        />
         <DrawerLink
           icon={Send}
           label="Inviter des amis"
@@ -296,11 +328,21 @@ export default function TabsLayout() {
   );
 }
 
-const DrawerLink = ({ icon: IconCmp, label, onPress }: { icon: any; label: string; onPress: () => void }) => (
-  <TouchableOpacity style={styles.linkRow} onPress={onPress} activeOpacity={0.8}>
-    <IconCmp size={20} color={colors.neutral[800]} />
+const DrawerLink = ({
+  icon: IconCmp,
+  label,
+  onPress,
+  highlight,
+}: {
+  icon: any;
+  label: string;
+  onPress: () => void;
+  highlight?: boolean;
+}) => (
+  <TouchableOpacity style={[styles.linkRow, highlight && styles.linkRowHighlight]} onPress={onPress} activeOpacity={0.8}>
+    <IconCmp size={20} color={highlight ? '#C18A1C' : colors.neutral[800]} />
     <View style={styles.linkLabelWrapper}>
-      <Text style={styles.linkLabel}>{label}</Text>
+      <Text style={[styles.linkLabel, highlight && styles.linkLabelHighlight]}>{label}</Text>
     </View>
   </TouchableOpacity>
 );
@@ -356,6 +398,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  drawerIdentity: {
+    flex: 1,
+  },
+  drawerName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.neutral[900],
+  },
+  drawerEmail: {
+    marginTop: 4,
+    fontSize: 13,
+    color: colors.neutral[600],
+  },
   drawerLinks: {
     marginTop: 12,
     gap: 12,
@@ -373,6 +428,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.neutral[900],
     fontWeight: '600',
+  },
+  linkRowHighlight: {
+    backgroundColor: '#FFF5DB',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+  },
+  linkLabelHighlight: {
+    color: '#C18A1C',
   },
   createButton: {
     width: 64,

@@ -164,7 +164,6 @@ export function MediaUploader({
               onPress={() => pickImage((uri) => handleAddToGallery(uri), 'library')}
               variant="outline"
               style={[styles.addButton, styles.centerButton]}
-              icon={<Upload size={18} color={colors.primary[600]} />}
             />
             <Input
               placeholder="https://example.com/image.jpg"
@@ -254,6 +253,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.primary[200],
+  },
+  centerButton: {
+    alignSelf: 'center',
   },
   buttonRow: {
     flexDirection: 'row',

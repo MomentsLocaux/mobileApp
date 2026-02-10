@@ -5,6 +5,8 @@ import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
+import { useLocationStore } from '@/store';
+import { getDistanceText } from '@/utils/sort-events';
 
 interface Props {
   event: EventWithCreator;
@@ -37,6 +39,21 @@ function formatDateRange(starts_at: string, ends_at: string) {
   return `${startLabel} • ${timeLabel}`;
 }
 
+function extractCoords(event: EventWithCreator): { lat: number; lon: number } | null {
+  if (Array.isArray((event as any)?.location?.coordinates)) {
+    const [lon, lat] = (event as any).location.coordinates as [number, number];
+    if (typeof lat === 'number' && typeof lon === 'number') {
+      return { lat, lon };
+    }
+  }
+
+  if (typeof event.latitude === 'number' && typeof event.longitude === 'number') {
+    return { lat: event.latitude, lon: event.longitude };
+  }
+
+  return null;
+}
+
 export const EventResultCard: React.FC<Props> = ({
   event,
   distanceKm,
@@ -50,8 +67,24 @@ export const EventResultCard: React.FC<Props> = ({
   onToggleFavorite,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
+  const { currentLocation } = useLocationStore();
   const categoryLabel = getCategoryLabel(event.category || '');
   const dateLabel = useMemo(() => formatDateRange(event.starts_at, event.ends_at), [event.starts_at, event.ends_at]);
+  const userLocation = useMemo(() => {
+    if (!currentLocation) return null;
+    return {
+      latitude: currentLocation.coords.latitude,
+      longitude: currentLocation.coords.longitude,
+    };
+  }, [currentLocation]);
+  const distanceLabel = useMemo(() => {
+    if (typeof distanceKm === 'number' && Number.isFinite(distanceKm)) {
+      return distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`;
+    }
+    const coords = extractCoords(event);
+    if (!coords) return null;
+    return getDistanceText(coords.lat, coords.lon, userLocation);
+  }, [distanceKm, event, userLocation]);
   const tags = event.tags?.slice(0, 3) || [];
   const images = useMemo(() => {
     const urls = [
@@ -118,7 +151,6 @@ export const EventResultCard: React.FC<Props> = ({
               <MapPin size={16} color={colors.neutral[0]} />
               <Text style={styles.meta} numberOfLines={1}>
                 {event.city || event.address || 'Lieu à venir'}
-                {typeof distanceKm === 'number' ? ` • ${distanceKm.toFixed(1)} km` : ''}
               </Text>
             </View>
             <View style={styles.row}>
@@ -141,7 +173,10 @@ export const EventResultCard: React.FC<Props> = ({
           <View style={styles.ctaRow} pointerEvents="auto">
             <TouchableOpacity style={styles.ctaButton} onPress={onNavigate}>
               <Navigation2 size={16} color={colors.neutral[900]} />
-              <Text style={styles.ctaText}>Itinéraire</Text>
+              <View style={styles.ctaTextRow}>
+                <Text style={styles.ctaText}>Itinéraire</Text>
+                {distanceLabel ? <Text style={styles.ctaDistance}>· {distanceLabel}</Text> : null}
+              </View>
             </TouchableOpacity>
             {onToggleFavorite && (
               <TouchableOpacity
@@ -294,6 +329,16 @@ const styles = StyleSheet.create({
   ctaText: {
     ...typography.bodySmall,
     color: colors.neutral[900],
+    fontWeight: '700',
+  },
+  ctaTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ctaDistance: {
+    ...typography.caption,
+    color: colors.neutral[700],
     fontWeight: '700',
   },
   favoriteBtn: {

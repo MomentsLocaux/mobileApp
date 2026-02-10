@@ -28,6 +28,10 @@ export function sortEvents(
 ): EventWithCreator[] {
   const sorted = [...events];
   const order = sortOrder ?? (sortBy === 'created' ? 'desc' : 'asc');
+  const getTimestamp = (value?: string | null) => {
+    const ts = value ? new Date(value).getTime() : NaN;
+    return Number.isNaN(ts) ? 0 : ts;
+  };
 
   const extractCoords = (event: EventWithCreator) => {
     if (Array.isArray((event as any)?.location?.coordinates)) {
@@ -133,15 +137,22 @@ export function sortEvents(
 
     case 'date':
       sorted.sort((a, b) => {
-        const dateA = new Date(a.starts_at).getTime();
-        const dateB = new Date(b.starts_at).getTime();
+        const dateA = getTimestamp(a.starts_at);
+        const dateB = getTimestamp(b.starts_at);
+        return order === 'asc' ? dateA - dateB : dateB - dateA;
+      });
+      break;
+    case 'endDate':
+      sorted.sort((a, b) => {
+        const dateA = getTimestamp(a.ends_at) || getTimestamp(a.starts_at);
+        const dateB = getTimestamp(b.ends_at) || getTimestamp(b.starts_at);
         return order === 'asc' ? dateA - dateB : dateB - dateA;
       });
       break;
     case 'created':
       sorted.sort((a, b) => {
-        const dateA = new Date(a.created_at).getTime();
-        const dateB = new Date(b.created_at).getTime();
+        const dateA = getTimestamp(a.created_at);
+        const dateB = getTimestamp(b.created_at);
         return order === 'asc' ? dateA - dateB : dateB - dateA;
       });
       break;

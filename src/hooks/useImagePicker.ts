@@ -10,8 +10,8 @@ export type ImageAsset = {
 
 interface UseImagePickerResult {
   selectedImage: ImageAsset | null;
-  pickImage: (options?: { aspect?: [number, number] }) => Promise<ImageAsset | null>;
-  takePhoto: (options?: { aspect?: [number, number] }) => Promise<ImageAsset | null>;
+  pickImage: (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => Promise<ImageAsset | null>;
+  takePhoto: (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => Promise<ImageAsset | null>;
   clearImage: () => void;
 }
 
@@ -38,7 +38,7 @@ export const useImagePicker = (): UseImagePickerResult => {
     }
   };
 
-  const pickImage = useCallback(async (options?: { aspect?: [number, number] }) => {
+  const pickImage = useCallback(async (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => {
     const ok = await requestPermission('library');
     if (!ok) {
       console.warn('Permission to access gallery denied');
@@ -50,7 +50,7 @@ export const useImagePicker = (): UseImagePickerResult => {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes,
-        allowsEditing: true,
+        allowsEditing: options?.allowsEditing ?? true,
         aspect: options?.aspect,
         quality: 0.8,
       });
@@ -65,7 +65,7 @@ export const useImagePicker = (): UseImagePickerResult => {
     }
   }, []);
 
-  const takePhoto = useCallback(async (options?: { aspect?: [number, number] }) => {
+  const takePhoto = useCallback(async (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => {
     const ok = await requestPermission('camera');
     if (!ok) {
       console.warn('Permission to access camera denied');
@@ -74,7 +74,7 @@ export const useImagePicker = (): UseImagePickerResult => {
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
+        allowsEditing: options?.allowsEditing ?? true,
         aspect: options?.aspect,
         quality: 0.8,
       });

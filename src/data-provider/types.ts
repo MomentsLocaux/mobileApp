@@ -13,7 +13,7 @@ export interface IDataProvider {
   listEventsByCreator?(creatorId: string): Promise<EventWithCreator[]>;
   createEvent(payload: Partial<Event>): Promise<Event>;
   updateEvent?(id: string, payload: Partial<Event>): Promise<EventWithCreator>;
-  setEventMedia?(eventId: string, urls: string[]): Promise<void>;
+  setEventMedia?(eventId: string, medias: { id?: string; url: string; order?: number }[]): Promise<void>;
   deleteEvent(id: string): Promise<boolean>;
 
   listComments(eventId: string): Promise<CommentWithAuthor[]>;

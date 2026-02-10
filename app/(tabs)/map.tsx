@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Platform, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MapPin, Navigation } from 'lucide-react-native';
+import { Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +23,6 @@ import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '.
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
 const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 
@@ -34,7 +33,7 @@ export default function MapScreen() {
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const searchState = useSearchStore();
   const { profile } = useAuth();
-  const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
+  const { favorites, toggleFavorite } = useFavoritesStore();
   const {
     bottomSheetIndex,
     setBottomSheetIndex,
@@ -65,7 +64,7 @@ export default function MapScreen() {
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
   const includePast = !!searchState.when.includePast;
   const focusHandledRef = useRef(false);
-  const bboxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bboxTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const [searchApplied, setSearchApplied] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -75,12 +74,6 @@ export default function MapScreen() {
   const getPaddingFromIndex = useCallback((idx: number) => {
     return idx === 2 ? 360 : idx === 1 ? 240 : 120;
   }, []);
-
-  const getFitPadding = useCallback(() => {
-    const base = mapPadding?.bottom ?? 0;
-    if (base <= 0) return 20;
-    return Math.min(40, base);
-  }, [mapPadding]);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -108,6 +101,12 @@ export default function MapScreen() {
         return { top: 20, right: 20, bottom: 120, left: 20 };
     }
   }, [mapPaddingLevel]);
+
+  const getFitPadding = useCallback(() => {
+    const base = mapPadding?.bottom ?? 0;
+    if (base <= 0) return 20;
+    return Math.min(40, base);
+  }, [mapPadding]);
 
   const hasSearchCriteria = useMemo(() => {
     const hasWhere = !!searchState.where.location || !!searchState.where.radiusKm;
@@ -509,8 +508,9 @@ export default function MapScreen() {
           }
 
           if (idx === 1 && sheetStatus === 'viewportResults') {
-            const bounds = mapRef.current?.getVisibleBounds ? mapRef.current.getVisibleBounds() : null;
-            if (bounds) focusOnBounds(bounds, idx);
+            mapRef.current?.getVisibleBounds?.().then((bounds) => {
+              if (bounds) focusOnBounds(bounds, idx);
+            });
           }
            if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
             focusOnEvent(sheetEvents[0], idx);

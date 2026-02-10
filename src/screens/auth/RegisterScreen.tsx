@@ -175,6 +175,18 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    ...typography.bodySmall,
+    color: colors.neutral[700],
+    fontWeight: '600',
+  },
   title: {
     ...typography.h1,
     color: colors.neutral[900],

@@ -6,8 +6,9 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 
 const LABELS: Record<SortOption, string> = {
   triage: 'Pertinence',
-  date: 'Date',
-  created: 'Création',
+  date: 'Date début',
+  endDate: 'Date fin',
+  created: 'Date création',
   distance: 'Distance',
   popularity: 'Popularité',
 };
@@ -31,10 +32,10 @@ export const TriageControl: React.FC<Props> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const options = useMemo<SortOption[]>(
-    () => ['triage', 'date', 'created', 'distance', 'popularity'],
+    () => ['triage', 'date', 'endDate', 'created', 'distance', 'popularity'],
     []
   );
-  const showOrder = value === 'date' || value === 'created';
+  const showOrder = value === 'date' || value === 'endDate' || value === 'created';
   const orderLabel = sortOrder === 'desc' ? 'Descendant' : 'Ascendant';
 
   return (
@@ -65,7 +66,7 @@ export const TriageControl: React.FC<Props> = ({
                 onPress={() => {
                   if (disabled) return;
                   onChange(option);
-                  if ((option === 'date' || option === 'created') && !sortOrder) {
+                  if ((option === 'date' || option === 'endDate' || option === 'created') && !sortOrder) {
                     onSortOrderChange?.(option === 'created' ? 'desc' : 'asc');
                   }
                   setOpen(false);

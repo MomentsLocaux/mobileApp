@@ -53,9 +53,19 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   ) => {
   const isMapboxAvailable = !!Mapbox.MapView;
   const mapViewRef = useRef<Mapbox.MapView>(null);
-  const shapeSourceRef = useRef<Mapbox.ShapeSource>(null);
+  const shapeSourceRef = useRef<any>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+
+  const toCameraPadding = (padding?: { top: number; right: number; bottom: number; left: number }) => {
+    if (!padding) return undefined;
+    return {
+      paddingTop: padding.top,
+      paddingRight: padding.right,
+      paddingBottom: padding.bottom,
+      paddingLeft: padding.left,
+    };
+  };
 
   const hasBoundsChanged = (next: { sw: [number, number]; ne: [number, number] }) => {
     const prev = lastBoundsRef.current;
@@ -92,12 +102,12 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         });
       },
       setShape: (fc: FeatureCollection) => {
-        // setShape exists on ShapeSource in the native module; guard in case the ref isn't ready
-        if (shapeSourceRef.current) {
-          if (typeof shapeSourceRef.current.setShape === 'function') {
-            shapeSourceRef.current.setShape(fc);
-          } else if (typeof (shapeSourceRef.current as any).setNativeProps === 'function') {
-            (shapeSourceRef.current as any).setNativeProps({ shape: fc });
+        const source = shapeSourceRef.current as any;
+        if (source) {
+          if (typeof source.setShape === 'function') {
+            source.setShape(fc);
+          } else if (typeof source.setNativeProps === 'function') {
+            source.setNativeProps({ shape: fc });
           } else {
             console.warn('ShapeSource ref has no setShape/setNativeProps; cannot update shape');
           }
@@ -143,10 +153,10 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           centerCoordinate: [longitude, latitude],
           zoomLevel: zoomLevel ?? initialRegion.zoom,
           padding: {
-            top: 40,
-            bottom: paddingBottom ?? 0,
-            left: 20,
-            right: 20,
+            paddingTop: 40,
+            paddingBottom: paddingBottom ?? 0,
+            paddingLeft: 20,
+            paddingRight: 20,
           },
           animationDuration: 300,
         });
@@ -167,7 +177,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     );
   }
 
-  const handlePress = async (event: Mapbox.OnPressEvent) => {
+  const handlePress = async (event: any) => {
     const feature = event.features?.[0];
     if (!feature) return;
 
@@ -200,7 +210,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             pitch: 0,
             heading: 0,
           }}
-          padding={mapPadding}
+          padding={toCameraPadding(mapPadding)}
         />
 
         <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />
@@ -211,6 +221,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             shape={{
               type: 'Feature',
               geometry: { type: 'Point', coordinates: [userLocation.longitude, userLocation.latitude] },
+              properties: {},
             }}
           >
             <Mapbox.SymbolLayer
@@ -248,6 +259,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     </View>
   );
 });
+MapWrapper.displayName = 'MapWrapper';
 
 const styles = StyleSheet.create({
   container: {

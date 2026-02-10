@@ -349,8 +349,14 @@ export default function ModerationScreen() {
           reports_count: reportCountByEvent.get(event.id) || 0,
         })) as EventRecord[];
 
-        const reportList = (reportsRes.data || []) as Report[];
-        const warningList = (warningsRes.data || []) as Warning[];
+        const reportList = ((reportsRes.data || []) as any[]).map((report) => ({
+          ...report,
+          reporter: Array.isArray(report.reporter) ? report.reporter[0] ?? null : report.reporter ?? null,
+        })) as Report[];
+        const warningList = ((warningsRes.data || []) as any[]).map((warning) => ({
+          ...warning,
+          user: Array.isArray(warning.user) ? warning.user[0] ?? null : warning.user ?? null,
+        })) as Warning[];
 
         const flaggedUsers = new Set((userReportsRes.data || []).map((row) => row.target_id)).size;
 

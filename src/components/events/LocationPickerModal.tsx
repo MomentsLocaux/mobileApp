@@ -107,7 +107,9 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
               coordinate={selected ? [selected.longitude, selected.latitude] : center}
               draggable
               onDragEnd={(e) => onDragEnd(e.geometry.coordinates as number[])}
-            />
+            >
+              <View />
+            </MapboxGL.PointAnnotation>
           </MapboxGL.MapView>
         </View>
 

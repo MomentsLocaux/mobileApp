@@ -197,7 +197,9 @@ export default function CreateEventStep3() {
                 <MapboxGL.PointAnnotation
                   id="preview-step3"
                   coordinate={[location.longitude, location.latitude]}
-                />
+                >
+                  <View />
+                </MapboxGL.PointAnnotation>
               </MapboxGL.MapView>
             ) : (
               <View style={[StyleSheet.absoluteFill, styles.mapPlaceholder]} />

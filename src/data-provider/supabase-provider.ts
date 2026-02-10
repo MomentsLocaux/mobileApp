@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import type { IBugsProvider, IDataProvider } from './types';
-import type { CommentWithAuthor, Event, EventWithCreator, Profile, Database, EventComment } from '@/types/database';
+import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/types/database';
+import type { FeatureCollection } from 'geojson';
 
 const formatSupabaseError = (error: any, context: string) => {
   const rawMessage =
@@ -8,7 +9,8 @@ const formatSupabaseError = (error: any, context: string) => {
   const message = rawMessage.trim().startsWith('<!DOCTYPE') || rawMessage.includes('Cloudflare')
     ? 'Supabase ne répond pas (timeout). Réessayez dans quelques instants.'
     : rawMessage;
-  return new Error(`[${context}] ${message}`);
+  const details = [error?.code, error?.details, error?.hint].filter(Boolean).join(' | ');
+  return new Error(`[${context}] ${message}${details ? ` (${details})` : ''}`);
 };
 
 const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatars';
@@ -75,6 +77,17 @@ const normalizeMakiIcon = (iconValue: any): string => {
   return raw.includes('-11') || raw.includes('-15') ? raw : `${raw}-15`;
 };
 
+const isRlsError = (error: any) => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  return (
+    code === '42501' ||
+    message.includes('row-level security') ||
+    details.includes('row-level security')
+  );
+};
+
 export const supabaseProvider: (Pick<
   IDataProvider,
   | 'listEvents'
@@ -99,6 +112,7 @@ export const supabaseProvider: (Pick<
   | 'likeMedia'
   | 'uploadAvatar'
   | 'uploadEventCover'
+  | 'listEventsByBBox'
   | 'getEventsByIds'
 > &
   IBugsProvider) = {
@@ -126,7 +140,7 @@ export const supabaseProvider: (Pick<
 
     const { data, error } = await query;
     if (error) throw formatSupabaseError(error, 'listEvents');
-    return (data || []) as EventWithCreator[];
+    return (data || []) as unknown as EventWithCreator[];
   },
 
   async getEventById(id: string) {
@@ -136,7 +150,7 @@ export const supabaseProvider: (Pick<
       .eq('id', id)
       .maybeSingle();
     if (error) throw formatSupabaseError(error, 'getEventById');
-    return data ? (data as EventWithCreator) : null;
+    return data ? (data as unknown as EventWithCreator) : null;
   },
 
   async getEventsByIds(ids: string[]) {
@@ -147,7 +161,7 @@ export const supabaseProvider: (Pick<
       .rpc('get_events_by_ids', { ids: cleanedIds })
       .select(EVENT_FULL_SELECT);
     if (error) throw formatSupabaseError(error, 'getEventsByIds');
-    return (data || []) as EventWithCreator[];
+    return (data || []) as unknown as EventWithCreator[];
   },
 
   async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number; includePast?: boolean }) {
@@ -174,7 +188,12 @@ export const supabaseProvider: (Pick<
     const { data, error } = await query.limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');
 
-    const events = (data || []) as { id: string; latitude: number; longitude: number; icon?: string }[];
+    const events = ((data || []) as any[]).map((row) => ({
+      id: String(row.id),
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+      icon: Array.isArray(row.icon) ? row.icon[0]?.icon : row.icon,
+    })) as { id: string; latitude: number; longitude: number; icon?: string }[];
     const features =
       events
         .filter((e) => typeof e.longitude === 'number' && typeof e.latitude === 'number')
@@ -196,7 +215,7 @@ export const supabaseProvider: (Pick<
     return {
       type: 'FeatureCollection',
       features,
-    };
+    } as FeatureCollection;
   },
 
   async createEvent(payload: Partial<Event>) {
@@ -248,13 +267,27 @@ export const supabaseProvider: (Pick<
         .from('event_media')
         .delete()
         .in('id', idsToRemove);
-      if (delByIdError) throw formatSupabaseError(delByIdError, 'setEventMedia-delete-by-id');
+      if (delByIdError) {
+        if (isRlsError(delByIdError)) {
+          throw new Error(
+            `[setEventMedia-delete-by-id] Permission refusée sur event_media. Vérifie les policies RLS d'écriture (insert/update/delete) pour le créateur de l'événement.`
+          );
+        }
+        throw formatSupabaseError(delByIdError, 'setEventMedia-delete-by-id');
+      }
       console.log('[setEventMedia] delete response OK for ids', idsToRemove);
     } else if (finalMedias.length === 0) {
       // purge tout si aucune media active
       console.log('[setEventMedia] purge all event_media for event', eventId);
       const { error: purgeError } = await supabase.from('event_media').delete().eq('event_id', eventId);
-      if (purgeError) throw formatSupabaseError(purgeError, 'setEventMedia-purge-all');
+      if (purgeError) {
+        if (isRlsError(purgeError)) {
+          throw new Error(
+            `[setEventMedia-purge-all] Permission refusée sur event_media. Vérifie les policies RLS d'écriture (insert/update/delete) pour le créateur de l'événement.`
+          );
+        }
+        throw formatSupabaseError(purgeError, 'setEventMedia-purge-all');
+      }
       console.log('[setEventMedia] purge response OK for event', eventId);
     }
 
@@ -268,6 +301,7 @@ export const supabaseProvider: (Pick<
       url: m.url,
       type: 'image',
       order: m.order ?? 0,
+      position: m.order ?? 0,
     }));
 
     if (existingToUpdate.length > 0) {
@@ -280,17 +314,32 @@ export const supabaseProvider: (Pick<
             url: m.url,
             type: 'image',
             order: m.order ?? 0,
+            position: m.order ?? 0,
           })) as any,
           { onConflict: 'id' }
         );
-      if (updateError) throw formatSupabaseError(updateError, 'setEventMedia-upsert-existing');
+      if (updateError) {
+        if (isRlsError(updateError)) {
+          throw new Error(
+            `[setEventMedia-upsert-existing] Permission refusée sur event_media. Vérifie les policies RLS d'écriture (insert/update/delete) pour le créateur de l'événement.`
+          );
+        }
+        throw formatSupabaseError(updateError, 'setEventMedia-upsert-existing');
+      }
       console.log('[setEventMedia] upsert existing response OK', existingToUpdate.map((m) => m.id));
     }
 
     if (newToInsert.length > 0) {
       console.log('[setEventMedia] inserting', newToInsert);
       const { error: insertError } = await supabase.from('event_media').insert(newToInsert as any);
-      if (insertError) throw formatSupabaseError(insertError, 'setEventMedia');
+      if (insertError) {
+        if (isRlsError(insertError)) {
+          throw new Error(
+            `[setEventMedia] Permission refusée sur event_media. Vérifie les policies RLS d'écriture (insert/update/delete) pour le créateur de l'événement.`
+          );
+        }
+        throw formatSupabaseError(insertError, 'setEventMedia');
+      }
       console.log('[setEventMedia] insert response OK count', newToInsert.length);
     }
     // Fin : pas de vérification supplémentaire, on s'appuie sur les IDs et l'ordre fournis.

@@ -156,6 +156,21 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: borderRadius.full,
   },
+  overlayButtons: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  overlayButton: {
+    width: 34,
+    height: 34,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   categoryBadge: {
     position: 'absolute',
     bottom: spacing.sm,

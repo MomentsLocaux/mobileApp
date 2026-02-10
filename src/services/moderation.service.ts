@@ -25,6 +25,11 @@ export interface ModerationBug {
   status: BugStatus;
 }
 
+const firstOrNull = <T>(value: any): T | null => {
+  if (Array.isArray(value)) return (value[0] ?? null) as T | null;
+  return (value ?? null) as T | null;
+};
+
 export const ModerationService = {
   async createNotification(payload: {
     userId: string;
@@ -73,7 +78,11 @@ export const ModerationService = {
     if (params?.limit) query = query.limit(params.limit);
     const { data, error } = await query;
     if (error) throw new Error(error.message || 'Impossible de charger les événements');
-    return (data || []) as ModerationEvent[];
+    const normalized = ((data || []) as any[]).map((row) => ({
+      ...row,
+      creator: firstOrNull(row.creator),
+    }));
+    return normalized as unknown as ModerationEvent[];
   },
 
   async updateEventStatus(payload: {
@@ -140,7 +149,7 @@ export const ModerationService = {
     if (params?.limit) query = query.limit(params.limit);
     const { data, error } = await query;
     if (error) throw new Error(error.message || 'Impossible de charger les signalements');
-    return (data || []) as ReportRecord[];
+    return (data || []) as unknown as ReportRecord[];
   },
 
   async updateReportStatus(reportId: string, status: ReportStatus) {
@@ -151,7 +160,7 @@ export const ModerationService = {
       .select('id, target_type, target_id, reporter_id, reason, status, severity, created_at')
       .single();
     if (error) throw new Error(error.message || 'Impossible de mettre à jour le signalement');
-    return data as ReportRecord;
+    return data as unknown as ReportRecord;
   },
 
   async listReportedComments(params?: { status?: ReportStatus; severity?: ReportSeverity; limit?: number }) {
@@ -169,7 +178,12 @@ export const ModerationService = {
       .select('id, event_id, author_id, message, created_at, author:profiles!event_comments_author_id_fkey(id, display_name, avatar_url), event:events(id, title)')
       .in('id', commentIds);
     if (error) throw new Error(error.message || 'Impossible de charger les commentaires');
-    return { reports, comments: (data || []) as ModerationComment[] };
+    const comments = ((data || []) as any[]).map((row) => ({
+      ...row,
+      author: firstOrNull(row.author),
+      event: firstOrNull(row.event),
+    }));
+    return { reports, comments: comments as unknown as ModerationComment[] };
   },
 
   async removeComment(payload: { commentId: string; moderatorId: string; reason?: string; authorId?: string; eventId?: string }) {
@@ -220,7 +234,7 @@ export const ModerationService = {
       body: payload.reason || `Un avertissement a été émis (niveau ${payload.level}).`,
       data: { level: payload.level },
     });
-    return data as ModerationWarning;
+    return data as unknown as ModerationWarning;
   },
 
   async banUser(payload: { userId: string; moderatorId: string; reason?: string }) {
@@ -248,7 +262,11 @@ export const ModerationService = {
     if (params?.limit) query = query.limit(params.limit);
     const { data, error } = await query;
     if (error) throw new Error(error.message || 'Impossible de charger les avertissements');
-    return (data || []) as ModerationWarning[];
+    const normalized = ((data || []) as any[]).map((row) => ({
+      ...row,
+      user: firstOrNull(row.user),
+    }));
+    return normalized as unknown as ModerationWarning[];
   },
 
   async listContestEntries(params?: { status?: 'active' | 'hidden' | 'removed'; limit?: number }) {
@@ -260,7 +278,12 @@ export const ModerationService = {
     if (params?.limit) query = query.limit(params.limit);
     const { data, error } = await query;
     if (error) throw new Error(error.message || 'Impossible de charger les participations');
-    return (data || []) as ModerationContestEntry[];
+    const normalized = ((data || []) as any[]).map((row) => ({
+      ...row,
+      contest: firstOrNull(row.contest),
+      user: firstOrNull(row.user),
+    }));
+    return normalized as unknown as ModerationContestEntry[];
   },
 
   async listMediaSubmissions(params?: { status?: 'pending' | 'approved' | 'rejected'; limit?: number }) {
@@ -274,7 +297,12 @@ export const ModerationService = {
     if (params?.limit) query = query.limit(params.limit);
     const { data, error } = await query;
     if (error) throw new Error(error.message || 'Impossible de charger les photos de la communauté');
-    return (data || []) as ModerationMediaSubmission[];
+    const normalized = ((data || []) as any[]).map((row) => ({
+      ...row,
+      author: firstOrNull(row.author),
+      event: firstOrNull(row.event),
+    }));
+    return normalized as unknown as ModerationMediaSubmission[];
   },
 
   async approveMediaSubmission(payload: { submissionId: string; moderatorId: string }) {
@@ -289,6 +317,7 @@ export const ModerationService = {
       .select('id, event_id, author_id, url, status, created_at, event:events(id, title, creator_id)')
       .single();
     if (error) throw new Error(error.message || 'Impossible de valider la photo');
+    const event = firstOrNull<{ id: string; title: string; creator_id?: string | null }>((data as any).event);
 
     const { error: insertError } = await supabase.from('event_media').insert({
       event_id: data.event_id,
@@ -314,17 +343,17 @@ export const ModerationService = {
         data: { eventId: data.event_id, submissionId: data.id },
       });
     }
-    if (data.event?.creator_id && data.event.creator_id !== data.author_id) {
+    if (event?.creator_id && event.creator_id !== data.author_id) {
       await ModerationService.createNotification({
-        userId: data.event.creator_id,
+        userId: event.creator_id,
         type: 'system',
         title: 'Photo de communauté approuvée',
-        body: `Une nouvelle photo a été ajoutée à "${data.event.title}".`,
+        body: `Une nouvelle photo a été ajoutée à "${event.title}".`,
         data: { eventId: data.event_id, submissionId: data.id },
       });
     }
 
-    return data as ModerationMediaSubmission;
+    return { ...(data as any), event } as unknown as ModerationMediaSubmission;
   },
 
   async rejectMediaSubmission(payload: { submissionId: string; moderatorId: string; reason?: string }) {
@@ -339,6 +368,7 @@ export const ModerationService = {
       .select('id, event_id, author_id, url, status, created_at, event:events(id, title)')
       .single();
     if (error) throw new Error(error.message || 'Impossible de refuser la photo');
+    const event = firstOrNull<{ id: string; title: string }>((data as any).event);
 
     await ModerationService.logAction({
       targetType: 'event',
@@ -358,7 +388,7 @@ export const ModerationService = {
       });
     }
 
-    return data as ModerationMediaSubmission;
+    return { ...(data as any), event } as unknown as ModerationMediaSubmission;
   },
 
   async updateContestEntryStatus(payload: {
@@ -391,7 +421,7 @@ export const ModerationService = {
         data: { entryId: payload.entryId, status: payload.status },
       });
     }
-    return data as ModerationContestEntry;
+    return data as unknown as ModerationContestEntry;
   },
 
   async getAnalytics(days = 7) {

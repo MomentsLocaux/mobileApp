@@ -120,7 +120,8 @@ export default function ProfileScreen() {
           setLumoBalance(null);
           return;
         }
-        setLumoBalance(typeof data?.balance === 'number' ? data.balance : null);
+        const wallet = data as { balance?: number } | null;
+        setLumoBalance(typeof wallet?.balance === 'number' ? wallet.balance : null);
       } catch (err) {
         console.warn('loadWallet error', err);
         setLumoBalance(null);

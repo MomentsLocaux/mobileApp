@@ -51,7 +51,7 @@ export interface SearchState {
   resetSearch: () => void;
 }
 
-const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWhat' | 'setSortBy' | 'addHistory' | 'resetSearch'> = {
+const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWhat' | 'setSortBy' | 'setSortOrder' | 'addHistory' | 'resetSearch'> = {
   where: { history: [] },
   when: { includePast: false },
   who: { adults: 1, children: 0, babies: 0 },

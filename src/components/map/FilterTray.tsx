@@ -339,7 +339,23 @@ export function FilterTray({
                   onPress={() => changeSortBy('date')}
                 >
                   <Text style={[styles.chipText, filters.sortBy === 'date' && styles.chipTextActive]}>
-                    Date
+                    Date début
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.sortBy === 'endDate' && styles.chipActive]}
+                  onPress={() => changeSortBy('endDate')}
+                >
+                  <Text style={[styles.chipText, filters.sortBy === 'endDate' && styles.chipTextActive]}>
+                    Date fin
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, filters.sortBy === 'created' && styles.chipActive]}
+                  onPress={() => changeSortBy('created')}
+                >
+                  <Text style={[styles.chipText, filters.sortBy === 'created' && styles.chipTextActive]}>
+                    Date création
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -507,6 +523,15 @@ const styles = StyleSheet.create({
   },
   chipTextDisabled: {
     color: colors.neutral[400],
+  },
+  input: {
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.neutral[0],
+    color: colors.neutral[900],
   },
   warningText: {
     ...typography.caption,

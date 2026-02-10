@@ -25,6 +25,7 @@ import { CommunityService } from '@/services/community.service';
 import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
+import { TriageControl } from '@/components/search/TriageControl';
 
 type StoryItem = {
   creatorId: string;
@@ -59,6 +60,7 @@ export default function HomeScreen() {
 
   const filters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
+  const sortOrder = searchState.sortOrder;
   const hasSearchCriteria = useMemo(() => {
     const hasWhere = !!searchState.where.location || !!searchState.where.radiusKm;
     const hasWhen =
@@ -87,8 +89,8 @@ export default function HomeScreen() {
   const filteredAndSortedEvents = useMemo(() => {
     const base = searchApplied ? searchResults : fetchedEvents || [];
     const metaFiltered = filterEventsByMetaStatus(base, metaFilter);
-    return sortEvents(metaFiltered, searchApplied ? sortBy : 'date', userLocation);
-  }, [fetchedEvents, metaFilter, searchApplied, searchResults, sortBy, userLocation]);
+    return sortEvents(metaFiltered, sortBy, userLocation, sortOrder);
+  }, [fetchedEvents, metaFilter, searchApplied, searchResults, sortBy, sortOrder, userLocation]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -267,7 +269,16 @@ export default function HomeScreen() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Pour vous</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Pour vous</Text>
+        <TriageControl
+          value={sortBy}
+          onChange={(value) => searchState.setSortBy(value)}
+          sortOrder={sortOrder}
+          onSortOrderChange={(order) => searchState.setSortOrder(order)}
+          hasLocation={!!userLocation}
+        />
+      </View>
       <View style={styles.metaFilterRow}>
         {([
           { key: 'all', label: 'Tous' },
@@ -383,9 +394,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h4,
     color: colors.neutral[900],
+  },
+  sectionHeader: {
     marginTop: spacing.md,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   metaFilterRow: {
     flexDirection: 'row',

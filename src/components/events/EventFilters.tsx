@@ -437,6 +437,15 @@ const styles = StyleSheet.create({
     color: colors.primary[700],
     fontWeight: '600',
   },
+  input: {
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.neutral[0],
+    color: colors.neutral[900],
+  },
   resetButton: {
     flexDirection: 'row',
     alignItems: 'center',

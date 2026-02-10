@@ -368,7 +368,7 @@ export default function EventCreateScreen() {
     const current = new Date(formData[field] || new Date());
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
-        mode: 'datetime',
+        mode: 'date',
         value: current,
         onChange: (_event: any, selected?: Date) => {
           if (selected) setDateTime(field, selected);

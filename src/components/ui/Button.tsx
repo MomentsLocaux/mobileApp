@@ -10,7 +10,7 @@ import { colors, spacing, borderRadius, typography } from '../../constants/theme
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'small' | 'sm' | 'md' | 'lg';
   loading?: boolean;
   fullWidth?: boolean;
@@ -67,6 +67,9 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.secondary[600],
   },
+  danger: {
+    backgroundColor: colors.error[600],
+  },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
@@ -100,6 +103,9 @@ const styles = StyleSheet.create({
     color: colors.neutral[50],
   },
   secondaryText: {
+    color: colors.neutral[50],
+  },
+  dangerText: {
     color: colors.neutral[50],
   },
   outlineText: {
