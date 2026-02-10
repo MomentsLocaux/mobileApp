@@ -65,6 +65,8 @@ export default function MapScreen() {
   const includePast = !!searchState.when.includePast;
   const focusHandledRef = useRef(false);
   const bboxTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportRequestIdRef = useRef(0);
+  const markerRequestIdRef = useRef(0);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const [searchApplied, setSearchApplied] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -131,9 +133,13 @@ export default function MapScreen() {
   }, [searchFilters]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
-  const sortCenter = searchState.where.location
-    ? { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude }
-    : userLocation;
+  const sortCenter = useMemo(
+    () =>
+      searchState.where.location
+        ? { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude }
+        : userLocation,
+    [searchState.where.location, userLocation]
+  );
 
   // À chaque retour sur l’onglet carte, on repart en mode peek.
   useFocusEffect(
@@ -148,6 +154,7 @@ export default function MapScreen() {
     (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
       if (isProgrammaticMoveRef.current && !options?.forceSearchRadius) return;
       if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
+      const requestId = ++viewportRequestIdRef.current;
 
       setStatus('browsing');
       if (searchActive && !options?.forceSearchRadius) {
@@ -155,6 +162,7 @@ export default function MapScreen() {
       }
 
       bboxTimeoutRef.current = setTimeout(async () => {
+        if (requestId !== viewportRequestIdRef.current) return;
         setStatus('loading');
         try {
           const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
@@ -185,10 +193,13 @@ export default function MapScreen() {
             filteredIds.has(f?.properties?.id)
           );
 
+          if (requestId !== viewportRequestIdRef.current) return;
           mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
+          const currentUiState = useMapResultsUIStore.getState();
+          if (currentUiState.sheetStatus === 'singleEvent') return;
           displayViewportResults(sortedEvents);
-          resultsSheetRef.current?.open?.(0); // Peek
         } catch (e) {
+          if (requestId !== viewportRequestIdRef.current) return;
           console.warn('bbox fetch error', e);
           setStatus('browsing'); // Reset status on error
         }
@@ -202,6 +213,7 @@ export default function MapScreen() {
       searchFilters,
       searchFiltersWithoutRadius,
       sortBy,
+      sortOrder,
       sortCenter,
       setStatus,
       displayViewportResults,
@@ -285,12 +297,19 @@ export default function MapScreen() {
 
   const handleFeaturePress = useCallback(
     async (id: string) => {
+      const requestId = ++markerRequestIdRef.current;
+      viewportRequestIdRef.current += 1;
+      if (bboxTimeoutRef.current) {
+        clearTimeout(bboxTimeoutRef.current);
+        bboxTimeoutRef.current = null;
+      }
       setStatus('loading');
       try {
         const evt = eventCacheRef.current.has(id)
           ? eventCacheRef.current.get(id)!
           : await EventsService.getEventById(id);
 
+        if (requestId !== markerRequestIdRef.current) return;
         if (evt) {
           if (!eventCacheRef.current.has(id)) {
             eventCacheRef.current.set(id, evt);
@@ -300,12 +319,23 @@ export default function MapScreen() {
           setStatus('browsing');
         }
       } catch (e) {
+        if (requestId !== markerRequestIdRef.current) return;
         console.warn('getEventById error', e);
         setStatus('browsing');
       }
     },
     [selectSingleEvent, setStatus]
   );
+
+  useEffect(() => {
+    return () => {
+      if (bboxTimeoutRef.current) {
+        clearTimeout(bboxTimeoutRef.current);
+      }
+      viewportRequestIdRef.current += 1;
+      markerRequestIdRef.current += 1;
+    };
+  }, []);
 
   const focusOnEvent = useCallback(
     (event: EventWithCreator, snapIndex: number) => {
