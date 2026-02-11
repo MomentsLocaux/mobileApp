@@ -1,13 +1,73 @@
-import React, { useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
-import { MapPin } from 'lucide-react-native';
+import {
+  Baby,
+  BookOpen,
+  Dumbbell,
+  Leaf,
+  MapPin,
+  Music,
+  ShoppingBag,
+  Sparkles,
+  Theater,
+  Users,
+  UtensilsCrossed,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
 import type { FeatureCollection } from 'geojson';
+import { CATEGORY_MARKER_SLUGS, categoryMarkerImageKey, type CategoryMarkerSlug } from '../../constants/category-markers';
+import { CategoryEventMarker } from './CategoryEventMarker';
+import { useTaxonomyStore } from '../../store/taxonomyStore';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
+
+type CategoryMarkerVisual = {
+  color: string;
+  iconColor?: string;
+  Icon: LucideIcon;
+};
+
+type CategoryMarkerBaseVisual = {
+  fallbackColor: string;
+  iconColor?: string;
+  Icon: LucideIcon;
+};
+
+const CATEGORY_MARKER_BASE_VISUALS: Record<CategoryMarkerSlug, CategoryMarkerBaseVisual> = {
+  'arts-culture': { fallbackColor: '#7c3aed', Icon: Theater },
+  'marches-artisanat': { fallbackColor: '#0ea5e9', Icon: ShoppingBag },
+  'fetes-animations': { fallbackColor: '#f97316', Icon: Music },
+  'famille-enfants': { fallbackColor: '#16a34a', Icon: Baby },
+  'gastronomie-saveurs': { fallbackColor: '#facc15', Icon: UtensilsCrossed, iconColor: '#3f2d00' },
+  'nature-bienetre': { fallbackColor: '#22c55e', Icon: Leaf },
+  'ateliers-apprentissage': { fallbackColor: '#6366f1', Icon: BookOpen },
+  'sport-loisirs': { fallbackColor: '#f43f5e', Icon: Dumbbell },
+  'vie-locale': { fallbackColor: '#0ea5e9', Icon: Users },
+  'insolite-ephemere': { fallbackColor: '#a855f7', Icon: Sparkles },
+};
+
+const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
+  visuals,
+}: {
+  visuals: Record<CategoryMarkerSlug, CategoryMarkerVisual>;
+}) {
+  return (
+    <Mapbox.Images>
+      {CATEGORY_MARKER_SLUGS.map((slug) => {
+        const visual = visuals[slug];
+        return (
+          <Mapbox.Image key={slug} name={categoryMarkerImageKey(slug)}>
+            <CategoryEventMarker color={visual.color} Icon={visual.Icon} iconColor={visual.iconColor} />
+          </Mapbox.Image>
+        );
+      })}
+    </Mapbox.Images>
+  );
+});
 
 interface MapWrapperProps {
   initialRegion: {
@@ -52,6 +112,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     ref
   ) => {
   const isMapboxAvailable = !!Mapbox.MapView;
+  const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
   const mapViewRef = useRef<Mapbox.MapView>(null);
   const shapeSourceRef = useRef<any>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
@@ -90,6 +151,22 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       console.warn('getVisibleBounds failed', e);
     }
   }, [onVisibleBoundsChange]);
+
+  const categoryMarkerVisuals = useMemo(() => {
+    const visuals = {} as Record<CategoryMarkerSlug, CategoryMarkerVisual>;
+    CATEGORY_MARKER_SLUGS.forEach((slug) => {
+      const base = CATEGORY_MARKER_BASE_VISUALS[slug];
+      const categoryColor = categoriesMap[slug]?.color;
+      const color =
+        typeof categoryColor === 'string' && categoryColor.trim().length > 0 ? categoryColor : base.fallbackColor;
+      visuals[slug] = {
+        color,
+        iconColor: base.iconColor,
+        Icon: base.Icon,
+      };
+    });
+    return visuals;
+  }, [categoriesMap]);
 
   useImperativeHandle(
     ref,
@@ -202,6 +279,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           await emitVisibleBounds();
         }}
       >
+        <CategoryMarkerImages visuals={categoryMarkerVisuals} />
+
         <Mapbox.Camera
           ref={cameraRef}
           defaultSettings={{

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { X, MapPin, Calendar, Heart } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 
@@ -13,6 +13,8 @@ interface QuickPreviewProps {
 }
 
 export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProps) {
+  const categoryColor = getCategoryColor(event.category || '');
+  const categoryTextColor = getCategoryTextColor(event.category || '');
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleDateString('fr-FR', {
@@ -45,8 +47,8 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
       />
 
       <View style={styles.content}>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{getCategoryLabel(event.category || '')}</Text>
+        <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
+          <Text style={[styles.categoryText, { color: categoryTextColor }]}>{getCategoryLabel(event.category || '')}</Text>
         </View>
 
         <Text style={styles.title} numberOfLines={2}>
@@ -113,7 +115,6 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.primary[100],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -121,7 +122,6 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     ...typography.caption,
-    color: colors.primary[700],
     fontWeight: '600',
     textTransform: 'uppercase',
   },

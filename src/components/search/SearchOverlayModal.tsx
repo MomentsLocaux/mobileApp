@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { X, MapPin, Calendar, Users, Tag, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
+import { getCategoryColor, getCategoryTextColor } from '../../constants/categories';
 import { useSearchStore } from '../../store/searchStore';
 import { MapboxService } from '../../services/mapbox.service';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -25,6 +26,15 @@ import { filterEvents } from '@/utils/filter-events';
 import type { SearchState } from '../../store/searchStore';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
+
+type ChipTone = {
+  inactiveBackgroundColor?: string;
+  inactiveTextColor?: string;
+  inactiveBorderColor?: string;
+  activeBackgroundColor?: string;
+  activeTextColor?: string;
+  activeBorderColor?: string;
+};
 
 interface Props {
   visible: boolean;
@@ -455,11 +465,22 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
             >
               <Text style={styles.sectionLabel}>Catégories</Text>
               <View style={styles.rowWrap}>
-                {categories.map((cat) => (
+                {categories.map((cat) => {
+                  const categoryColor = getCategoryColor(cat.id);
+                  const categoryTextColor = getCategoryTextColor(cat.id);
+                  return (
                   <Chip
                     key={cat.id}
                     label={cat.label}
                     active={what.categories.includes(cat.id)}
+                    tone={{
+                      inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                      inactiveBorderColor: withAlpha(categoryColor, '33'),
+                      inactiveTextColor: categoryColor,
+                      activeBackgroundColor: categoryColor,
+                      activeBorderColor: categoryColor,
+                      activeTextColor: categoryTextColor,
+                    }}
                     onPress={() => {
                       const exists = what.categories.includes(cat.id);
                       const next = exists
@@ -472,7 +493,8 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                       setWhat({ categories: next, subcategories: filteredSubs });
                     }}
                   />
-                ))}
+                  );
+                })}
               </View>
               {what.categories.length > 0 && (
                 <>
@@ -480,11 +502,22 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                   <View style={styles.rowWrap}>
                     {subcategories
                       .filter((sub) => what.categories.includes(sub.category_id))
-                      .map((sub) => (
+                      .map((sub) => {
+                        const categoryColor = getCategoryColor(sub.category_id);
+                        const categoryTextColor = getCategoryTextColor(sub.category_id);
+                        return (
                         <Chip
                           key={sub.id}
                           label={sub.label}
                           active={what.subcategories.includes(sub.id)}
+                          tone={{
+                            inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                            inactiveBorderColor: withAlpha(categoryColor, '33'),
+                            inactiveTextColor: categoryColor,
+                            activeBackgroundColor: categoryColor,
+                            activeBorderColor: categoryColor,
+                            activeTextColor: categoryTextColor,
+                          }}
                           onPress={() => {
                             const exists = what.subcategories.includes(sub.id);
                             const next = exists
@@ -493,7 +526,8 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
                             setWhat({ subcategories: next });
                           }}
                         />
-                      ))}
+                        );
+                      })}
                   </View>
                 </>
               )}
@@ -595,14 +629,43 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
   );
 };
 
-const Chip = ({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) => (
-  <TouchableOpacity
-    style={[styles.chip, active && styles.chipActive]}
-    onPress={onPress}
-  >
-    <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-  </TouchableOpacity>
-);
+const Chip = ({
+  label,
+  active,
+  onPress,
+  tone,
+}: {
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+  tone?: ChipTone;
+}) => {
+  const isActive = !!active;
+  return (
+    <TouchableOpacity
+      style={[
+        styles.chip,
+        active && styles.chipActive,
+        tone?.inactiveBackgroundColor ? { backgroundColor: tone.inactiveBackgroundColor } : null,
+        tone?.inactiveBorderColor ? { borderColor: tone.inactiveBorderColor, borderWidth: 1 } : null,
+        isActive && tone?.activeBackgroundColor ? { backgroundColor: tone.activeBackgroundColor } : null,
+        isActive && tone?.activeBorderColor ? { borderColor: tone.activeBorderColor, borderWidth: 1 } : null,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.chipText,
+          active && styles.chipTextActive,
+          tone?.inactiveTextColor ? { color: tone.inactiveTextColor } : null,
+          isActive && tone?.activeTextColor ? { color: tone.activeTextColor } : null,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 const CounterRow = ({
   label,
@@ -669,6 +732,8 @@ const formatDate = (value: string | Date) => {
   const date = typeof value === 'string' ? new Date(value) : value;
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 };
+
+const withAlpha = (hexColor: string, alphaHex: string) => `${hexColor}${alphaHex}`;
 
 const styles = StyleSheet.create({
   overlay: {

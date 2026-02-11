@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { IBugsProvider, IDataProvider } from './types';
 import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/types/database';
 import type { FeatureCollection } from 'geojson';
+import { resolveCategoryMarkerImageKey } from '@/constants/category-markers';
 
 const formatSupabaseError = (error: any, context: string) => {
   const rawMessage =
@@ -62,7 +63,7 @@ const EVENT_LIGHT_SELECT = `
   id,
   latitude,
   longitude,
-  icon:event_category(icon)
+  category_meta:event_category(slug, icon)
 `;
 
 const normalizeMakiIcon = (iconValue: any): string => {
@@ -75,6 +76,20 @@ const normalizeMakiIcon = (iconValue: any): string => {
   if (!raw || typeof raw !== 'string') return 'marker-15';
   // Mapbox sprites are usually suffixed with -15/-11; add -15 if absent.
   return raw.includes('-11') || raw.includes('-15') ? raw : `${raw}-15`;
+};
+
+const pickCategoryMeta = (value: any): { slug?: string; icon?: string } | null => {
+  if (Array.isArray(value)) return (value[0] as { slug?: string; icon?: string } | undefined) || null;
+  if (value && typeof value === 'object') return value as { slug?: string; icon?: string };
+  return null;
+};
+
+const resolveEventMarkerIcon = (categoryMetaValue: any): string => {
+  const categoryMeta = pickCategoryMeta(categoryMetaValue);
+  const slug = typeof categoryMeta?.slug === 'string' ? categoryMeta.slug : null;
+  const customCategoryIcon = resolveCategoryMarkerImageKey(slug);
+  if (customCategoryIcon) return customCategoryIcon;
+  return normalizeMakiIcon(categoryMeta?.icon);
 };
 
 const isRlsError = (error: any) => {
@@ -192,13 +207,13 @@ export const supabaseProvider: (Pick<
       id: String(row.id),
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
-      icon: Array.isArray(row.icon) ? row.icon[0]?.icon : row.icon,
+      icon: resolveEventMarkerIcon(row.category_meta),
     })) as { id: string; latitude: number; longitude: number; icon?: string }[];
     const features =
       events
         .filter((e) => typeof e.longitude === 'number' && typeof e.latitude === 'number')
         .map((e) => {
-          const icon = normalizeMakiIcon((e as any)?.icon);
+          const icon = typeof e.icon === 'string' && e.icon.trim().length > 0 ? e.icon : 'marker-15';
           return {
             type: 'Feature',
             geometry: {

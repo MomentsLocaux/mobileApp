@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, MapPin, Calendar, Users, Share2 } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from './EventImageCarousel';
 
@@ -40,6 +40,8 @@ export const EventCard: React.FC<EventCardProps> = ({
     ].filter(Boolean) as string[];
     return Array.from(new Set(urls)).slice(0, 4); // cover + 3 max
   })();
+  const categoryColor = getCategoryColor(event.category || '');
+  const categoryTextColor = getCategoryTextColor(event.category || '');
 
   return (
     <TouchableOpacity
@@ -81,8 +83,8 @@ export const EventCard: React.FC<EventCardProps> = ({
                 )}
               </View>
             )}
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
+              <Text style={[styles.categoryText, { color: categoryTextColor }]}>
                 {getCategoryLabel(event.category || '')}
               </Text>
             </View>
@@ -175,13 +177,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: spacing.sm,
     left: spacing.sm,
-    backgroundColor: colors.primary[600],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
   },
   categoryText: {
-    color: colors.neutral[50],
     fontSize: 12,
     fontWeight: '600',
   },

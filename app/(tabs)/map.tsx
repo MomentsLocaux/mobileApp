@@ -72,6 +72,7 @@ export default function MapScreen() {
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const useSearchRadiusBoundsRef = useRef(false);
+  const initialViewportBootstrapDoneRef = useRef(false);
 
   const getPaddingFromIndex = useCallback((idx: number) => {
     return idx === 2 ? 360 : idx === 1 ? 240 : 120;
@@ -228,6 +229,40 @@ export default function MapScreen() {
       handleBoundsChange(bounds);
     }
   }, [handleBoundsChange]);
+
+  useEffect(() => {
+    if (locationLoading || initialViewportBootstrapDoneRef.current) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const run = async () => {
+      if (cancelled || initialViewportBootstrapDoneRef.current) return;
+
+      const bounds = await mapRef.current?.getVisibleBounds?.();
+      if (cancelled || initialViewportBootstrapDoneRef.current) return;
+
+      if (bounds) {
+        initialViewportBootstrapDoneRef.current = true;
+        isProgrammaticMoveRef.current = false;
+        handleBoundsChange(bounds, { forceSearchRadius: true });
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < 8) {
+        timer = setTimeout(run, 350);
+      }
+    };
+
+    timer = setTimeout(run, userLocation ? 700 : 250);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [handleBoundsChange, locationLoading, userLocation]);
 
   const withProgrammaticMove = useCallback((moveFn: () => void, duration = 450) => {
     isProgrammaticMoveRef.current = true;
