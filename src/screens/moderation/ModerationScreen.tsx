@@ -114,12 +114,31 @@ const targetIcon = (target: ReportTargetType) => {
   return <Users size={16} color={colors.error[700]} />;
 };
 
-const KpiCard = ({ label, value }: { label: string; value: number }) => (
-  <View style={styles.kpiCard}>
-    <Text style={styles.kpiValue}>{value}</Text>
-    <Text style={styles.kpiLabel}>{label}</Text>
-  </View>
-);
+const KpiCard = ({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: number;
+  onPress?: () => void;
+}) => {
+  if (onPress) {
+    return (
+      <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.85}>
+        <Text style={styles.kpiValue}>{value}</Text>
+        <Text style={styles.kpiLabel}>{label}</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={styles.kpiCard}>
+      <Text style={styles.kpiValue}>{value}</Text>
+      <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
+  );
+};
 
 const EventModerationRow = ({
   event,
@@ -152,36 +171,52 @@ const EventModerationRow = ({
   </View>
 );
 
-const ReportItem = ({ report }: { report: Report }) => {
+const ReportItem = ({
+  report,
+  onPress,
+}: {
+  report: Report;
+  onPress?: () => void;
+}) => {
   const meta = getReportReasonMeta(report.reason);
   return (
-  <View style={styles.reportItem}>
-    <View style={styles.reportAvatarWrap}>
-      {report.reporter?.avatar_url ? (
-        <Image source={{ uri: report.reporter.avatar_url }} style={styles.reportAvatar} />
-      ) : (
-        <View style={styles.reportAvatarPlaceholder}>
-          <User size={16} color={colors.neutral[500]} />
-        </View>
-      )}
-    </View>
-    <View style={styles.reportContent}>
-      <Text style={styles.reportReason}>{meta.label}</Text>
-      <View style={styles.reportMeta}>
-        <View style={[styles.reportBadge, { backgroundColor: severityColor(meta.severity) }]}>
-          <Text style={[styles.reportBadgeText, { color: severityTextColor(meta.severity) }]}>
-            {meta.severity}
-          </Text>
-        </View>
-        <Text style={styles.reportTime}>{formatRelative(report.created_at)}</Text>
+    <TouchableOpacity style={styles.reportItem} activeOpacity={0.85} onPress={onPress}>
+      <View style={styles.reportAvatarWrap}>
+        {report.reporter?.avatar_url ? (
+          <Image source={{ uri: report.reporter.avatar_url }} style={styles.reportAvatar} />
+        ) : (
+          <View style={styles.reportAvatarPlaceholder}>
+            <User size={16} color={colors.neutral[500]} />
+          </View>
+        )}
       </View>
-    </View>
-    <View style={styles.reportTarget}>{targetIcon(report.target_type)}</View>
-  </View>
+      <View style={styles.reportContent}>
+        <Text style={styles.reportReason}>{meta.label}</Text>
+        <View style={styles.reportMeta}>
+          <View style={[styles.reportBadge, { backgroundColor: severityColor(meta.severity) }]}>
+            <Text style={[styles.reportBadgeText, { color: severityTextColor(meta.severity) }]}>
+              {meta.severity}
+            </Text>
+          </View>
+          <Text style={styles.reportTime}>{formatRelative(report.created_at)}</Text>
+        </View>
+      </View>
+      <View style={styles.reportTarget}>{targetIcon(report.target_type)}</View>
+    </TouchableOpacity>
   );
 };
 
-const UserRiskRow = ({ profile, warning }: { profile: Profile; warning: Warning }) => (
+const UserRiskRow = ({
+  profile,
+  warning,
+  onViewProfile,
+  onBlock,
+}: {
+  profile: Profile;
+  warning: Warning;
+  onViewProfile?: () => void;
+  onBlock?: () => void;
+}) => (
   <View style={styles.userRow}>
     <View style={styles.userInfo}>
       {profile.avatar_url ? (
@@ -205,10 +240,10 @@ const UserRiskRow = ({ profile, warning }: { profile: Profile; warning: Warning 
       </View>
     </View>
     <View style={styles.userActions}>
-      <TouchableOpacity style={styles.userActionOutline}>
+      <TouchableOpacity style={styles.userActionOutline} onPress={onViewProfile}>
         <Text style={styles.userActionOutlineText}>Voir profil</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.userActionDanger}>
+      <TouchableOpacity style={styles.userActionDanger} onPress={onBlock}>
         <Text style={styles.userActionDangerText}>Bloquer</Text>
       </TouchableOpacity>
     </View>
@@ -364,12 +399,18 @@ export default function ModerationScreen() {
           ...warning,
           user: Array.isArray(warning.user) ? warning.user[0] ?? null : warning.user ?? null,
         })) as Warning[];
+        const warningByUser = new Map<string, Warning>();
+        warningList.forEach((warning) => {
+          if (!warning.user_id || warningByUser.has(warning.user_id)) return;
+          warningByUser.set(warning.user_id, warning);
+        });
+        const dedupedWarningList = Array.from(warningByUser.values());
 
         const flaggedUsers = new Set((userReportsRes.data || []).map((row) => row.target_id)).size;
 
         setEvents(mappedEvents);
         setReports(reportList);
-        setWarnings(warningList);
+        setWarnings(dedupedWarningList);
         setStats({
           pendingEvents: mappedEvents.length,
           newReports: reportsCountRes.count || 0,
@@ -471,15 +512,27 @@ export default function ModerationScreen() {
           ) : null}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kpiRow}>
-          <KpiCard label="Événements en attente" value={stats.pendingEvents} />
-          <KpiCard label="Signalements reçus" value={stats.newReports} />
-          <KpiCard label="Utilisateurs signalés" value={stats.flaggedUsers} />
+          <KpiCard
+            label="Événements en attente"
+            value={stats.pendingEvents}
+            onPress={() => router.push('/moderation/events' as any)}
+          />
+          <KpiCard
+            label="Signalements reçus"
+            value={stats.newReports}
+            onPress={() => router.push('/moderation/reports' as any)}
+          />
+          <KpiCard
+            label="Utilisateurs signalés"
+            value={stats.flaggedUsers}
+            onPress={() => router.push('/moderation/users' as any)}
+          />
         </ScrollView>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Événements à vérifier</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/moderation/events' as any)}>
               <Text style={styles.sectionAction}>Voir tout</Text>
             </TouchableOpacity>
           </View>
@@ -487,27 +540,41 @@ export default function ModerationScreen() {
             <EventModerationRow
               key={event.id}
               event={event}
-              onReview={() => router.push('/moderation/events')}
+              onReview={() => router.push('/moderation/events' as any)}
               onReject={() => handleRejectEvent(event.id)}
             />
           ))}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Signalements récents</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Signalements récents</Text>
+            <TouchableOpacity onPress={() => router.push('/moderation/reports' as any)}>
+              <Text style={styles.sectionAction}>Voir tout</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.card}>
             {reports.length === 0 ? (
               <Text style={styles.emptyText}>Aucun signalement récent.</Text>
             ) : (
               reports.map((report) => (
-                <ReportItem key={report.id} report={report} />
+                <ReportItem
+                  key={report.id}
+                  report={report}
+                  onPress={() => router.push('/moderation/reports' as any)}
+                />
               ))
             )}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Utilisateurs à problèmes</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Utilisateurs à problèmes</Text>
+            <TouchableOpacity onPress={() => router.push('/moderation/users' as any)}>
+              <Text style={styles.sectionAction}>Voir tout</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.card}>
             {warnings.length === 0 ? (
               <Text style={styles.emptyText}>Aucun utilisateur signalé.</Text>
@@ -519,7 +586,15 @@ export default function ModerationScreen() {
                   avatar_url: null,
                   role: 'particulier',
                 };
-                return <UserRiskRow key={warning.id} profile={profile} warning={warning} />;
+                return (
+                  <UserRiskRow
+                    key={warning.id}
+                    profile={profile}
+                    warning={warning}
+                    onViewProfile={() => router.push('/moderation/users' as any)}
+                    onBlock={() => router.push('/moderation/users' as any)}
+                  />
+                );
               })
             )}
           </View>
@@ -550,7 +625,10 @@ export default function ModerationScreen() {
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryButton}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push('/moderation/reports' as any)}
+          >
             <Text style={styles.primaryButtonText}>Historique des modérations</Text>
           </TouchableOpacity>
         </View>

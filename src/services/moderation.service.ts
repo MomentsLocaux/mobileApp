@@ -5,9 +5,11 @@ import type {
   ModerationContestEntry,
   ModerationEvent,
   ModerationMediaSubmission,
+  ModerationReportTargetPreview,
   ModerationTargetType,
   ModerationWarning,
   ReportRecord,
+  ReportRecordWithTarget,
   ReportStatus,
   ReportSeverity,
 } from '@/types/moderation';
@@ -192,6 +194,189 @@ export const ModerationService = {
     return (data || []) as unknown as ReportRecord[];
   },
 
+  async listReportsWithTargets(params?: {
+    status?: ReportStatus;
+    targetType?: ModerationTargetType;
+    severity?: ReportSeverity;
+    limit?: number;
+    excludeClosed?: boolean;
+  }) {
+    let query = supabase
+      .from('reports')
+      .select(
+        'id, target_type, target_id, reporter_id, reason, status, severity, reviewed_by, reviewed_at, created_at, reporter:profiles!reports_reporter_id_fkey(id, display_name, avatar_url), reviewer:profiles!reports_reviewed_by_fkey(id, display_name, avatar_url)'
+      )
+      .order('created_at', { ascending: false });
+    if (params?.excludeClosed) query = query.neq('status', 'closed');
+    if (params?.status) query = query.eq('status', params.status);
+    if (params?.targetType) query = query.eq('target_type', params.targetType);
+    if (params?.severity) query = query.eq('severity', params.severity);
+    if (params?.limit) query = query.limit(params.limit);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message || 'Impossible de charger les signalements');
+
+    const reports = ((data || []) as any[]).map((row) => ({
+      ...row,
+      reporter: firstOrNull(row.reporter),
+      reviewer: firstOrNull(row.reviewer),
+    })) as ReportRecordWithTarget[];
+
+    const eventIds = new Set<string>();
+    const commentIds = new Set<string>();
+    const userIds = new Set<string>();
+    const mediaIds = new Set<string>();
+    const contestEntryIds = new Set<string>();
+
+    for (const report of reports) {
+      if (!report?.target_id) continue;
+      if (report.target_type === 'event') eventIds.add(report.target_id);
+      if (report.target_type === 'comment') commentIds.add(report.target_id);
+      if (report.target_type === 'user') userIds.add(report.target_id);
+      if (report.target_type === 'media') mediaIds.add(report.target_id);
+      if (report.target_type === 'contest_entry' || report.target_type === 'challenge') {
+        contestEntryIds.add(report.target_id);
+      }
+    }
+
+    const previewByKey = new Map<string, ModerationReportTargetPreview>();
+    const toKey = (type: string, id: string) => `${type}:${id}`;
+
+    if (eventIds.size > 0) {
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id, title, city, status, starts_at, creator:profiles!events_creator_id_fkey(display_name)')
+        .in('id', Array.from(eventIds));
+      if (eventsError) throw new Error(eventsError.message || 'Impossible de charger le détail des événements signalés');
+
+      for (const row of (eventsData || []) as any[]) {
+        const creator = firstOrNull<{ display_name?: string | null }>(row.creator);
+        previewByKey.set(toKey('event', row.id), {
+          type: 'event',
+          id: row.id,
+          title: row.title ?? null,
+          city: row.city ?? null,
+          status: row.status ?? null,
+          starts_at: row.starts_at ?? null,
+          creator_name: creator?.display_name ?? null,
+        });
+      }
+    }
+
+    if (commentIds.size > 0) {
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('event_comments')
+        .select(
+          'id, message, event_id, event:events(id, title), author:profiles!event_comments_author_id_fkey(display_name)'
+        )
+        .in('id', Array.from(commentIds));
+      if (commentsError) throw new Error(commentsError.message || 'Impossible de charger le détail des commentaires signalés');
+
+      for (const row of (commentsData || []) as any[]) {
+        const event = firstOrNull<{ id?: string; title?: string | null }>(row.event);
+        const author = firstOrNull<{ display_name?: string | null }>(row.author);
+        previewByKey.set(toKey('comment', row.id), {
+          type: 'comment',
+          id: row.id,
+          message: row.message ?? null,
+          event_id: event?.id ?? row.event_id ?? null,
+          event_title: event?.title ?? null,
+          author_name: author?.display_name ?? null,
+        });
+      }
+    }
+
+    if (userIds.size > 0) {
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, display_name, role, status, ban_until')
+        .in('id', Array.from(userIds));
+      if (usersError) throw new Error(usersError.message || 'Impossible de charger le détail des utilisateurs signalés');
+
+      for (const row of (usersData || []) as any[]) {
+        previewByKey.set(toKey('user', row.id), {
+          type: 'user',
+          id: row.id,
+          display_name: row.display_name ?? null,
+          role: row.role ?? null,
+          status: row.status ?? null,
+          ban_until: row.ban_until ?? null,
+        });
+      }
+    }
+
+    if (mediaIds.size > 0) {
+      const { data: mediaData, error: mediaError } = await supabase
+        .from('event_media_submissions')
+        .select(
+          'id, url, status, event_id, event:events(id, title), author:profiles!event_media_submissions_author_id_fkey(display_name)'
+        )
+        .in('id', Array.from(mediaIds));
+      if (mediaError) throw new Error(mediaError.message || 'Impossible de charger le détail des médias signalés');
+
+      for (const row of (mediaData || []) as any[]) {
+        const event = firstOrNull<{ id?: string; title?: string | null }>(row.event);
+        const author = firstOrNull<{ display_name?: string | null }>(row.author);
+        previewByKey.set(toKey('media', row.id), {
+          type: 'media',
+          id: row.id,
+          url: row.url ?? null,
+          status: row.status ?? null,
+          event_id: event?.id ?? row.event_id ?? null,
+          event_title: event?.title ?? null,
+          author_name: author?.display_name ?? null,
+        });
+      }
+    }
+
+    if (contestEntryIds.size > 0) {
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('contest_entries')
+        .select(
+          'id, content, status, contest_id, contest:contests(id, title), user:profiles!contest_entries_user_id_fkey(display_name)'
+        )
+        .in('id', Array.from(contestEntryIds));
+      if (entriesError) throw new Error(entriesError.message || 'Impossible de charger le détail des participations signalées');
+
+      for (const row of (entriesData || []) as any[]) {
+        const contest = firstOrNull<{ id?: string; title?: string | null }>(row.contest);
+        const user = firstOrNull<{ display_name?: string | null }>(row.user);
+        const previewBase = {
+          id: row.id,
+          content: row.content ?? null,
+          status: row.status ?? null,
+          contest_id: contest?.id ?? row.contest_id ?? null,
+          contest_title: contest?.title ?? null,
+          author_name: user?.display_name ?? null,
+        };
+
+        previewByKey.set(toKey('contest_entry', row.id), {
+          type: 'contest_entry',
+          ...previewBase,
+        });
+        previewByKey.set(toKey('challenge', row.id), {
+          type: 'challenge',
+          ...previewBase,
+        });
+      }
+    }
+
+    return reports.map((report) => {
+      const exactKey = toKey(report.target_type, report.target_id);
+      const fallbackKey =
+        report.target_type === 'challenge' ? toKey('contest_entry', report.target_id) : undefined;
+      const targetPreview =
+        previewByKey.get(exactKey) ||
+        (fallbackKey ? previewByKey.get(fallbackKey) : undefined) ||
+        ({ type: 'unknown', id: report.target_id } as ModerationReportTargetPreview);
+
+      return {
+        ...report,
+        target_preview: targetPreview,
+      } as ReportRecordWithTarget;
+    });
+  },
+
   async updateReportStatus(payload: { reportId: string; status: ReportStatus; moderatorId: string }) {
     const updateData: { status: ReportStatus; reviewed_by: string; reviewed_at: string } = {
       status: payload.status,
@@ -349,19 +534,114 @@ export const ModerationService = {
     });
   },
 
-  async listWarnings(params?: { limit?: number }) {
+  async liftUserRestriction(payload: { userId: string; moderatorId: string; reason?: string }) {
+    const { data: currentProfile, error: currentProfileError } = await supabase
+      .from('profiles')
+      .select('id, status, ban_until')
+      .eq('id', payload.userId)
+      .maybeSingle();
+    if (currentProfileError) {
+      throw new Error(currentProfileError.message || "Impossible de vérifier l'état du profil");
+    }
+    if (!currentProfile) {
+      throw new Error('Profil introuvable');
+    }
+    if (currentProfile.status !== 'restricted') {
+      throw new Error('Seuls les utilisateurs restreints peuvent être débloqués ici.');
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        status: 'active',
+        ban_until: null,
+      })
+      .eq('id', payload.userId);
+    if (profileError) {
+      throw new Error(profileError.message || "Impossible de lever la restriction de l'utilisateur");
+    }
+
+    await ModerationService.logAction({
+      targetType: 'user',
+      targetId: payload.userId,
+      actionType: 'approve',
+      moderatorId: payload.moderatorId,
+      metadata: {
+        operation: 'lift_restriction',
+        previous_status: currentProfile.status,
+        previous_ban_until: currentProfile.ban_until,
+        ...(payload.reason ? { reason: payload.reason } : {}),
+      },
+    });
+
+    await ModerationService.createNotification({
+      userId: payload.userId,
+      type: 'system',
+      title: 'Restriction levée',
+      body: payload.reason || 'La restriction de votre compte a été levée par la modération.',
+      data: {
+        status: 'active',
+      },
+    });
+  },
+
+  async listWarnings(params?: { limit?: number; uniqueByUser?: boolean }) {
+    const shouldUniqueByUser = params?.uniqueByUser ?? false;
+    const requestedLimit = params?.limit;
+    const fetchLimit =
+      shouldUniqueByUser && requestedLimit
+        ? Math.max(requestedLimit * 3, requestedLimit)
+        : requestedLimit;
+
     let query = supabase
       .from('warnings')
       .select('id, user_id, level, reason, moderator_id, created_at, user:profiles!warnings_user_id_fkey(id, display_name, avatar_url, city, role, status, ban_until)')
       .order('created_at', { ascending: false });
-    if (params?.limit) query = query.limit(params.limit);
+    if (fetchLimit) query = query.limit(fetchLimit);
     const { data, error } = await query;
     if (error) throw new Error(error.message || 'Impossible de charger les avertissements');
     const normalized = ((data || []) as any[]).map((row) => ({
       ...row,
       user: firstOrNull(row.user),
     }));
-    return normalized as unknown as ModerationWarning[];
+
+    if (!shouldUniqueByUser) {
+      return normalized as unknown as ModerationWarning[];
+    }
+
+    const bestWarningByUser = new Map<string, any>();
+    for (const warning of normalized) {
+      if (!warning.user_id) continue;
+      const existing = bestWarningByUser.get(warning.user_id);
+      if (!existing) {
+        bestWarningByUser.set(warning.user_id, warning);
+        continue;
+      }
+
+      const warningLevel = Number(warning.level || 0);
+      const existingLevel = Number(existing.level || 0);
+      if (warningLevel > existingLevel) {
+        bestWarningByUser.set(warning.user_id, warning);
+        continue;
+      }
+      if (warningLevel < existingLevel) continue;
+
+      const warningTime = warning.created_at ? new Date(warning.created_at).getTime() : 0;
+      const existingTime = existing.created_at ? new Date(existing.created_at).getTime() : 0;
+      if (warningTime > existingTime) {
+        bestWarningByUser.set(warning.user_id, warning);
+      }
+    }
+
+    const uniqueWarnings = Array.from(bestWarningByUser.values()).sort((a, b) => {
+      const levelDiff = Number(b.level || 0) - Number(a.level || 0);
+      if (levelDiff !== 0) return levelDiff;
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return (requestedLimit ? uniqueWarnings.slice(0, requestedLimit) : uniqueWarnings) as unknown as ModerationWarning[];
   },
 
   async listContestEntries(params?: { status?: 'active' | 'hidden' | 'removed'; limit?: number }) {

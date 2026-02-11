@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl, Alert } from 'react-native';
 import { ArrowLeft, X, User, ShieldAlert } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
@@ -36,7 +36,7 @@ export default function ModerationUsersScreen() {
       const { data: sessionData } = await supabase.auth.getSession();
       const role = (sessionData.session?.user?.app_metadata as any)?.role;
       setJwtRole(typeof role === 'string' ? role : null);
-      const data = await ModerationService.listWarnings({ limit: 50 });
+      const data = await ModerationService.listWarnings({ limit: 50, uniqueByUser: true });
       setWarnings(data);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -66,6 +66,21 @@ export default function ModerationUsersScreen() {
       banUntil: banUntil.toISOString(),
     });
     await loadWarnings();
+  };
+
+  const handleLiftRestriction = async (userId: string, note?: string) => {
+    if (!profile?.id) return;
+    try {
+      await ModerationService.liftUserRestriction({
+        userId,
+        moderatorId: profile.id,
+        reason: note,
+      });
+      await loadWarnings();
+      Alert.alert('Restriction levée', "L'utilisateur est de nouveau actif.");
+    } catch (error) {
+      Alert.alert('Erreur', error instanceof Error ? error.message : "Impossible de débloquer cet utilisateur.");
+    }
   };
 
   return (
@@ -127,6 +142,19 @@ export default function ModerationUsersScreen() {
                 }
                 fullWidth
               />
+              {warning.user?.status === 'restricted' ? (
+                <Button
+                  title="Débloquer"
+                  variant="ghost"
+                  onPress={() =>
+                    setReasonModal({
+                      title: 'Motif du déblocage',
+                      onConfirm: (note) => handleLiftRestriction(warning.user_id, note),
+                    })
+                  }
+                  fullWidth
+                />
+              ) : null}
               <Button
                 title="Bloquer"
                 variant="outline"

@@ -84,6 +84,12 @@ export default function RootLayout() {
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="settings/index" />
         <Stack.Screen name="moderation/index" />
+        <Stack.Screen name="moderation/events" />
+        <Stack.Screen name="moderation/comments" />
+        <Stack.Screen name="moderation/users" />
+        <Stack.Screen name="moderation/reports" />
+        <Stack.Screen name="moderation/media" />
+        <Stack.Screen name="moderation/contests" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

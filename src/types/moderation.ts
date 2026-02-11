@@ -24,6 +24,78 @@ export type ReportRecord = {
   created_at: string;
 };
 
+export type ModerationReportTargetPreview =
+  | {
+      type: 'event';
+      id: string;
+      title: string | null;
+      city?: string | null;
+      status?: string | null;
+      starts_at?: string | null;
+      creator_name?: string | null;
+    }
+  | {
+      type: 'comment';
+      id: string;
+      message: string | null;
+      event_id?: string | null;
+      event_title?: string | null;
+      author_name?: string | null;
+    }
+  | {
+      type: 'user';
+      id: string;
+      display_name: string | null;
+      role?: string | null;
+      status?: 'active' | 'restricted' | 'suspended' | 'banned' | null;
+      ban_until?: string | null;
+    }
+  | {
+      type: 'media';
+      id: string;
+      url: string | null;
+      status?: string | null;
+      event_id?: string | null;
+      event_title?: string | null;
+      author_name?: string | null;
+    }
+  | {
+      type: 'contest_entry';
+      id: string;
+      content?: string | null;
+      status?: string | null;
+      contest_id?: string | null;
+      contest_title?: string | null;
+      author_name?: string | null;
+    }
+  | {
+      type: 'challenge';
+      id: string;
+      content?: string | null;
+      status?: string | null;
+      contest_id?: string | null;
+      contest_title?: string | null;
+      author_name?: string | null;
+    }
+  | {
+      type: 'unknown';
+      id: string;
+    };
+
+export type ReportRecordWithTarget = ReportRecord & {
+  reporter?: {
+    id: string;
+    display_name?: string | null;
+    avatar_url?: string | null;
+  } | null;
+  reviewer?: {
+    id: string;
+    display_name?: string | null;
+    avatar_url?: string | null;
+  } | null;
+  target_preview?: ModerationReportTargetPreview | null;
+};
+
 export type ModerationEvent = {
   id: string;
   title: string;
