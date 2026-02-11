@@ -10,34 +10,40 @@ interface Props {
 }
 
 const buildUrls = (lat: number, lon: number) => ({
-  waze: `waze://?ll=${lat},${lon}&navigate=yes`,
+  wazeApp: `waze://?ll=${lat},${lon}&navigate=yes`,
+  wazeWeb: `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`,
   google: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`,
   apple: `http://maps.apple.com/?daddr=${lat},${lon}`,
 });
 
+type NavigationUrlKey = keyof ReturnType<typeof buildUrls>;
+
+async function tryOpenUrl(url: string) {
+  try {
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function openNavigation(urls: ReturnType<typeof buildUrls>, preference: 'waze' | 'google' | 'apple') {
-  const order: ('waze' | 'google' | 'apple')[] =
+  const order: NavigationUrlKey[] =
     Platform.OS === 'ios'
       ? preference === 'waze'
-        ? ['waze', 'apple', 'google']
+        ? ['wazeApp', 'wazeWeb', 'google', 'apple']
         : preference === 'apple'
-        ? ['apple', 'waze', 'google']
-        : ['google', 'waze', 'apple']
+        ? ['apple', 'google', 'wazeWeb']
+        : ['google', 'wazeWeb', 'apple']
       : preference === 'waze'
-      ? ['waze', 'google']
-      : ['google', 'waze'];
+      ? ['wazeApp', 'wazeWeb', 'google']
+      : ['google', 'wazeWeb'];
 
   for (const key of order) {
     const url = urls[key];
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-        return;
-      }
-    } catch (err) {
-      // Continue to the next provider if this one is not available / not declared
-      console.warn('Navigation open error', key, err);
+    const opened = await tryOpenUrl(url);
+    if (opened) {
+      return;
     }
   }
 

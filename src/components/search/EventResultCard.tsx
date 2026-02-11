@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'reac
 import { MapPin, Calendar, Tag, Navigation2, Heart } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
@@ -69,6 +69,8 @@ export const EventResultCard: React.FC<Props> = ({
   const [isSwiping, setIsSwiping] = useState(false);
   const { currentLocation } = useLocationStore();
   const categoryLabel = getCategoryLabel(event.category || '');
+  const categoryColor = getCategoryColor(event.category || '');
+  const categoryTextColor = getCategoryTextColor(event.category || '');
   const dateLabel = useMemo(() => formatDateRange(event.starts_at, event.ends_at), [event.starts_at, event.ends_at]);
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -122,8 +124,8 @@ export const EventResultCard: React.FC<Props> = ({
         ) : (
           <View style={[styles.staticImage, { borderRadius: borderRadius.lg }]} />
         )}
-        <View style={styles.topBadge}>
-          <Text style={styles.topBadgeText}>{categoryLabel}</Text>
+        <View style={[styles.topBadge, { backgroundColor: categoryColor }]}>
+          <Text style={[styles.topBadgeText, { color: categoryTextColor }]}>{categoryLabel}</Text>
         </View>
         {event.creator?.id && (
           <TouchableOpacity
@@ -228,14 +230,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: colors.primary[600],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
   topBadgeText: {
     ...typography.caption,
-    color: colors.neutral[0],
     fontWeight: '700',
   },
   infoOverlay: {

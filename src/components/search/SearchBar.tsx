@@ -23,6 +23,7 @@ import Animated, {
 import { X, MapPin, Calendar, Users, Tag, ChevronRight, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { useSearchStore } from '@/store/searchStore';
 import { MapboxService } from '@/services/mapbox.service';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -41,6 +42,15 @@ import type { CommunityMember } from '@/types/community';
 
 type SectionKey = 'where' | 'when' | 'who' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
+
+type ChipTone = {
+  inactiveBackgroundColor?: string;
+  inactiveTextColor?: string;
+  inactiveBorderColor?: string;
+  activeBackgroundColor?: string;
+  activeTextColor?: string;
+  activeBorderColor?: string;
+};
 
 interface Props {
   onApply: () => void;
@@ -729,11 +739,22 @@ export const SearchBar: React.FC<Props> = ({
                       />
                       <Text style={styles.sectionLabel}>Catégories</Text>
                       <View style={styles.rowWrap}>
-                        {categories.map((cat) => (
+                        {categories.map((cat) => {
+                          const categoryColor = getCategoryColor(cat.id);
+                          const categoryTextColor = getCategoryTextColor(cat.id);
+                          return (
                           <Chip
                             key={cat.id}
                             label={cat.label}
                             active={what.categories.includes(cat.id)}
+                            tone={{
+                              inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                              inactiveBorderColor: withAlpha(categoryColor, '33'),
+                              inactiveTextColor: categoryColor,
+                              activeBackgroundColor: categoryColor,
+                              activeBorderColor: categoryColor,
+                              activeTextColor: categoryTextColor,
+                            }}
                             onPress={() => {
                               const exists = what.categories.includes(cat.id);
                               const next = exists
@@ -746,7 +767,8 @@ export const SearchBar: React.FC<Props> = ({
                               setWhat({ categories: next, subcategories: filteredSubs });
                             }}
                           />
-                        ))}
+                          );
+                        })}
                       </View>
                     </SectionCard>
                   </Animated.View>
@@ -802,11 +824,43 @@ export const SearchBar: React.FC<Props> = ({
   );
 };
 
-const Chip = ({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) => (
-  <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
-    <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-  </TouchableOpacity>
-);
+const Chip = ({
+  label,
+  active,
+  onPress,
+  tone,
+}: {
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+  tone?: ChipTone;
+}) => {
+  const isActive = !!active;
+  return (
+    <TouchableOpacity
+      style={[
+        styles.chip,
+        active && styles.chipActive,
+        tone?.inactiveBackgroundColor ? { backgroundColor: tone.inactiveBackgroundColor } : null,
+        tone?.inactiveBorderColor ? { borderColor: tone.inactiveBorderColor, borderWidth: 1 } : null,
+        isActive && tone?.activeBackgroundColor ? { backgroundColor: tone.activeBackgroundColor } : null,
+        isActive && tone?.activeBorderColor ? { borderColor: tone.activeBorderColor, borderWidth: 1 } : null,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.chipText,
+          active && styles.chipTextActive,
+          tone?.inactiveTextColor ? { color: tone.inactiveTextColor } : null,
+          isActive && tone?.activeTextColor ? { color: tone.activeTextColor } : null,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 const CounterRow = ({
   label,
@@ -873,6 +927,8 @@ const formatDate = (value: string | Date) => {
   const date = typeof value === 'string' ? new Date(value) : value;
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 };
+
+const withAlpha = (hexColor: string, alphaHex: string) => `${hexColor}${alphaHex}`;
 
 const styles = StyleSheet.create({
   wrapper: {
