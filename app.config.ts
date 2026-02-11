@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Lumo peut enregistrer des images dans votre photothèque si vous le demandez.',
       NSCameraUsageDescription:
         'Lumo a besoin d’accéder à votre caméra pour prendre des photos.',
-      LSApplicationQueriesSchemes: ['waze'],
+      LSApplicationQueriesSchemes: ['waze', 'comgooglemaps'],
     },
   },
   android: {
