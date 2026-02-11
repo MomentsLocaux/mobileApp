@@ -5,6 +5,7 @@ import type {
   ModerationContestEntry,
   ModerationEvent,
   ModerationMediaSubmission,
+  ModerationTargetType,
   ModerationWarning,
   ReportRecord,
   ReportStatus,
@@ -25,15 +26,77 @@ export interface ModerationBug {
   status: BugStatus;
 }
 
+type ModerationNotificationType =
+  | 'event_published'
+  | 'event_soon'
+  | 'lumo_reward'
+  | 'mission_completed'
+  | 'boost_expired'
+  | 'social_follow'
+  | 'social_like'
+  | 'system'
+  | 'event_refused'
+  | 'event_request_changes'
+  | 'warning_received'
+  | 'user_banned'
+  | 'media_approved'
+  | 'media_rejected'
+  | 'contest_entry_refused'
+  | 'moderation_escalation';
+
 const firstOrNull = <T>(value: any): T | null => {
   if (Array.isArray(value)) return (value[0] ?? null) as T | null;
   return (value ?? null) as T | null;
 };
 
+const clampWarningLevel = (value: number) => Math.min(3, Math.max(1, Math.trunc(value)));
+
+const addDaysIso = (days: number) => {
+  const at = new Date();
+  at.setDate(at.getDate() + days);
+  return at.toISOString();
+};
+
+const getWarningSanction = (level: number): {
+  profileStatus: 'active' | 'restricted' | 'banned';
+  banUntil: string | null;
+  notificationType: ModerationNotificationType;
+  notificationTitle: string;
+  notificationBody: string;
+} => {
+  if (level >= 3) {
+    const banUntil = addDaysIso(30);
+    return {
+      profileStatus: 'banned',
+      banUntil,
+      notificationType: 'user_banned',
+      notificationTitle: 'Compte bloqué temporairement',
+      notificationBody: `Votre compte est bloqué jusqu'au ${new Date(banUntil).toLocaleDateString('fr-FR')}.`,
+    };
+  }
+  if (level === 2) {
+    const banUntil = addDaysIso(3);
+    return {
+      profileStatus: 'restricted',
+      banUntil,
+      notificationType: 'warning_received',
+      notificationTitle: 'Avertissement niveau 2',
+      notificationBody: `Votre compte est restreint jusqu'au ${new Date(banUntil).toLocaleDateString('fr-FR')}.`,
+    };
+  }
+  return {
+    profileStatus: 'active',
+    banUntil: null,
+    notificationType: 'warning_received',
+    notificationTitle: 'Avertissement',
+    notificationBody: 'Un avertissement a été émis sur votre compte.',
+  };
+};
+
 export const ModerationService = {
   async createNotification(payload: {
     userId: string;
-    type: 'event_published' | 'system' | 'lumo_reward' | 'mission_completed' | 'social_follow' | 'social_like';
+    type: ModerationNotificationType;
     title: string;
     body?: string | null;
     data?: Record<string, unknown>;
@@ -51,7 +114,7 @@ export const ModerationService = {
   },
 
   async logAction(payload: {
-    targetType: 'event' | 'comment' | 'user' | 'challenge';
+    targetType: ModerationTargetType;
     targetId: string;
     actionType: ModerationActionType;
     moderatorId: string;
@@ -107,41 +170,18 @@ export const ModerationService = {
       metadata: payload.note ? { note: payload.note } : {},
     });
 
-    if (data?.creator_id) {
-      const isApproved = payload.actionType === 'approve';
-      const title = isApproved
-        ? 'Événement approuvé'
-        : payload.actionType === 'request_changes'
-          ? 'Modifications demandées'
-          : payload.actionType === 'archive'
-            ? 'Événement archivé'
-            : 'Événement refusé';
-      const body = payload.note
-        ? payload.note
-        : isApproved
-          ? 'Votre événement est maintenant visible.'
-          : 'Votre événement a été mis à jour par la modération.';
-      await ModerationService.createNotification({
-        userId: data.creator_id,
-        type: isApproved ? 'event_published' : 'system',
-        title,
-        body,
-        data: { eventId: data.id, action: payload.actionType },
-      });
-    }
-
     return data as ModerationEvent;
   },
 
   async listReports(params?: {
     status?: ReportStatus;
-    targetType?: 'event' | 'comment' | 'user' | 'challenge';
+    targetType?: ModerationTargetType;
     severity?: ReportSeverity;
     limit?: number;
   }) {
     let query = supabase
       .from('reports')
-      .select('id, target_type, target_id, reporter_id, reason, status, severity, created_at')
+      .select('id, target_type, target_id, reporter_id, reason, status, severity, reviewed_by, reviewed_at, created_at')
       .order('created_at', { ascending: false });
     if (params?.status) query = query.eq('status', params.status);
     if (params?.targetType) query = query.eq('target_type', params.targetType);
@@ -152,12 +192,17 @@ export const ModerationService = {
     return (data || []) as unknown as ReportRecord[];
   },
 
-  async updateReportStatus(reportId: string, status: ReportStatus) {
+  async updateReportStatus(payload: { reportId: string; status: ReportStatus; moderatorId: string }) {
+    const updateData: { status: ReportStatus; reviewed_by: string; reviewed_at: string } = {
+      status: payload.status,
+      reviewed_by: payload.moderatorId,
+      reviewed_at: new Date().toISOString(),
+    };
     const { data, error } = await supabase
       .from('reports')
-      .update({ status })
-      .eq('id', reportId)
-      .select('id, target_type, target_id, reporter_id, reason, status, severity, created_at')
+      .update(updateData)
+      .eq('id', payload.reportId)
+      .select('id, target_type, target_id, reporter_id, reason, status, severity, reviewed_by, reviewed_at, created_at')
       .single();
     if (error) throw new Error(error.message || 'Impossible de mettre à jour le signalement');
     return data as unknown as ReportRecord;
@@ -208,56 +253,106 @@ export const ModerationService = {
     }
   },
 
-  async warnUser(payload: { userId: string; level: number; reason?: string; moderatorId: string }) {
+  async warnUser(payload: { userId: string; level?: number; reason?: string; moderatorId: string }) {
+    const { data: latestWarning, error: latestWarningError } = await supabase
+      .from('warnings')
+      .select('level')
+      .eq('user_id', payload.userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestWarningError) throw new Error(latestWarningError.message || 'Impossible de calculer le niveau d’avertissement');
+
+    const computedLevel = clampWarningLevel(
+      typeof payload.level === 'number' ? payload.level : (latestWarning?.level || 0) + 1
+    );
+
     const { data, error } = await supabase
       .from('warnings')
       .insert({
         user_id: payload.userId,
-        level: payload.level,
+        level: computedLevel,
         reason: payload.reason ?? null,
         moderator_id: payload.moderatorId,
       })
       .select('id, user_id, level, reason, moderator_id, created_at')
       .single();
     if (error) throw new Error(error.message || 'Impossible de créer l’avertissement');
+
+    const sanction = getWarningSanction(computedLevel);
+    if (sanction.profileStatus !== 'active') {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          status: sanction.profileStatus,
+          ban_until: sanction.banUntil,
+        })
+        .eq('id', payload.userId);
+      if (profileError) throw new Error(profileError.message || 'Impossible de mettre à jour la sanction utilisateur');
+    }
+
     await ModerationService.logAction({
       targetType: 'user',
       targetId: payload.userId,
       actionType: 'warn',
       moderatorId: payload.moderatorId,
-      metadata: payload.reason ? { reason: payload.reason, level: payload.level } : { level: payload.level },
+      metadata: payload.reason
+        ? {
+            reason: payload.reason,
+            level: computedLevel,
+            sanction_status: sanction.profileStatus,
+            ban_until: sanction.banUntil,
+          }
+        : {
+            level: computedLevel,
+            sanction_status: sanction.profileStatus,
+            ban_until: sanction.banUntil,
+          },
     });
-    await ModerationService.createNotification({
-      userId: payload.userId,
-      type: 'system',
-      title: 'Avertissement',
-      body: payload.reason || `Un avertissement a été émis (niveau ${payload.level}).`,
-      data: { level: payload.level },
-    });
+
+    if (sanction.profileStatus === 'banned') {
+      await ModerationService.logAction({
+        targetType: 'user',
+        targetId: payload.userId,
+        actionType: 'ban',
+        moderatorId: payload.moderatorId,
+        metadata: {
+          source: 'warning_escalation',
+          level: computedLevel,
+          banUntil: sanction.banUntil,
+        },
+      });
+    }
+
     return data as unknown as ModerationWarning;
   },
 
-  async banUser(payload: { userId: string; moderatorId: string; reason?: string }) {
+  async banUser(payload: { userId: string; moderatorId: string; reason?: string; banUntil?: string | null }) {
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        status: 'banned',
+        ban_until: payload.banUntil ?? null,
+      })
+      .eq('id', payload.userId);
+    if (profileError) throw new Error(profileError.message || 'Impossible de bannir cet utilisateur');
+
     await ModerationService.logAction({
       targetType: 'user',
       targetId: payload.userId,
       actionType: 'ban',
       moderatorId: payload.moderatorId,
-      metadata: payload.reason ? { reason: payload.reason } : {},
-    });
-    await ModerationService.createNotification({
-      userId: payload.userId,
-      type: 'system',
-      title: 'Compte bloqué',
-      body: payload.reason || 'Votre compte a été bloqué par la modération.',
-      data: {},
+      metadata: {
+        ...(payload.reason ? { reason: payload.reason } : {}),
+        ...(payload.banUntil ? { banUntil: payload.banUntil } : {}),
+      },
     });
   },
 
   async listWarnings(params?: { limit?: number }) {
     let query = supabase
       .from('warnings')
-      .select('id, user_id, level, reason, moderator_id, created_at, user:profiles!warnings_user_id_fkey(id, display_name, avatar_url, city, role)')
+      .select('id, user_id, level, reason, moderator_id, created_at, user:profiles!warnings_user_id_fkey(id, display_name, avatar_url, city, role, status, ban_until)')
       .order('created_at', { ascending: false });
     if (params?.limit) query = query.limit(params.limit);
     const { data, error } = await query;
@@ -286,23 +381,97 @@ export const ModerationService = {
     return normalized as unknown as ModerationContestEntry[];
   },
 
-  async listMediaSubmissions(params?: { status?: 'pending' | 'approved' | 'rejected'; limit?: number }) {
-    let query = supabase
+  async listMediaSubmissions(params?: {
+    status?: 'pending' | 'approved' | 'rejected';
+    limit?: number;
+    includeReported?: boolean;
+  }) {
+    const { status, limit, includeReported } = params || {};
+
+    let baseQuery = supabase
       .from('event_media_submissions')
       .select(
         'id, event_id, author_id, url, status, reviewed_by, reviewed_at, created_at, author:profiles!event_media_submissions_author_id_fkey(id, display_name, avatar_url), event:events(id, title, creator_id)'
       )
       .order('created_at', { ascending: false });
-    if (params?.status) query = query.eq('status', params.status);
-    if (params?.limit) query = query.limit(params.limit);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message || 'Impossible de charger les photos de la communauté');
-    const normalized = ((data || []) as any[]).map((row) => ({
-      ...row,
-      author: firstOrNull(row.author),
-      event: firstOrNull(row.event),
-    }));
-    return normalized as unknown as ModerationMediaSubmission[];
+    if (status) baseQuery = baseQuery.eq('status', status);
+    if (limit) baseQuery = baseQuery.limit(limit);
+
+    const { data: baseRows, error: baseError } = await baseQuery;
+    if (baseError) throw new Error(baseError.message || 'Impossible de charger les photos de la communauté');
+
+    const rows = [...((baseRows || []) as any[])];
+
+    let activeReportsByMediaId = new Map<
+      string,
+      { count: number; status: ReportStatus; severity: ReportSeverity; latestAt: string | null }
+    >();
+
+    if (includeReported) {
+      const { data: reportRows, error: reportsError } = await supabase
+        .from('reports')
+        .select('target_id, status, severity, created_at')
+        .eq('target_type', 'media')
+        .in('status', ['new', 'in_review', 'escalated'])
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (reportsError) throw new Error(reportsError.message || 'Impossible de charger les signalements médias');
+
+      for (const report of reportRows || []) {
+        if (!report.target_id) continue;
+        const prev = activeReportsByMediaId.get(report.target_id);
+        if (!prev) {
+          activeReportsByMediaId.set(report.target_id, {
+            count: 1,
+            status: report.status as ReportStatus,
+            severity: report.severity as ReportSeverity,
+            latestAt: report.created_at || null,
+          });
+        } else {
+          activeReportsByMediaId.set(report.target_id, {
+            ...prev,
+            count: prev.count + 1,
+          });
+        }
+      }
+
+      const reportedIds = Array.from(activeReportsByMediaId.keys()).filter(Boolean);
+      const missingReportedIds = reportedIds.filter((id) => !rows.some((row) => row.id === id));
+
+      if (missingReportedIds.length) {
+        const { data: reportedRows, error: reportedRowsError } = await supabase
+          .from('event_media_submissions')
+          .select(
+            'id, event_id, author_id, url, status, reviewed_by, reviewed_at, created_at, author:profiles!event_media_submissions_author_id_fkey(id, display_name, avatar_url), event:events(id, title, creator_id)'
+          )
+          .in('id', missingReportedIds);
+        if (reportedRowsError) throw new Error(reportedRowsError.message || 'Impossible de charger les médias signalés');
+        rows.push(...((reportedRows || []) as any[]));
+      }
+    }
+
+    const normalized = rows.map((row) => {
+      const reportMeta = activeReportsByMediaId.get(row.id);
+      return {
+        ...row,
+        author: firstOrNull(row.author),
+        event: firstOrNull(row.event),
+        report_count: reportMeta?.count || 0,
+        report_status: reportMeta?.status || null,
+        report_severity: reportMeta?.severity || null,
+        last_report_at: reportMeta?.latestAt || null,
+      };
+    });
+
+    normalized.sort((a: any, b: any) => {
+      const aReports = a.report_count || 0;
+      const bReports = b.report_count || 0;
+      if (aReports !== bReports) return bReports - aReports;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    const capped = limit ? normalized.slice(0, limit) : normalized;
+    return capped as unknown as ModerationMediaSubmission[];
   },
 
   async approveMediaSubmission(payload: { submissionId: string; moderatorId: string }) {
@@ -327,22 +496,13 @@ export const ModerationService = {
     if (insertError) throw new Error(insertError.message || "Impossible d'ajouter la photo à l'événement");
 
     await ModerationService.logAction({
-      targetType: 'event',
-      targetId: data.event_id,
+      targetType: 'media',
+      targetId: data.id,
       actionType: 'approve',
       moderatorId: payload.moderatorId,
-      metadata: { submissionId: data.id },
+      metadata: { submissionId: data.id, eventId: data.event_id },
     });
 
-    if (data.author_id) {
-      await ModerationService.createNotification({
-        userId: data.author_id,
-        type: 'system',
-        title: 'Photo approuvée',
-        body: "Votre photo a été publiée sur l'événement.",
-        data: { eventId: data.event_id, submissionId: data.id },
-      });
-    }
     if (event?.creator_id && event.creator_id !== data.author_id) {
       await ModerationService.createNotification({
         userId: event.creator_id,
@@ -371,24 +531,66 @@ export const ModerationService = {
     const event = firstOrNull<{ id: string; title: string }>((data as any).event);
 
     await ModerationService.logAction({
-      targetType: 'event',
-      targetId: data.event_id,
+      targetType: 'media',
+      targetId: data.id,
       actionType: 'refuse',
       moderatorId: payload.moderatorId,
-      metadata: payload.reason ? { reason: payload.reason, submissionId: data.id } : { submissionId: data.id },
+      metadata: payload.reason
+        ? { reason: payload.reason, submissionId: data.id, eventId: data.event_id }
+        : { submissionId: data.id, eventId: data.event_id },
     });
 
-    if (data.author_id) {
-      await ModerationService.createNotification({
-        userId: data.author_id,
-        type: 'system',
-        title: 'Photo refusée',
-        body: payload.reason || "Votre photo n'a pas été validée.",
-        data: { eventId: data.event_id, submissionId: data.id },
-      });
-    }
-
     return { ...(data as any), event } as unknown as ModerationMediaSubmission;
+  },
+
+  async escalateMediaReports(payload: { submissionId: string; moderatorId: string; reason?: string }) {
+    const updateData: {
+      status: ReportStatus;
+      reviewed_by: string;
+      reviewed_at: string;
+      reason?: string;
+    } = {
+      status: 'escalated',
+      reviewed_by: payload.moderatorId,
+      reviewed_at: new Date().toISOString(),
+    };
+    if (payload.reason) updateData.reason = payload.reason;
+
+    const { data, error } = await supabase
+      .from('reports')
+      .update(updateData)
+      .eq('target_type', 'media')
+      .eq('target_id', payload.submissionId)
+      .in('status', ['new', 'in_review'])
+      .select('id, reporter_id')
+      .limit(50);
+    if (error) throw new Error(error.message || 'Impossible d’escalader les signalements média');
+
+    await ModerationService.logAction({
+      targetType: 'media',
+      targetId: payload.submissionId,
+      actionType: 'warn',
+      moderatorId: payload.moderatorId,
+      metadata: payload.reason ? { escalation: true, reason: payload.reason } : { escalation: true },
+    });
+
+    return data || [];
+  },
+
+  async warnMediaAuthor(payload: { submissionId: string; moderatorId: string; reason?: string }) {
+    const { data, error } = await supabase
+      .from('event_media_submissions')
+      .select('id, author_id')
+      .eq('id', payload.submissionId)
+      .maybeSingle();
+    if (error) throw new Error(error.message || "Impossible de charger l'auteur du média");
+    if (!data?.author_id) throw new Error('Auteur introuvable pour ce média');
+
+    return ModerationService.warnUser({
+      userId: data.author_id,
+      moderatorId: payload.moderatorId,
+      reason: payload.reason || 'Contenu média signalé ou non conforme.',
+    });
   },
 
   async updateContestEntryStatus(payload: {
@@ -405,22 +607,12 @@ export const ModerationService = {
       .single();
     if (error) throw new Error(error.message || 'Impossible de mettre à jour la participation');
     await ModerationService.logAction({
-      targetType: 'challenge',
+      targetType: 'contest_entry',
       targetId: payload.entryId,
-      actionType: payload.status === 'removed' ? 'remove' : 'approve',
+      actionType: payload.status === 'removed' ? 'remove' : payload.status === 'hidden' ? 'refuse' : 'approve',
       moderatorId: payload.moderatorId,
       metadata: payload.reason ? { reason: payload.reason } : {},
     });
-    if (data?.user_id) {
-      const title = payload.status === 'active' ? 'Participation validée' : 'Participation refusée';
-      await ModerationService.createNotification({
-        userId: data.user_id,
-        type: 'system',
-        title,
-        body: payload.reason || 'La modération a mis à jour votre participation.',
-        data: { entryId: payload.entryId, status: payload.status },
-      });
-    }
     return data as unknown as ModerationContestEntry;
   },
 

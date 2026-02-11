@@ -1,19 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Image, RefreshControl } from 'react-native';
-import { ArrowLeft, X, Image as ImageIcon, AlertTriangle } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Modal, TextInput, Image } from 'react-native';
+import { ArrowLeft, X, Trophy, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks';
 import { ModerationService } from '@/services/moderation.service';
-import type { ModerationMediaSubmission } from '@/types/moderation';
+import type { ModerationContestEntry } from '@/types/moderation';
 import { Button, Card } from '@/components/ui';
 import { supabase } from '@/lib/supabase/client';
 
-export default function ModerationMediaScreen() {
+export default function ModerationContestsScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [submissions, setSubmissions] = useState<ModerationMediaSubmission[]>([]);
+  const [entries, setEntries] = useState<ModerationContestEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [jwtRole, setJwtRole] = useState<string | null>(null);
   const [reasonModal, setReasonModal] = useState<{
@@ -22,17 +22,15 @@ export default function ModerationMediaScreen() {
   } | null>(null);
   const [reason, setReason] = useState('');
 
-  const loadSubmissions = useCallback(async () => {
+  const loadEntries = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const session = await supabase.auth.getSession();
-      const role = (session.data.session?.user?.app_metadata as any)?.role || null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const role = (sessionData.session?.user?.app_metadata as any)?.role;
       setJwtRole(typeof role === 'string' ? role : null);
-      console.log('[ModerationMedia] session role', role);
-      const data = await ModerationService.listMediaSubmissions({ status: 'pending', includeReported: true, limit: 50 });
-      console.log('[ModerationMedia] submissions pending', data.length, data.map((row) => ({ id: row.id, status: row.status })));
-      setSubmissions(data);
+      const data = await ModerationService.listContestEntries({ limit: 50 });
+      setEntries(data);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
@@ -41,31 +39,32 @@ export default function ModerationMediaScreen() {
   }, []);
 
   useEffect(() => {
-    loadSubmissions();
-  }, [loadSubmissions]);
+    loadEntries();
+  }, [loadEntries]);
 
-  const handleApprove = async (submissionId: string) => {
+  const handleStatus = async (
+    entry: ModerationContestEntry,
+    status: 'active' | 'hidden' | 'removed',
+    note?: string
+  ) => {
     if (!profile?.id) return;
-    await ModerationService.approveMediaSubmission({ submissionId, moderatorId: profile.id });
-    await loadSubmissions();
+    await ModerationService.updateContestEntryStatus({
+      entryId: entry.id,
+      status,
+      moderatorId: profile.id,
+      reason: note,
+    });
+    await loadEntries();
   };
 
-  const handleReject = async (submissionId: string, note?: string) => {
+  const handleWarnAuthor = async (entry: ModerationContestEntry, note?: string) => {
     if (!profile?.id) return;
-    await ModerationService.rejectMediaSubmission({ submissionId, moderatorId: profile.id, reason: note });
-    await loadSubmissions();
-  };
-
-  const handleWarnAuthor = async (submissionId: string, note?: string) => {
-    if (!profile?.id) return;
-    await ModerationService.warnMediaAuthor({ submissionId, moderatorId: profile.id, reason: note });
-    await loadSubmissions();
-  };
-
-  const handleEscalate = async (submissionId: string, note?: string) => {
-    if (!profile?.id) return;
-    await ModerationService.escalateMediaReports({ submissionId, moderatorId: profile.id, reason: note });
-    await loadSubmissions();
+    await ModerationService.warnUser({
+      userId: entry.user_id,
+      moderatorId: profile.id,
+      reason: note || 'Participation concours non conforme.',
+    });
+    await loadEntries();
   };
 
   return (
@@ -75,7 +74,7 @@ export default function ModerationMediaScreen() {
           <ArrowLeft size={18} color={colors.neutral[700]} />
           <Text style={styles.headerButtonText}>Dashboard</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Photos de la communauté</Text>
+        <Text style={styles.headerTitle}>Participations concours</Text>
         <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()}>
           <X size={18} color={colors.neutral[700]} />
         </TouchableOpacity>
@@ -83,7 +82,7 @@ export default function ModerationMediaScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadSubmissions} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadEntries} />}
       >
         <View style={styles.debugCard}>
           <Text style={styles.debugText}>Role profil: {profile?.role || 'n/a'}</Text>
@@ -94,43 +93,39 @@ export default function ModerationMediaScreen() {
           ) : null}
         </View>
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
-        {!loading && submissions.length === 0 && <Text style={styles.metaText}>Aucune photo en attente.</Text>}
-        {submissions.map((submission) => (
-          <Card key={submission.id} padding="md" style={styles.card}>
+        {!loading && entries.length === 0 && <Text style={styles.metaText}>Aucune participation trouvée.</Text>}
+        {entries.map((entry) => (
+          <Card key={entry.id} padding="md" style={styles.card}>
             <View style={styles.cardHeader}>
-              <ImageIcon size={18} color={colors.info[700]} />
-              <Text style={styles.cardTitle}>{submission.event?.title || 'Événement'}</Text>
+              <Trophy size={18} color={colors.info[700]} />
+              <Text style={styles.cardTitle}>{entry.contest?.title || 'Concours'}</Text>
             </View>
-            <View style={styles.mediaRow}>
-              <Image source={{ uri: submission.url }} style={styles.mediaThumb} />
-              <View style={styles.mediaInfo}>
-                <Text style={styles.cardMeta}>{submission.author?.display_name || 'Utilisateur'}</Text>
-                <Text style={styles.cardMeta}>Statut: {submission.status}</Text>
-                {submission.report_count ? (
-                  <View style={styles.reportMetaRow}>
-                    <AlertTriangle size={14} color={colors.warning[700]} />
-                    <Text style={styles.cardMeta}>
-                      {submission.report_count} signalement{submission.report_count > 1 ? 's' : ''}
-                      {submission.report_severity ? ` · ${submission.report_severity}` : ''}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
+            <Text style={styles.cardMeta}>Auteur: {entry.user?.display_name || 'Utilisateur'}</Text>
+            <Text style={styles.cardMeta}>Statut: {entry.status}</Text>
+
+            {entry.content ? <Text style={styles.cardBody}>{entry.content}</Text> : null}
+            {entry.media_url ? <Image source={{ uri: entry.media_url }} style={styles.entryImage} /> : null}
+
             <View style={styles.actionRow}>
+              <Button title="Valider" onPress={() => handleStatus(entry, 'active')} fullWidth />
               <Button
-                title="Approuver"
-                onPress={() => handleApprove(submission.id)}
-                disabled={submission.status === 'approved'}
-                fullWidth
-              />
-              <Button
-                title="Refuser"
+                title="Masquer"
                 variant="outline"
                 onPress={() =>
                   setReasonModal({
-                    title: 'Motif du refus',
-                    onConfirm: (note) => handleReject(submission.id, note),
+                    title: 'Motif de masquage',
+                    onConfirm: (note) => handleStatus(entry, 'hidden', note),
+                  })
+                }
+                fullWidth
+              />
+              <Button
+                title="Supprimer"
+                variant="outline"
+                onPress={() =>
+                  setReasonModal({
+                    title: 'Motif de suppression',
+                    onConfirm: (note) => handleStatus(entry, 'removed', note),
                   })
                 }
                 fullWidth
@@ -141,22 +136,15 @@ export default function ModerationMediaScreen() {
                 onPress={() =>
                   setReasonModal({
                     title: "Motif de l'avertissement",
-                    onConfirm: (note) => handleWarnAuthor(submission.id, note),
+                    onConfirm: (note) => handleWarnAuthor(entry, note),
                   })
                 }
                 fullWidth
               />
-              <Button
-                title="Escalader"
-                variant="ghost"
-                onPress={() =>
-                  setReasonModal({
-                    title: "Motif d'escalade",
-                    onConfirm: (note) => handleEscalate(submission.id, note),
-                  })
-                }
-                fullWidth
-              />
+            </View>
+            <View style={styles.warningHint}>
+              <AlertTriangle size={14} color={colors.warning[700]} />
+              <Text style={styles.warningHintText}>Les actions sont journalisées dans la modération.</Text>
             </View>
           </Card>
         ))}
@@ -247,35 +235,34 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.bodySmall,
-    fontWeight: '700',
     color: colors.neutral[900],
+    fontWeight: '700',
   },
   cardMeta: {
     ...typography.bodySmall,
     color: colors.neutral[600],
   },
-  mediaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+  cardBody: {
+    ...typography.bodySmall,
+    color: colors.neutral[800],
   },
-  mediaThumb: {
-    width: 72,
-    height: 72,
+  entryImage: {
+    width: '100%',
+    height: 180,
     borderRadius: borderRadius.md,
     backgroundColor: colors.neutral[200],
   },
-  mediaInfo: {
-    flex: 1,
-    gap: spacing.xs,
+  actionRow: {
+    gap: spacing.sm,
   },
-  reportMetaRow: {
+  warningHint: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  actionRow: {
-    gap: spacing.sm,
+  warningHintText: {
+    ...typography.caption,
+    color: colors.warning[700],
   },
   metaText: {
     ...typography.bodySmall,

@@ -47,7 +47,6 @@ export const authProvider: IAuthProvider = {
       .from('profiles')
       .insert({
         id: userId,
-        email: email ?? null,
         display_name: email ? email.split('@')[0] : 'Utilisateur',
         role: 'particulier',
         onboarding_completed: false,
@@ -55,7 +54,7 @@ export const authProvider: IAuthProvider = {
         bio: null,
         city: null,
         region: null,
-      } as Database['public']['Tables']['profiles']['Insert'])
+      } as unknown as Database['public']['Tables']['profiles']['Insert'])
       .select()
       .single();
 

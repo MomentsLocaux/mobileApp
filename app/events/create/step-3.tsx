@@ -106,16 +106,22 @@ export default function CreateEventStep3() {
         external_url: externalLink || videoLink || null,
         contact_email,
         contact_phone,
-        status: 'published',
+        status: 'pending',
         creator_id: user.id,
       };
 
-      const created = await EventsService.create(payload as any);
+      await EventsService.create(payload as any);
       reset();
-      if (created.status === 'pending_review') {
-        Alert.alert('En cours de validation', 'Votre événement est en cours de vérification.');
-      }
-      router.replace(`/events/${created.id}` as any);
+      Alert.alert(
+        'Événement soumis',
+        'Votre événement a bien été soumis pour validation.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/profile/my-events' as any),
+          },
+        ]
+      );
     } catch (e) {
       console.error('publish event step3', e);
       Alert.alert('Erreur', 'Une erreur est survenue, veuillez réessayer.');

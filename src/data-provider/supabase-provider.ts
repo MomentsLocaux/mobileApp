@@ -114,6 +114,8 @@ export const supabaseProvider: (Pick<
   | 'listComments'
   | 'createComment'
   | 'deleteComment'
+  | 'reportEvent'
+  | 'reportComment'
   | 'reportProfile'
   | 'reportMedia'
   | 'getProfile'
@@ -145,7 +147,7 @@ export const supabaseProvider: (Pick<
     if (creatorId) {
       query = query.eq('creator_id', creatorId);
     } else {
-      query = query.neq('status', 'draft');
+      query = query.eq('status', 'published').eq('visibility', 'public');
     }
     // Par défaut, ne retourner que les événements en cours (starts_at <= now <= ends_at ou ends_at null)
     // Pour un créateur ou si includePast est true, on retourne tout l'historique sans filtre temporel.
@@ -194,7 +196,8 @@ export const supabaseProvider: (Pick<
       .lte('longitude', maxLon)
       .gte('latitude', minLat)
       .lte('latitude', maxLat)
-      .neq('status', 'draft');
+      .eq('status', 'published')
+      .eq('visibility', 'public');
 
     if (!includePast) {
       query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
@@ -234,9 +237,13 @@ export const supabaseProvider: (Pick<
   },
 
   async createEvent(payload: Partial<Event>) {
+    const normalizedPayload = {
+      ...payload,
+      status: payload.status ?? 'pending',
+    };
     const { data, error } = await supabase
       .from('events')
-      .insert(payload as any)
+      .insert(normalizedPayload as any)
       .select()
       .single();
     if (error) throw formatSupabaseError(error, 'createEvent');
@@ -382,28 +389,103 @@ export const supabaseProvider: (Pick<
   },
 
   async createComment(payload: { eventId: string; authorId: string; message: string; rating?: number | null }) {
+    const insertPayload = {
+      event_id: payload.eventId,
+      author_id: payload.authorId,
+      message: payload.message,
+      rating: payload.rating ?? null,
+    } as any;
+
+    const { error: insertError } = await supabase
+      .from('event_comments')
+      .insert(insertPayload);
+
+    if (insertError) throw formatSupabaseError(insertError, 'createComment');
+
+    // Best effort: if SELECT/RLS on joined tables blocks this read, keep the insert successful.
     const { data, error } = await supabase
       .from('event_comments')
-      .insert({
-        event_id: payload.eventId,
-        author_id: payload.authorId,
-        message: payload.message,
-        rating: payload.rating ?? null,
-      } as any)
       .select(
         `
           *,
           author:profiles!event_comments_author_id_fkey(*)
         `,
       )
-      .single();
-    if (error) throw formatSupabaseError(error, 'createComment');
-    return (data as CommentWithAuthor) || null;
+      .eq('event_id', payload.eventId)
+      .eq('author_id', payload.authorId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[createComment] insert ok, fallback local row because select failed', error);
+      const nowIso = new Date().toISOString();
+      return {
+        id: `local-${Date.now()}`,
+        event_id: payload.eventId,
+        author_id: payload.authorId,
+        message: payload.message,
+        rating: payload.rating ?? null,
+        created_at: nowIso,
+        updated_at: nowIso,
+        author: null,
+      } as unknown as CommentWithAuthor;
+    }
+
+    if (!data) {
+      const nowIso = new Date().toISOString();
+      return {
+        id: `local-${Date.now()}`,
+        event_id: payload.eventId,
+        author_id: payload.authorId,
+        message: payload.message,
+        rating: payload.rating ?? null,
+        created_at: nowIso,
+        updated_at: nowIso,
+        author: null,
+      } as unknown as CommentWithAuthor;
+    }
+
+    return data as CommentWithAuthor;
   },
 
   async deleteComment(id: string) {
     const { error } = await supabase.from('event_comments').delete().eq('id', id);
     if (error) throw formatSupabaseError(error, 'deleteComment');
+    return true;
+  },
+
+  async reportEvent(eventId: string, payload: { reason: string; severity?: string; details?: string }) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw formatSupabaseError(userError, 'reportEvent-auth');
+    const reporterId = userData.user?.id;
+    if (!reporterId) throw formatSupabaseError('Utilisateur non authentifié', 'reportEvent-auth');
+
+    const { error } = await supabase.from('reports').insert({
+      target_type: 'event',
+      target_id: eventId,
+      reporter_id: reporterId,
+      reason: payload.reason,
+      severity: payload.severity || 'minor',
+    } as any);
+    if (error) throw formatSupabaseError(error, 'reportEvent');
+    return true;
+  },
+
+  async reportComment(commentId: string, payload: { reason: string; severity?: string; details?: string }) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw formatSupabaseError(userError, 'reportComment-auth');
+    const reporterId = userData.user?.id;
+    if (!reporterId) throw formatSupabaseError('Utilisateur non authentifié', 'reportComment-auth');
+
+    const { error } = await supabase.from('reports').insert({
+      target_type: 'comment',
+      target_id: commentId,
+      reporter_id: reporterId,
+      reason: payload.reason,
+      severity: payload.severity || 'minor',
+    } as any);
+    if (error) throw formatSupabaseError(error, 'reportComment');
     return true;
   },
 

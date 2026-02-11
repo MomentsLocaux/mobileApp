@@ -8,6 +8,7 @@ import { ModerationService } from '@/services/moderation.service';
 import { getReportReasonMeta } from '@/constants/report-reasons';
 import type { ModerationComment, ReportRecord } from '@/types/moderation';
 import { Button, Card } from '@/components/ui';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ModerationCommentsScreen() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function ModerationCommentsScreen() {
   const [loading, setLoading] = useState(false);
   const [comments, setComments] = useState<ModerationComment[]>([]);
   const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [jwtRole, setJwtRole] = useState<string | null>(null);
   const [reasonModal, setReasonModal] = useState<{
     title: string;
     onConfirm: (reason: string) => void;
@@ -23,10 +26,16 @@ export default function ModerationCommentsScreen() {
 
   const loadComments = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await ModerationService.listReportedComments({ status: 'new', limit: 50 });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const role = (sessionData.session?.user?.app_metadata as any)?.role;
+      setJwtRole(typeof role === 'string' ? role : null);
+      const data = await ModerationService.listReportedComments({ limit: 50 });
       setComments(data.comments);
       setReports(data.reports);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
     }
@@ -61,7 +70,6 @@ export default function ModerationCommentsScreen() {
     if (!profile?.id) return;
     await ModerationService.warnUser({
       userId: comment.author_id,
-      level: 1,
       moderatorId: profile.id,
       reason: note,
     });
@@ -85,6 +93,14 @@ export default function ModerationCommentsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadComments} />}
       >
+        <View style={styles.debugCard}>
+          <Text style={styles.debugText}>Role profil: {profile?.role || 'n/a'}</Text>
+          <Text style={styles.debugText}>Role JWT: {jwtRole || 'n/a'}</Text>
+          {loadError ? <Text style={styles.debugError}>Erreur: {loadError}</Text> : null}
+          {!!profile?.role && !!jwtRole && profile.role !== (jwtRole as any) ? (
+            <Text style={styles.debugWarn}>Incohérence: le rôle JWT diffère du rôle profil (RLS peut bloquer).</Text>
+          ) : null}
+        </View>
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
         {!loading && comments.length === 0 && <Text style={styles.metaText}>Aucun commentaire signalé.</Text>}
         {comments.map((comment) => {
@@ -252,6 +268,27 @@ const styles = StyleSheet.create({
   metaText: {
     ...typography.bodySmall,
     color: colors.neutral[600],
+  },
+  debugCard: {
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  debugText: {
+    ...typography.caption,
+    color: colors.neutral[700],
+  },
+  debugError: {
+    ...typography.caption,
+    color: colors.error[700],
+  },
+  debugWarn: {
+    ...typography.caption,
+    color: colors.warning[700],
+    fontWeight: '600',
   },
   modalBackdrop: {
     flex: 1,

@@ -4,6 +4,7 @@ import {
   Home,
   Users,
   User,
+  Bell,
   PlusCircle,
   Send,
   Compass,
@@ -14,24 +15,71 @@ import {
   Bug,
   Settings,
 } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { NotificationsService } from '@/services/notifications.service';
+import { EventsService } from '@/services/events.service';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile } = useAuth();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [hasMyEventsShortcut, setHasMyEventsShortcut] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   useTaxonomy();
   const isGuest = !isAuthenticated;
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
+
+  const loadUnreadNotifications = useCallback(async () => {
+    if (!profile?.id) {
+      setUnreadNotifications(0);
+      return;
+    }
+    try {
+      const count = await NotificationsService.getUnreadCount();
+      setUnreadNotifications(count);
+    } catch {
+      setUnreadNotifications(0);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    loadUnreadNotifications();
+  }, [loadUnreadNotifications]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    return NotificationsService.subscribeToMyNotifications(profile.id, () => {
+      loadUnreadNotifications();
+    });
+  }, [profile?.id, loadUnreadNotifications]);
+
+  const loadMyEventsShortcut = useCallback(async () => {
+    if (!profile?.id || isGuest) {
+      setHasMyEventsShortcut(false);
+      return;
+    }
+
+    try {
+      const events = await EventsService.listEvents({ creatorId: profile.id, limit: 1 } as any);
+      setHasMyEventsShortcut(events.length > 0);
+    } catch {
+      setHasMyEventsShortcut(false);
+    }
+  }, [profile?.id, isGuest]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    loadMyEventsShortcut();
+  }, [drawerOpen, loadMyEventsShortcut]);
 
   const toggleDrawer = (open: boolean) => {
     setDrawerOpen(open);
@@ -243,6 +291,15 @@ export default function TabsLayout() {
           }}
         />
         <DrawerLink
+          icon={Bell}
+          label="Notifications"
+          badgeCount={unreadNotifications}
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/notifications' as any);
+          }}
+        />
+        <DrawerLink
           icon={Send}
           label="Inviter des amis"
           onPress={() => {
@@ -266,14 +323,16 @@ export default function TabsLayout() {
             router.push('/(tabs)/missions' as any);
           }}
         />
-        <DrawerLink
-          icon={Map}
-          label="Évènements"
-          onPress={() => {
-            toggleDrawer(false);
-              router.push('/(tabs)/index' as any);
+        {hasMyEventsShortcut && (
+          <DrawerLink
+            icon={Map}
+            label="Mes évènements"
+            onPress={() => {
+              toggleDrawer(false);
+              router.push('/profile/my-events' as any);
             }}
           />
+        )}
         <DrawerLink
           icon={ShoppingBag}
           label="Boutique"
@@ -333,17 +392,24 @@ const DrawerLink = ({
   label,
   onPress,
   highlight,
+  badgeCount,
 }: {
   icon: any;
   label: string;
   onPress: () => void;
   highlight?: boolean;
+  badgeCount?: number;
 }) => (
   <TouchableOpacity style={[styles.linkRow, highlight && styles.linkRowHighlight]} onPress={onPress} activeOpacity={0.8}>
     <IconCmp size={20} color={highlight ? '#C18A1C' : colors.neutral[800]} />
     <View style={styles.linkLabelWrapper}>
       <Text style={[styles.linkLabel, highlight && styles.linkLabelHighlight]}>{label}</Text>
     </View>
+    {typeof badgeCount === 'number' && badgeCount > 0 ? (
+      <View style={styles.linkBadge}>
+        <Text style={styles.linkBadgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
+      </View>
+    ) : null}
   </TouchableOpacity>
 );
 
@@ -436,6 +502,20 @@ const styles = StyleSheet.create({
   },
   linkLabelHighlight: {
     color: '#C18A1C',
+  },
+  linkBadge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary[600],
+  },
+  linkBadgeText: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: '700',
   },
   createButton: {
     width: 64,

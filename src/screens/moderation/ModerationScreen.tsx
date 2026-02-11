@@ -33,8 +33,8 @@ import { ModerationService } from '@/services/moderation.service';
 import { getReportReasonMeta, REPORT_REASONS } from '@/constants/report-reasons';
 
 type ReportSeverity = 'minor' | 'harmful' | 'abusive' | 'illegal';
-type ReportStatus = 'new' | 'in_review' | 'closed';
-type ReportTargetType = 'event' | 'comment' | 'user' | 'media';
+type ReportStatus = 'new' | 'in_review' | 'closed' | 'escalated';
+type ReportTargetType = 'event' | 'comment' | 'user' | 'media' | 'challenge' | 'contest_entry';
 
 type Report = {
   id: string;
@@ -256,6 +256,8 @@ export default function ModerationScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [jwtRole, setJwtRole] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -271,7 +273,12 @@ export default function ModerationScreen() {
 
   const loadDashboard = useCallback(async () => {
       setLoading(true);
+      setLoadError(null);
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const role = (sessionData.session?.user?.app_metadata as any)?.role;
+        setJwtRole(typeof role === 'string' ? role : null);
+
         const [
           eventsRes,
           reportsRes,
@@ -292,7 +299,7 @@ export default function ModerationScreen() {
           supabase
             .from('reports')
             .select('id, target_type, target_id, reason, severity, status, created_at, reporter:profiles!reports_reporter_id_fkey(id, display_name, avatar_url, role)')
-            .eq('status', 'new')
+            .in('status', ['new', 'in_review', 'escalated'])
             .order('created_at', { ascending: false })
             .limit(8),
           supabase
@@ -304,16 +311,16 @@ export default function ModerationScreen() {
             .from('reports')
             .select('target_id, target_type')
             .eq('target_type', 'event')
-            .eq('status', 'new'),
+            .in('status', ['new', 'in_review', 'escalated']),
           supabase
             .from('reports')
             .select('target_id')
             .eq('target_type', 'user')
-            .eq('status', 'new'),
+            .in('status', ['new', 'in_review', 'escalated']),
           supabase
             .from('reports')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'new'),
+            .in('status', ['new', 'in_review', 'escalated']),
           supabase
             .from('moderation_actions')
             .select('id', { count: 'exact', head: true })
@@ -373,6 +380,7 @@ export default function ModerationScreen() {
         });
       } catch (error) {
         console.error('[Moderation] load dashboard failed', error);
+        setLoadError(error instanceof Error ? error.message : 'Erreur inconnue');
       } finally {
         setLoading(false);
       }
@@ -404,6 +412,7 @@ export default function ModerationScreen() {
     { label: 'Utilisateurs', route: '/moderation/users' },
     { label: 'Signalements', route: '/moderation/reports' },
     { label: 'Photos', route: '/moderation/media' },
+    { label: 'Concours', route: '/moderation/contests' },
   ];
 
   const severityStats = useMemo(() => {
@@ -453,6 +462,14 @@ export default function ModerationScreen() {
             <Text style={styles.loadingText}>Chargement des données…</Text>
           </View>
         )}
+        <View style={styles.debugCard}>
+          <Text style={styles.debugText}>Role profil: {profile?.role || 'n/a'}</Text>
+          <Text style={styles.debugText}>Role JWT: {jwtRole || 'n/a'}</Text>
+          {loadError ? <Text style={styles.debugError}>Erreur: {loadError}</Text> : null}
+          {!!profile?.role && !!jwtRole && profile.role !== (jwtRole as any) ? (
+            <Text style={styles.debugWarn}>Incohérence: le rôle JWT diffère du rôle profil (RLS peut bloquer).</Text>
+          ) : null}
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kpiRow}>
           <KpiCard label="Événements en attente" value={stats.pendingEvents} />
           <KpiCard label="Signalements reçus" value={stats.newReports} />
@@ -619,6 +636,27 @@ const styles = StyleSheet.create({
   loadingText: {
     ...typography.bodySmall,
     color: colors.neutral[600],
+  },
+  debugCard: {
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  debugText: {
+    ...typography.caption,
+    color: colors.neutral[700],
+  },
+  debugError: {
+    ...typography.caption,
+    color: colors.error[700],
+  },
+  debugWarn: {
+    ...typography.caption,
+    color: colors.warning[700],
+    fontWeight: '600',
   },
   kpiRow: {
     gap: spacing.md,

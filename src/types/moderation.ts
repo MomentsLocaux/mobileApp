@@ -1,4 +1,4 @@
-export type ModerationTargetType = 'event' | 'comment' | 'user' | 'challenge' | 'media';
+export type ModerationTargetType = 'event' | 'comment' | 'user' | 'challenge' | 'media' | 'contest_entry';
 export type ModerationActionType =
   | 'approve'
   | 'refuse'
@@ -8,7 +8,7 @@ export type ModerationActionType =
   | 'request_changes'
   | 'archive';
 
-export type ReportStatus = 'new' | 'in_review' | 'closed';
+export type ReportStatus = 'new' | 'in_review' | 'closed' | 'escalated';
 export type ReportSeverity = 'minor' | 'harmful' | 'abusive' | 'illegal';
 
 export type ReportRecord = {
@@ -19,6 +19,8 @@ export type ReportRecord = {
   reason: string | null;
   status: ReportStatus;
   severity: ReportSeverity;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
 };
 
@@ -54,7 +56,15 @@ export type ModerationWarning = {
   reason?: string | null;
   moderator_id: string;
   created_at: string;
-  user?: { id: string; display_name: string; avatar_url?: string | null; city?: string | null; role?: string | null } | null;
+  user?: {
+    id: string;
+    display_name: string;
+    avatar_url?: string | null;
+    city?: string | null;
+    role?: string | null;
+    status?: 'active' | 'restricted' | 'suspended' | 'banned' | null;
+    ban_until?: string | null;
+  } | null;
 };
 
 export type ModerationContestEntry = {
@@ -80,4 +90,8 @@ export type ModerationMediaSubmission = {
   created_at: string;
   author?: { id: string; display_name: string; avatar_url?: string | null } | null;
   event?: { id: string; title: string; creator_id?: string | null } | null;
+  report_count?: number;
+  report_status?: ReportStatus | null;
+  report_severity?: ReportSeverity | null;
+  last_report_at?: string | null;
 };

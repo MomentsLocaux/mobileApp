@@ -4,7 +4,8 @@ import type { CommentWithAuthor } from '@/types/database';
 import { CommentsService } from '@/services/comments.service';
 
 export function useComments(eventId: string) {
-  const { user } = useAuthStore();
+  const { user, session } = useAuthStore();
+  const currentUserId = user?.id ?? session?.user?.id ?? null;
   const [comments, setComments] = useState<CommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,22 +26,22 @@ export function useComments(eventId: string) {
 
   const addComment = useCallback(
     async (message: string, rating?: number | null) => {
-      if (!user) throw new Error('Non authentifié');
-      const newComment = await CommentsService.create(eventId, user.id, message, rating);
+      if (!currentUserId) throw new Error('Non authentifié');
+      const newComment = await CommentsService.create(eventId, currentUserId, message, rating);
       if (newComment) {
         setComments((prev) => [newComment, ...prev]);
       }
     },
-    [eventId, user],
+    [currentUserId, eventId],
   );
 
   const removeComment = useCallback(
     async (commentId: string) => {
-      if (!user) throw new Error('Non authentifié');
+      if (!currentUserId) throw new Error('Non authentifié');
       await CommentsService.delete(commentId);
       setComments((prev) => prev.filter((c) => c.id !== commentId));
     },
-    [user],
+    [currentUserId],
   );
 
   useEffect(() => {

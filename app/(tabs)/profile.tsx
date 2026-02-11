@@ -52,14 +52,7 @@ export default function ProfileScreen() {
   };
 
   const handleViewMyEvents = () => {
-    if (!profile?.id) return;
-    setSheetVisible(true);
-    loadMyEvents();
-    Animated.timing(sheetTranslate, {
-      toValue: 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
+    router.push('/profile/my-events' as any);
   };
 
   const closeSheet = () => {

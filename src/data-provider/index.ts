@@ -19,8 +19,8 @@ export const dataProvider: DataProvider = {
 
   checkInEvent: (eventId, lat, lon, token) => apiProvider.checkInEvent(eventId, lat, lon, token),
 
-  reportEvent: (eventId, payload, token) => apiProvider.reportEvent(eventId, payload, token),
-  reportComment: (commentId, payload, token) => apiProvider.reportComment(commentId, payload, token),
+  reportEvent: (eventId, payload) => supabaseProvider.reportEvent(eventId, payload),
+  reportComment: (commentId, payload) => supabaseProvider.reportComment(commentId, payload),
   reportProfile: (profileId, payload) => supabaseProvider.reportProfile(profileId, payload),
   reportMedia: (mediaId, payload) => supabaseProvider.reportMedia(mediaId, payload),
 

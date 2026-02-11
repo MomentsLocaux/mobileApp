@@ -115,11 +115,13 @@ export type UserRole =
   | 'institutionnel'
   | 'moderateur'
   | 'admin';
+export type ProfileStatus = 'active' | 'restricted' | 'suspended' | 'banned';
 export type EventCategory = string;
 export type EventVisibility = 'public' | 'prive';
 export type ScheduleMode = 'ponctuel' | 'recurrent' | 'permanent';
 export type TransactionType = 'earn' | 'spend' | 'refund';
 export type MissionStatus = 'active' | 'completed' | 'expired';
+export type EventModerationStatus = 'draft' | 'pending' | 'published' | 'refused' | 'archived';
 
 export interface Profile {
   id: string;
@@ -137,6 +139,8 @@ export interface Profile {
   facebook_url?: string | null;
   instagram_url?: string | null;
   tiktok_url?: string | null;
+  status?: ProfileStatus | null;
+  ban_until?: string | null;
 }
 
 export interface Event {
@@ -180,7 +184,7 @@ export interface Event {
   rating_avg: number;
   created_at: string;
   updated_at: string;
-  status: string | null;
+  status: EventModerationStatus | string | null;
   ambiance: string | null;
 }
 

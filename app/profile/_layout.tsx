@@ -29,6 +29,13 @@ export default function ProfileLayout() {
           headerBackTitle: 'Retour',
         }}
       />
+      <Stack.Screen
+        name="my-events"
+        options={{
+          title: 'Mes évènements',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

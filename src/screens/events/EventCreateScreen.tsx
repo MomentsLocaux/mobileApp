@@ -310,7 +310,7 @@ export default function EventCreateScreen() {
         contact_email: null,
         contact_phone: null,
         operating_hours: operatingHours,
-        status: 'published',
+        status: 'pending',
         ambiance: null,
       });
 

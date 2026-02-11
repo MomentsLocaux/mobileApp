@@ -7,23 +7,39 @@ import { useAuth } from '@/hooks';
 import { ModerationService } from '@/services/moderation.service';
 import type { ModerationWarning } from '@/types/moderation';
 import { Button, Card } from '@/components/ui';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ModerationUsersScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [warnings, setWarnings] = useState<ModerationWarning[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [jwtRole, setJwtRole] = useState<string | null>(null);
   const [reasonModal, setReasonModal] = useState<{
     title: string;
     onConfirm: (reason: string) => void;
   } | null>(null);
   const [reason, setReason] = useState('');
 
+  const formatBanUntil = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('fr-FR');
+  };
+
   const loadWarnings = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const role = (sessionData.session?.user?.app_metadata as any)?.role;
+      setJwtRole(typeof role === 'string' ? role : null);
       const data = await ModerationService.listWarnings({ limit: 50 });
       setWarnings(data);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
     }
@@ -35,13 +51,21 @@ export default function ModerationUsersScreen() {
 
   const handleWarn = async (userId: string, note?: string) => {
     if (!profile?.id) return;
-    await ModerationService.warnUser({ userId, level: 1, moderatorId: profile.id, reason: note });
+    await ModerationService.warnUser({ userId, moderatorId: profile.id, reason: note });
     await loadWarnings();
   };
 
   const handleBan = async (userId: string, note?: string) => {
     if (!profile?.id) return;
-    await ModerationService.banUser({ userId, moderatorId: profile.id, reason: note });
+    const banUntil = new Date();
+    banUntil.setDate(banUntil.getDate() + 30);
+    await ModerationService.banUser({
+      userId,
+      moderatorId: profile.id,
+      reason: note,
+      banUntil: banUntil.toISOString(),
+    });
+    await loadWarnings();
   };
 
   return (
@@ -61,6 +85,14 @@ export default function ModerationUsersScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadWarnings} />}
       >
+        <View style={styles.debugCard}>
+          <Text style={styles.debugText}>Role profil: {profile?.role || 'n/a'}</Text>
+          <Text style={styles.debugText}>Role JWT: {jwtRole || 'n/a'}</Text>
+          {loadError ? <Text style={styles.debugError}>Erreur: {loadError}</Text> : null}
+          {!!profile?.role && !!jwtRole && profile.role !== (jwtRole as any) ? (
+            <Text style={styles.debugWarn}>Incohérence: le rôle JWT diffère du rôle profil (RLS peut bloquer).</Text>
+          ) : null}
+        </View>
         {loading && <Text style={styles.metaText}>Chargement…</Text>}
         {!loading && warnings.length === 0 && <Text style={styles.metaText}>Aucun utilisateur signalé.</Text>}
         {warnings.map((warning) => (
@@ -72,6 +104,12 @@ export default function ModerationUsersScreen() {
               <View style={styles.cardHeaderInfo}>
                 <Text style={styles.cardTitle}>{warning.user?.display_name || 'Utilisateur'}</Text>
                 <Text style={styles.cardMeta}>Niveau {warning.level}</Text>
+                {warning.user?.status ? (
+                  <Text style={styles.cardMeta}>
+                    Statut: {warning.user.status}
+                    {warning.user.ban_until ? ` · jusqu'au ${formatBanUntil(warning.user.ban_until)}` : ''}
+                  </Text>
+                ) : null}
               </View>
             </View>
             <View style={styles.statusRow}>
@@ -224,6 +262,27 @@ const styles = StyleSheet.create({
   metaText: {
     ...typography.bodySmall,
     color: colors.neutral[600],
+  },
+  debugCard: {
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  debugText: {
+    ...typography.caption,
+    color: colors.neutral[700],
+  },
+  debugError: {
+    ...typography.caption,
+    color: colors.error[700],
+  },
+  debugWarn: {
+    ...typography.caption,
+    color: colors.warning[700],
+    fontWeight: '600',
   },
   modalBackdrop: {
     flex: 1,

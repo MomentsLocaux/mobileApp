@@ -143,7 +143,7 @@ export default function CreateEventPreview() {
         external_url: externalLink || videoLink || null,
         contact_email,
         contact_phone,
-        status: 'published',
+        status: 'pending',
         creator_id: user?.id,
       };
 
@@ -193,7 +193,16 @@ export default function CreateEventPreview() {
       }
       await useEventsStore.getState().fetchEvents({ force: true });
       resetStore();
-      router.replace('/(tabs)/map');
+      Alert.alert(
+        'Événement soumis',
+        'Votre événement a bien été soumis pour validation.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/profile/my-events' as any),
+          },
+        ]
+      );
     } catch (e) {
       console.error('publish event', e);
       Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');

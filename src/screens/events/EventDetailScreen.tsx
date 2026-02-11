@@ -78,7 +78,7 @@ export default function EventDetailScreen() {
   const [commentRating, setCommentRating] = useState<number | null>(null);
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [likedMedia, setLikedMedia] = useState<Set<string>>(new Set());
-  const [reportTarget, setReportTarget] = useState<{ type: 'comment' | 'media'; id: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ type: 'event' | 'comment' | 'media'; id: string } | null>(null);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [activeSection, setActiveSection] = useState<'overview' | 'reviews' | 'photos' | 'info' | 'creator'>('overview');
   const [navSheetVisible, setNavSheetVisible] = useState(false);
@@ -227,7 +227,7 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handleOpenReport = (type: 'comment' | 'media', id: string) => {
+  const handleOpenReport = (type: 'event' | 'comment' | 'media', id: string) => {
     if (isGuest) {
       openGuestGate('Signaler');
       return;
@@ -238,7 +238,9 @@ export default function EventDetailScreen() {
   const handleReportReason = async (reason: ReportReasonCode) => {
     if (!reportTarget) return;
     try {
-      if (reportTarget.type === 'comment') {
+      if (reportTarget.type === 'event') {
+        await ReportService.event(reportTarget.id, { reason });
+      } else if (reportTarget.type === 'comment') {
         await ReportService.comment(reportTarget.id, { reason });
       } else {
         await ReportService.media(reportTarget.id, { reason });
@@ -554,7 +556,8 @@ export default function EventDetailScreen() {
       reloadComments();
     } catch (e) {
       console.warn('submit comment', e);
-      Alert.alert('Erreur', "Impossible d'envoyer votre avis pour le moment.");
+      const message = e instanceof Error ? e.message : "Impossible d'envoyer votre avis pour le moment.";
+      Alert.alert('Erreur', message);
     } finally {
       setSubmittingComment(false);
     }
@@ -623,6 +626,12 @@ export default function EventDetailScreen() {
         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
           <Share2 size={24} color={colors.neutral[600]} />
         </TouchableOpacity>
+
+        {!isOwner && (
+          <TouchableOpacity style={styles.actionButton} onPress={() => handleOpenReport('event', event.id)}>
+            <Flag size={22} color={colors.neutral[600]} />
+          </TouchableOpacity>
+        )}
 
         {(isOwner || isAdmin) && (
           <>

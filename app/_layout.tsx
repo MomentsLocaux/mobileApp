@@ -80,6 +80,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="events" />
+        <Stack.Screen name="notifications/index" />
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="settings/index" />
         <Stack.Screen name="moderation/index" />
