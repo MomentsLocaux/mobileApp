@@ -16,6 +16,27 @@ export default function CreatorLayout() {
       }}
     >
       <Stack.Screen
+        name="index"
+        options={{
+          title: 'Espace créateur',
+          headerBackTitle: 'Retour',
+        }}
+      />
+      <Stack.Screen
+        name="dashboard"
+        options={{
+          title: 'Statistiques',
+          headerBackTitle: 'Retour',
+        }}
+      />
+      <Stack.Screen
+        name="fans"
+        options={{
+          title: 'Communauté',
+          headerBackTitle: 'Retour',
+        }}
+      />
+      <Stack.Screen
         name="[id]"
         options={{
           title: 'Profil créateur',

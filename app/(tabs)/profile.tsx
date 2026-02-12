@@ -12,7 +12,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, MapPin, Calendar, Award, LogOut } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, BarChart3 } from 'lucide-react-native';
 import { Button, Card } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
@@ -225,6 +225,10 @@ export default function ProfileScreen() {
 
           <Card padding="md" style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
+            <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/creator' as any)}>
+              <BarChart3 size={18} color={colors.primary[600]} />
+              <Text style={styles.linkText}>Espace créateur</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
               <Calendar size={18} color={colors.primary[600]} />
               <Text style={styles.linkText}>Mes événements</Text>

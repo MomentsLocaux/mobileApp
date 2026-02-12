@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Bug,
   Settings,
+  BarChart3,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
@@ -271,6 +272,14 @@ export default function TabsLayout() {
           onPress={() => {
             toggleDrawer(false);
             router.push('/(tabs)/profile' as any);
+          }}
+        />
+        <DrawerLink
+          icon={BarChart3}
+          label="Espace créateur"
+          onPress={() => {
+            toggleDrawer(false);
+            router.push('/creator' as any);
           }}
         />
         <DrawerLink
