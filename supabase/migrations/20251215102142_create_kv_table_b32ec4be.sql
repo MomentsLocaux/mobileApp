@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS kv_store_b32ec4be ( key TEXT NOT NULL PRIMARY KEY, value JSONB NOT NULL ); ALTER TABLE kv_store_b32ec4be ENABLE ROW LEVEL SECURITY; CREATE INDEX ON kv_store_b32ec4be (key text_pattern_ops);;
