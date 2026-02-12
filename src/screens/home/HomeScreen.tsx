@@ -26,6 +26,7 @@ import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { TriageControl } from '@/components/search/TriageControl';
+import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 
 type StoryItem = {
   creatorId: string;
@@ -48,6 +49,7 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
+  const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const insets = useSafeAreaInsets();
 
   const userLocation = useMemo(() => {
@@ -353,7 +355,7 @@ export default function HomeScreen() {
             showCarousel={false}
             onPress={() => router.push(`/events/${item.id}` as any)}
             onSelect={() => {}}
-            onNavigate={() => router.push(`/events/${item.id}` as any)}
+            onNavigate={() => setNavEvent(item)}
             onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
             isFavorite={favoritesSet.has(item.id)}
             onToggleFavorite={handleToggleFavorite}
@@ -369,6 +371,12 @@ export default function HomeScreen() {
             </Text>
           </View>
         }
+      />
+
+      <NavigationOptionsSheet
+        visible={!!navEvent}
+        event={navEvent}
+        onClose={() => setNavEvent(null)}
       />
 
     </View>

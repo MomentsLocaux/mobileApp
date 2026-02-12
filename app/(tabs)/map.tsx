@@ -75,7 +75,8 @@ export default function MapScreen() {
   const initialViewportBootstrapDoneRef = useRef(false);
 
   const getPaddingFromIndex = useCallback((idx: number) => {
-    return idx === 2 ? 360 : idx === 1 ? 240 : 120;
+    // Keep camera focus above the bottom sheet: previous values were too low for peek mode.
+    return idx === 2 ? 420 : idx === 1 ? 280 : 200;
   }, []);
 
   const userLocation = useMemo(() => {
@@ -97,11 +98,11 @@ export default function MapScreen() {
   const mapPadding = useMemo(() => {
     switch (mapPaddingLevel) {
       case 'high':
-        return { top: 20, right: 20, bottom: 360, left: 20 };
+        return { top: 20, right: 20, bottom: 420, left: 20 };
       case 'medium':
-        return { top: 20, right: 20, bottom: 240, left: 20 };
+        return { top: 20, right: 20, bottom: 280, left: 20 };
       default:
-        return { top: 20, right: 20, bottom: 120, left: 20 };
+        return { top: 20, right: 20, bottom: 200, left: 20 };
     }
   }, [mapPaddingLevel]);
 
@@ -188,8 +189,9 @@ export default function MapScreen() {
           const sortedEvents = effectiveSearchActive
             ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
             : metaFilteredEvents;
+          const dedupedEvents = Array.from(new Map(sortedEvents.map((event) => [event.id, event])).values());
 
-          const filteredIds = new Set(sortedEvents.map((e) => e.id));
+          const filteredIds = new Set(dedupedEvents.map((e) => e.id));
           const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
             filteredIds.has(f?.properties?.id)
           );
@@ -198,7 +200,7 @@ export default function MapScreen() {
           mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
           const currentUiState = useMapResultsUIStore.getState();
           if (currentUiState.sheetStatus === 'singleEvent') return;
-          displayViewportResults(sortedEvents);
+          displayViewportResults(dedupedEvents);
         } catch (e) {
           if (requestId !== viewportRequestIdRef.current) return;
           console.warn('bbox fetch error', e);
@@ -455,19 +457,6 @@ export default function MapScreen() {
     [profile?.id, toggleFavorite]
   );
 
-  const focusOnBounds = useCallback(
-    (bounds: { ne: [number, number]; sw: [number, number] } | null, snapIndex: number) => {
-      if (!bounds || !bounds.ne || !bounds.sw) return;
-      const paddingBottom = getPaddingFromIndex(snapIndex);
-      const coords = [
-        { longitude: bounds.sw[0], latitude: bounds.sw[1] },
-        { longitude: bounds.ne[0], latitude: bounds.ne[1] },
-      ];
-      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, paddingBottom));
-    },
-    [getPaddingFromIndex, withProgrammaticMove]
-  );
-  
   if (locationLoading && !userLocation) {
     return (
       <GestureHandlerRootView style={styles.loadingContainer}>
@@ -562,8 +551,16 @@ export default function MapScreen() {
         onIndexChange={(idx) => {
           if (idx < 0) return;
           setBottomSheetIndex(idx);
-          const paddingLevel = idx === 2 ? 'high' : idx === 1 ? 'medium' : 'low';
-          updateMapPadding(paddingLevel);
+          // UX: opening/expanding viewport sheet must not shift map/bbox.
+          // Keep map padding stable in viewport mode; only adapt in single-event focus mode.
+          if (idx <= 0) {
+            updateMapPadding('low');
+          } else if (sheetStatus === 'singleEvent') {
+            const paddingLevel = idx === 2 ? 'high' : 'medium';
+            updateMapPadding(paddingLevel);
+          } else {
+            updateMapPadding('low');
+          }
           
           if (idx <= 0) {
             hideBottomBar();
@@ -572,11 +569,6 @@ export default function MapScreen() {
             showBottomBar();
           }
 
-          if (idx === 1 && sheetStatus === 'viewportResults') {
-            mapRef.current?.getVisibleBounds?.().then((bounds) => {
-              if (bounds) focusOnBounds(bounds, idx);
-            });
-          }
            if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
             focusOnEvent(sheetEvents[0], idx);
           }

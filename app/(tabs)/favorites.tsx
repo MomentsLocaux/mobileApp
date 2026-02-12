@@ -6,12 +6,14 @@ import { EventResultCard } from '@/components/search/EventResultCard';
 import { getCategoryLabel } from '@/constants/categories';
 import type { EventWithCreator } from '@/types/database';
 import { useRouter } from 'expo-router';
+import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const { favorites, clearFavorites } = useFavoritesStore();
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -79,10 +81,16 @@ export default function FavoritesScreen() {
             event={item}
             onPress={() => router.push(`/events/${item.id}` as any)}
             onSelect={() => {}}
-            onNavigate={() => router.push(`/events/${item.id}` as any)}
+            onNavigate={() => setNavEvent(item)}
             onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
           />
         )}
+      />
+
+      <NavigationOptionsSheet
+        visible={!!navEvent}
+        event={navEvent}
+        onClose={() => setNavEvent(null)}
       />
     </View>
   );

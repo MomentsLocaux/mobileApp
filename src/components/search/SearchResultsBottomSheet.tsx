@@ -47,7 +47,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
     const snapPoints = useMemo(
-      () => (mode === 'single' ? ['16%', '47%'] : ['16%', '47%', '87%']),
+      () => (mode === 'single' ? ['16%', '47%'] : ['16%', '47%', '60%']),
       [mode]
     );
     const hasEvents = events.length > 0;

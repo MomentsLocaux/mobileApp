@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import {
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
-import type { FeatureCollection } from 'geojson';
+import type { FeatureCollection, Feature } from 'geojson';
 import { CATEGORY_MARKER_SLUGS, categoryMarkerImageKey, type CategoryMarkerSlug } from '../../constants/category-markers';
 import { CategoryEventMarker } from './CategoryEventMarker';
 import { useTaxonomyStore } from '../../store/taxonomyStore';
@@ -49,6 +49,19 @@ const CATEGORY_MARKER_BASE_VISUALS: Record<CategoryMarkerSlug, CategoryMarkerBas
   'vie-locale': { fallbackColor: '#0ea5e9', Icon: Users },
   'insolite-ephemere': { fallbackColor: '#a855f7', Icon: Sparkles },
 };
+
+const DEFAULT_EVENT_ICON_KEY = 'marker-15';
+const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+const normalizeEventIconKey = (feature: Feature): string => {
+  const rawIcon = (feature.properties as Record<string, unknown> | null)?.icon;
+  if (typeof rawIcon !== 'string') return DEFAULT_EVENT_ICON_KEY;
+  const icon = rawIcon.trim();
+  if (!icon) return DEFAULT_EVENT_ICON_KEY;
+  return icon;
+};
+
+const toSourceId = (iconKey: string) => `events-source-${iconKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
 const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
   visuals,
@@ -114,9 +127,10 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const isMapboxAvailable = !!Mapbox.MapView;
   const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
   const mapViewRef = useRef<Mapbox.MapView>(null);
-  const shapeSourceRef = useRef<any>(null);
+  const shapeSourceRefs = useRef<Record<string, any>>({});
   const cameraRef = useRef<Mapbox.Camera>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
 
   const toCameraPadding = (padding?: { top: number; right: number; bottom: number; left: number }) => {
     if (!padding) return undefined;
@@ -168,6 +182,34 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     return visuals;
   }, [categoriesMap]);
 
+  const groupedEventSources = useMemo(() => {
+    const featuresByIcon: Record<string, Feature[]> = {};
+    (eventsShape.features || []).forEach((feature) => {
+      const iconKey = normalizeEventIconKey(feature);
+      if (!featuresByIcon[iconKey]) {
+        featuresByIcon[iconKey] = [];
+      }
+      featuresByIcon[iconKey].push(feature);
+    });
+
+    return Object.entries(featuresByIcon).map(([iconKey, features]) => ({
+      iconKey,
+      sourceId: toSourceId(iconKey),
+      shape: {
+        type: 'FeatureCollection',
+        features,
+      } as FeatureCollection,
+    }));
+  }, [eventsShape]);
+
+  const setShapeSourceRef = useCallback((sourceId: string, sourceRef: any | null) => {
+    if (sourceRef) {
+      shapeSourceRefs.current[sourceId] = sourceRef;
+      return;
+    }
+    delete shapeSourceRefs.current[sourceId];
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -179,16 +221,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         });
       },
       setShape: (fc: FeatureCollection) => {
-        const source = shapeSourceRef.current as any;
-        if (source) {
-          if (typeof source.setShape === 'function') {
-            source.setShape(fc);
-          } else if (typeof source.setNativeProps === 'function') {
-            source.setNativeProps({ shape: fc });
-          } else {
-            console.warn('ShapeSource ref has no setShape/setNativeProps; cannot update shape');
-          }
-        }
+        const nextShape = fc?.type === 'FeatureCollection' ? fc : EMPTY_FEATURE_COLLECTION;
+        setEventsShape(nextShape);
       },
       fitToCoordinates: (coords, padding = 40) => {
         if (!coords || coords.length === 0) return;
@@ -254,9 +288,37 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     );
   }
 
-  const handlePress = async (event: any) => {
+  const handlePress = async (event: any, sourceId: string) => {
     const feature = event.features?.[0];
     if (!feature) return;
+
+    const isCluster = Boolean(feature.properties?.cluster) || feature.properties?.point_count != null;
+    if (isCluster) {
+      const coordinates = feature.geometry?.coordinates;
+      if (!Array.isArray(coordinates) || coordinates.length < 2) return;
+
+      const [longitude, latitude] = coordinates;
+      const source = shapeSourceRefs.current[sourceId];
+      let expansionZoom: number | undefined;
+
+      if (source && typeof source.getClusterExpansionZoom === 'function') {
+        try {
+          const zoom = await source.getClusterExpansionZoom(feature);
+          if (typeof zoom === 'number' && Number.isFinite(zoom)) {
+            expansionZoom = zoom;
+          }
+        } catch (error) {
+          console.warn('cluster expansion zoom failed', error);
+        }
+      }
+
+      cameraRef.current?.setCamera({
+        centerCoordinate: [Number(longitude), Number(latitude)],
+        zoomLevel: expansionZoom ?? initialRegion.zoom + 2,
+        animationDuration: 280,
+      });
+      return;
+    }
 
     const eventId = feature.properties?.id;
     if (eventId) {
@@ -316,23 +378,55 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           </Mapbox.ShapeSource>
         )}
 
-        <Mapbox.ShapeSource
-          id="events-source"
-          ref={shapeSourceRef}
-          shape={{ type: 'FeatureCollection', features: [] }}
-          onPress={handlePress}
-        >
-          <Mapbox.SymbolLayer
-            id="event-markers"
-            style={{
-              // Use the icon from GeoJSON (Maki name); fallback to default marker
-              iconImage: ['coalesce', ['get', 'icon'], 'marker-15'],
-              iconSize: 1,
-              iconAllowOverlap: true,
-              iconIgnorePlacement: true,
+        {groupedEventSources.map(({ sourceId, iconKey, shape }) => (
+          <Mapbox.ShapeSource
+            key={sourceId}
+            id={sourceId}
+            ref={(sourceRef) => setShapeSourceRef(sourceId, sourceRef)}
+            shape={shape}
+            cluster={true}
+            clusterRadius={50}
+            clusterMaxZoomLevel={14}
+            onPress={(event) => {
+              void handlePress(event, sourceId);
             }}
-          />
-        </Mapbox.ShapeSource>
+          >
+            <Mapbox.SymbolLayer
+              id={`${sourceId}-cluster-icon`}
+              filter={['has', 'point_count']}
+              style={{
+                iconImage: iconKey || DEFAULT_EVENT_ICON_KEY,
+                iconSize: ['step', ['get', 'point_count'], 0.95, 8, 1.05, 24, 1.15],
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+              }}
+            />
+            <Mapbox.SymbolLayer
+              id={`${sourceId}-cluster-count`}
+              filter={['has', 'point_count']}
+              style={{
+                textField: ['get', 'point_count_abbreviated'],
+                textSize: 11,
+                textColor: colors.neutral[900],
+                textHaloColor: colors.neutral[0],
+                textHaloWidth: 1.2,
+                textOffset: [0, 2.1],
+                textAllowOverlap: true,
+                textIgnorePlacement: true,
+              }}
+            />
+            <Mapbox.SymbolLayer
+              id={`${sourceId}-event-markers`}
+              filter={['!', ['has', 'point_count']]}
+              style={{
+                iconImage: iconKey || DEFAULT_EVENT_ICON_KEY,
+                iconSize: 1,
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        ))}
         {children}
       </Mapbox.MapView>
     </View>
