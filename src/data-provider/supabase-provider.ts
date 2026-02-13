@@ -103,6 +103,31 @@ const isRlsError = (error: any) => {
   );
 };
 
+const isMissingFunctionError = (error: any) => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    code === '42883' ||
+    code === 'PGRST202' ||
+    (message.includes('function') && message.includes('does not exist')) ||
+    message.includes('could not find the function')
+  );
+};
+
+const isDuplicateKeyError = (error: any) => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  return code === '23505' || message.includes('duplicate key value');
+};
+
+const getAuthedUserId = async (context: string) => {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw formatSupabaseError(userError, `${context}-auth`);
+  const userId = userData.user?.id;
+  if (!userId) throw formatSupabaseError('Utilisateur non authentifié', `${context}-auth`);
+  return userId;
+};
+
 export const supabaseProvider: (Pick<
   IDataProvider,
   | 'listEvents'
@@ -562,30 +587,92 @@ export const supabaseProvider: (Pick<
   },
 
   async toggleFavorite(eventId: string) {
-    // Implémente un toggle en s'appuyant sur like_event / unlike_event (paramètre attendu : p_event).
-    const { error } = await (supabase.rpc as any)('like_event', { p_event: eventId });
-    if (!error) return true;
+    const { data, error } = await (supabase.rpc as any)('toggle_favorite', { event_id: eventId });
+    if (!error) return Boolean(data);
+    if (!isMissingFunctionError(error)) throw formatSupabaseError(error, 'toggleFavorite');
 
-    // Si déjà liké (conflit), on tente l'unlike pour basculer l'état.
-    if (error?.code === '23505' || (typeof error.message === 'string' && error.message.toLowerCase().includes('duplicate'))) {
-      const { error: unlikeError } = await (supabase.rpc as any)('unlike_event', { p_event: eventId });
-      if (unlikeError) throw formatSupabaseError(unlikeError, 'toggleFavorite');
-      return true;
+    // Fallback: toggle directly in favorites table.
+    const userId = await getAuthedUserId('toggleFavorite');
+    const { error: deleteError, count: deletedCount } = await supabase
+      .from('favorites')
+      .delete({ count: 'exact' })
+      .eq('profile_id', userId)
+      .eq('event_id', eventId);
+    if (deleteError) throw formatSupabaseError(deleteError, 'toggleFavorite-delete');
+    if ((deletedCount ?? 0) > 0) {
+      return false; // now unfavorited
     }
 
-    throw formatSupabaseError(error, 'toggleFavorite');
+    const { error: insertError } = await supabase.from('favorites').insert({
+      profile_id: userId,
+      event_id: eventId,
+    } as any);
+    if (insertError) {
+      // Idempotent safety when concurrent taps race against unique constraint.
+      if (isDuplicateKeyError(insertError)) return true;
+      throw formatSupabaseError(insertError, 'toggleFavorite-insert');
+    }
+    return true; // now favorited
   },
 
   async toggleInterest(eventId: string) {
     const { error } = await (supabase.rpc as any)('toggle_interest', { event_id: eventId });
-    if (error) throw formatSupabaseError(error, 'toggleInterest');
+    if (!error) return true;
+    if (!isMissingFunctionError(error)) throw formatSupabaseError(error, 'toggleInterest');
+
+    const userId = await getAuthedUserId('toggleInterest');
+    const { data: existingRows, error: findError } = await supabase
+      .from('event_interests')
+      .select('event_id, user_id')
+      .eq('user_id', userId)
+      .eq('event_id', eventId)
+      .limit(1);
+    if (findError) throw formatSupabaseError(findError, 'toggleInterest-find');
+
+    if (existingRows && existingRows.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('event_interests')
+        .delete()
+        .eq('user_id', userId)
+        .eq('event_id', eventId);
+      if (deleteError) throw formatSupabaseError(deleteError, 'toggleInterest-delete');
+      return true;
+    }
+
+    const { error: insertError } = await supabase.from('event_interests').insert({
+      user_id: userId,
+      event_id: eventId,
+    } as any);
+    if (insertError) throw formatSupabaseError(insertError, 'toggleInterest-insert');
     return true;
   },
 
   async like(eventId: string) {
-    const { error } = await (supabase.rpc as any)('toggle_like', { event_id: eventId });
-    if (error) throw formatSupabaseError(error, 'like');
-    return true;
+    const { data, error } = await (supabase.rpc as any)('toggle_like', { event_id: eventId });
+    if (!error) return Boolean(data);
+    if (!isMissingFunctionError(error)) throw formatSupabaseError(error, 'like');
+
+    // Fallback: toggle directly in event_likes table.
+    const userId = await getAuthedUserId('like');
+    const { error: deleteError, count: deletedCount } = await supabase
+      .from('event_likes')
+      .delete({ count: 'exact' })
+      .eq('user_id', userId)
+      .eq('event_id', eventId);
+    if (deleteError) throw formatSupabaseError(deleteError, 'like-delete');
+    if ((deletedCount ?? 0) > 0) {
+      return false; // now unliked
+    }
+
+    const { error: insertError } = await supabase.from('event_likes').insert({
+      user_id: userId,
+      event_id: eventId,
+    } as any);
+    if (insertError) {
+      if (isDuplicateKeyError(insertError)) return true;
+      throw formatSupabaseError(insertError, 'like-insert');
+    }
+    return true; // now liked
   },
 
   async likeComment(commentId: string) {

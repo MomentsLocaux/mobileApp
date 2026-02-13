@@ -1,13 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import * as SecureStore from 'expo-secure-store';
 import type { EventWithCreator } from '../types/database';
-
-const secureStorage = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
+import { persistStorage } from './persistStorage';
 
 interface HistoryState {
   recentlyViewed: EventWithCreator[];
@@ -30,7 +24,7 @@ export const useHistoryStore = create<HistoryState>()(
     }),
     {
       name: 'history-store',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => persistStorage),
     }
   )
 );

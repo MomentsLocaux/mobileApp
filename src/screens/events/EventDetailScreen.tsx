@@ -24,6 +24,7 @@ import {
   Calendar,
   Clock,
   Users,
+  MessageSquare,
   Share2,
   ChevronLeft,
   Star,
@@ -57,6 +58,7 @@ import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import Toast from 'react-native-toast-message';
+import { useLikesStore } from '@/store/likesStore';
 
 const { width } = Dimensions.get('window');
 const BOTTOM_BAR_HEIGHT = 72;
@@ -70,6 +72,7 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { comments, loading: loadingComments, addComment, reload: reloadComments } = useComments(id || '');
   const { toggleFavorite: toggleFavoriteStore, isFavorite } = useFavoritesStore();
+  const { toggleLike: toggleLikeStore, isLiked } = useLikesStore();
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,12 @@ export default function EventDetailScreen() {
   const [creatorEvents, setCreatorEvents] = useState<EventWithCreator[]>([]);
   const [communityPhotos, setCommunityPhotos] = useState<EventMediaSubmission[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<EventMediaSubmission[]>([]);
+  const [eventStats, setEventStats] = useState({
+    likes: 0,
+    favorites: 0,
+    interests: 0,
+    checkins: 0,
+  });
   const [loadingCommunityPhotos, setLoadingCommunityPhotos] = useState(false);
   const [contribModalVisible, setContribModalVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -130,13 +139,44 @@ export default function EventDetailScreen() {
     [profile?.id, profile?.role]
   );
 
+  const loadEventStats = useCallback(async (eventId: string) => {
+    try {
+      const [likesResp, favoritesResp, interestsResp, checkinsResp] = await Promise.all([
+        supabase.from('event_likes').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
+        supabase.from('favorites').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
+        supabase.from('event_interests').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
+        supabase.from('event_checkins').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
+      ]);
+
+      if (likesResp.error) throw likesResp.error;
+      if (favoritesResp.error) throw favoritesResp.error;
+      if (interestsResp.error) throw interestsResp.error;
+      if (checkinsResp.error) throw checkinsResp.error;
+
+      setEventStats({
+        likes: likesResp.count || 0,
+        favorites: favoritesResp.count || 0,
+        interests: interestsResp.count || 0,
+        checkins: checkinsResp.count || 0,
+      });
+    } catch (error) {
+      console.warn('load event stats', error);
+    }
+  }, []);
+
   const loadEventDetails = async () => {
     if (!id) return;
     const data = await EventsService.getEventById(id);
-    setEvent(data);
+    const withSocialFlags = data
+      ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) }
+      : null;
+    setEvent(withSocialFlags);
     setLoading(false);
-    if (data) {
-      loadCommunityPhotos(data);
+    if (withSocialFlags) {
+      loadCommunityPhotos(withSocialFlags);
+      loadEventStats(withSocialFlags.id);
+    } else {
+      setEventStats({ likes: 0, favorites: 0, interests: 0, checkins: 0 });
     }
   };
 
@@ -174,15 +214,44 @@ export default function EventDetailScreen() {
     }
   }, [event, loadCommunityPhotos]);
 
+  const handleToggleLike = async () => {
+    if (isGuest) {
+      openGuestGate('Aimer cet événement');
+      return;
+    }
+    if (!profile || !event) return;
+    try {
+      const nowLiked = await SocialService.like(profile.id, event.id);
+      const wasLiked = isLiked(event.id);
+      if (nowLiked !== wasLiked) {
+        toggleLikeStore(event.id);
+      }
+      setEvent((prev) => (prev ? { ...prev, is_liked: nowLiked } : null));
+      await loadEventStats(event.id);
+    } catch (error) {
+      console.warn('toggle like error', error);
+      Alert.alert('Erreur', "Impossible d'enregistrer le like pour le moment.");
+    }
+  };
+
   const handleToggleFavorite = async () => {
     if (isGuest) {
       openGuestGate('Ajouter aux favoris');
       return;
     }
     if (!profile || !event) return;
-    await SocialService.toggleFavorite(profile.id, event.id);
-    toggleFavoriteStore(event);
-    setEvent((prev) => (prev ? { ...prev, is_favorited: !prev.is_favorited } : null));
+    try {
+      const nowFavorited = await SocialService.toggleFavorite(profile.id, event.id);
+      const wasFavorited = isFavorite(event.id);
+      if (nowFavorited !== wasFavorited) {
+        toggleFavoriteStore(event);
+      }
+      setEvent((prev) => (prev ? { ...prev, is_favorited: nowFavorited } : null));
+      await loadEventStats(event.id);
+    } catch (error) {
+      console.warn('toggle favorite error', error);
+      Alert.alert('Erreur', "Impossible d'enregistrer le favori pour le moment.");
+    }
   };
 
   const handleToggleCommentLike = async (commentId: string) => {
@@ -476,6 +545,68 @@ export default function EventDetailScreen() {
     return [event.address, cityLine].filter(Boolean).join(', ') || 'Lieu à venir';
   }, [event]);
 
+  const overviewStats = useMemo(
+    () => {
+      if (!event) return [];
+
+      return [
+        {
+          key: 'favorites',
+          label: 'Favoris',
+          value: eventStats.favorites,
+          icon: <Star size={16} color={colors.warning[600]} fill={colors.warning[600]} />,
+        },
+        {
+          key: 'likes',
+          label: 'Likes',
+          value: eventStats.likes,
+          icon: <Heart size={16} color={colors.error[500]} />,
+        },
+        {
+          key: 'interests',
+          label: 'Intéressés',
+          value: eventStats.interests,
+          icon: <Users size={16} color={colors.primary[600]} />,
+        },
+        {
+          key: 'checkins',
+          label: 'Check-ins',
+          value: eventStats.checkins,
+          icon: <MapPin size={16} color={colors.primary[600]} />,
+        },
+        {
+          key: 'reviews',
+          label: 'Avis',
+          value: commentsCount,
+          icon: <MessageSquare size={16} color={colors.primary[600]} />,
+        },
+        {
+          key: 'rating',
+          label: 'Note moy.',
+          value: ratingCount > 0 ? ratingAvg.toFixed(1) : '—',
+          icon: <Star size={16} color={colors.primary[600]} fill={colors.primary[600]} />,
+        },
+        {
+          key: 'photos',
+          label: 'Photos',
+          value: (event.media_count ?? 0) + communityPhotos.length,
+          icon: <ImageIcon size={16} color={colors.primary[600]} />,
+        },
+      ];
+    },
+    [
+      commentsCount,
+      communityPhotos.length,
+      event,
+      eventStats.checkins,
+      eventStats.favorites,
+      eventStats.interests,
+      eventStats.likes,
+      ratingAvg,
+      ratingCount,
+    ],
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -615,11 +746,19 @@ export default function EventDetailScreen() {
       </TouchableOpacity>
 
       <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
+        <TouchableOpacity style={styles.actionButton} onPress={handleToggleLike}>
           <Heart
             size={24}
-            color={event.is_favorited ? colors.error[500] : colors.neutral[600]}
-            fill={event.is_favorited ? colors.error[500] : 'transparent'}
+            color={event.is_liked ? colors.error[500] : colors.neutral[600]}
+            fill={event.is_liked ? colors.error[500] : 'transparent'}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
+          <Star
+            size={24}
+            color={event.is_favorited ? colors.warning[500] : colors.neutral[600]}
+            fill={event.is_favorited ? colors.warning[500] : 'transparent'}
           />
         </TouchableOpacity>
 
@@ -649,6 +788,24 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           </>
         )}
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>Statistiques</Text>
+          <Text style={styles.sectionSubtitle}>Engagement sur l&apos;événement</Text>
+        </View>
+        <View style={styles.statsGrid}>
+          {overviewStats.map((stat) => (
+            <Card key={stat.key} padding="md" style={styles.statCard}>
+              <View style={styles.statHeader}>
+                <View style={styles.statIconWrap}>{stat.icon}</View>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+              <Text style={styles.statValue}>{stat.value}</Text>
+            </Card>
+          ))}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -1081,19 +1238,27 @@ export default function EventDetailScreen() {
             <Text style={styles.bottomBarText}>Itinéraire</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bottomBarCta} onPress={handleToggleFavorite}>
-            <Heart
+            <Star
               size={20}
-              color={event.is_favorited ? colors.error[500] : colors.neutral[700]}
-              fill={event.is_favorited ? colors.error[500] : 'transparent'}
+              color={event.is_favorited ? colors.warning[500] : colors.neutral[700]}
+              fill={event.is_favorited ? colors.warning[500] : 'transparent'}
             />
             <Text style={styles.bottomBarText}>Favori</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.bottomBarCta} onPress={handleToggleLike}>
+            <Heart
+              size={20}
+              color={event.is_liked ? colors.error[500] : colors.neutral[700]}
+              fill={event.is_liked ? colors.error[500] : 'transparent'}
+            />
+            <Text style={styles.bottomBarText}>Like</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bottomBarCta} onPress={handleShare}>
             <Share2 size={20} color={colors.neutral[700]} />
             <Text style={styles.bottomBarText}>Partager</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bottomBarCta} onPress={handleGoToReviews}>
-            <Star size={20} color={colors.neutral[700]} />
+            <Edit size={20} color={colors.neutral[700]} />
             <Text style={styles.bottomBarText}>Publier</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bottomBarCta} onPress={handleAddPhoto}>
@@ -1286,6 +1451,44 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.neutral[900],
     marginBottom: spacing.md,
+  },
+  sectionTitleRow: {
+    marginBottom: spacing.md,
+  },
+  sectionSubtitle: {
+    ...typography.caption,
+    color: colors.neutral[600],
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  statCard: {
+    width: (width - spacing.lg * 2 - spacing.sm) / 2,
+    marginBottom: 0,
+  },
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  statIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[100],
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.neutral[600],
+  },
+  statValue: {
+    ...typography.h5,
+    color: colors.neutral[900],
   },
   description: {
     ...typography.body,

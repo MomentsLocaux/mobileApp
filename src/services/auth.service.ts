@@ -14,6 +14,9 @@ export interface AuthResponse {
 }
 
 const LOGOUT_BLOCK_KEY = 'auth_logout_blocked';
+const LEGACY_SESSION_KEY = 'supabase_session';
+const SESSION_ACCESS_KEY = 'supabase_session_access_token';
+const SESSION_REFRESH_KEY = 'supabase_session_refresh_token';
 
 export class AuthService {
   private static attachEmail(profile: Profile | null, userEmail?: string | null): Profile | null {
@@ -25,20 +28,27 @@ export class AuthService {
 
   private static async saveSession(session: Session | null) {
     if (!session?.refresh_token || !session.access_token) {
-      await SecureStore.deleteItemAsync('supabase_session');
+      await Promise.all([
+        SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
+        SecureStore.deleteItemAsync(SESSION_ACCESS_KEY),
+        SecureStore.deleteItemAsync(SESSION_REFRESH_KEY),
+      ]);
       return;
     }
-    await SecureStore.setItemAsync(
-      'supabase_session',
-      JSON.stringify({
-        refresh_token: session.refresh_token,
-        access_token: session.access_token,
-      }),
-    );
+    // Store tokens separately to avoid SecureStore value-size warnings on a single payload.
+    await Promise.all([
+      SecureStore.setItemAsync(SESSION_ACCESS_KEY, session.access_token),
+      SecureStore.setItemAsync(SESSION_REFRESH_KEY, session.refresh_token),
+      SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
+    ]);
   }
 
   static async clearSavedSession() {
-    await SecureStore.deleteItemAsync('supabase_session');
+    await Promise.all([
+      SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
+      SecureStore.deleteItemAsync(SESSION_ACCESS_KEY),
+      SecureStore.deleteItemAsync(SESSION_REFRESH_KEY),
+    ]);
   }
 
   private static async blockAutoRestore() {
@@ -55,16 +65,48 @@ export class AuthService {
   }
 
   static async hasSavedSession(): Promise<boolean> {
-    const stored = await SecureStore.getItemAsync('supabase_session');
-    return !!stored;
+    const [accessToken, refreshToken, legacy] = await Promise.all([
+      SecureStore.getItemAsync(SESSION_ACCESS_KEY),
+      SecureStore.getItemAsync(SESSION_REFRESH_KEY),
+      SecureStore.getItemAsync(LEGACY_SESSION_KEY),
+    ]);
+    return !!(accessToken && refreshToken) || !!legacy;
   }
 
   static async restoreSessionWithBiometrics(): Promise<AuthResponse & { biometricUsed?: boolean }> {
-    const stored = await SecureStore.getItemAsync('supabase_session');
-    if (!stored) {
+    const [accessToken, refreshToken, legacy] = await Promise.all([
+      SecureStore.getItemAsync(SESSION_ACCESS_KEY),
+      SecureStore.getItemAsync(SESSION_REFRESH_KEY),
+      SecureStore.getItemAsync(LEGACY_SESSION_KEY),
+    ]);
+
+    let saved: { refresh_token: string; access_token: string } | null = null;
+
+    if (accessToken && refreshToken) {
+      saved = { access_token: accessToken, refresh_token: refreshToken };
+    } else if (legacy) {
+      try {
+        const parsed = JSON.parse(legacy) as { refresh_token?: string; access_token?: string };
+        if (parsed?.refresh_token && parsed?.access_token) {
+          saved = {
+            access_token: parsed.access_token,
+            refresh_token: parsed.refresh_token,
+          };
+          // One-time migration to the split keys.
+          await Promise.all([
+            SecureStore.setItemAsync(SESSION_ACCESS_KEY, parsed.access_token),
+            SecureStore.setItemAsync(SESSION_REFRESH_KEY, parsed.refresh_token),
+            SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
+          ]);
+        }
+      } catch {
+        await SecureStore.deleteItemAsync(LEGACY_SESSION_KEY);
+      }
+    }
+
+    if (!saved) {
       return { success: false, error: 'No saved session' };
     }
-    const saved = JSON.parse(stored) as { refresh_token: string; access_token: string };
 
     const hardware = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();

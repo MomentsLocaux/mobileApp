@@ -1,19 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import * as SecureStore from 'expo-secure-store';
 import type { EventWithCreator } from '../types/database';
-
-// Note: SecureStore impose une limite ~2KB. Les favoris restent légers (liste de cartes),
-// donc on reste sur SecureStore pour éviter d'ajouter une dépendance native supplémentaire.
-const secureStorage = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
+import { persistStorage } from './persistStorage';
 
 interface FavoritesState {
   favorites: EventWithCreator[];
   toggleFavorite: (event: EventWithCreator) => void;
+  replaceFavorites: (events: EventWithCreator[]) => void;
   isFavorite: (eventId: string) => boolean;
   clearFavorites: () => void;
 }
@@ -30,12 +23,16 @@ export const useFavoritesStore = create<FavoritesState>()(
           }
           return { favorites: [event, ...state.favorites] };
         }),
+      replaceFavorites: (events) =>
+        set({
+          favorites: Array.isArray(events) ? events.slice(0, 200) : [],
+        }),
       isFavorite: (eventId) => !!get().favorites.find((e) => e.id === eventId),
       clearFavorites: () => set({ favorites: [] }),
     }),
     {
       name: 'favorites-store',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => persistStorage),
       partialize: (state) => ({ favorites: state.favorites.slice(0, 100) }),
     }
   )

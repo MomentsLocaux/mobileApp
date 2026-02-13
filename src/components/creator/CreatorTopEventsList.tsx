@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Calendar, Eye, Heart, MessageSquare } from 'lucide-react-native';
 import { Card } from '@/components/ui';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
@@ -33,8 +33,17 @@ export function CreatorTopEventsList({ events, onOpenEvent }: CreatorTopEventsLi
   return (
     <View style={styles.container}>
       {events.map((item, index) => {
-        const content = (
-          <Card key={item.event_id} padding="md" style={styles.card} elevation="sm">
+        return (
+          <Card
+            key={item.event_id}
+            padding="md"
+            style={styles.card}
+            elevation="sm"
+            onPress={onOpenEvent ? () => onOpenEvent(item.event_id) : undefined}
+            accessible
+            accessibilityRole={onOpenEvent ? 'button' : 'summary'}
+            accessibilityLabel={`Événement ${item.event?.title || 'sans titre'}, score ${item.engagement_score}`}
+          >
             <View style={styles.rowTop}>
               <Text style={styles.rank}>#{index + 1}</Text>
               <Text style={styles.title} numberOfLines={1}>
@@ -44,7 +53,7 @@ export function CreatorTopEventsList({ events, onOpenEvent }: CreatorTopEventsLi
             </View>
 
             <View style={styles.metaRow}>
-              <Calendar size={13} color={colors.neutral[500]} />
+              <Calendar size={13} color={colors.textSecondary[500]} />
               <Text style={styles.metaText}>{formatDate(item.event?.starts_at)}</Text>
               <Text style={styles.metaText}>· {item.event?.city || 'Ville inconnue'}</Text>
             </View>
@@ -65,14 +74,6 @@ export function CreatorTopEventsList({ events, onOpenEvent }: CreatorTopEventsLi
             </View>
           </Card>
         );
-
-        if (!onOpenEvent) return content;
-
-        return (
-          <TouchableOpacity key={item.event_id} activeOpacity={0.85} onPress={() => onOpenEvent(item.event_id)}>
-            {content}
-          </TouchableOpacity>
-        );
       })}
     </View>
   );
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.secondaryAccent[500],
     gap: spacing.xs,
   },
   emptyCard: {
@@ -106,13 +107,13 @@ const styles = StyleSheet.create({
   },
   rank: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.textSecondary[500],
     fontWeight: '700',
   },
   title: {
     flex: 1,
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary[500],
     fontWeight: '600',
   },
   score: {
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.textSecondary[500],
   },
   statsRow: {
     flexDirection: 'row',
@@ -142,11 +143,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background[500],
   },
   statText: {
     ...typography.caption,
-    color: colors.neutral[800],
+    color: colors.textPrimary[500],
     fontWeight: '600',
   },
 });

@@ -1,18 +1,27 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '@/components/ui';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { borderRadius, colors, minimumTouchTarget, spacing, typography } from '@/constants/theme';
 
 interface CreatorStatsCardProps {
   label: string;
   value: string | number;
   helper?: string;
   icon?: React.ReactNode;
+  onPress?: () => void;
 }
 
-export function CreatorStatsCard({ label, value, helper, icon }: CreatorStatsCardProps) {
+export function CreatorStatsCard({ label, value, helper, icon, onPress }: CreatorStatsCardProps) {
   return (
-    <Card padding="md" style={styles.card} elevation="sm">
+    <Card
+      padding="md"
+      style={styles.card}
+      elevation="sm"
+      onPress={onPress}
+      accessible
+      accessibilityRole={onPress ? 'button' : 'summary'}
+      accessibilityLabel={`${label} ${value}`}
+    >
       <View style={styles.headerRow}>
         <Text style={styles.label}>{label}</Text>
         {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
@@ -28,8 +37,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
-    minWidth: 150,
+    backgroundColor: colors.secondaryAccent[500],
+    minWidth: 170,
+    minHeight: minimumTouchTarget * 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -39,7 +49,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.textSecondary[500],
     fontWeight: '600',
   },
   iconWrap: {
@@ -48,16 +58,16 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.background[500],
   },
   value: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.textPrimary[500],
     fontWeight: '700',
   },
   helper: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.textSecondary[500],
     marginTop: spacing.xs,
   },
 });

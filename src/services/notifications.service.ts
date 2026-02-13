@@ -30,6 +30,17 @@ export type AppNotification = {
 };
 
 const SELECT_FIELDS = 'id, user_id, type, title, body, data, read, created_at';
+const localNotificationListeners = new Set<() => void>();
+
+const emitLocalNotificationChange = () => {
+  localNotificationListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // no-op: isolate listener failures
+    }
+  });
+};
 
 export const NotificationsService = {
   async listMyNotifications(params?: { limit?: number; unreadOnly?: boolean }) {
@@ -64,6 +75,7 @@ export const NotificationsService = {
       .eq('read', false);
 
     if (error) throw new Error(error.message || 'Impossible de marquer la notification comme lue');
+    emitLocalNotificationChange();
     return true;
   },
 
@@ -74,7 +86,15 @@ export const NotificationsService = {
       .eq('read', false);
 
     if (error) throw new Error(error.message || 'Impossible de marquer les notifications comme lues');
+    emitLocalNotificationChange();
     return true;
+  },
+
+  subscribeToLocalChanges(onChange: () => void) {
+    localNotificationListeners.add(onChange);
+    return () => {
+      localNotificationListeners.delete(onChange);
+    };
   },
 
   subscribeToMyNotifications(userId: string, onChange: () => void) {
@@ -99,4 +119,3 @@ export const NotificationsService = {
     };
   },
 };
-

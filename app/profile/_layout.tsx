@@ -36,6 +36,20 @@ export default function ProfileLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="invite"
+        options={{
+          title: 'Inviter des amis',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="journey"
+        options={{
+          title: 'Mon parcours',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

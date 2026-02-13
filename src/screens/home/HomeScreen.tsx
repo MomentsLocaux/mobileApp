@@ -15,6 +15,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks';
 import { useLocationStore, useSearchStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
+import { useLikesStore } from '@/store/likesStore';
 import { SocialService } from '@/services/social.service';
 import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '@/utils/filter-events';
 import { sortEvents } from '@/utils/sort-events';
@@ -27,6 +28,7 @@ import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { TriageControl } from '@/components/search/TriageControl';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
+import { AppBackground } from '@/components/ui';
 
 type StoryItem = {
   creatorId: string;
@@ -41,6 +43,7 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const { currentLocation } = useLocationStore();
   const { favorites, toggleFavorite } = useFavoritesStore();
+  const { likedEventIds, toggleLike } = useLikesStore();
   const searchState = useSearchStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
   const [refreshing, setRefreshing] = useState(false);
@@ -238,11 +241,27 @@ export default function HomeScreen() {
   }, [fetchedEvents, buildStories]);
 
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
+  const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
+
+  const handleToggleLike = async (event: EventWithCreator) => {
+    try {
+      const nowLiked = await SocialService.like(profile?.id || '', event.id);
+      const wasLiked = likesSet.has(event.id);
+      if (nowLiked !== wasLiked) {
+        toggleLike(event.id);
+      }
+    } catch (e) {
+      console.warn('toggle like error', e);
+    }
+  };
 
   const handleToggleFavorite = async (event: EventWithCreator) => {
     try {
-      await SocialService.toggleFavorite(profile?.id || '', event.id);
-      toggleFavorite(event);
+      const nowFavorited = await SocialService.toggleFavorite(profile?.id || '', event.id);
+      const wasFavorited = favoritesSet.has(event.id);
+      if (nowFavorited !== wasFavorited) {
+        toggleFavorite(event);
+      }
     } catch (e) {
       console.warn('toggle favorite error', e);
     }
@@ -251,6 +270,7 @@ export default function HomeScreen() {
   if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
+        <AppBackground />
         <ActivityIndicator size="large" color={colors.primary[600]} />
         <Text style={styles.loadingText}>Chargement des événements...</Text>
       </View>
@@ -259,6 +279,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground />
       <View style={[styles.topOverlay, { marginTop: insets.top + spacing.xs }]}>
         <SearchBar
           onApply={() => {
@@ -357,6 +378,8 @@ export default function HomeScreen() {
             onSelect={() => {}}
             onNavigate={() => setNavEvent(item)}
             onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+            isLiked={likesSet.has(item.id)}
+            onToggleLike={handleToggleLike}
             isFavorite={favoritesSet.has(item.id)}
             onToggleFavorite={handleToggleFavorite}
           />
@@ -386,13 +409,13 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   loadingText: {
     ...typography.body,

@@ -4,6 +4,7 @@ export { useAppStore } from './appStore';
 export { useFilterStore } from './filterStore';
 export { useSearchStore } from './searchStore';
 export { useFavoritesStore } from './favoritesStore';
+export { useLikesStore } from './likesStore';
 export { useHistoryStore } from './historyStore';
 export { useSearchResultsStore } from './searchResultsStore';
 export { useMapResultsUIStore } from './mapResultsUIStore';

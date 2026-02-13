@@ -7,9 +7,9 @@ export default function CreatorLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.neutral[0],
+          backgroundColor: colors.secondaryAccent[500],
         },
-        headerTintColor: colors.neutral[900],
+        headerTintColor: colors.textPrimary[500],
         headerTitleStyle: {
           fontWeight: '600',
         },

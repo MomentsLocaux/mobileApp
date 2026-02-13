@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Search, Flame, Clock, MapPin } from 'lucide-react-native';
+import { Search, Flame, Clock, MapPin } from 'lucide-react-native';
 import { EventCard, EventFilters } from '../../components/events';
 import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
@@ -20,11 +20,15 @@ import { sortEvents } from '../../utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type { EventWithCreator } from '../../types/database';
 import { useEvents } from '@/hooks/useEvents';
+import { useFavoritesStore } from '@/store/favoritesStore';
+import { useLikesStore } from '@/store/likesStore';
 
 export default function EventsListScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { currentLocation } = useLocationStore();
+  const { favorites, toggleFavorite } = useFavoritesStore();
+  const { likedEventIds, toggleLike } = useLikesStore();
   const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
 
@@ -80,18 +84,35 @@ export default function EventsListScreen() {
     router.push(`/events/${eventId}`);
   };
 
-  const handleFavoritePress = async (eventId: string) => {
-    if (!profile) return;
+  const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
+  const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
-    await SocialService.toggleFavorite(profile.id, eventId);
-    reload();
+  const handleLikePress = async (eventId: string) => {
+    if (!profile) return;
+    const nowLiked = await SocialService.like(profile.id, eventId);
+    const wasLiked = likesSet.has(eventId);
+    if (nowLiked !== wasLiked) {
+      toggleLike(eventId);
+    }
+  };
+
+  const handleFavoritePress = async (event: EventWithCreator) => {
+    if (!profile) return;
+    const nowFavorited = await SocialService.toggleFavorite(profile.id, event.id);
+    const wasFavorited = favoritesSet.has(event.id);
+    if (nowFavorited !== wasFavorited) {
+      toggleFavorite(event);
+    }
   };
 
   const renderEventCard = ({ item }: { item: EventWithCreator }) => (
     <EventCard
       event={item}
       onPress={() => handleEventPress(item.id)}
-      onFavoritePress={() => handleFavoritePress(item.id)}
+      onLikePress={() => handleLikePress(item.id)}
+      isLiked={likesSet.has(item.id)}
+      onFavoritePress={() => handleFavoritePress(item)}
+      isFavorited={favoritesSet.has(item.id)}
     />
   );
 

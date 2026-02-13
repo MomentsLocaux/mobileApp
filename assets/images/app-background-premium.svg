@@ -1,0 +1,49 @@
+<svg width="1440" height="3200" viewBox="0 0 1440 3200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="3200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#EEF3FF"/>
+      <stop offset="0.45" stop-color="#F7F8FC"/>
+      <stop offset="1" stop-color="#F3F3F3"/>
+    </linearGradient>
+    <radialGradient id="orbBlue" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1210 420) rotate(132.7) scale(620 620)">
+      <stop stop-color="#2A4FE3" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#2A4FE3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbCyan" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(220 920) rotate(95) scale(520 520)">
+      <stop stop-color="#48B9FF" stop-opacity="0.19"/>
+      <stop offset="1" stop-color="#48B9FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbMint" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1080 1980) rotate(90) scale(520 520)">
+      <stop stop-color="#34C759" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#34C759" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="stripeGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="3200" fill="url(#bgGradient)"/>
+  <circle cx="1210" cy="420" r="620" fill="url(#orbBlue)"/>
+  <circle cx="220" cy="920" r="520" fill="url(#orbCyan)"/>
+  <circle cx="1080" cy="1980" r="520" fill="url(#orbMint)"/>
+
+  <g opacity="0.55">
+    <path d="M-120 300C280 80 460 220 840 120C1080 58 1280 90 1560 240V340C1280 200 1080 170 840 230C460 330 280 180 -120 400V300Z" fill="url(#stripeGradient)"/>
+    <path d="M-140 1580C240 1430 520 1540 860 1450C1110 1385 1290 1440 1570 1580V1660C1290 1525 1110 1485 860 1540C520 1630 240 1510 -140 1670V1580Z" fill="url(#stripeGradient)"/>
+    <path d="M-100 2520C250 2380 560 2500 900 2410C1120 2350 1295 2390 1540 2520V2610C1295 2490 1120 2460 900 2515C560 2605 250 2485 -100 2650V2520Z" fill="url(#stripeGradient)"/>
+  </g>
+
+  <g opacity="0.18">
+    <circle cx="180" cy="210" r="6" fill="#2A4FE3"/>
+    <circle cx="380" cy="340" r="4" fill="#2A4FE3"/>
+    <circle cx="1280" cy="640" r="5" fill="#2A4FE3"/>
+    <circle cx="1160" cy="820" r="3" fill="#2A4FE3"/>
+    <circle cx="260" cy="1320" r="4" fill="#2A4FE3"/>
+    <circle cx="960" cy="1560" r="5" fill="#2A4FE3"/>
+    <circle cx="1180" cy="1860" r="4" fill="#2A4FE3"/>
+    <circle cx="420" cy="2300" r="5" fill="#2A4FE3"/>
+    <circle cx="1300" cy="2720" r="6" fill="#2A4FE3"/>
+    <circle cx="680" cy="3000" r="4" fill="#2A4FE3"/>
+  </g>
+</svg>

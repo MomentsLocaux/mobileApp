@@ -17,7 +17,7 @@ import {
   BarChart3,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Alert, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -62,6 +62,12 @@ export default function TabsLayout() {
       loadUnreadNotifications();
     });
   }, [profile?.id, loadUnreadNotifications]);
+
+  useEffect(() => {
+    return NotificationsService.subscribeToLocalChanges(() => {
+      loadUnreadNotifications();
+    });
+  }, [loadUnreadNotifications]);
 
   const loadMyEventsShortcut = useCallback(async () => {
     if (!profile?.id || isGuest) {
@@ -217,12 +223,22 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: 'Profil',
-            tabBarIcon: ({ size, color }) =>
-              profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.tabAvatar} />
-              ) : (
-                <User size={size} color={isGuest ? colors.neutral[400] : color} />
-              ),
+            tabBarIcon: ({ size, color }) => (
+              <View style={styles.profileTabIconWrap}>
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} style={styles.tabAvatar} />
+                ) : (
+                  <User size={size} color={isGuest ? colors.neutral[400] : color} />
+                )}
+                {unreadNotifications > 0 ? (
+                  <View style={styles.profileTabBadge}>
+                    <Text style={styles.profileTabBadgeText}>
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ),
             tabBarButton: (props) =>
               renderProtectedTabButton(props, 'Accéder à votre profil', () => toggleDrawer(true)),
           }}
@@ -313,7 +329,7 @@ export default function TabsLayout() {
           label="Inviter des amis"
           onPress={() => {
             toggleDrawer(false);
-            Alert.alert('Inviter des amis', 'À implémenter');
+            router.push('/profile/invite' as any);
           }}
         />
         <DrawerLink
@@ -321,7 +337,7 @@ export default function TabsLayout() {
           label="Mon parcours"
           onPress={() => {
             toggleDrawer(false);
-            Alert.alert('Mon parcours', 'Page gamification à venir');
+            router.push('/profile/journey' as any);
           }}
         />
         <DrawerLink
@@ -433,6 +449,32 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
+  },
+  profileTabIconWrap: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileTabBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.error[500],
+    borderWidth: 2,
+    borderColor: colors.neutral[50],
+  },
+  profileTabBadgeText: {
+    fontSize: 9,
+    color: '#fff',
+    fontWeight: '700',
+    lineHeight: 10,
   },
   backdrop: {
     position: 'absolute',

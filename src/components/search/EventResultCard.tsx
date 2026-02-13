@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
-import { MapPin, Calendar, Tag, Navigation2, Heart } from 'lucide-react-native';
+import { MapPin, Calendar, Tag, Navigation2, Heart, Star } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
@@ -17,6 +17,8 @@ interface Props {
   onNavigate: () => void;
   onSelect?: () => void;
   onOpenCreator?: (creatorId: string) => void;
+  isLiked?: boolean;
+  onToggleLike?: (event: EventWithCreator) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (event: EventWithCreator) => void;
 }
@@ -63,6 +65,8 @@ export const EventResultCard: React.FC<Props> = ({
   onNavigate,
   onSelect,
   onOpenCreator,
+  isLiked,
+  onToggleLike,
   isFavorite,
   onToggleFavorite,
 }) => {
@@ -180,16 +184,29 @@ export const EventResultCard: React.FC<Props> = ({
                 {distanceLabel ? <Text style={styles.ctaDistance}>· {distanceLabel}</Text> : null}
               </View>
             </TouchableOpacity>
+            {onToggleLike && (
+              <TouchableOpacity
+                style={styles.favoriteBtn}
+                onPress={() => onToggleLike(event)}
+                activeOpacity={0.8}
+              >
+                <Heart
+                  size={18}
+                  color={isLiked ? colors.error[500] : colors.neutral[0]}
+                  fill={isLiked ? colors.error[500] : 'transparent'}
+                />
+              </TouchableOpacity>
+            )}
             {onToggleFavorite && (
               <TouchableOpacity
                 style={styles.favoriteBtn}
                 onPress={() => onToggleFavorite(event)}
                 activeOpacity={0.8}
               >
-                <Heart
+                <Star
                   size={18}
-                  color={isFavorite ? colors.error[500] : colors.neutral[0]}
-                  fill={isFavorite ? colors.error[500] : 'transparent'}
+                  color={isFavorite ? colors.warning[500] : colors.neutral[0]}
+                  fill={isFavorite ? colors.warning[500] : 'transparent'}
                 />
               </TouchableOpacity>
               )}

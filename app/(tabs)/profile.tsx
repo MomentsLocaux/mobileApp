@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Settings, User as UserIcon, Calendar, Award, BarChart3 } from 'lucide-react-native';
-import { Button, Card } from '../../src/components/ui';
+import { AppBackground, Button, Card } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
@@ -129,6 +129,7 @@ export default function ProfileScreen() {
   if (isGuest) {
     return (
       <View style={styles.container}>
+        <AppBackground />
         <GuestGateModal
           visible
           title="Accéder à votre profil"
@@ -143,6 +144,7 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View style={styles.container}>
+        <AppBackground />
         <View style={styles.fallback}>
           <ActivityIndicator size="large" color={colors.primary[600]} />
           <Text style={styles.loadingText}>Chargement du profil...</Text>
@@ -152,8 +154,9 @@ export default function ProfileScreen() {
   }
 
   return (
-    <>
-      <ScrollView style={styles.container}>
+    <View style={styles.container}>
+      <AppBackground />
+      <ScrollView style={styles.scroll}>
         <View style={styles.header}>
           {profile.cover_url ? (
             <Image source={{ uri: profile.cover_url }} style={styles.cover} />
@@ -334,14 +337,18 @@ export default function ProfileScreen() {
           </Animated.View>
         </View>
       )}
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   header: {
     backgroundColor: colors.neutral[50],

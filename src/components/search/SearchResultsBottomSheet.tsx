@@ -2,7 +2,7 @@ import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard } from './EventResultCard';
 
 export type SearchResultsBottomSheetHandle = {
@@ -17,6 +17,8 @@ interface Props {
   onNavigate: (event: EventWithCreator) => void;
   onOpenDetails: (event: EventWithCreator) => void;
   onOpenCreator?: (creatorId: string) => void;
+  onToggleLike?: (event: EventWithCreator) => void;
+  isLiked?: (id: string) => boolean;
   onToggleFavorite?: (event: EventWithCreator) => void;
   isFavorite?: (id: string) => boolean;
   onIndexChange?: (index: number) => void;
@@ -35,6 +37,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onNavigate,
       onOpenDetails,
       onOpenCreator,
+      onToggleLike,
+      isLiked,
       onToggleFavorite,
       isFavorite,
       onIndexChange,
@@ -120,6 +124,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               onSelect={() => onSelectEvent(events[0])}
               onNavigate={() => onNavigate(events[0])}
               onOpenCreator={onOpenCreator}
+              onToggleLike={onToggleLike}
+              isLiked={isLiked ? isLiked(events[0].id) : undefined}
               onToggleFavorite={onToggleFavorite}
               isFavorite={isFavorite ? isFavorite(events[0].id) : undefined}
             />
@@ -158,6 +164,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 onSelect={() => onSelectEvent(item)}
                 onNavigate={() => onNavigate(item)}
                 onOpenCreator={onOpenCreator}
+                onToggleLike={onToggleLike}
+                isLiked={isLiked ? isLiked(item.id) : undefined}
                 onToggleFavorite={onToggleFavorite}
                 isFavorite={isFavorite ? isFavorite(item.id) : undefined}
               />

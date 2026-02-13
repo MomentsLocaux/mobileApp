@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Heart, MapPin, Calendar, Users, Share2 } from 'lucide-react-native';
+import { Heart, MapPin, Calendar, Users, Share2, Star } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
@@ -10,7 +10,10 @@ import { EventImageCarousel } from './EventImageCarousel';
 interface EventCardProps {
   event: EventWithCreator;
   onPress: () => void;
+  onLikePress?: () => void;
   onFavoritePress?: () => void;
+  isLiked?: boolean;
+  isFavorited?: boolean;
   onSharePress?: () => void;
   showDistance?: boolean;
   distance?: number;
@@ -19,7 +22,10 @@ interface EventCardProps {
 export const EventCard: React.FC<EventCardProps> = ({
   event,
   onPress,
+  onLikePress,
   onFavoritePress,
+  isLiked,
+  isFavorited,
   onSharePress,
   showDistance,
   distance,
@@ -61,11 +67,20 @@ export const EventCard: React.FC<EventCardProps> = ({
               onSwipeStart={() => setIsSwiping(true)}
               onSwipeEnd={() => setIsSwiping(false)}
             />
-            {(onFavoritePress || onSharePress) && (
+            {(onLikePress || onFavoritePress || onSharePress) && (
               <View style={styles.overlayButtons}>
                 {onSharePress && (
                   <TouchableOpacity style={styles.overlayButton} onPress={onSharePress} activeOpacity={0.7}>
                     <Share2 size={18} color={colors.neutral[50]} />
+                  </TouchableOpacity>
+                )}
+                {onLikePress && (
+                  <TouchableOpacity style={styles.overlayButton} onPress={onLikePress} activeOpacity={0.7}>
+                    <Heart
+                      size={18}
+                      color={(isLiked ?? event.is_liked) ? colors.error[500] : colors.neutral[50]}
+                      fill={(isLiked ?? event.is_liked) ? colors.error[500] : 'transparent'}
+                    />
                   </TouchableOpacity>
                 )}
                 {onFavoritePress && (
@@ -74,10 +89,10 @@ export const EventCard: React.FC<EventCardProps> = ({
                     onPress={onFavoritePress}
                     activeOpacity={0.7}
                   >
-                    <Heart
+                    <Star
                       size={18}
-                      color={event.is_favorited ? colors.error[500] : colors.neutral[50]}
-                      fill={event.is_favorited ? colors.error[500] : 'transparent'}
+                      color={(isFavorited ?? event.is_favorited) ? colors.warning[500] : colors.neutral[50]}
+                      fill={(isFavorited ?? event.is_favorited) ? colors.warning[500] : 'transparent'}
                     />
                   </TouchableOpacity>
                 )}

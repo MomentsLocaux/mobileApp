@@ -13,6 +13,7 @@ import { SocialService } from '../../src/services/social.service';
 import { useLocation } from '../../src/hooks';
 import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
+import { useLikesStore } from '@/store/likesStore';
 import { useAuth } from '@/hooks';
 import { buildFiltersFromSearch } from '../../src/utils/search-filters';
 import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '../../src/utils/filter-events';
@@ -22,6 +23,7 @@ import { SearchBar } from '../../src/components/search/SearchBar';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
+import { AppBackground } from '../../src/components/ui';
 
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
 const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
@@ -34,6 +36,7 @@ export default function MapScreen() {
   const searchState = useSearchStore();
   const { profile } = useAuth();
   const { favorites, toggleFavorite } = useFavoritesStore();
+  const { likedEventIds, toggleLike } = useLikesStore();
   const {
     bottomSheetIndex,
     setBottomSheetIndex,
@@ -444,22 +447,42 @@ export default function MapScreen() {
   }, [mapMode]);
 
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
+  const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
+
+  const handleToggleLike = useCallback(
+    async (event: EventWithCreator) => {
+      try {
+        const nowLiked = await SocialService.like(profile?.id || '', event.id);
+        const wasLiked = likesSet.has(event.id);
+        if (nowLiked !== wasLiked) {
+          toggleLike(event.id);
+        }
+      } catch (e) {
+        console.warn('toggle like error', e);
+      }
+    },
+    [likesSet, profile?.id, toggleLike]
+  );
 
   const handleToggleFavorite = useCallback(
     async (event: EventWithCreator) => {
       try {
-        await SocialService.toggleFavorite(profile?.id || '', event.id);
-        toggleFavorite(event);
+        const nowFavorited = await SocialService.toggleFavorite(profile?.id || '', event.id);
+        const wasFavorited = favoritesSet.has(event.id);
+        if (nowFavorited !== wasFavorited) {
+          toggleFavorite(event);
+        }
       } catch (e) {
         console.warn('toggle favorite error', e);
       }
     },
-    [profile?.id, toggleFavorite]
+    [favoritesSet, profile?.id, toggleFavorite]
   );
 
   if (locationLoading && !userLocation) {
     return (
       <GestureHandlerRootView style={styles.loadingContainer}>
+        <AppBackground />
         <ActivityIndicator size="large" color={colors.primary[600]} />
         <Text style={styles.fallbackText}>Obtention de votre position...</Text>
       </GestureHandlerRootView>
@@ -468,6 +491,7 @@ export default function MapScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
+      <AppBackground />
       <MapWrapper
         ref={mapRef}
         initialRegion={mapCenter}
@@ -546,6 +570,8 @@ export default function MapScreen() {
         onNavigate={(event) => setNavEvent(event)}
         onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
         onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+        onToggleLike={handleToggleLike}
+        isLiked={(id) => likesSet.has(id)}
         onToggleFavorite={handleToggleFavorite}
         isFavorite={(id) => favoritesSet.has(id)}
         onIndexChange={(idx) => {
@@ -593,13 +619,13 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
     gap: spacing.sm,
   },
   fallback: {
