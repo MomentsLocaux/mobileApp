@@ -1,23 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
   Alert,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { Button, Card } from '@/components/ui';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
-import { BugsService } from '@/services/bugs.service';
+import { AppBackground, Button, Card, Input, colors, radius, spacing, typography } from '@/components/ui/v2';
 import { useAuth } from '@/hooks';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { BugsService } from '@/services/bugs.service';
 
 const CATEGORIES = ['bug', 'ux', 'suggestion'] as const;
 const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
@@ -32,7 +30,7 @@ export default function BugReportScreen() {
 
   const defaultPage = useMemo(
     () => (typeof params.page === 'string' && params.page ? params.page : pathname || ''),
-    [params.page, pathname],
+    [params.page, pathname]
   );
 
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('bug');
@@ -96,6 +94,7 @@ export default function BugReportScreen() {
             style={[styles.chip, active && styles.chipActive]}
             onPress={() => onSelect(item)}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
           </TouchableOpacity>
@@ -105,86 +104,93 @@ export default function BugReportScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top}
-    >
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
-        keyboardShouldPersistTaps="handled"
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+    <View style={styles.container}>
+      <AppBackground opacity={0.2} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
       >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/(tabs)/map')}>
-            <X size={20} color={colors.neutral[700]} />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.title}>Reporter un bug</Text>
-        <Text style={styles.subtitle}>
-          Merci de décrire le problème rencontré. Les champs marqués sont obligatoires.
-        </Text>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+          keyboardShouldPersistTaps="handled"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => router.replace('/(tabs)/map')}
+              accessibilityRole="button"
+            >
+              <X size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
 
-      <Card style={styles.card}>
-        <View style={styles.field}>
-          <Text style={styles.label}>Catégorie *</Text>
-          {renderChips(CATEGORIES, category, (val) => setCategory(val))}
-        </View>
+          <Text style={styles.title}>Reporter un bug</Text>
+          <Text style={styles.subtitle}>
+            Merci de décrire le problème rencontré. Les champs marqués sont obligatoires.
+          </Text>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Sévérité *</Text>
-          {renderChips(SEVERITIES, severity, (val) => setSeverity(val))}
-        </View>
+          <Card style={styles.card}>
+            <View style={styles.field}>
+              <Text style={styles.label}>Catégorie *</Text>
+              {renderChips(CATEGORIES, category, (val) => setCategory(val))}
+            </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Page/écran</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: /home ou event-detail/123"
-            value={page}
-            onChangeText={setPage}
-            autoCapitalize="none"
-            ref={registerFieldRef('page')}
-            onFocus={() => handleInputFocus('page')}
-          />
-        </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Sévérité *</Text>
+              {renderChips(SEVERITIES, severity, (val) => setSeverity(val))}
+            </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Description *</Text>
-          <TextInput
-            style={[styles.input, styles.textarea]}
-            placeholder="Décrivez le bug, les étapes pour le reproduire, l'attendu…"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-            ref={registerFieldRef('description')}
-            onFocus={() => handleInputFocus('description')}
-          />
-        </View>
+            <Input
+              label="Page/écran"
+              placeholder="Ex: /home ou event-detail/123"
+              value={page}
+              onChangeText={setPage}
+              autoCapitalize="none"
+              ref={registerFieldRef('page')}
+              onFocus={() => handleInputFocus('page')}
+            />
 
-        {error && <Text style={styles.error}>{error}</Text>}
+            <Input
+              label="Description *"
+              placeholder="Décrivez le bug, les étapes pour le reproduire, l'attendu..."
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={5}
+              style={styles.descriptionInput}
+              ref={registerFieldRef('description')}
+              onFocus={() => handleInputFocus('description')}
+            />
 
-        <Button
-          title="Envoyer"
-          onPress={handleSubmit}
-          loading={submitting}
-          fullWidth
-          disabled={submitting}
-        />
-      </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Button
+              title="Envoyer"
+              onPress={handleSubmit}
+              loading={submitting}
+              fullWidth
+              disabled={submitting}
+              accessibilityRole="button"
+            />
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     padding: spacing.lg,
@@ -193,26 +199,26 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surfaceLevel1,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
   },
   title: {
-    ...typography.h2,
-    color: colors.neutral[900],
+    ...typography.sectionTitle,
+    color: colors.textPrimary,
   },
   subtitle: {
     ...typography.body,
-    color: colors.neutral[600],
-    marginBottom: spacing.md,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   card: {
     padding: spacing.lg,
@@ -222,21 +228,15 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    backgroundColor: colors.neutral[0],
-    ...typography.body,
-    color: colors.neutral[900],
-  },
-  textarea: {
+  descriptionInput: {
     minHeight: 140,
+    borderRadius: radius.element,
+    textAlignVertical: 'top',
+    paddingTop: spacing.md,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -246,27 +246,27 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
     minWidth: 90,
     alignItems: 'center',
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[300],
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    borderColor: colors.primary,
   },
   chipText: {
-    color: colors.neutral[800],
+    color: colors.textSecondary,
     textTransform: 'capitalize',
     fontWeight: '600',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.primary,
   },
   error: {
-    ...typography.bodySmall,
-    color: colors.error[600],
+    ...typography.body,
+    color: colors.danger,
   },
 });

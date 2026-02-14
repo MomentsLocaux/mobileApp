@@ -4,7 +4,7 @@ import Toast from 'react-native-toast-message';
 import { Bell, MapPin, Star } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/components/ui/v2';
 import { useLocationStore } from '@/store';
 
 export default function NotificationsSettingsScreen() {
@@ -36,6 +36,8 @@ export default function NotificationsSettingsScreen() {
                 setPushEnabled(value);
                 showToast();
               }}
+              thumbColor={colors.textPrimary}
+              trackColor={{ false: colors.surfaceLevel2, true: colors.primary }}
             />
           }
           noBorder
@@ -52,6 +54,8 @@ export default function NotificationsSettingsScreen() {
                 showToast();
               }}
               disabled={!permissionGranted}
+              thumbColor={colors.textPrimary}
+              trackColor={{ false: colors.surfaceLevel2, true: colors.primary }}
             />
           }
           disabled={!permissionGranted}
@@ -66,6 +70,8 @@ export default function NotificationsSettingsScreen() {
                 setRecommendEnabled(value);
                 showToast();
               }}
+              thumbColor={colors.textPrimary}
+              trackColor={{ false: colors.surfaceLevel2, true: colors.primary }}
             />
           }
         />
@@ -88,6 +94,6 @@ const styles = StyleSheet.create({
   },
   helperText: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.textMuted,
   },
 });

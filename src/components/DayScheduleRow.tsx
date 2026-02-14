@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, Pressable } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 
 type Props = {
   label: string;
@@ -91,8 +91,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.scale.neutral[200],
+    backgroundColor: colors.scale.neutral[0],
     gap: spacing.sm,
   },
   header: {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
   },
   hoursRow: {
@@ -115,22 +115,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
   },
   disabledChip: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   timeText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   disabledText: {
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   separator: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
 });

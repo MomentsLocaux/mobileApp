@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
-import { Button, Input } from '../../components/ui';
-import { useAuth } from '../../hooks';
-import { colors, spacing, typography } from '../../constants/theme';
+import { Button, Input, colors, spacing, typography } from '@/components/ui/v2';
+import { AuthLayout } from '@/components/ui/v2/templates/AuthLayout';
+import { useAuth } from '@/hooks';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -66,8 +56,6 @@ export default function RegisterScreen() {
     const alreadyRegistered =
       typeof response.error === 'string' &&
       response.error.toLowerCase().includes('already registered');
-
-    // Supabase retourne souvent session null + user non confirmé => success true, mais require email
     const requiresEmailConfirmation = response.success && !response.session;
 
     if (requiresEmailConfirmation || alreadyRegistered) {
@@ -93,127 +81,86 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <AuthLayout
+      title="Créer un compte"
+      subtitle="Rejoignez la communauté Moments Locaux"
+      contentContainerStyle={styles.content}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={colors.neutral[700]} />
-            <Text style={styles.backText}>Retour</Text>
+      <View style={styles.form}>
+        <Input
+          label="Email"
+          placeholder="votre@email.com"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          error={errors.email}
+        />
+
+        <Input
+          label="Mot de passe"
+          placeholder="••••••••"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="password-new"
+          error={errors.password}
+        />
+
+        <Input
+          label="Confirmer le mot de passe"
+          placeholder="••••••••"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          autoComplete="password-new"
+          error={errors.confirmPassword}
+        />
+
+        <Button
+          title="S'inscrire"
+          onPress={handleRegister}
+          loading={isLoading}
+          fullWidth
+          style={styles.registerButton}
+          accessibilityRole="button"
+        />
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Déjà un compte ? </Text>
+          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
+            <Text style={styles.link}>Se connecter</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Créer un compte</Text>
-          <Text style={styles.subtitle}>Rejoignez la communauté Moments Locaux</Text>
         </View>
-
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="votre@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            error={errors.email}
-          />
-
-          <Input
-            label="Mot de passe"
-            placeholder="••••••••"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password-new"
-            error={errors.password}
-          />
-
-          <Input
-            label="Confirmer le mot de passe"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoComplete="password-new"
-            error={errors.confirmPassword}
-          />
-
-          <Button
-            title="S'inscrire"
-            onPress={handleRegister}
-            loading={isLoading}
-            fullWidth
-            style={styles.registerButton}
-          />
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Déjà un compte ? </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.link}>Se connecter</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
     justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  header: {
-    marginBottom: spacing.xl,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
-    fontWeight: '600',
-  },
-  title: {
-    ...typography.h1,
-    color: colors.neutral[900],
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.neutral[600],
   },
   form: {
+    gap: spacing.md,
     width: '100%',
   },
   registerButton: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
   },
   footerText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   link: {
-    ...typography.body,
-    color: colors.primary[600],
-    fontWeight: '600',
+    ...typography.bodyStrong,
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

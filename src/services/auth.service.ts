@@ -17,6 +17,7 @@ const LOGOUT_BLOCK_KEY = 'auth_logout_blocked';
 const LEGACY_SESSION_KEY = 'supabase_session';
 const SESSION_ACCESS_KEY = 'supabase_session_access_token';
 const SESSION_REFRESH_KEY = 'supabase_session_refresh_token';
+const LAST_EMAIL_KEY = 'auth_last_email';
 
 export class AuthService {
   private static attachEmail(profile: Profile | null, userEmail?: string | null): Profile | null {
@@ -41,6 +42,17 @@ export class AuthService {
       SecureStore.setItemAsync(SESSION_REFRESH_KEY, session.refresh_token),
       SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
     ]);
+  }
+
+  private static async saveLastEmail(email: string) {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return;
+    await SecureStore.setItemAsync(LAST_EMAIL_KEY, normalized);
+  }
+
+  static async getLastEmail(): Promise<string | null> {
+    const value = await SecureStore.getItemAsync(LAST_EMAIL_KEY);
+    return value || null;
   }
 
   static async clearSavedSession() {
@@ -171,6 +183,7 @@ export class AuthService {
 
       const profile = await this.ensureProfile(user.id, email);
       await this.clearAutoRestoreBlock();
+      await this.saveLastEmail(email);
       await this.saveSession(session);
       return { success: true, session, user, profile };
     } catch (error) {
@@ -188,6 +201,7 @@ export class AuthService {
       const rawProfile = (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, email));
       const profile = this.attachEmail(rawProfile, user.email);
       await this.clearAutoRestoreBlock();
+      await this.saveLastEmail(email);
       await this.saveSession(session);
       return { success: true, session, user, profile };
     } catch (error) {

@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import type { MapFilters, TimeFilter, PopularityFilter, SortOption } from '../../types/filters';
 import type { EventCategory } from '../../types/database';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -108,7 +108,7 @@ export function FilterTray({
         onPress={() => setIsExpanded(!isExpanded)}
       >
         <View style={styles.headerLeft}>
-          <Filter size={20} color={colors.neutral[700]} />
+          <Filter size={20} color={colors.scale.neutral[700]} />
           <Text style={styles.headerText}>Filtres</Text>
           {activeFiltersCount > 0 && (
             <View style={styles.badge}>
@@ -117,9 +117,9 @@ export function FilterTray({
           )}
         </View>
         {isExpanded ? (
-          <ChevronUp size={20} color={colors.neutral[700]} />
+          <ChevronUp size={20} color={colors.scale.neutral[700]} />
         ) : (
-          <ChevronDown size={20} color={colors.neutral[700]} />
+          <ChevronDown size={20} color={colors.scale.neutral[700]} />
         )}
       </TouchableOpacity>
 
@@ -396,7 +396,7 @@ export function FilterTray({
 
           {activeFiltersCount > 0 && (
             <TouchableOpacity style={styles.resetButton} onPress={onReset}>
-              <X size={16} color={colors.error[600]} />
+              <X size={16} color={colors.scale.error[600]} />
               <Text style={styles.resetText}>Réinitialiser les filtres</Text>
             </TouchableOpacity>
           )}
@@ -408,16 +408,16 @@ export function FilterTray({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     ...Platform.select({
       web: {
         boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
       },
       default: {
-        shadowColor: colors.neutral[900],
+        shadowColor: colors.scale.neutral[900],
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -438,11 +438,11 @@ const styles = StyleSheet.create({
   },
   headerText: {
     ...typography.bodyLarge,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   badge: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     borderRadius: borderRadius.full,
     minWidth: 20,
     height: 20,
@@ -452,32 +452,32 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
     fontSize: 11,
   },
   content: {
     maxHeight: 520,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: colors.scale.neutral[200],
     padding: spacing.md,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
   },
   sectionCard: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[100],
+    borderColor: colors.scale.neutral[100],
     marginBottom: spacing.md,
   },
   sectionCardHalf: {
     flex: 1,
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[100],
+    borderColor: colors.scale.neutral[100],
   },
   row: {
     flexDirection: 'row',
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     fontWeight: '600',
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
@@ -501,41 +501,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[600],
   },
   chipDisabled: {
     opacity: 0.5,
   },
   chipText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '500',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
   chipTextDisabled: {
-    color: colors.neutral[400],
+    color: colors.scale.neutral[400],
   },
   input: {
     minHeight: 40,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    backgroundColor: colors.neutral[0],
-    color: colors.neutral[900],
+    borderColor: colors.scale.neutral[300],
+    backgroundColor: colors.scale.neutral[0],
+    color: colors.scale.neutral[900],
   },
   warningText: {
     ...typography.caption,
-    color: colors.warning[600],
+    color: colors.scale.warning[600],
     marginTop: spacing.xs,
     fontStyle: 'italic',
   },
@@ -547,13 +547,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     margin: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.error[50],
+    backgroundColor: colors.scale.error[50],
     borderWidth: 1,
-    borderColor: colors.error[200],
+    borderColor: colors.scale.error[200],
   },
   resetText: {
     ...typography.body,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     fontWeight: '600',
   },
 });

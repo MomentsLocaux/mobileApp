@@ -5,20 +5,26 @@ import {
   LayoutAnimation,
   Platform,
   RefreshControl,
-  ScrollView,
   StyleSheet,
-  Text,
   UIManager,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowUpRight, Users } from 'lucide-react-native';
-import { Button, Card } from '@/components/ui';
 import { CreatorEngagementChart, CreatorKpiRow, CreatorTopEventsList } from '@/components/creator';
 import type { EngagementRange } from '@/components/creator/CreatorEngagementChart';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import {
+  Badge,
+  Button,
+  Card,
+  ScreenLayout,
+  Typography,
+  colors,
+  radius,
+  spacing,
+} from '@/components/ui/v2';
 import { useAuth } from '@/hooks';
 import { useCreatorDashboard } from '@/hooks/useCreatorDashboard';
 import type { EventEngagementStats } from '@/types/creator.types';
@@ -39,8 +45,8 @@ function buildRangeSeries(
     range === '7D'
       ? { days: 7, points: 7 }
       : range === '30D'
-        ? { days: 30, points: 10 }
-        : { days: 90, points: 12 };
+      ? { days: 30, points: 10 }
+      : { days: 90, points: 12 };
 
   const bucketDays = Math.ceil(config.days / config.points);
   const values: number[] = new Array(config.points).fill(0);
@@ -83,6 +89,7 @@ export default function CreatorDashboardScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
   const isGuest = !session;
+
   const handleExitCreator = () => {
     if (router.canGoBack()) {
       router.back();
@@ -127,7 +134,7 @@ export default function CreatorDashboardScreen() {
 
   if (isGuest) {
     return (
-      <View style={styles.container}>
+      <View style={styles.guestContainer}>
         <GuestGateModal
           visible
           title="Dashboard créateur"
@@ -140,64 +147,110 @@ export default function CreatorDashboardScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
-    >
-      <View style={styles.topActions}>
-        <Button
-          title="Quitter"
-          size="sm"
-          variant="secondary"
-          onPress={handleExitCreator}
-          accessibilityRole="button"
-          accessibilityLabel="Quitter l'espace créateur"
-        />
-      </View>
+    <ScreenLayout
+      header={
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Typography variant="sectionTitle" color={colors.textPrimary} weight="700">
+              Creator Dashboard
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary}>
+              Performance et communauté en temps réel.
+            </Typography>
+          </View>
 
-      <LinearGradient colors={[colors.primary[700], colors.primary[600]]} style={styles.hero}>
+          <View style={styles.headerActions}>
+            <Button
+              title="Fans"
+              size="sm"
+              variant="secondary"
+              onPress={() => router.push('/creator/fans' as any)}
+              accessibilityRole="button"
+            />
+            <Button
+              title="Quitter"
+              size="sm"
+              variant="secondary"
+              onPress={handleExitCreator}
+              accessibilityRole="button"
+              accessibilityLabel="Quitter l'espace créateur"
+            />
+          </View>
+        </View>
+      }
+      contentContainerStyle={styles.content}
+      scrollViewProps={{
+        refreshControl: <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />,
+      }}
+    >
+      <LinearGradient colors={[colors.accent, colors.primary]} style={styles.hero}>
         <View style={styles.heroRow}>
           <View style={styles.avatarWrap}>
             {profile?.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitial}>{(profile?.display_name || 'C').charAt(0).toUpperCase()}</Text>
+                <Typography variant="subsection" color={colors.textPrimary} weight="700">
+                  {(profile?.display_name || 'C').charAt(0).toUpperCase()}
+                </Typography>
               </View>
             )}
+
             <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>Lv {creatorLevel}</Text>
+              <Typography variant="caption" color={colors.background} weight="700">
+                Lv {creatorLevel}
+              </Typography>
             </View>
           </View>
 
           <View style={styles.heroTextWrap}>
-            <Text style={styles.heroTitle}>Creator Dashboard</Text>
-            <Text style={styles.heroSubtitle} numberOfLines={2}>
-              {profile?.display_name || 'Créateur'} · Performance et communauté en temps réel.
-            </Text>
+            <Badge label="Analytics" style={styles.heroAnalyticsBadge} />
+            <Typography variant="subsection" color={colors.textPrimary} weight="700">
+              {profile?.display_name || 'Créateur'}
+            </Typography>
+            <Typography variant="caption" color="rgba(255,255,255,0.9)">
+              Vue consolidée des KPIs, événements et engagement.
+            </Typography>
           </View>
         </View>
 
         <View style={styles.heroMetrics}>
           <View style={styles.heroMetricItem}>
-            <Text style={styles.heroMetricValue}>{stats?.total_events ?? 0}</Text>
-            <Text style={styles.heroMetricLabel}>Événements</Text>
+            <Typography variant="subsection" color={colors.textPrimary} weight="700">
+              {stats?.total_events ?? 0}
+            </Typography>
+            <Typography variant="caption" color="rgba(255,255,255,0.88)">
+              Événements
+            </Typography>
           </View>
+
           <View style={styles.heroMetricItem}>
-            <Text style={styles.heroMetricValue}>{stats?.total_followers ?? 0}</Text>
-            <Text style={styles.heroMetricLabel}>Followers</Text>
+            <Typography variant="subsection" color={colors.textPrimary} weight="700">
+              {stats?.total_followers ?? 0}
+            </Typography>
+            <Typography variant="caption" color="rgba(255,255,255,0.88)">
+              Followers
+            </Typography>
           </View>
+
           <View style={styles.heroMetricItem}>
-            <Text style={styles.heroMetricValue}>{stats?.engagement_score ?? 0}</Text>
-            <Text style={styles.heroMetricLabel}>Score</Text>
+            <Typography variant="subsection" color={colors.textPrimary} weight="700">
+              {stats?.engagement_score ?? 0}
+            </Typography>
+            <Typography variant="caption" color="rgba(255,255,255,0.88)">
+              Score
+            </Typography>
           </View>
         </View>
       </LinearGradient>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>KPIs</Text>
-        <Text style={styles.sectionSubtitle}>Balayez horizontalement pour explorer</Text>
+        <Typography variant="subsection" color={colors.textPrimary} weight="700">
+          KPIs
+        </Typography>
+        <Typography variant="caption" color={colors.textSecondary}>
+          Balayez horizontalement pour explorer
+        </Typography>
       </View>
       <CreatorKpiRow stats={stats} />
 
@@ -209,29 +262,41 @@ export default function CreatorDashboardScreen() {
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
-          <Text style={styles.loadingText}>Chargement des statistiques…</Text>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Typography variant="body" color={colors.textSecondary}>
+            Chargement des statistiques...
+          </Typography>
         </View>
       ) : null}
 
       {error ? (
         <Card padding="md" style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Impossible de charger les statistiques.</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <Button title="Réessayer" size="sm" onPress={() => refresh()} />
+          <Typography variant="body" color={colors.danger} weight="700">
+            Impossible de charger les statistiques.
+          </Typography>
+          <Typography variant="body" color={colors.textSecondary}>
+            {error}
+          </Typography>
+          <Button title="Réessayer" size="sm" onPress={() => refresh()} accessibilityRole="button" />
         </Card>
       ) : null}
 
       <View style={styles.topEventsHeader}>
-        <View>
-          <Text style={styles.sectionTitle}>Top événements</Text>
-          <Text style={styles.sectionSubtitle}>Classés par score d'engagement</Text>
+        <View style={styles.sectionHeader}>
+          <Typography variant="subsection" color={colors.textPrimary} weight="700">
+            Top événements
+          </Typography>
+          <Typography variant="caption" color={colors.textSecondary}>
+            Classés par score d'engagement
+          </Typography>
         </View>
+
         <Button
           title="Communauté"
           size="sm"
           variant="secondary"
           onPress={() => router.push('/creator/fans' as any)}
+          accessibilityRole="button"
         />
       </View>
 
@@ -240,46 +305,55 @@ export default function CreatorDashboardScreen() {
         onOpenEvent={(eventId) => router.push(`/events/${eventId}` as any)}
       />
 
-      <Card padding="md" elevation="sm" style={styles.ctaCard}>
+      <Card padding="md" style={styles.ctaCard} onPress={() => router.push('/creator/fans' as any)}>
         <View style={styles.ctaIconWrap}>
-          <Users size={16} color={colors.primary[700]} />
+          <Users size={16} color={colors.primary} />
         </View>
+
         <View style={styles.ctaTextWrap}>
-          <Text style={styles.ctaTitle}>Communauté & Récompenses</Text>
-          <Text style={styles.ctaBody}>Analysez vos fans et lancez des actions rapides depuis un hub dédié.</Text>
+          <Typography variant="body" color={colors.textPrimary} weight="700">
+            Communauté & Rewards
+          </Typography>
+          <Typography variant="caption" color={colors.textSecondary}>
+            Analysez vos fans et lancez des actions rapides depuis un hub dédié.
+          </Typography>
         </View>
-        <Button
-          title="Ouvrir"
-          size="sm"
-          onPress={() => router.push('/creator/fans' as any)}
-          style={styles.ctaButton}
-          accessibilityLabel="Ouvrir la communauté créateur"
-          accessibilityRole="button"
-        />
-        <ArrowUpRight size={16} color={colors.primary[600]} />
+
+        <ArrowUpRight size={16} color={colors.primary} />
       </Card>
-    </ScrollView>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  guestContainer: {
     flex: 1,
-    backgroundColor: colors.background[500],
+    backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
+    gap: spacing.lg,
   },
-  topActions: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headerTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   hero: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.md,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
   heroRow: {
     flexDirection: 'row',
@@ -294,48 +368,35 @@ const styles = StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.full,
     borderWidth: 2,
-    borderColor: colors.secondaryAccent[500],
+    borderColor: 'rgba(255,255,255,0.9)',
   },
   avatarFallback: {
     width: 64,
     height: 64,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  avatarInitial: {
-    ...typography.h4,
-    color: colors.secondaryAccent[500],
-    fontWeight: '700',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   levelBadge: {
     position: 'absolute',
     right: -8,
     bottom: -6,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.xs + 2,
     paddingVertical: 4,
-    backgroundColor: colors.secondaryAccent[500],
-  },
-  levelText: {
-    ...typography.caption,
-    color: colors.primary[700],
-    fontWeight: '700',
+    backgroundColor: colors.textPrimary,
   },
   heroTextWrap: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
-  heroTitle: {
-    ...typography.h5,
-    color: colors.secondaryAccent[500],
-  },
-  heroSubtitle: {
-    ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.92)',
+  heroAnalyticsBadge: {
+    backgroundColor: 'rgba(15, 23, 25, 0.24)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   heroMetrics: {
     flexDirection: 'row',
@@ -344,58 +405,25 @@ const styles = StyleSheet.create({
   },
   heroMetricItem: {
     flex: 1,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.element,
     paddingVertical: spacing.sm,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  heroMetricValue: {
-    ...typography.h6,
-    color: colors.secondaryAccent[500],
-    fontWeight: '700',
-  },
-  heroMetricLabel: {
-    ...typography.caption,
-    color: 'rgba(255,255,255,0.88)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   sectionHeader: {
-    marginTop: spacing.xs,
-  },
-  sectionTitle: {
-    ...typography.h5,
-    color: colors.textPrimary[500],
-  },
-  sectionSubtitle: {
-    ...typography.caption,
-    color: colors.textSecondary[500],
+    gap: 2,
   },
   loadingBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  loadingText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    paddingVertical: spacing.xs,
   },
   errorCard: {
-    borderWidth: 1,
-    borderColor: colors.error[500],
-    backgroundColor: colors.error[50],
     gap: spacing.sm,
-  },
-  errorTitle: {
-    ...typography.body,
-    color: colors.error[700],
-    fontWeight: '700',
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error[700],
+    borderColor: 'rgba(255, 90, 102, 0.4)',
   },
   topEventsHeader: {
-    marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -409,25 +437,15 @@ const styles = StyleSheet.create({
   ctaIconWrap: {
     width: 36,
     height: 36,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.element,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background[500],
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.35)',
   },
   ctaTextWrap: {
     flex: 1,
     gap: 2,
-  },
-  ctaTitle: {
-    ...typography.body,
-    color: colors.textPrimary[500],
-    fontWeight: '700',
-  },
-  ctaBody: {
-    ...typography.caption,
-    color: colors.textSecondary[500],
-  },
-  ctaButton: {
-    minWidth: 92,
   },
 });

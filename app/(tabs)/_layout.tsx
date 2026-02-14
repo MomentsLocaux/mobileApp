@@ -15,18 +15,32 @@ import {
   Bug,
   Settings,
   BarChart3,
+  Coins,
+  LogOut,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text } from 'react-native';
-import { colors } from '../../src/constants/theme';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Animated,
+  Pressable,
+  Text,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { colors, radius, shadows, spacing } from '@/components/ui/v2';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
+import { DrawerItem } from '@/components/ui/v2/navigation';
 
 export default function TabsLayout() {
-  const { isLoading, isAuthenticated, profile } = useAuth();
+  const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
@@ -102,6 +116,21 @@ export default function TabsLayout() {
     outputRange: [400, 0],
   });
 
+  const handleSignOut = () => {
+    Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Se déconnecter',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut();
+          toggleDrawer(false);
+          router.replace('/auth/login' as any);
+        },
+      },
+    ]);
+  };
+
   const renderProtectedTabButton = (
     props: any,
     gateTitle: string,
@@ -144,7 +173,7 @@ export default function TabsLayout() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -159,13 +188,22 @@ export default function TabsLayout() {
         initialRouteName="map"
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.primary[600],
-          tabBarInactiveTintColor: colors.neutral[500],
-          tabBarShowLabel: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textSecondary,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '700',
+            marginTop: 2,
+          },
+          tabBarItemStyle: {
+            paddingTop: 4,
+          },
           tabBarStyle: {
-            backgroundColor: colors.neutral[50],
-            borderTopColor: colors.neutral[200],
-            height: 76,
+            backgroundColor: colors.background,
+            borderTopColor: colors.borderSubtle,
+            borderTopWidth: 1,
+            height: 86,
             paddingBottom: 8,
             paddingTop: 8,
           },
@@ -175,8 +213,10 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Accueil',
-            tabBarIcon: ({ size, color }) => (
-              <Home size={size} color={isGuest ? colors.neutral[400] : color} />
+            tabBarIcon: ({ size, color, focused }) => (
+              <View style={[styles.tabIconShell, focused && styles.tabIconShellActive]}>
+                <Home size={size} color={isGuest ? colors.textMuted : color} />
+              </View>
             ),
             tabBarButton: (props) => renderProtectedTabButton(props, "Accéder à l'accueil"),
           }}
@@ -185,7 +225,11 @@ export default function TabsLayout() {
           name="map"
           options={{
             title: 'Carte',
-            tabBarIcon: ({ size, color }) => <Map size={size} color={color} />,
+            tabBarIcon: ({ size, color, focused }) => (
+              <View style={[styles.tabIconShell, focused && styles.tabIconShellActive]}>
+                <Map size={size} color={color} />
+              </View>
+            ),
           }}
         />
         <Tabs.Screen
@@ -204,7 +248,7 @@ export default function TabsLayout() {
                   router.push('/events/create/step-1' as any);
                 }}
               >
-                <PlusCircle size={28} color="#FFFFFF" />
+                <PlusCircle size={28} color={colors.background} />
               </TouchableOpacity>
             ),
           }}
@@ -213,8 +257,10 @@ export default function TabsLayout() {
           name="community"
           options={{
             title: 'Communauté',
-            tabBarIcon: ({ size, color }) => (
-              <Users size={size} color={isGuest ? colors.neutral[400] : color} />
+            tabBarIcon: ({ size, color, focused }) => (
+              <View style={[styles.tabIconShell, focused && styles.tabIconShellActive]}>
+                <Users size={size} color={isGuest ? colors.textMuted : color} />
+              </View>
             ),
             tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à la communauté'),
           }}
@@ -223,12 +269,12 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: 'Profil',
-            tabBarIcon: ({ size, color }) => (
-              <View style={styles.profileTabIconWrap}>
+            tabBarIcon: ({ size, color, focused }) => (
+              <View style={[styles.profileTabIconWrap, focused && styles.tabIconShellActive]}>
                 {profile?.avatar_url ? (
                   <Image source={{ uri: profile.avatar_url }} style={styles.tabAvatar} />
                 ) : (
-                  <User size={size} color={isGuest ? colors.neutral[400] : color} />
+                  <User size={size} color={isGuest ? colors.textMuted : color} />
                 )}
                 {unreadNotifications > 0 ? (
                   <View style={styles.profileTabBadge}>
@@ -260,138 +306,190 @@ export default function TabsLayout() {
           },
         ]}
       >
-        <View style={styles.drawerHeader}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
-          ) : (
-            <View style={styles.drawerAvatarPlaceholder}>
-              <UserCircle2 size={32} color={colors.neutral[600]} />
+        <ScrollView contentContainerStyle={styles.drawerScrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.drawerHeader}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
+            ) : (
+              <View style={styles.drawerAvatarPlaceholder}>
+                <UserCircle2 size={32} color={colors.textSecondary} />
+              </View>
+            )}
+            <View style={styles.drawerIdentity}>
+              <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
+              {profile?.email ? <Text style={styles.drawerEmail}>{profile.email}</Text> : null}
             </View>
-          )}
-          <View style={styles.drawerIdentity}>
-            <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-            {profile?.email ? <Text style={styles.drawerEmail}>{profile.email}</Text> : null}
           </View>
-        </View>
-        <View style={styles.drawerLinks}>
-          <DrawerLink
-            icon={PlusCircle}
-            label="Créer un évènement"
+
+          <TouchableOpacity
+            style={styles.walletCard}
+            activeOpacity={0.85}
             onPress={() => {
               toggleDrawer(false);
-              router.push('/events/create/step-1' as any);
+              router.push('/(tabs)/shop' as any);
             }}
-          />
-        <DrawerLink
-          icon={User}
-          label="Mon profil"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/(tabs)/profile' as any);
-          }}
-        />
-        <DrawerLink
-          icon={BarChart3}
-          label="Espace créateur"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/creator' as any);
-          }}
-        />
-        <DrawerLink
-          icon={ShoppingBag}
-          label="Offres & abonnements"
-          highlight
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/profile/offers' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Settings}
-          label="Paramètres"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/settings/index' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Bell}
-          label="Notifications"
-          badgeCount={unreadNotifications}
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/notifications' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Send}
-          label="Inviter des amis"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/profile/invite' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Compass}
-          label="Mon parcours"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/profile/journey' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Target}
-          label="Missions"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/(tabs)/missions' as any);
-          }}
-        />
-        {hasMyEventsShortcut && (
-          <DrawerLink
-            icon={Map}
-            label="Mes évènements"
-            onPress={() => {
-              toggleDrawer(false);
-              router.push('/profile/my-events' as any);
-            }}
-          />
-        )}
-        <DrawerLink
-          icon={ShoppingBag}
-          label="Boutique"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/(tabs)/shop' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Heart}
-          label="Mes favoris"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/(tabs)/favorites' as any);
-          }}
-        />
-        <DrawerLink
-          icon={Bug}
-          label="Reporter un bug"
-          onPress={() => {
-            toggleDrawer(false);
-            router.push('/bug-report' as any);
-          }}
-        />
-        {(profile?.role === 'moderateur' || profile?.role === 'admin') && (
-          <DrawerLink
-            icon={Target}
-            label="Modération"
-            onPress={() => {
-              toggleDrawer(false);
-              router.push('/moderation' as any);
-            }}
-          />
-        )}
+          >
+            <Coins size={20} color={colors.primary} />
+            <View style={styles.walletCopy}>
+              <Text style={styles.walletTitle}>Lumo Coins</Text>
+              <Text style={styles.walletSubtitle}>Accéder à la boutique</Text>
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.drawerSectionTitle}>DÉCOUVERTE</Text>
+          <View style={styles.drawerLinks}>
+            <DrawerItem
+              icon={PlusCircle}
+              label="Créer un évènement"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/events/create/step-1' as any);
+              }}
+            />
+            <DrawerItem
+              icon={User}
+              label="Mon profil"
+              highlight
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/(tabs)/profile' as any);
+              }}
+            />
+            <DrawerItem
+              icon={BarChart3}
+              label="Espace créateur"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/creator' as any);
+              }}
+            />
+          </View>
+
+          <Text style={styles.drawerSectionTitle}>COMPTE</Text>
+          <View style={styles.drawerLinks}>
+            <DrawerItem
+              icon={ShoppingBag}
+              label="Offres & abonnements"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/profile/offers' as any);
+              }}
+            />
+            <DrawerItem
+              icon={Settings}
+              label="Paramètres"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/settings/index' as any);
+              }}
+            />
+            <DrawerItem
+              icon={Bell}
+              label="Notifications"
+              badgeCount={unreadNotifications}
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/notifications' as any);
+              }}
+            />
+            <DrawerItem
+              icon={Send}
+              label="Inviter des amis"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/profile/invite' as any);
+              }}
+            />
+          </View>
+
+          <Text style={styles.drawerSectionTitle}>ACTIVITÉ</Text>
+          <View style={styles.drawerLinks}>
+            <DrawerItem
+              icon={Compass}
+              label="Mon parcours"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/profile/journey' as any);
+              }}
+            />
+            <DrawerItem
+              icon={Target}
+              label="Missions"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/(tabs)/missions' as any);
+              }}
+            />
+            {hasMyEventsShortcut && (
+              <DrawerItem
+                icon={Map}
+                label="Mes évènements"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/profile/my-events' as any);
+                }}
+              />
+            )}
+            <DrawerItem
+              icon={ShoppingBag}
+              label="Boutique"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/(tabs)/shop' as any);
+              }}
+            />
+            <DrawerItem
+              icon={Heart}
+              label="Mes favoris"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/(tabs)/favorites' as any);
+              }}
+            />
+            <DrawerItem
+              icon={Bug}
+              label="Reporter un bug"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/bug-report' as any);
+              }}
+            />
+            <DrawerItem
+              icon={BarChart3}
+              label="Preview Event UI (temp)"
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/events/ui-preview' as any);
+              }}
+            />
+          </View>
+
+          {(profile?.role === 'moderateur' || profile?.role === 'admin') && (
+            <>
+              <Text style={styles.drawerSectionTitle}>MODÉRATION</Text>
+              <View style={styles.drawerLinks}>
+                <DrawerItem
+                  icon={Target}
+                  label="Modération"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/moderation' as any);
+                  }}
+                />
+              </View>
+            </>
+          )}
+        </ScrollView>
+
+        <View style={styles.drawerFooter}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            activeOpacity={0.85}
+            onPress={handleSignOut}
+          >
+            <LogOut size={18} color={colors.textPrimary} />
+            <Text style={styles.logoutText}>Déconnexion</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -412,47 +510,35 @@ export default function TabsLayout() {
   );
 }
 
-const DrawerLink = ({
-  icon: IconCmp,
-  label,
-  onPress,
-  highlight,
-  badgeCount,
-}: {
-  icon: any;
-  label: string;
-  onPress: () => void;
-  highlight?: boolean;
-  badgeCount?: number;
-}) => (
-  <TouchableOpacity style={[styles.linkRow, highlight && styles.linkRowHighlight]} onPress={onPress} activeOpacity={0.8}>
-    <IconCmp size={20} color={highlight ? '#C18A1C' : colors.neutral[800]} />
-    <View style={styles.linkLabelWrapper}>
-      <Text style={[styles.linkLabel, highlight && styles.linkLabelHighlight]}>{label}</Text>
-    </View>
-    {typeof badgeCount === 'number' && badgeCount > 0 ? (
-      <View style={styles.linkBadge}>
-        <Text style={styles.linkBadgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
-      </View>
-    ) : null}
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
   },
   tabAvatar: {
     width: 26,
     height: 26,
     borderRadius: 13,
   },
+  tabIconShell: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconShellActive: {
+    backgroundColor: 'rgba(43, 191, 227, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.42)',
+    ...shadows.subtleGlow,
+  },
   profileTabIconWrap: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -466,20 +552,20 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.error[500],
+    backgroundColor: colors.danger,
     borderWidth: 2,
-    borderColor: colors.neutral[50],
+    borderColor: colors.background,
   },
   profileTabBadgeText: {
     fontSize: 9,
-    color: '#fff',
+    color: colors.textPrimary,
     fontWeight: '700',
     lineHeight: 10,
   },
   backdrop: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.overlay,
   },
   drawer: {
     position: 'absolute',
@@ -487,33 +573,43 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     width: '78%',
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderBottomLeftRadius: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    borderTopLeftRadius: radius.card,
+    borderBottomLeftRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    ...shadows.surfaceSoft,
+  },
+  drawerScrollContent: {
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
   drawerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
   drawerAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   drawerAvatarPlaceholder: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel1,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   drawerIdentity: {
     flex: 1,
@@ -521,66 +617,85 @@ const styles = StyleSheet.create({
   drawerName: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.textPrimary,
   },
   drawerEmail: {
     marginTop: 4,
     fontSize: 13,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   drawerLinks: {
-    marginTop: 12,
-    gap: 12,
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
-  linkRow: {
+  walletCard: {
+    minHeight: 56,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
+    paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
+    gap: spacing.sm,
+    ...shadows.subtleGlow,
   },
-  linkLabelWrapper: {
+  walletCopy: {
     flex: 1,
   },
-  linkLabel: {
+  walletTitle: {
     fontSize: 16,
-    color: colors.neutral[900],
-    fontWeight: '600',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  linkRowHighlight: {
-    backgroundColor: '#FFF5DB',
-    borderRadius: 12,
-    paddingHorizontal: 8,
+  walletSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
-  linkLabelHighlight: {
-    color: '#C18A1C',
+  drawerSectionTitle: {
+    marginTop: spacing.md,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  linkBadge: {
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 6,
-    borderRadius: 11,
+  drawerFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.md,
+  },
+  logoutButton: {
+    minHeight: 52,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[600],
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
-  linkBadgeText: {
-    fontSize: 11,
-    color: '#fff',
+  logoutText: {
+    fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   createButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E84141',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+    ...shadows.primaryGlow,
   },
   createButtonDisabled: {
-    backgroundColor: colors.neutral[400],
+    backgroundColor: colors.textMuted,
   },
   tabDisabled: {
-    opacity: 0.5,
+    opacity: 0.55,
   },
 });

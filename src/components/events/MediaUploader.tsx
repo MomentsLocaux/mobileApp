@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Upload, X, Image as ImageIcon } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import * as ImagePicker from 'expo-image-picker';
 import { Button, Input } from '../ui';
 
@@ -90,12 +90,12 @@ export function MediaUploader({
               style={styles.removeButton}
               onPress={() => onCoverChange('')}
             >
-              <X size={16} color={colors.neutral[0]} />
+              <X size={16} color={colors.scale.neutral[0]} />
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.uploadArea}>
-            <ImageIcon size={40} color={colors.neutral[400]} />
+            <ImageIcon size={40} color={colors.scale.neutral[400]} />
             <Text style={styles.uploadText}>Aucune image</Text>
           </View>
         )}
@@ -112,7 +112,7 @@ export function MediaUploader({
               ])
             }
           >
-            <Upload size={20} color={colors.neutral[0]} />
+            <Upload size={20} color={colors.scale.neutral[0]} />
           </TouchableOpacity>
           <Text style={styles.uploadHint}>Importer ou prendre une photo</Text>
           <Text style={styles.inputLabel}>Ou coller une URL</Text>
@@ -147,7 +147,7 @@ export function MediaUploader({
                   style={styles.removeButtonSmall}
                   onPress={() => handleRemoveFromGallery(index)}
                 >
-                  <X size={12} color={colors.neutral[0]} />
+                  <X size={12} color={colors.scale.neutral[0]} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -188,12 +188,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   sectionHint: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   coverPreview: {
     width: '100%',
@@ -211,9 +211,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     borderWidth: 2,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     ...typography.body,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   removeButton: {
     position: 'absolute',
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error[600],
+    backgroundColor: colors.scale.error[600],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '500',
   },
   inputRow: {
@@ -249,10 +249,10 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: spacing.sm,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.primary[200],
+    borderColor: colors.scale.primary[200],
   },
   centerButton: {
     alignSelf: 'center',
@@ -269,25 +269,25 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: spacing.sm,
   },
   uploadHint: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   hint: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
     fontStyle: 'italic',
   },
   error: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     marginTop: spacing.xs,
   },
   galleryScroll: {
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error[600],
+    backgroundColor: colors.scale.error[600],
     justifyContent: 'center',
     alignItems: 'center',
   },

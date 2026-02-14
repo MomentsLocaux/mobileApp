@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Image as ImageIcon, Camera, X } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
@@ -93,7 +93,7 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
           <View style={styles.header}>
             <Text style={styles.title}>Proposer une photo</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={10}>
-              <X size={18} color={colors.neutral[600]} />
+              <X size={18} color={colors.scale.neutral[600]} />
             </TouchableOpacity>
           </View>
 
@@ -106,18 +106,18 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
               <Image source={{ uri: imageUri }} style={styles.previewImage} />
             ) : (
               <View style={styles.previewPlaceholder}>
-                <ImageIcon size={40} color={colors.neutral[400]} />
+                <ImageIcon size={40} color={colors.scale.neutral[400]} />
               </View>
             )}
           </View>
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.actionButton} onPress={handlePick} disabled={uploading}>
-              <ImageIcon size={18} color={colors.primary[700]} />
+              <ImageIcon size={18} color={colors.scale.primary[700]} />
               <Text style={styles.actionText}>Galerie</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleTakePhoto} disabled={uploading}>
-              <Camera size={18} color={colors.primary[700]} />
+              <Camera size={18} color={colors.scale.primary[700]} />
               <Text style={styles.actionText}>Appareil photo</Text>
             </TouchableOpacity>
           </View>
@@ -128,7 +128,7 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
             disabled={!canSubmit}
           >
             {uploading ? (
-              <ActivityIndicator color={colors.neutral[0]} />
+              <ActivityIndicator color={colors.scale.neutral[0]} />
             ) : (
               <Text style={styles.submitText}>Envoyer pour validation</Text>
             )}
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   closeButton: {
     width: 32,
@@ -169,16 +169,16 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   preview: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   previewImage: {
     width: '100%',
@@ -197,22 +197,22 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.primary[200],
+    borderColor: colors.scale.primary[200],
     borderRadius: borderRadius.md,
     paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
   },
   actionText: {
     ...typography.bodySmall,
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -223,12 +223,12 @@ const styles = StyleSheet.create({
   },
   submitText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   limitHint: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
     textAlign: 'center',
   },
 });

@@ -15,7 +15,7 @@ import {
   UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react-native';
-import { colors } from '../../constants/theme';
+import { colors } from '@/components/ui/v2/theme';
 import Constants from 'expo-constants';
 import type { FeatureCollection, Feature } from 'geojson';
 import { CATEGORY_MARKER_SLUGS, categoryMarkerImageKey, type CategoryMarkerSlug } from '../../constants/category-markers';
@@ -279,7 +279,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   if (Platform.OS === 'web' || !isMapboxAvailable) {
     return (
       <View style={styles.unavailableContainer}>
-        <MapPin size={36} color={colors.neutral[400]} />
+        <MapPin size={36} color={colors.scale.neutral[400]} />
         <Text style={styles.unavailableTitle}>Carte non disponible sur le web</Text>
         <Text style={styles.unavailableText}>
           Ouvre l&apos;app avec un client Expo Dev (iOS/Android) pour voir la carte Mapbox.
@@ -407,8 +407,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
               style={{
                 textField: ['get', 'point_count_abbreviated'],
                 textSize: 11,
-                textColor: colors.neutral[900],
-                textHaloColor: colors.neutral[0],
+                textColor: colors.scale.neutral[900],
+                textHaloColor: colors.scale.neutral[0],
                 textHaloWidth: 1.2,
                 textOffset: [0, 2.1],
                 textAllowOverlap: true,
@@ -451,11 +451,11 @@ const styles = StyleSheet.create({
   unavailableTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   unavailableText: {
     fontSize: 14,
     textAlign: 'center',
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
 });

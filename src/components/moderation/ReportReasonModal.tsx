@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { X } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { REPORT_REASONS, type ReportReasonCode } from '@/constants/report-reasons';
 
 type Props = {
@@ -18,7 +18,7 @@ export default function ReportReasonModal({ visible, onSelect, onClose }: Props)
           <View style={styles.header}>
             <Text style={styles.title}>Motif du signalement</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={16} color={colors.neutral[600]} />
+              <X size={16} color={colors.scale.neutral[600]} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.list}>
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   card: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     gap: spacing.md,
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   closeButton: {
     width: 28,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   list: {
     gap: spacing.sm,
@@ -77,18 +77,18 @@ const styles = StyleSheet.create({
   item: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   itemLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   itemMeta: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     marginTop: 4,
   },
 });

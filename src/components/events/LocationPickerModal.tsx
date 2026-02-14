@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Platform } from 'react-native';
+import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapboxGL from '@rnmapbox/maps';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 import { useCreateEventStore, type EventLocation } from '@/hooks/useCreateEventStore';
 import { MapPin } from 'lucide-react-native';
@@ -78,7 +78,7 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
         </View>
 
         <View style={styles.searchRow}>
-          <MapPin size={18} color={colors.neutral[500]} />
+          <MapPin size={18} color={colors.scale.neutral[500]} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher une adresse"
@@ -140,11 +140,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   link: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '700',
   },
   searchRow: {
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[50],
+    borderColor: colors.scale.neutral[200],
+    backgroundColor: colors.scale.neutral[50],
   },
   searchInput: {
     flex: 1,
@@ -165,24 +165,24 @@ const styles = StyleSheet.create({
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   mapContainer: {
     marginTop: spacing.md,
     height: 260,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   confirmBtn: {
     marginTop: spacing.lg,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     alignItems: 'center',
   },
   confirmDisabled: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.scale.neutral[300],
   },
   confirmText: {
     ...typography.body,

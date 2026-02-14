@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Image, ScrollView, LayoutChangeEvent } from 'react-native';
 import { Image as ImageIcon } from 'lucide-react-native';
-import { colors, borderRadius, spacing } from '@/constants/theme';
+import { colors, borderRadius, spacing } from '@/components/ui/v2/theme';
 
 type Props = {
   images: (string | null | undefined)[];
@@ -18,7 +18,7 @@ export const EventImageCarousel: React.FC<Props> = ({
   height = 220,
   borderRadius: radius = borderRadius.lg,
   showDots = true,
-  backgroundColor = colors.neutral[100],
+  backgroundColor = colors.scale.neutral[100],
   onSwipeStart,
   onSwipeEnd,
 }) => {
@@ -97,7 +97,7 @@ export const EventImageCarousel: React.FC<Props> = ({
               { width: width || '100%', height, borderRadius: radius, backgroundColor },
             ]}
           >
-            <ImageIcon size={48} color={colors.neutral[400]} />
+            <ImageIcon size={48} color={colors.scale.neutral[400]} />
           </View>
         )}
       </ScrollView>
@@ -141,11 +141,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
     opacity: 0.6,
   },
   dotActive: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     opacity: 1,
   },
 });

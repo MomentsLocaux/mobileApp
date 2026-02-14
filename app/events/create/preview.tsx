@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { colors, typography, spacing, borderRadius } from '@/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
@@ -38,7 +38,6 @@ export default function CreateEventPreview() {
   const tags = useCreateEventStore((s) => s.tags);
   const visibility = useCreateEventStore((s) => s.visibility);
   const price = useCreateEventStore((s) => s.price);
-  const duration = useCreateEventStore((s) => s.duration);
   const contact = useCreateEventStore((s) => s.contact);
   const externalLink = useCreateEventStore((s) => s.externalLink);
   const videoLink = useCreateEventStore((s) => s.videoLink);
@@ -213,9 +212,10 @@ export default function CreateEventPreview() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AppBackground opacity={0.2} />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
+        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()} accessibilityRole="button">
+          <ChevronLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Prévisualisation</Text>
         <View style={styles.headerBtn} />
@@ -238,10 +238,11 @@ export default function CreateEventPreview() {
         <TouchableOpacity
           style={[styles.confirmBtn, (!canPublish || submitting) && styles.confirmDisabled]}
           disabled={!canPublish || submitting}
+          accessibilityRole="button"
           onPress={handleConfirm}
         >
           {submitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.background} />
           ) : (
             <Text style={styles.confirmText}>Confirmer la création de l'événement</Text>
           )}
@@ -264,7 +265,7 @@ export default function CreateEventPreview() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.background,
   },
   header: {
     height: 64,
@@ -274,14 +275,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   headerBtn: {
-    padding: spacing.sm,
+    minHeight: 44,
     minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: radius.pill,
   },
   headerTitle: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   content: {
@@ -290,13 +292,13 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   sectionTitle: {
-    ...typography.h6,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   description: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
   },
   footer: {
     position: 'absolute',
@@ -305,17 +307,20 @@ const styles = StyleSheet.create({
     right: spacing.md,
   },
   confirmBtn: {
-    backgroundColor: colors.primary[600],
+    minHeight: 56,
+    backgroundColor: colors.primary,
     paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.primaryGlow,
   },
   confirmDisabled: {
-    backgroundColor: colors.neutral[300],
+    opacity: 0.45,
   },
   confirmText: {
     ...typography.body,
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
 });

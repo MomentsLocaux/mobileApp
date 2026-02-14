@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, spacing, typography } from '@/components/ui/v2';
 
 type Props = {
   value: 'public' | 'unlisted';
@@ -15,12 +15,14 @@ export const VisibilitySelector = ({ value, onChange }: Props) => {
         <TouchableOpacity
           style={[styles.segment, value === 'public' && styles.segmentActive]}
           onPress={() => onChange('public')}
+          accessibilityRole="button"
         >
           <Text style={[styles.segmentText, value === 'public' && styles.segmentTextActive]}>Public</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.segment, value === 'unlisted' && styles.segmentActive]}
           onPress={() => onChange('unlisted')}
+          accessibilityRole="button"
         >
           <Text style={[styles.segmentText, value === 'unlisted' && styles.segmentTextActive]}>
             Non listé
@@ -37,34 +39,34 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
-    backgroundColor: colors.neutral[100],
-    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceLevel2,
+    borderRadius: radius.pill,
     padding: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   segment: {
     flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentActive: {
-    backgroundColor: colors.neutral[0],
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.primary,
   },
   segmentText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   segmentTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
 });

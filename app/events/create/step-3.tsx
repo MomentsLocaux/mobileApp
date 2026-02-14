@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import MapboxGL from '@rnmapbox/maps';
 import { ChevronLeft } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
@@ -38,7 +38,6 @@ export default function CreateEventStep3() {
     contact,
     externalLink,
     videoLink,
-    setCategory, // unused but kept to avoid linter
     reset,
   } = useCreateEventStore();
 
@@ -132,9 +131,10 @@ export default function CreateEventStep3() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AppBackground opacity={0.2} />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
+        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()} accessibilityRole="button">
+          <ChevronLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Aperçu de l'événement</Text>
         <View style={styles.headerBtn} />
@@ -243,10 +243,11 @@ export default function CreateEventStep3() {
         <TouchableOpacity
           style={[styles.primaryBtn, (!canPublish || loading) && styles.primaryDisabled]}
           disabled={!canPublish || loading}
+          accessibilityRole="button"
           onPress={handlePublish}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.background} />
           ) : (
             <Text style={styles.primaryText}>Publier l'événement</Text>
           )}
@@ -259,7 +260,7 @@ export default function CreateEventStep3() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.background,
   },
   header: {
     height: 64,
@@ -269,14 +270,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   headerBtn: {
-    padding: spacing.sm,
+    minHeight: 44,
     minWidth: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: radius.pill,
   },
   headerTitle: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   content: {
@@ -285,11 +287,13 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   hero: {
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.card,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
     height: 220,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   heroImg: {
     width: '100%',
@@ -309,40 +313,41 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   heroTitle: {
-    ...typography.h5,
-    color: '#fff',
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   heroMeta: {
     ...typography.body,
-    color: '#fff',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   card: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: borderRadius.lg,
+    borderColor: colors.borderSubtle,
+    borderRadius: radius.card,
     padding: spacing.md,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surfaceLevel1,
     gap: spacing.sm,
+    ...shadows.surfaceSoft,
   },
   cardTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   infoLine: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   metaText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
   },
   bodyText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.textSecondary,
   },
   tagsRow: {
     flexDirection: 'row',
@@ -352,32 +357,36 @@ const styles = StyleSheet.create({
   tagChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   tagText: {
-    ...typography.bodySmall,
-    color: colors.neutral[800],
+    ...typography.body,
+    color: colors.primary,
     fontWeight: '600',
   },
   mapBox: {
     height: 200,
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.element,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
   },
   mapPlaceholder: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
   },
   cardInfo: {
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.card,
     padding: spacing.md,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     gap: spacing.xs,
   },
   infoText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
   },
   bottomBar: {
     position: 'absolute',
@@ -387,34 +396,39 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.surfaceLevel1,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
   secondaryBtn: {
     flex: 1,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.borderSubtle,
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
   secondaryText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.textSecondary,
     fontWeight: '700',
   },
   primaryBtn: {
     flex: 1,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    minHeight: 56,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.primaryGlow,
   },
   primaryDisabled: {
-    backgroundColor: colors.neutral[300],
+    opacity: 0.45,
   },
   primaryText: {
     ...typography.body,
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
 });

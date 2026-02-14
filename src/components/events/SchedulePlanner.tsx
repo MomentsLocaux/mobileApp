@@ -9,7 +9,7 @@ import {
 import { Clock } from 'lucide-react-native';
 import { Input } from '../ui';
 import type { ScheduleMode, DailyScheduleSlot } from '../../types/event-form';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 
 interface SchedulePlannerProps {
   mode: ScheduleMode;
@@ -150,7 +150,7 @@ export function SchedulePlanner({
               style={styles.generateButton}
               onPress={handleGenerateSchedule}
             >
-              <Clock size={18} color={colors.primary[600]} />
+              <Clock size={18} color={colors.scale.primary[600]} />
               <Text style={styles.generateButtonText}>
                 Générer le planning
               </Text>
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   modeSelector: {
     flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     padding: spacing.xs,
     borderRadius: borderRadius.md,
   },
@@ -222,15 +222,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   modeButtonActive: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
   },
   modeButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     fontWeight: '500',
   },
   modeButtonTextActive: {
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   uniformSection: {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     fontStyle: 'italic',
   },
   dailySection: {
@@ -257,15 +257,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.lg,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.primary[200],
+    borderColor: colors.scale.primary[200],
     borderStyle: 'dashed',
   },
   generateButtonText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '600',
   },
   headerRow: {
@@ -275,19 +275,19 @@ const styles = StyleSheet.create({
   },
   headerText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   regenerateText: {
     ...typography.bodySmall,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '600',
   },
   scheduleList: {
     maxHeight: 400,
   },
   slotCard: {
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
     padding: spacing.md,
     borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   slotDate: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
     textTransform: 'capitalize',
   },

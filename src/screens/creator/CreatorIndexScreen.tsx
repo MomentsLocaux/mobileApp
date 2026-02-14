@@ -1,17 +1,26 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BarChart3, Users } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppBackground, Card, Button } from '@/components/ui';
+import { ArrowUpRight, BarChart3, Sparkles, Users } from 'lucide-react-native';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import {
+  Badge,
+  Button,
+  Card,
+  ScreenLayout,
+  Typography,
+  colors,
+  radius,
+  spacing,
+} from '@/components/ui/v2';
 import { useAuth } from '@/hooks';
 
 export default function CreatorIndexScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
   const isGuest = !session;
+
   const handleExitCreator = () => {
     if (router.canGoBack()) {
       router.back();
@@ -22,8 +31,7 @@ export default function CreatorIndexScreen() {
 
   if (isGuest) {
     return (
-      <View style={styles.container}>
-        <AppBackground opacity={0.9} />
+      <View style={styles.guestContainer}>
         <GuestGateModal
           visible
           title="Espace créateur"
@@ -36,10 +44,17 @@ export default function CreatorIndexScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <AppBackground />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.topActions}>
+    <ScreenLayout
+      header={
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Typography variant="sectionTitle" color={colors.textPrimary} weight="700">
+              Espace créateur
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary}>
+              Pilotez vos performances et votre communauté.
+            </Typography>
+          </View>
           <Button
             title="Quitter"
             variant="secondary"
@@ -49,126 +64,149 @@ export default function CreatorIndexScreen() {
             accessibilityLabel="Quitter l'espace créateur"
           />
         </View>
+      }
+      contentContainerStyle={styles.content}
+    >
+      <LinearGradient
+        colors={[colors.accent, colors.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <Badge label="Creator module" style={styles.heroBadge} />
+        <Typography variant="sectionTitle" color={colors.textPrimary} weight="700">
+          Dashboard + Community
+        </Typography>
+        <Typography variant="body" color="rgba(255,255,255,0.9)">
+          {profile?.display_name || 'Créateur'} · KPIs, top événements, fan segmentation et actions rapides.
+        </Typography>
+      </LinearGradient>
 
-        <LinearGradient colors={[colors.primary[700], colors.primary[600]]} style={styles.hero}>
-          <Text style={styles.heroTitle}>Espace créateur</Text>
-          <Text style={styles.heroSubtitle}>
-            Pilotez vos performances et votre communauté depuis un seul espace.
-          </Text>
-          <Text style={styles.heroFoot}>{profile?.display_name || 'Créateur'}</Text>
-        </LinearGradient>
-
-        <Card padding="md" style={styles.card} onPress={() => router.push('/creator/dashboard' as any)}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <BarChart3 size={18} color={colors.primary[700]} />
-            </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitle}>Statistiques</Text>
-              <Text style={styles.cardBody}>KPIs, courbe d’engagement et top événements.</Text>
-            </View>
+      <Card padding="lg" style={styles.featureCard} onPress={() => router.push('/creator/dashboard' as any)}>
+        <View style={styles.featureTopRow}>
+          <View style={styles.featureIconWrap}>
+            <BarChart3 size={18} color={colors.primary} />
           </View>
-          <Button
-            title="Ouvrir le dashboard"
-            onPress={() => router.push('/creator/dashboard' as any)}
-            accessibilityRole="button"
-          />
-        </Card>
-
-        <Card padding="md" style={styles.card} onPress={() => router.push('/creator/fans' as any)}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <Users size={18} color={colors.primary[700]} />
-            </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitle}>Communauté</Text>
-              <Text style={styles.cardBody}>Segmentez vos fans et lancez des actions de reward rapidement.</Text>
-            </View>
+          <View style={styles.featureTextWrap}>
+            <Typography variant="subsection" color={colors.textPrimary} weight="700">
+              Dashboard
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary}>
+              KPIs globaux, courbe d'engagement et top événements.
+            </Typography>
           </View>
-          <Button
-            title="Voir la communauté"
-            variant="secondary"
-            onPress={() => router.push('/creator/fans' as any)}
-            accessibilityRole="button"
-          />
-        </Card>
+          <ArrowUpRight size={16} color={colors.primary} />
+        </View>
 
+        <Button
+          title="Ouvrir le dashboard"
+          onPress={() => router.push('/creator/dashboard' as any)}
+          fullWidth
+          accessibilityRole="button"
+        />
+      </Card>
+
+      <Card padding="lg" style={styles.featureCard} onPress={() => router.push('/creator/fans' as any)}>
+        <View style={styles.featureTopRow}>
+          <View style={styles.featureIconWrap}>
+            <Users size={18} color={colors.primary} />
+          </View>
+          <View style={styles.featureTextWrap}>
+            <Typography variant="subsection" color={colors.textPrimary} weight="700">
+              Community Hub
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary}>
+              Segmentation fans, classement XP, rewards et challenges.
+            </Typography>
+          </View>
+          <ArrowUpRight size={16} color={colors.primary} />
+        </View>
+
+        <Button
+          title="Voir la communauté"
+          variant="secondary"
+          onPress={() => router.push('/creator/fans' as any)}
+          fullWidth
+          accessibilityRole="button"
+        />
+      </Card>
+
+      <Card padding="md" style={styles.secondaryCard}>
+        <View style={styles.secondaryCardRow}>
+          <Sparkles size={16} color={colors.primary} />
+          <Typography variant="body" color={colors.textSecondary}>
+            Accès rapide à vos événements publiés.
+          </Typography>
+        </View>
         <Button
           title="Mes événements"
           variant="ghost"
           onPress={() => router.push('/profile/my-events' as any)}
           accessibilityRole="button"
         />
-      </ScrollView>
-    </View>
+      </Card>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  guestContainer: {
     flex: 1,
-    backgroundColor: colors.background[500],
+    backgroundColor: colors.background,
   },
-  scroll: {
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headerTextWrap: {
     flex: 1,
-    backgroundColor: 'transparent',
+    gap: 2,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  topActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: spacing.lg,
   },
   hero: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  heroTitle: {
-    ...typography.h3,
-    color: colors.secondaryAccent[500],
-  },
-  heroSubtitle: {
-    ...typography.body,
-    color: 'rgba(255,255,255,0.92)',
-  },
-  heroFoot: {
-    ...typography.caption,
-    color: 'rgba(255,255,255,0.86)',
-    marginTop: spacing.xs,
-  },
-  card: {
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.secondaryAccent[500],
-    gap: spacing.md,
+    borderColor: 'rgba(255,255,255,0.22)',
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
-  cardHeader: {
+  heroBadge: {
+    backgroundColor: 'rgba(15, 23, 25, 0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  featureCard: {
+    gap: spacing.lg,
+  },
+  featureTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
+  featureIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.element,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background[500],
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.35)',
   },
-  cardTextWrap: {
+  featureTextWrap: {
     flex: 1,
+    gap: 2,
   },
-  cardTitle: {
-    ...typography.h6,
-    color: colors.textPrimary[500],
+  secondaryCard: {
+    gap: spacing.sm,
   },
-  cardBody: {
-    ...typography.bodySmall,
-    color: colors.textSecondary[500],
+  secondaryCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
 });

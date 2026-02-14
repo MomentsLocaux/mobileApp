@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { ShoppingBag, Sparkles, Coins } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { AppBackground, Card, colors, radius, spacing, typography } from '@/components/ui/v2';
 import { supabase } from '@/lib/supabase/client';
-import { AppBackground, Card } from '@/components/ui';
 
 type ShopItem = {
   id: string;
@@ -39,53 +38,60 @@ export default function ShopScreen() {
   }, [loadItems]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <AppBackground />
-      <View style={styles.header}>
-        <View style={styles.iconBadge}>
-          <ShoppingBag size={20} color={colors.primary[600]} />
+    <View style={styles.screen}>
+      <AppBackground opacity={0.2} />
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.iconBadge}>
+            <ShoppingBag size={20} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={styles.title}>Boutique</Text>
+            <Text style={styles.subtitle}>Objets disponibles</Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.title}>Boutique</Text>
-          <Text style={styles.subtitle}>Objets disponibles</Text>
-        </View>
-      </View>
 
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-        </View>
-      ) : items.length === 0 ? (
-        <Card style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Aucun article</Text>
-          <Text style={styles.emptyBody}>La boutique sera alimentée bientôt.</Text>
-        </Card>
-      ) : (
-        items.map((item) => (
-          <Card key={item.id} style={styles.itemCard}>
-            <View style={styles.itemHeader}>
-              <View style={styles.itemTypeWrap}>
-                <Sparkles size={14} color={colors.secondary[600]} />
-                <Text style={styles.itemType}>{item.type}</Text>
-              </View>
-              <View style={styles.priceWrap}>
-                <Coins size={14} color={colors.warning[600]} />
-                <Text style={styles.priceText}>{item.price}</Text>
-              </View>
-            </View>
-            <Text style={styles.itemTitle}>{item.title}</Text>
-            <Text style={styles.itemDescription}>{item.description || 'Aucune description.'}</Text>
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : items.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucun article</Text>
+            <Text style={styles.emptyBody}>La boutique sera alimentée bientôt.</Text>
           </Card>
-        ))
-      )}
-    </ScrollView>
+        ) : (
+          items.map((item) => (
+            <Card key={item.id} style={styles.itemCard}>
+              <View style={styles.itemHeader}>
+                <View style={styles.itemTypeWrap}>
+                  <Sparkles size={14} color={colors.primary} />
+                  <Text style={styles.itemType}>{item.type}</Text>
+                </View>
+                <View style={styles.priceWrap}>
+                  <Coins size={14} color={colors.success} />
+                  <Text style={styles.priceText}>{item.price}</Text>
+                </View>
+              </View>
+              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemDescription}>{item.description || 'Aucune description.'}</Text>
+            </Card>
+          ))
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     minHeight: '100%',
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
   header: {
@@ -96,18 +102,18 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: 44,
     height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    ...typography.h3,
-    color: colors.neutral[900],
+    ...typography.sectionTitle,
+    color: colors.textPrimary,
   },
   subtitle: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
   },
   loadingWrap: {
     paddingVertical: spacing.xl,
@@ -118,13 +124,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   emptyTitle: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   emptyBody: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   itemCard: {
     padding: spacing.md,
@@ -142,7 +148,7 @@ const styles = StyleSheet.create({
   },
   itemType: {
     ...typography.caption,
-    color: colors.secondary[700],
+    color: colors.primary,
     fontWeight: '700',
     textTransform: 'capitalize',
   },
@@ -152,17 +158,17 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   priceText: {
-    ...typography.bodySmall,
-    color: colors.warning[700],
+    ...typography.bodyStrong,
+    color: colors.success,
     fontWeight: '700',
   },
   itemTitle: {
-    ...typography.bodyLarge,
-    color: colors.neutral[900],
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   itemDescription: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
 });

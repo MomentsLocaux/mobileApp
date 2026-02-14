@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { View, FlatList, Image, Pressable, Dimensions, StyleSheet, Text } from 'react-native';
 import { Image as ImageIcon } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 
 export type MediaImage = {
   id: string;
@@ -62,7 +62,7 @@ export function PlaceMediaGallery({ images, onAddPhoto }: Props) {
           />
         ) : (
           <View style={styles.heroPlaceholder}>
-            <ImageIcon size={40} color={colors.neutral[400]} />
+            <ImageIcon size={40} color={colors.scale.neutral[400]} />
           </View>
         )}
 
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: HERO_HEIGHT,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   heroImage: {
     width,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   addPhotoCta: {
     position: 'absolute',
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   addPhotoText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   thumbList: {
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   thumbActive: {
     opacity: 1,
     borderWidth: 2,
-    borderColor: colors.neutral[900],
+    borderColor: colors.scale.neutral[900],
   },
   addThumb: {
     width: THUMB_SIZE,
@@ -153,12 +153,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
     alignItems: 'center',
     justifyContent: 'center',
   },
   addThumbText: {
     fontSize: 22,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
 });

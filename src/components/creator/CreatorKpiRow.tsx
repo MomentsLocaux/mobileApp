@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Activity, CheckCircle2, Eye, Heart, MessageSquare, Users } from 'lucide-react-native';
 import { CreatorStatsCard } from '@/components/creator/CreatorStatsCard';
-import { colors, spacing } from '@/constants/theme';
+import { colors, spacing } from '@/components/ui/v2';
 import type { CreatorEngagementStats } from '@/types/creator.types';
 
 interface CreatorKpiRowProps {
@@ -11,7 +11,7 @@ interface CreatorKpiRowProps {
 }
 
 const toNumber = (value: number | null | undefined) => Number(value ?? 0);
-const CARD_WIDTH = 182;
+const CARD_WIDTH = 188;
 
 export function CreatorKpiRow({ stats, onPressKpi }: CreatorKpiRowProps) {
   const safe = stats ?? {
@@ -38,44 +38,44 @@ export function CreatorKpiRow({ stats, onPressKpi }: CreatorKpiRowProps) {
         label="Score"
         value={toNumber(safe.engagement_score)}
         helper="Engagement global"
-        icon={<Activity size={14} color={colors.primary[700]} />}
+        icon={<Activity size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('engagement_score')}
       />
       <CreatorStatsCard
         label="Événements"
         value={toNumber(safe.total_events)}
         helper="Total créés"
-        icon={<CheckCircle2 size={14} color={colors.primary[700]} />}
+        icon={<CheckCircle2 size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('total_events')}
       />
       <CreatorStatsCard
         label="Vues"
         value={toNumber(safe.total_views)}
-        icon={<Eye size={14} color={colors.primary[700]} />}
+        icon={<Eye size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('total_views')}
       />
       <CreatorStatsCard
         label="Likes"
         value={toNumber(safe.total_likes)}
-        icon={<Heart size={14} color={colors.primary[700]} />}
+        icon={<Heart size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('total_likes')}
       />
       <CreatorStatsCard
         label="Commentaires"
         value={toNumber(safe.total_comments)}
-        icon={<MessageSquare size={14} color={colors.primary[700]} />}
+        icon={<MessageSquare size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('total_comments')}
       />
       <CreatorStatsCard
         label="Followers"
         value={toNumber(safe.total_followers)}
-        icon={<Users size={14} color={colors.primary[700]} />}
+        icon={<Users size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('total_followers')}
       />
       <CreatorStatsCard
         label="Check-ins"
         value={toNumber(safe.total_checkins)}
-        icon={<CheckCircle2 size={14} color={colors.primary[700]} />}
+        icon={<CheckCircle2 size={14} color={colors.primary} />}
         onPress={() => onPressKpi?.('total_checkins')}
       />
     </ScrollView>

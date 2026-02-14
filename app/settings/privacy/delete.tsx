@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
-import { Button } from '@/components/ui/Button';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { Button, colors, radius, spacing, typography } from '@/components/ui/v2';
 
 export default function DeleteAccountScreen() {
   const confirmDelete = () => {
@@ -22,7 +21,7 @@ export default function DeleteAccountScreen() {
     <SettingsLayout title="Supprimer mon compte">
       <SettingsSectionCard title="Supprimer mon compte" icon={AlertTriangle}>
         <View style={styles.dangerBlock}>
-          <AlertTriangle size={24} color={colors.error[600]} />
+          <AlertTriangle size={24} color={colors.danger} />
           <Text style={styles.dangerTitle}>Action définitive</Text>
           <Text style={styles.dangerText}>
             Cette action est définitive. Vos données personnelles seront supprimées.
@@ -40,18 +39,20 @@ export default function DeleteAccountScreen() {
 const styles = StyleSheet.create({
   dangerBlock: {
     marginTop: spacing.sm,
-    backgroundColor: '#FFD7D7',
-    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255, 90, 102, 0.18)',
+    borderRadius: radius.element,
     padding: spacing.md,
     gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 102, 0.35)',
   },
   dangerTitle: {
-    ...typography.h4,
-    color: colors.error[700],
+    ...typography.subsection,
+    color: colors.danger,
   },
   dangerText: {
     ...typography.body,
-    color: colors.error[700],
+    color: colors.textSecondary,
   },
   actions: {
     marginTop: spacing.md,

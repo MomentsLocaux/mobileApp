@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Image, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../constants/theme';
-import type { ImageAsset } from '../hooks/useImagePicker';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import { useImagePicker } from '../hooks/useImagePicker';
 
 interface Props {
@@ -37,7 +36,7 @@ export const ImageSelector: React.FC<Props> = ({ label = 'Image', value, onChang
         <Text style={styles.label}>{label}{required ? ' *' : ''}</Text>
         {currentUri && (
           <TouchableOpacity onPress={handleClear} style={styles.clearButton} accessibilityLabel="Supprimer l'image">
-            <Trash2 size={16} color={colors.error[600]} />
+            <Trash2 size={16} color={colors.scale.error[600]} />
             <Text style={styles.clearText}>Supprimer</Text>
           </TouchableOpacity>
         )}
@@ -50,7 +49,7 @@ export const ImageSelector: React.FC<Props> = ({ label = 'Image', value, onChang
           </View>
         ) : (
           <View style={styles.placeholder}>
-            <ImageIcon size={32} color={colors.neutral[400]} />
+            <ImageIcon size={32} color={colors.scale.neutral[400]} />
             <Text style={styles.placeholderText}>Aucune image sélectionnée</Text>
           </View>
         )}
@@ -66,7 +65,7 @@ export const ImageSelector: React.FC<Props> = ({ label = 'Image', value, onChang
           }
           accessibilityLabel="Choisir ou prendre une photo"
         >
-          <Plus size={20} color={colors.neutral[0]} />
+          <Plus size={20} color={colors.scale.neutral[0]} />
         </TouchableOpacity>
       </View>
       <Text style={styles.uploadHint}>Importer ou prendre une photo</Text>
@@ -85,7 +84,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '600',
   },
   clearButton: {
@@ -95,14 +94,14 @@ const styles = StyleSheet.create({
   },
   clearText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     fontWeight: '600',
   },
   preview: {
     height: 200,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   image: {
     width: '100%',
@@ -112,15 +111,15 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[50],
+    borderColor: colors.scale.neutral[200],
+    backgroundColor: colors.scale.neutral[50],
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
   },
   placeholderText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   previewWrapper: {
     position: 'relative',
@@ -132,7 +131,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -143,7 +142,7 @@ const styles = StyleSheet.create({
   },
   uploadHint: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     textAlign: 'center',
   },
 });

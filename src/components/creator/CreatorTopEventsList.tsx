@@ -1,8 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Calendar, Eye, Heart, MessageSquare } from 'lucide-react-native';
-import { Card } from '@/components/ui';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { StyleSheet, View } from 'react-native';
+import { Calendar, Eye, Heart, MessageSquare, Star } from 'lucide-react-native';
+import { Badge, Card, Typography, colors, radius, spacing } from '@/components/ui/v2';
 import type { EventEngagementStats } from '@/types/creator.types';
 
 interface CreatorTopEventsListProps {
@@ -24,8 +23,10 @@ const formatDate = (value?: string | null) => {
 export function CreatorTopEventsList({ events, onOpenEvent }: CreatorTopEventsListProps) {
   if (!events.length) {
     return (
-      <Card padding="md" style={styles.emptyCard} elevation="sm">
-        <Text style={styles.emptyText}>Aucune donnée d'engagement disponible pour le moment.</Text>
+      <Card padding="md" style={styles.emptyCard}>
+        <Typography variant="body" color={colors.textSecondary}>
+          Aucune donnée d'engagement disponible pour le moment.
+        </Typography>
       </Card>
     );
   }
@@ -38,38 +39,53 @@ export function CreatorTopEventsList({ events, onOpenEvent }: CreatorTopEventsLi
             key={item.event_id}
             padding="md"
             style={styles.card}
-            elevation="sm"
             onPress={onOpenEvent ? () => onOpenEvent(item.event_id) : undefined}
-            accessible
-            accessibilityRole={onOpenEvent ? 'button' : 'summary'}
-            accessibilityLabel={`Événement ${item.event?.title || 'sans titre'}, score ${item.engagement_score}`}
           >
             <View style={styles.rowTop}>
-              <Text style={styles.rank}>#{index + 1}</Text>
-              <Text style={styles.title} numberOfLines={1}>
+              <Badge label={`#${index + 1}`} style={styles.rankBadge} />
+
+              <Typography variant="body" color={colors.textPrimary} weight="700" style={styles.title} numberOfLines={1}>
                 {item.event?.title || 'Événement'}
-              </Text>
-              <Text style={styles.score}>{item.engagement_score} pts</Text>
+              </Typography>
+
+              <View style={styles.scoreRow}>
+                <Star size={12} color={colors.primary} />
+                <Typography variant="caption" color={colors.primary} weight="700">
+                  {item.engagement_score} pts
+                </Typography>
+              </View>
             </View>
 
             <View style={styles.metaRow}>
-              <Calendar size={13} color={colors.textSecondary[500]} />
-              <Text style={styles.metaText}>{formatDate(item.event?.starts_at)}</Text>
-              <Text style={styles.metaText}>· {item.event?.city || 'Ville inconnue'}</Text>
+              <Calendar size={13} color={colors.textSecondary} />
+              <Typography variant="caption" color={colors.textSecondary}>
+                {formatDate(item.event?.starts_at)}
+              </Typography>
+              <Typography variant="caption" color={colors.textSecondary}>
+                · {item.event?.city || 'Ville inconnue'}
+              </Typography>
             </View>
 
             <View style={styles.statsRow}>
               <View style={styles.statPill}>
-                <Eye size={12} color={colors.info[700]} />
-                <Text style={styles.statText}>{item.views_count}</Text>
+                <Eye size={12} color={colors.primary} />
+                <Typography variant="caption" color={colors.textPrimary} weight="700">
+                  {item.views_count}
+                </Typography>
               </View>
+
               <View style={styles.statPill}>
-                <Heart size={12} color={colors.error[700]} />
-                <Text style={styles.statText}>{item.likes_count}</Text>
+                <Heart size={12} color={colors.primary} />
+                <Typography variant="caption" color={colors.textPrimary} weight="700">
+                  {item.likes_count}
+                </Typography>
               </View>
+
               <View style={styles.statPill}>
-                <MessageSquare size={12} color={colors.warning[700]} />
-                <Text style={styles.statText}>{item.comments_count}</Text>
+                <MessageSquare size={12} color={colors.primary} />
+                <Typography variant="caption" color={colors.textPrimary} weight="700">
+                  {item.comments_count}
+                </Typography>
               </View>
             </View>
           </Card>
@@ -84,70 +100,49 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.secondaryAccent[500],
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   emptyCard: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
-  },
-  emptyText: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    minHeight: 92,
+    justifyContent: 'center',
   },
   rowTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  rank: {
-    ...typography.bodySmall,
-    color: colors.textSecondary[500],
-    fontWeight: '700',
+  rankBadge: {
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.35)',
   },
   title: {
     flex: 1,
-    ...typography.body,
-    color: colors.textPrimary[500],
-    fontWeight: '600',
   },
-  score: {
-    ...typography.bodySmall,
-    color: colors.primary[700],
-    fontWeight: '700',
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  metaText: {
-    ...typography.caption,
-    color: colors.textSecondary[500],
-  },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.xs,
   },
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    borderRadius: borderRadius.full,
+    gap: 6,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    backgroundColor: colors.background[500],
-  },
-  statText: {
-    ...typography.caption,
-    color: colors.textPrimary[500],
-    fontWeight: '600',
+    paddingVertical: 5,
+    backgroundColor: colors.surfaceLevel2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
 });

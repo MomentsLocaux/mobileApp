@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, FlatList } from 'react-native';
 import { DayScheduleRow } from '@/components/DayScheduleRow';
 import { useEventSchedules } from '@/hooks/useEventSchedules';
 import type { EventDateConfig } from '@/types/eventDate.model';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type Props = {
@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.scale.neutral[200],
+    backgroundColor: colors.scale.neutral[0],
     overflow: 'hidden',
   },
   header: {
@@ -146,12 +146,12 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
   },
   link: {
     ...typography.bodySmall,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '600',
   },
   body: {
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '700',
   },
   defaultHours: {
@@ -176,16 +176,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
   },
   timeText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   separator: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
 });

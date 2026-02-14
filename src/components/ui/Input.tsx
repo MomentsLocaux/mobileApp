@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { View, TextInput, Text, StyleSheet, type TextInputProps } from 'react-native';
-import { colors, spacing, borderRadius, typography, minimumTouchTarget } from '../../constants/theme';
+import { colors, spacing, borderRadius, typography, minimumTouchTarget } from '@/components/ui/v2/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -21,7 +21,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
       <TextInput
         ref={ref}
         style={[styles.input, error && styles.inputError, style]}
-        placeholderTextColor={colors.neutral[400]}
+        placeholderTextColor={colors.scale.neutral[400]}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
@@ -38,31 +38,31 @@ const styles = StyleSheet.create({
   label: {
     ...typography.bodySmall,
     fontWeight: '600',
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     marginBottom: spacing.xs,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
     minHeight: minimumTouchTarget,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     fontSize: 16,
     color: colors.textPrimary[500],
-    backgroundColor: colors.secondaryAccent[500],
+    backgroundColor: colors.scale.secondaryAccent[500],
   },
   inputError: {
-    borderColor: colors.error[500],
+    borderColor: colors.scale.error[500],
   },
   error: {
     ...typography.caption,
-    color: colors.error[500],
+    color: colors.scale.error[500],
     marginTop: spacing.xs,
   },
   helperText: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
     marginTop: spacing.xs,
   },
 });

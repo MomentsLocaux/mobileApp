@@ -10,20 +10,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { EventsService } from '../../src/services/events.service';
 import { SocialService } from '../../src/services/social.service';
-import { useLocation } from '../../src/hooks';
+import { useAuth, useLocation } from '@/hooks';
 import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
-import { useAuth } from '@/hooks';
 import { buildFiltersFromSearch } from '../../src/utils/search-filters';
 import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
-import { colors, spacing, borderRadius, typography } from '../../src/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { SearchBar } from '../../src/components/search/SearchBar';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
-import { AppBackground } from '../../src/components/ui';
 
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
 const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
@@ -482,8 +480,8 @@ export default function MapScreen() {
   if (locationLoading && !userLocation) {
     return (
       <GestureHandlerRootView style={styles.loadingContainer}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground opacity={0.2} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.fallbackText}>Obtention de votre position...</Text>
       </GestureHandlerRootView>
     );
@@ -491,7 +489,7 @@ export default function MapScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <AppBackground />
+      <AppBackground opacity={0.2} />
       <MapWrapper
         ref={mapRef}
         initialRegion={mapCenter}
@@ -522,6 +520,7 @@ export default function MapScreen() {
               <TouchableOpacity
                 key={item.key}
                 style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
+                accessibilityRole="button"
                 onPress={() => {
                   setMetaFilter(item.key);
                   if (item.key !== 'all') {
@@ -543,6 +542,7 @@ export default function MapScreen() {
             <TouchableOpacity
               key={mode}
               style={[styles.layerButton, mapMode === mode && styles.layerButtonActive]}
+              accessibilityRole="button"
               onPress={() => setMapMode(mode)}
             >
               <Text style={[styles.layerButtonText, mapMode === mode && styles.layerButtonTextActive]}>
@@ -556,9 +556,10 @@ export default function MapScreen() {
       {userLocation && !searchExpanded && (
         <TouchableOpacity
           style={[styles.recenterTopButton, { bottom: insets.bottom + 16 }]}
+          accessibilityRole="button"
           onPress={recenterToUser}
         >
-          <Navigation size={18} color={colors.neutral[0]} />
+          <Navigation size={18} color={colors.background} />
         </TouchableOpacity>
       )}
 
@@ -619,13 +620,13 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: colors.background,
     gap: spacing.sm,
   },
   fallback: {
@@ -637,14 +638,14 @@ const styles = StyleSheet.create({
   fallbackText: {
     marginTop: spacing.md,
     textAlign: 'center',
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
   fallbackSubtext: {
     marginTop: spacing.sm,
     textAlign: 'center',
-    color: colors.neutral[500],
+    color: colors.textMuted,
     fontSize: 14,
   },
   topOverlay: {
@@ -663,38 +664,36 @@ const styles = StyleSheet.create({
   },
   metaFilterPill: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
+    justifyContent: 'center',
   },
   metaFilterPillActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[300],
+    backgroundColor: colors.primary,
+    borderColor: 'transparent',
   },
   metaFilterText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   metaFilterTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
   recenterTopButton: {
     position: 'absolute',
     right: spacing.md,
     width: 44,
     height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
+    ...shadows.primaryGlow,
   },
   tabSpacer: {
     height: spacing.lg,
@@ -705,25 +704,25 @@ const styles = StyleSheet.create({
   },
   layerButton: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    justifyContent: 'center',
+    ...shadows.surfaceSoft,
   },
   layerButtonActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
-    borderWidth: 1,
+    backgroundColor: colors.primary,
+    borderColor: 'transparent',
   },
   layerButtonText: {
-    color: colors.neutral[700],
+    color: colors.textSecondary,
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: 13,
   },
   layerButtonTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
 });

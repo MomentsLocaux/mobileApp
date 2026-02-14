@@ -9,11 +9,10 @@ import {
   RefreshControl,
   Alert,
   Image,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Users } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { AppBackground } from '@/components/ui/v2';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
 import type { CommunityMember, LeaderboardEntry } from '../../types/community';
@@ -28,21 +27,20 @@ const SORT_OPTIONS: { key: 'followers' | 'events' | 'lumo'; label: string }[] = 
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { profile, user } = useAuth();
+  const { user } = useAuth();
   const [tab, setTab] = useState<TabKey>('leaderboard');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
   const [period, setPeriod] = useState<'monthly' | 'global'>('monthly');
   const [periodPickerVisible, setPeriodPickerVisible] = useState(false);
   const [members, setMembers] = useState<CommunityMember[]>([]);
-  const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [cityFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<'followers' | 'events' | 'lumo'>('followers');
   const [sortPickerVisible, setSortPickerVisible] = useState(false);
   const [loadingBoard, setLoadingBoard] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const currentUserId = user?.id;
-  const [followingIds, setFollowingIds] = useState<string[]>([]);
 
   const loadLeaderboard = useCallback(async () => {
     try {
@@ -73,9 +71,6 @@ export default function CommunityScreen() {
       let ids: string[] = [];
       if (currentUserId) {
         ids = await CommunityService.getFollowingIds(currentUserId);
-        setFollowingIds(ids);
-      } else {
-        setFollowingIds([]);
       }
       const data = await CommunityService.listMembers({ city: cityFilter, sort, limit: 50 });
       const annotated = data.map((m) => ({
@@ -152,14 +147,14 @@ export default function CommunityScreen() {
       {item.cover_url ? (
         <Image source={{ uri: item.cover_url }} style={styles.cover} />
       ) : (
-        <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
+        <View style={[styles.cover, { backgroundColor: colors.scale.neutral[200] }]} />
       )}
       <View style={styles.gridFooter}>
         <View style={styles.gridInfo}>
           {item.avatar_url ? (
             <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, { backgroundColor: colors.neutral[300] }]} />
+            <View style={[styles.avatar, { backgroundColor: colors.scale.neutral[300] }]} />
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.name} numberOfLines={1}>
@@ -187,6 +182,7 @@ export default function CommunityScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground />
       <View style={styles.tabs}>
         <TabButton label="Classements" active={tab === 'leaderboard'} onPress={() => setTab('leaderboard')} />
         <TabButton label="Membres" active={tab === 'members'} onPress={() => setTab('members')} />
@@ -200,14 +196,14 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </View>
           {loadingBoard ? (
-            <ActivityIndicator color={colors.primary[600]} />
+            <ActivityIndicator color={colors.scale.primary[600]} />
           ) : (
             <FlatList
               data={leaderboard}
               keyExtractor={(item) => `${item.period}-${item.user_id}-${item.rank}`}
               renderItem={renderLeaderboardItem}
               contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.scale.primary[600]} />}
               ListFooterComponent={
                 myEntry && myEntry.rank > 10 ? (
                   <View style={styles.cardRow}>
@@ -259,7 +255,7 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </View>
           {loadingMembers ? (
-            <ActivityIndicator color={colors.primary[600]} />
+            <ActivityIndicator color={colors.scale.primary[600]} />
           ) : (
             <FlatList
               data={members}
@@ -268,7 +264,7 @@ export default function CommunityScreen() {
               numColumns={2}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.scale.primary[600]} />}
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Text style={styles.meta}>Aucun membre</Text>
@@ -311,18 +307,10 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
   );
 }
 
-function Pill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={[styles.pill, active && styles.pillActive]}>
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   tabs: {
     flexDirection: 'row',
@@ -333,21 +321,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     alignItems: 'center',
   },
   tabButtonActive: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.scale.primary[600],
+    backgroundColor: colors.scale.primary[50],
   },
   tabText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   tabTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '700',
   },
   section: {
@@ -368,20 +356,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   pillActive: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.scale.primary[600],
+    backgroundColor: colors.scale.primary[50],
   },
   pillText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   pillTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '700',
   },
   listContent: {
@@ -393,9 +381,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     gap: spacing.md,
   },
   rankBadge: {
@@ -404,7 +392,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.scale.primary[100],
   },
   rankBadgeMuted: {
     width: 32,
@@ -412,43 +400,43 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
   },
   rankText: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
   },
   name: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   score: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
   },
   followBtn: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   followingBtn: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
   },
   followText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
   },
   followingText: {
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   empty: {
     padding: spacing.lg,
@@ -465,11 +453,11 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   cover: {
     width: '100%',
@@ -493,13 +481,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   filterButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '600',
   },
   modalOverlay: {
@@ -512,7 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   modalCard: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
@@ -520,22 +508,22 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   optionRow: {
     paddingVertical: spacing.sm,
   },
   optionRowActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm,
   },
   optionText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   optionTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '700',
   },
 });

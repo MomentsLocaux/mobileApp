@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl } from 'react-native';
 import { ArrowLeft, X, MessageSquare, AlertTriangle } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks';
 import { ModerationService } from '@/services/moderation.service';
 import { getReportReasonMeta } from '@/constants/report-reasons';
 import type { ModerationComment, ReportRecord } from '@/types/moderation';
-import { Button, Card } from '@/components/ui';
+import { AppBackground, Button, Card } from '@/components/ui/v2';
 import { supabase } from '@/lib/supabase/client';
 
 export default function ModerationCommentsScreen() {
@@ -78,14 +78,15 @@ export default function ModerationCommentsScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground />
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/moderation')}>
-          <ArrowLeft size={18} color={colors.neutral[700]} />
+          <ArrowLeft size={18} color={colors.scale.neutral[700]} />
           <Text style={styles.headerButtonText}>Dashboard</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Commentaires signalés</Text>
         <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()}>
-          <X size={18} color={colors.neutral[700]} />
+          <X size={18} color={colors.scale.neutral[700]} />
         </TouchableOpacity>
       </View>
 
@@ -108,7 +109,7 @@ export default function ModerationCommentsScreen() {
           return (
             <Card key={comment.id} padding="md" style={styles.card}>
               <View style={styles.cardHeader}>
-                <MessageSquare size={18} color={colors.info[700]} />
+                <MessageSquare size={18} color={colors.scale.info[700]} />
                 <Text style={styles.cardTitle}>{comment.author?.display_name || 'Utilisateur'}</Text>
               </View>
               <Text style={styles.cardBody}>{comment.message}</Text>
@@ -117,7 +118,7 @@ export default function ModerationCommentsScreen() {
                   const meta = getReportReasonMeta(report.reason);
                   return (
                     <View key={report.id} style={styles.badge}>
-                      <AlertTriangle size={12} color={colors.warning[700]} />
+                      <AlertTriangle size={12} color={colors.scale.warning[700]} />
                       <Text style={styles.badgeText}>{meta.label}</Text>
                     </View>
                   );
@@ -158,7 +159,7 @@ export default function ModerationCommentsScreen() {
               <Text style={styles.modalTitle}>{reasonModal.title}</Text>
               <TextInput
                 placeholder="Ajouter un motif"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.scale.neutral[400]}
                 value={reason}
                 onChangeText={setReason}
                 style={styles.modalInput}
@@ -186,7 +187,7 @@ export default function ModerationCommentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   header: {
     paddingTop: spacing.xxl,
@@ -195,14 +196,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   headerTitle: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   headerButton: {
     flexDirection: 'row',
@@ -211,14 +212,14 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   headerIcon: {
     width: 32,
     height: 32,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -237,11 +238,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   cardBody: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   badgeRow: {
     flexDirection: 'row',
@@ -255,11 +256,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.warning[100],
+    backgroundColor: colors.scale.warning[100],
   },
   badgeText: {
     ...typography.caption,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     fontWeight: '600',
   },
   actionRow: {
@@ -267,27 +268,27 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   debugCard: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.md,
     gap: spacing.xs,
   },
   debugText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   debugError: {
     ...typography.caption,
-    color: colors.error[700],
+    color: colors.scale.error[700],
   },
   debugWarn: {
     ...typography.caption,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     fontWeight: '600',
   },
   modalBackdrop: {
@@ -299,7 +300,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     gap: spacing.md,
@@ -307,15 +308,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   modalInput: {
     minHeight: 90,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     padding: spacing.md,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     textAlignVertical: 'top',
   },
   modalActions: {

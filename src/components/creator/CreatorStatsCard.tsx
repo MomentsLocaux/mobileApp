@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Card } from '@/components/ui';
-import { borderRadius, colors, minimumTouchTarget, spacing, typography } from '@/constants/theme';
+import { StyleSheet, View } from 'react-native';
+import { Card, Typography, colors, radius, spacing } from '@/components/ui/v2';
 
 interface CreatorStatsCardProps {
   label: string;
@@ -16,30 +15,33 @@ export function CreatorStatsCard({ label, value, helper, icon, onPress }: Creato
     <Card
       padding="md"
       style={styles.card}
-      elevation="sm"
       onPress={onPress}
-      accessible
-      accessibilityRole={onPress ? 'button' : 'summary'}
-      accessibilityLabel={`${label} ${value}`}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Typography variant="caption" color={colors.textSecondary} weight="700">
+          {label}
+        </Typography>
         {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
       </View>
-      <Text style={styles.value}>{value}</Text>
-      {helper ? <Text style={styles.helper}>{helper}</Text> : null}
+
+      <Typography variant="sectionTitle" color={colors.textPrimary} weight="700" numberOfLines={1}>
+        {value}
+      </Typography>
+
+      {helper ? (
+        <Typography variant="caption" color={colors.textSecondary}>
+          {helper}
+        </Typography>
+      ) : null}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.secondaryAccent[500],
-    minWidth: 170,
-    minHeight: minimumTouchTarget * 2,
+    minWidth: 188,
+    minHeight: 132,
+    justifyContent: 'space-between',
   },
   headerRow: {
     flexDirection: 'row',
@@ -47,27 +49,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.xs,
   },
-  label: {
-    ...typography.bodySmall,
-    color: colors.textSecondary[500],
-    fontWeight: '600',
-  },
   iconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: borderRadius.full,
+    width: 24,
+    height: 24,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background[500],
-  },
-  value: {
-    ...typography.h4,
-    color: colors.textPrimary[500],
-    fontWeight: '700',
-  },
-  helper: {
-    ...typography.caption,
-    color: colors.textSecondary[500],
-    marginTop: spacing.xs,
+    backgroundColor: 'rgba(43, 191, 227, 0.14)',
   },
 });

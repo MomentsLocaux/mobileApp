@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, View, Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
 import { Search } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '../../constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 
 interface Props {
   placeholder?: string;
@@ -16,7 +16,7 @@ export const GlobalSearchBar: React.FC<Props> = ({
 }) => {
   return (
     <Pressable style={styles.container} onPress={onPress}>
-      <Search size={18} color={colors.neutral[500]} />
+      <Search size={18} color={colors.scale.neutral[500]} />
       <Text style={styles.text} numberOfLines={1}>
         {summary || placeholder}
       </Text>
@@ -29,12 +29,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[100],
+    borderColor: colors.scale.neutral[100],
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   text: {
     marginLeft: spacing.sm,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     ...typography.body,
     flex: 1,
   },

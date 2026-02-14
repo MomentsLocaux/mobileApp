@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, ChevronLeft } from 'lucide-react-native';
-import { Button } from '../../components/ui';
-import { colors, spacing, typography } from '../../constants/theme';
+import { AppBackground, Button, colors as v2Colors, spacing, typography as v2Typography } from '@/components/ui/v2';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -21,6 +20,67 @@ import { supabase } from '@/lib/supabase/client';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+
+const colors = {
+  neutral: {
+    0: v2Colors.surfaceLevel1,
+    50: v2Colors.background,
+    100: v2Colors.surfaceLevel1,
+    200: v2Colors.borderSubtle,
+    300: v2Colors.borderSubtle,
+    400: v2Colors.textMuted,
+    500: v2Colors.textMuted,
+    600: v2Colors.textSecondary,
+    700: v2Colors.textSecondary,
+    800: v2Colors.textPrimary,
+    900: v2Colors.textPrimary,
+  },
+  primary: {
+    50: 'rgba(43, 191, 227, 0.16)',
+    600: v2Colors.primary,
+  },
+  error: {
+    600: v2Colors.danger,
+  },
+} as const;
+
+const typography = {
+  h1: {
+    ...v2Typography.sectionTitle,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '700' as const,
+  },
+  h2: {
+    ...v2Typography.sectionTitle,
+  },
+  h3: {
+    ...v2Typography.subsection,
+    fontWeight: '700' as const,
+  },
+  body: {
+    ...v2Typography.body,
+  },
+  bodySmall: {
+    ...v2Typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  label: {
+    ...v2Typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600' as const,
+  },
+  small: {
+    ...v2Typography.caption,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  caption: {
+    ...v2Typography.caption,
+  },
+} as const;
 
 const ROLE_OPTIONS = [
   { value: 'particulier', label: 'Particulier', description: 'Je découvre et participe.' },
@@ -79,7 +139,7 @@ export default function OnboardingScreen() {
       try {
         const results = await MapboxService.search(q);
         setAddressResults(results);
-      } catch (e) {
+      } catch {
         setError('Impossible de chercher cette adresse.');
       } finally {
         setLocationLoading(false);
@@ -118,7 +178,7 @@ export default function OnboardingScreen() {
         const { data } = supabase.storage.from(bucket).getPublicUrl(path);
         if (target === 'avatar') setAvatarUrl(data.publicUrl);
         else setCoverUrl(data.publicUrl);
-      } catch (e) {
+      } catch {
         setError("Échec de l'upload, réessayez.");
       } finally {
         setIsLoading(false);
@@ -163,6 +223,7 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.top}
     >
+      <AppBackground opacity={0.2} />
       <ScrollView
         ref={scrollViewRef}
         style={styles.container}

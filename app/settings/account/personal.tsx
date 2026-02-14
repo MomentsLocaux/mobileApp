@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { User } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/components/ui/v2';
 
 export default function PersonalInfoScreen() {
   return (
@@ -25,6 +25,6 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
 });

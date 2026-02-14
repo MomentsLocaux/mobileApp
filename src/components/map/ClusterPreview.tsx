@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { X, List } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import type { EventWithCreator } from '../../types/database';
 
 interface ClusterPreviewProps {
@@ -33,7 +33,7 @@ export function ClusterPreview({
           {events.length} événement{events.length > 1 ? 's' : ''} dans cette zone
         </Text>
         <TouchableOpacity onPress={onClose}>
-          <X size={20} color={colors.neutral[600]} />
+          <X size={20} color={colors.scale.neutral[600]} />
         </TouchableOpacity>
       </View>
 
@@ -68,7 +68,7 @@ export function ClusterPreview({
       </ScrollView>
 
       <TouchableOpacity style={styles.viewListButton} onPress={onViewInList}>
-        <List size={18} color={colors.primary[600]} />
+        <List size={18} color={colors.scale.primary[600]} />
         <Text style={styles.viewListText}>Voir dans la liste</Text>
       </TouchableOpacity>
     </View>
@@ -77,7 +77,7 @@ export function ClusterPreview({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     maxWidth: 320,
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       },
       default: {
-        shadowColor: colors.neutral[900],
+        shadowColor: colors.scale.neutral[900],
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
@@ -101,11 +101,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   title: {
     ...typography.bodyLarge,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
     flex: 1,
   },
@@ -117,37 +117,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.scale.neutral[100],
   },
   eventInfo: {
     flex: 1,
   },
   eventTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '500',
     marginBottom: spacing.xs,
   },
   eventAddress: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   arrow: {
     marginLeft: spacing.sm,
   },
   arrowText: {
     ...typography.h4,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
   },
   truncatedNotice: {
     padding: spacing.md,
-    backgroundColor: colors.warning[50],
+    backgroundColor: colors.scale.warning[50],
     borderTopWidth: 1,
-    borderTopColor: colors.warning[200],
+    borderTopColor: colors.scale.warning[200],
   },
   truncatedText: {
     ...typography.bodySmall,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     textAlign: 'center',
   },
   viewListButton: {
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     padding: spacing.md,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderTopWidth: 1,
-    borderTopColor: colors.primary[100],
+    borderTopColor: colors.scale.primary[100],
   },
   viewListText: {
     ...typography.body,
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
 });

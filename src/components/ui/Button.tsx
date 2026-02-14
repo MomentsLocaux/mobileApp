@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   type PressableProps,
 } from 'react-native';
-import { colors, spacing, borderRadius, typography, minimumTouchTarget } from '../../constants/theme';
+import { colors, spacing, borderRadius, typography, minimumTouchTarget } from '@/components/ui/v2/theme';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -73,7 +73,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' || variant === 'danger' ? colors.secondaryAccent[500] : colors.primary[600]}
+          color={variant === 'primary' || variant === 'danger' ? colors.scale.secondaryAccent[500] : colors.scale.primary[600]}
         />
       ) : (
         <Text style={[styles.text, styles[`${variant}Text`], styles[`${normalizedSize}Text`]]}>
@@ -93,20 +93,20 @@ const styles = StyleSheet.create({
     minHeight: minimumTouchTarget,
   },
   primary: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   secondary: {
-    backgroundColor: colors.secondaryAccent[500],
+    backgroundColor: colors.scale.secondaryAccent[500],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   danger: {
-    backgroundColor: colors.error[500],
+    backgroundColor: colors.scale.error[500],
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.primary[600],
+    borderColor: colors.scale.primary[600],
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -134,19 +134,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryText: {
-    color: colors.secondaryAccent[500],
+    color: colors.scale.secondaryAccent[500],
   },
   secondaryText: {
     color: colors.textPrimary[500],
   },
   dangerText: {
-    color: colors.secondaryAccent[500],
+    color: colors.scale.secondaryAccent[500],
   },
   outlineText: {
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
   },
   ghostText: {
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
   },
   smText: {
     fontSize: 14,

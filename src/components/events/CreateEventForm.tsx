@@ -5,10 +5,8 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Modal,
-  Pressable,
 } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, spacing, typography } from '@/components/ui/v2';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { DateRangePicker } from '@/components/DateRangePicker';
 
@@ -95,6 +93,8 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
       <TextInput
         style={styles.input}
         placeholder="Nom de l'événement"
+        placeholderTextColor={colors.textSecondary}
+        accessibilityRole="none"
         value={title}
         maxLength={80}
         onChangeText={setTitle}
@@ -125,6 +125,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Description"
+        placeholderTextColor={colors.textSecondary}
         value={description}
         onChangeText={(text) => {
           if (text.length <= 1000) setDescription(text);
@@ -158,21 +159,22 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: borderRadius.lg,
+    borderColor: colors.borderSubtle,
+    borderRadius: radius.element,
     padding: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surfaceLevel1,
+    color: colors.textPrimary,
   },
   placeholderText: {
-    color: colors.neutral[400],
+    color: colors.textSecondary,
   },
   valueText: {
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   row: {
     flexDirection: 'row',
@@ -188,15 +190,15 @@ const styles = StyleSheet.create({
   pill: {
     flex: 1,
     paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.element,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surfaceLevel1,
   },
   pillText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -206,7 +208,7 @@ const styles = StyleSheet.create({
   },
   counter: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.textSecondary,
     alignSelf: 'flex-end',
   },
   backdrop: {
@@ -218,19 +220,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    backgroundColor: colors.surfaceLevel1,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
     padding: spacing.md,
     paddingBottom: spacing.lg,
     gap: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
   sheetHandle: {
     alignSelf: 'center',
     width: 72,
     height: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[300],
+    borderRadius: radius.pill,
+    backgroundColor: colors.divider,
   },
   sheetHeader: {
     flexDirection: 'row',
@@ -239,10 +243,10 @@ const styles = StyleSheet.create({
   },
   link: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   linkStrong: {
-    color: colors.primary[600],
+    color: colors.primary,
   },
 });

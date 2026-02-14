@@ -4,8 +4,7 @@ import { Download } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
-import { Button } from '@/components/ui/Button';
-import { colors, spacing, typography } from '@/constants/theme';
+import { Button, colors, spacing, typography } from '@/components/ui/v2';
 
 export default function ExportDataScreen() {
   const [loading, setLoading] = useState(false);
@@ -41,7 +40,7 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   buttonRow: {
     alignItems: 'flex-start',

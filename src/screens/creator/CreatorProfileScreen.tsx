@@ -1,212 +1,241 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { User, MapPin, Calendar, ArrowLeft } from 'lucide-react-native';
-import { Card } from '../../components/ui';
-import { EventCard } from '../../components/events';
-import { ProfileService } from '../../services/profile.service';
-import { EventsService } from '../../services/events.service';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getRoleLabel } from '../../utils/roleHelpers';
-import type { Profile, EventWithCreator } from '../../types/database';
+import { Home, MapPin, User } from 'lucide-react-native';
+import { EventCard } from '@/components/events';
+import {
+  Avatar,
+  Button,
+  Card,
+  ScreenLayout,
+  TopBar,
+  Typography,
+  colors,
+  radius,
+  spacing,
+} from '@/components/ui/v2';
+import { ProfileService } from '@/services/profile.service';
+import { EventsService } from '@/services/events.service';
+import { getRoleLabel } from '@/utils/roleHelpers';
+import type { Profile, EventWithCreator } from '@/types/database';
 
 export default function CreatorProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const router = useRouter();
+
+  const creatorId = useMemo(() => (Array.isArray(id) ? id[0] : id), [id]);
+
   const [creator, setCreator] = useState<Profile | null>(null);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadCreatorProfile();
-  }, [id]);
+  }, [creatorId]);
 
   const loadCreatorProfile = async () => {
-    if (!id) return;
+    if (!creatorId) {
+      setLoading(false);
+      setCreator(null);
+      setEvents([]);
+      return;
+    }
 
-    const [profileData, eventsData] = await Promise.all([
-      ProfileService.getProfile(id),
-      EventsService.listEventsByCreator(id),
-    ]);
+    setLoading(true);
+    try {
+      const [profileData, eventsData] = await Promise.all([
+        ProfileService.getProfile(creatorId),
+        EventsService.listEventsByCreator(creatorId),
+      ]);
 
-    setCreator(profileData);
-    setEvents(eventsData);
-    setLoading(false);
+      setCreator(profileData);
+      setEvents(eventsData);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-      </View>
+      <ScreenLayout
+        scroll={false}
+        header={<TopBar title="Profil créateur" onBack={() => router.back()} />}
+        contentContainerStyle={styles.centered}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+      </ScreenLayout>
     );
   }
 
   if (!creator) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Profil introuvable</Text>
-      </View>
+      <ScreenLayout
+        scroll={false}
+        header={<TopBar title="Profil créateur" onBack={() => router.back()} />}
+        contentContainerStyle={styles.centered}
+      >
+        <Card padding="lg" style={styles.errorCard}>
+          <Typography variant="subsection" color={colors.textPrimary} weight="700">
+            Profil introuvable
+          </Typography>
+          <Typography variant="body" color={colors.textSecondary}>
+            Ce profil créateur n&apos;est pas disponible pour le moment.
+          </Typography>
+          <Button
+            title="Retour"
+            variant="secondary"
+            onPress={() => router.back()}
+            accessibilityRole="button"
+          />
+        </Card>
+      </ScreenLayout>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={20} color={colors.neutral[800]} />
-          <Text style={styles.backText}>Retour</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.homeButton}
-          onPress={() => router.replace('/(tabs)')}
-        >
-          <Text style={styles.homeText}>Accueil</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.header}>
-        {creator.avatar_url ? (
-          <Image source={{ uri: creator.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <User size={48} color={colors.neutral[400]} />
-          </View>
-        )}
-
-        <Text style={styles.displayName}>{creator.display_name}</Text>
-        <Text style={styles.role}>{getRoleLabel(creator.role)}</Text>
-
-        {creator.bio && (
-          <Text style={styles.bio}>{creator.bio}</Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Événements créés ({events.length})
-        </Text>
-
-        {events.length === 0 ? (
-          <Card padding="lg">
-            <Text style={styles.emptyText}>
-              Aucun événement créé pour le moment
-            </Text>
-          </Card>
-        ) : (
-          events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onPress={() => router.push(`/events/${event.id}`)}
+    <ScreenLayout
+      header={
+        <TopBar
+          title="Profil créateur"
+          onBack={() => router.back()}
+          rightSlot={
+            <Button
+              title="Accueil"
+              size="sm"
+              variant="secondary"
+              onPress={() => router.replace('/(tabs)' as any)}
+              leftSlot={<Home size={14} color={colors.textPrimary} />}
+              accessibilityRole="button"
             />
-          ))
-        )}
+          }
+        />
+      }
+      contentContainerStyle={styles.content}
+    >
+      <Card padding="lg" style={styles.profileCard}>
+        <View style={styles.profileHeader}>
+          <Avatar
+            uri={creator.avatar_url}
+            name={creator.display_name}
+            size={92}
+            badge={
+              <View style={styles.badgeWrap}>
+                <Typography variant="caption" color={colors.background} weight="700">
+                  CR
+                </Typography>
+              </View>
+            }
+          />
+
+          <View style={styles.profileTextWrap}>
+            <Typography variant="sectionTitle" color={colors.textPrimary} weight="700" numberOfLines={1}>
+              {creator.display_name}
+            </Typography>
+
+            <Typography variant="body" color={colors.primary} weight="600">
+              {getRoleLabel(creator.role)}
+            </Typography>
+
+            {creator.city ? (
+              <View style={styles.metaRow}>
+                <MapPin size={14} color={colors.textSecondary} />
+                <Typography variant="caption" color={colors.textSecondary}>
+                  {creator.city}
+                </Typography>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {creator.bio ? (
+          <Typography variant="body" color={colors.textSecondary} style={styles.bio}>
+            {creator.bio}
+          </Typography>
+        ) : null}
+      </Card>
+
+      <View style={styles.sectionHeader}>
+        <Typography variant="subsection" color={colors.textPrimary} weight="700">
+          Événements créés ({events.length})
+        </Typography>
       </View>
-    </ScrollView>
+
+      {events.length === 0 ? (
+        <Card padding="lg" style={styles.emptyCard}>
+          <View style={styles.emptyRow}>
+            <User size={16} color={colors.textMuted} />
+            <Typography variant="body" color={colors.textSecondary}>
+              Aucun événement créé pour le moment
+            </Typography>
+          </View>
+        </Card>
+      ) : (
+        events.map((event) => (
+          <EventCard
+            key={event.id}
+            event={event}
+            onPress={() => router.push(`/events/${event.id}` as any)}
+          />
+        ))
+      )}
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  centered: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
-  loadingContainer: {
-    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  errorText: {
-    ...typography.body,
-    color: colors.error[500],
+  content: {
+    gap: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  header: {
-    alignItems: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+  errorCard: {
+    width: '100%',
+    maxWidth: 420,
+    gap: spacing.sm,
   },
-  topBar: {
+  profileCard: {
+    gap: spacing.md,
+  },
+  profileHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    gap: spacing.md,
   },
-  backButton: {
+  badgeWrap: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-  },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.neutral[800],
-    fontWeight: '600',
-  },
-  homeButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
-  },
-  homeText: {
-    ...typography.bodySmall,
-    color: colors.primary[700],
-    fontWeight: '600',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.full,
-    marginBottom: spacing.md,
-  },
-  avatarPlaceholder: {
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  displayName: {
-    ...typography.h2,
-    color: colors.neutral[900],
-    marginBottom: spacing.xs,
-  },
-  role: {
-    ...typography.bodySmall,
-    color: colors.primary[600],
-    textTransform: 'capitalize',
-    marginBottom: spacing.md,
+    marginTop: 2,
   },
   bio: {
-    ...typography.body,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    marginTop: spacing.sm,
+    lineHeight: 24,
   },
-  section: {
-    padding: spacing.lg,
+  sectionHeader: {
+    gap: 2,
   },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.neutral[900],
-    marginBottom: spacing.md,
+  emptyCard: {
+    minHeight: 88,
+    justifyContent: 'center',
   },
-  emptyText: {
-    ...typography.body,
-    color: colors.neutral[500],
-    textAlign: 'center',
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
 });

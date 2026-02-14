@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 
 type Props = {
   visible: boolean;
@@ -46,33 +46,33 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     gap: spacing.md,
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
   },
   message: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   value: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   primaryButton: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     alignItems: 'center',
   },
   primaryButtonText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
   },
   linkButton: {
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     ...typography.bodySmall,
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
   closeButton: {
@@ -88,6 +88,6 @@ const styles = StyleSheet.create({
   },
   closeText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, spacing, typography } from '@/components/ui/v2';
 
 type Props = {
   price?: string;
@@ -30,6 +30,7 @@ export const OptionalInfoSection = ({
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.header}
+        accessibilityRole="button"
         onPress={() =>
           setOpen((v) => {
             const next = !v;
@@ -39,7 +40,7 @@ export const OptionalInfoSection = ({
         }
       >
         <Text style={styles.title}>Infos pratiques (facultatif)</Text>
-        {open ? <ChevronUp size={18} color={colors.neutral[700]} /> : <ChevronDown size={18} color={colors.neutral[700]} />}
+        {open ? <ChevronUp size={18} color={colors.textSecondary} /> : <ChevronDown size={18} color={colors.textSecondary} />}
       </TouchableOpacity>
       {open && (
         <View style={styles.fields}>
@@ -47,6 +48,7 @@ export const OptionalInfoSection = ({
           <TextInput
             style={styles.input}
             placeholder="Gratuit, 5€..."
+            placeholderTextColor={colors.textSecondary}
             value={price}
             onChangeText={(text) => onChange({ price: text })}
             ref={onInputRef?.('price')}
@@ -57,6 +59,7 @@ export const OptionalInfoSection = ({
           <TextInput
             style={styles.input}
             placeholder="Ex: 2h"
+            placeholderTextColor={colors.textSecondary}
             value={duration}
             onChangeText={(text) => onChange({ duration: text })}
             ref={onInputRef?.('duration')}
@@ -67,6 +70,7 @@ export const OptionalInfoSection = ({
           <TextInput
             style={styles.input}
             placeholder="Email ou téléphone"
+            placeholderTextColor={colors.textSecondary}
             value={contact}
             onChangeText={(text) => onChange({ contact: text })}
             autoCapitalize="none"
@@ -78,6 +82,7 @@ export const OptionalInfoSection = ({
           <TextInput
             style={styles.input}
             placeholder="Site web, réseau social"
+            placeholderTextColor={colors.textSecondary}
             value={externalLink}
             onChangeText={(text) => onChange({ externalLink: text })}
             autoCapitalize="none"
@@ -92,10 +97,10 @@ export const OptionalInfoSection = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
     overflow: 'hidden',
   },
   header: {
@@ -106,7 +111,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   fields: {
@@ -114,15 +119,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   label: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: borderRadius.lg,
+    borderColor: colors.borderSubtle,
+    borderRadius: radius.element,
     padding: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surfaceLevel2,
+    color: colors.textPrimary,
   },
 });

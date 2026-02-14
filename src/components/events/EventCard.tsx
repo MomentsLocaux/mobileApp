@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, MapPin, Calendar, Users, Share2, Star } from 'lucide-react-native';
 import { Card } from '../ui';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from './EventImageCarousel';
@@ -71,15 +71,15 @@ export const EventCard: React.FC<EventCardProps> = ({
               <View style={styles.overlayButtons}>
                 {onSharePress && (
                   <TouchableOpacity style={styles.overlayButton} onPress={onSharePress} activeOpacity={0.7}>
-                    <Share2 size={18} color={colors.neutral[50]} />
+                    <Share2 size={18} color={colors.scale.neutral[50]} />
                   </TouchableOpacity>
                 )}
                 {onLikePress && (
                   <TouchableOpacity style={styles.overlayButton} onPress={onLikePress} activeOpacity={0.7}>
                     <Heart
                       size={18}
-                      color={(isLiked ?? event.is_liked) ? colors.error[500] : colors.neutral[50]}
-                      fill={(isLiked ?? event.is_liked) ? colors.error[500] : 'transparent'}
+                      color={(isLiked ?? event.is_liked) ? colors.scale.error[500] : colors.scale.neutral[50]}
+                      fill={(isLiked ?? event.is_liked) ? colors.scale.error[500] : 'transparent'}
                     />
                   </TouchableOpacity>
                 )}
@@ -91,8 +91,8 @@ export const EventCard: React.FC<EventCardProps> = ({
                   >
                     <Star
                       size={18}
-                      color={(isFavorited ?? event.is_favorited) ? colors.warning[500] : colors.neutral[50]}
-                      fill={(isFavorited ?? event.is_favorited) ? colors.warning[500] : 'transparent'}
+                      color={(isFavorited ?? event.is_favorited) ? colors.scale.warning[500] : colors.scale.neutral[50]}
+                      fill={(isFavorited ?? event.is_favorited) ? colors.scale.warning[500] : 'transparent'}
                     />
                   </TouchableOpacity>
                 )}
@@ -120,12 +120,12 @@ export const EventCard: React.FC<EventCardProps> = ({
           </View>
 
           <View style={styles.metaRow}>
-            <Calendar size={14} color={colors.neutral[600]} />
+            <Calendar size={14} color={colors.scale.neutral[600]} />
             <Text style={styles.metaText}>{formatDate(event.starts_at)}</Text>
           </View>
 
           <View style={styles.metaRow}>
-            <MapPin size={14} color={colors.neutral[600]} />
+            <MapPin size={14} color={colors.scale.neutral[600]} />
             <Text style={styles.metaText} numberOfLines={1}>
               {event.city || event.address}
             </Text>
@@ -136,7 +136,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           {event.interests_count > 0 && (
             <View style={styles.metaRow}>
-              <Users size={14} color={colors.neutral[600]} />
+              <Users size={14} color={colors.scale.neutral[600]} />
               <Text style={styles.metaText}>
                 {event.interests_count} intéressé{event.interests_count > 1 ? 's' : ''}
               </Text>
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     marginBottom: spacing.sm,
   },
   metaRow: {
@@ -216,23 +216,23 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     flex: 1,
   },
   distanceText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   freeBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.success[50],
+    backgroundColor: colors.scale.success[50],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
     marginTop: spacing.sm,
   },
   freeText: {
-    color: colors.success[700],
+    color: colors.scale.success[700],
     fontSize: 12,
     fontWeight: '600',
   },
@@ -246,15 +246,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   publicPill: {
-    backgroundColor: colors.success[50],
+    backgroundColor: colors.scale.success[50],
   },
   privatePill: {
-    backgroundColor: colors.warning[50],
+    backgroundColor: colors.scale.warning[50],
   },
   publicText: {
-    color: colors.success[700],
+    color: colors.scale.success[700],
   },
   privateText: {
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
   },
 });

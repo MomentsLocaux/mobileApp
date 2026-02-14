@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { X, MapPin, Calendar, Users, Tag, ChevronRight, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { useSearchStore } from '@/store/searchStore';
 import { MapboxService } from '@/services/mapbox.service';
@@ -74,7 +74,7 @@ export const SearchBar: React.FC<Props> = ({
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [activeSection, setActiveSection] = useState<SectionKey>('where');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Array<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }>>([]);
+  const [results, setResults] = useState<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [searchCount, setSearchCount] = useState<number | null>(null);
@@ -280,7 +280,7 @@ export const SearchBar: React.FC<Props> = ({
         if (!cancelled) {
           setSearchCount(filteredEvents.length);
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setSearchCount(0);
         }
@@ -320,7 +320,7 @@ export const SearchBar: React.FC<Props> = ({
         if (!cancelled) {
           setMemberResults(res);
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setMemberResults([]);
         }
@@ -461,7 +461,7 @@ export const SearchBar: React.FC<Props> = ({
     <View style={styles.wrapper}>
       <Animated.View style={[styles.collapsedRow, barAnimatedStyle]} ref={barRef}>
         <Pressable style={styles.searchPill} onPress={openExpanded}>
-          <Search size={18} color={colors.neutral[500]} />
+          <Search size={18} color={colors.scale.neutral[500]} />
           <Text style={styles.searchText} numberOfLines={1}>
             {collapsedLabel}
           </Text>
@@ -500,7 +500,7 @@ export const SearchBar: React.FC<Props> = ({
                 )}
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={closeExpanded}>
-                <X size={20} color={colors.neutral[700]} />
+                <X size={20} color={colors.scale.neutral[700]} />
               </TouchableOpacity>
             </View>
 
@@ -517,7 +517,7 @@ export const SearchBar: React.FC<Props> = ({
                   <TextInput
                     ref={memberInputRef}
                     placeholder="Rechercher un membre"
-                    placeholderTextColor={colors.neutral[400]}
+                    placeholderTextColor={colors.scale.neutral[400]}
                     value={memberQuery}
                     onChangeText={setMemberQuery}
                     style={styles.input}
@@ -525,7 +525,7 @@ export const SearchBar: React.FC<Props> = ({
                   <Text style={styles.memberLabel}>Ville</Text>
                   <TextInput
                     placeholder="Ville"
-                    placeholderTextColor={colors.neutral[400]}
+                    placeholderTextColor={colors.scale.neutral[400]}
                     value={memberCity}
                     onChangeText={setMemberCity}
                     style={styles.input}
@@ -564,13 +564,13 @@ export const SearchBar: React.FC<Props> = ({
                       title="Où"
                       summary={sectionSummary.whereLabel}
                       active={activeSection === 'where'}
-                      icon={<MapPin size={18} color={colors.neutral[700]} />}
+                      icon={<MapPin size={18} color={colors.scale.neutral[700]} />}
                       onPress={() => setActiveSection('where')}
                     >
                       <TextInput
                         ref={whereInputRef}
                         placeholder="Ville, adresse ou lieu"
-                        placeholderTextColor={colors.neutral[400]}
+                        placeholderTextColor={colors.scale.neutral[400]}
                         value={query}
                         onChangeText={setQuery}
                         style={styles.input}
@@ -617,7 +617,7 @@ export const SearchBar: React.FC<Props> = ({
                           style={styles.result}
                           onPress={() => handleSelectLocation(item)}
                         >
-                          <MapPin size={16} color={colors.primary[600]} />
+                          <MapPin size={16} color={colors.scale.primary[600]} />
                           <Text style={styles.resultText}>{item.label}</Text>
                         </TouchableOpacity>
                       ))}
@@ -629,7 +629,7 @@ export const SearchBar: React.FC<Props> = ({
                       title="Quand"
                       summary={sectionSummary.whenLabel}
                       active={activeSection === 'when'}
-                      icon={<Calendar size={18} color={colors.neutral[700]} />}
+                      icon={<Calendar size={18} color={colors.scale.neutral[700]} />}
                       onPress={() => setActiveSection('when')}
                     >
                       <View style={styles.row}>
@@ -687,7 +687,7 @@ export const SearchBar: React.FC<Props> = ({
                       title="Qui"
                       summary={sectionSummary.whoLabel}
                       active={activeSection === 'who'}
-                      icon={<Users size={18} color={colors.neutral[700]} />}
+                      icon={<Users size={18} color={colors.scale.neutral[700]} />}
                       onPress={() => setActiveSection('who')}
                     >
                       <CounterRow
@@ -726,13 +726,13 @@ export const SearchBar: React.FC<Props> = ({
                       title="Catégorie"
                       summary={sectionSummary.whatLabel}
                       active={activeSection === 'what'}
-                      icon={<Tag size={18} color={colors.neutral[700]} />}
+                      icon={<Tag size={18} color={colors.scale.neutral[700]} />}
                       onPress={() => setActiveSection('what')}
                     >
                       <Text style={styles.sectionLabel}>Nom de l&apos;événement</Text>
                       <TextInput
                         placeholder="Ex: marché, concert, expo"
-                        placeholderTextColor={colors.neutral[400]}
+                        placeholderTextColor={colors.scale.neutral[400]}
                         value={what.query || ''}
                         onChangeText={(value) => setWhat({ query: value })}
                         style={styles.input}
@@ -789,7 +789,7 @@ export const SearchBar: React.FC<Props> = ({
                   }}
                 >
                   <Text style={styles.primaryText}>{countLabel}</Text>
-                  <ChevronRight size={16} color={colors.neutral[0]} />
+                  <ChevronRight size={16} color={colors.scale.neutral[0]} />
                 </TouchableOpacity>
               </View>
             ) : (
@@ -805,7 +805,7 @@ export const SearchBar: React.FC<Props> = ({
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.primaryBtn} onPress={closeExpanded}>
                   <Text style={styles.primaryText}>Fermer</Text>
-                  <ChevronRight size={16} color={colors.neutral[0]} />
+                  <ChevronRight size={16} color={colors.scale.neutral[0]} />
                 </TouchableOpacity>
               </View>
             )}
@@ -946,12 +946,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[100],
+    borderColor: colors.scale.neutral[100],
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
   },
   searchText: {
     marginLeft: spacing.sm,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     ...typography.body,
     flex: 1,
   },
@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
   },
   expandedContainer: {
     position: 'absolute',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 24,
@@ -993,13 +993,13 @@ const styles = StyleSheet.create({
   },
   expandedTitle: {
     ...typography.subtitle,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1012,18 +1012,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   modePillActive: {
-    backgroundColor: colors.neutral[900],
+    backgroundColor: colors.scale.neutral[900],
   },
   modeText: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     fontWeight: '600',
   },
   modeTextActive: {
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
   },
   content: {
     paddingHorizontal: spacing.lg,
@@ -1034,14 +1034,14 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
     marginBottom: spacing.md,
     padding: spacing.md,
   },
   cardActive: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1055,23 +1055,23 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   cardSummary: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   cardContent: {
     marginTop: spacing.sm,
     gap: spacing.sm,
   },
   input: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   row: {
     flexDirection: 'row',
@@ -1088,26 +1088,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderWidth: 1,
-    borderColor: colors.primary[500],
+    borderColor: colors.scale.primary[500],
   },
   chipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
   },
   sliderRow: {
     width: '100%',
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   result: {
     flexDirection: 'row',
@@ -1117,7 +1117,7 @@ const styles = StyleSheet.create({
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     flex: 1,
   },
   memberPanel: {
@@ -1125,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   memberLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   memberResult: {
     flexDirection: 'row',
@@ -1133,31 +1133,31 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.scale.neutral[100],
   },
   memberAvatar: {
     width: 40,
     height: 40,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   memberAvatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
   },
   memberMeta: {
     flex: 1,
   },
   memberName: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   memberCity: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   counterRow: {
     flexDirection: 'row',
@@ -1167,19 +1167,19 @@ const styles = StyleSheet.create({
   },
   counterLabel: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   dateBoxFull: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
     padding: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     gap: spacing.xs,
   },
   dateValue: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '700',
   },
   counterControls: {
@@ -1192,13 +1192,13 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
     alignItems: 'center',
     justifyContent: 'center',
   },
   counterBtnText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   counterValue: {
     ...typography.body,
@@ -1216,27 +1216,27 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: colors.neutral[400],
+    borderColor: colors.scale.neutral[400],
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[600],
   },
   checkboxMark: {
     width: 10,
     height: 10,
     borderRadius: 2,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   checkboxLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   sectionLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   footer: {
     flexDirection: 'row',
@@ -1245,16 +1245,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderColor: colors.neutral[100],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.scale.neutral[100],
+    backgroundColor: colors.scale.neutral[0],
   },
   resetText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     textDecorationLine: 'underline',
   },
   primaryBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
@@ -1264,6 +1264,6 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     ...typography.bodyBold,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
   },
 });

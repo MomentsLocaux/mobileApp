@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { ArrowLeft, X, Flag } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { useRouter } from 'expo-router';
 import { ModerationService } from '@/services/moderation.service';
 import { getReportReasonMeta } from '@/constants/report-reasons';
 import type { ModerationReportTargetPreview, ReportRecordWithTarget, ReportStatus } from '@/types/moderation';
-import { Button, Card } from '@/components/ui';
+import { AppBackground, Button, Card } from '@/components/ui/v2';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 
@@ -193,7 +193,7 @@ export default function ModerationReportsScreen() {
     );
   };
 
-  const statusFilterOptions: Array<{ key: 'to_review' | ReportStatus | 'all'; label: string }> = [
+  const statusFilterOptions: { key: 'to_review' | ReportStatus | 'all'; label: string }[] = [
     { key: 'to_review', label: 'À traiter' },
     { key: 'new', label: 'Nouveaux' },
     { key: 'in_review', label: 'En revue' },
@@ -210,14 +210,15 @@ export default function ModerationReportsScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground />
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/moderation')}>
-          <ArrowLeft size={18} color={colors.neutral[700]} />
+          <ArrowLeft size={18} color={colors.scale.neutral[700]} />
           <Text style={styles.headerButtonText}>Dashboard</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Signalements</Text>
         <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()}>
-          <X size={18} color={colors.neutral[700]} />
+          <X size={18} color={colors.scale.neutral[700]} />
         </TouchableOpacity>
       </View>
 
@@ -261,7 +262,7 @@ export default function ModerationReportsScreen() {
         {visibleReports.map((report) => (
           <Card key={report.id} padding="md" style={styles.card}>
             <View style={styles.cardHeader}>
-              <Flag size={16} color={colors.warning[700]} />
+              <Flag size={16} color={colors.scale.warning[700]} />
               <Text style={styles.cardTitle}>{report.target_type}</Text>
             </View>
             <Text style={styles.cardMeta}>
@@ -316,7 +317,7 @@ export default function ModerationReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   header: {
     paddingTop: spacing.xxl,
@@ -325,14 +326,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   headerTitle: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   headerButton: {
     flexDirection: 'row',
@@ -341,14 +342,14 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   headerIcon: {
     width: 32,
     height: 32,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -364,20 +365,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.scale.neutral[300],
+    backgroundColor: colors.scale.neutral[0],
   },
   filterChipActive: {
-    backgroundColor: colors.info[50],
-    borderColor: colors.info[300],
+    backgroundColor: colors.scale.info[50],
+    borderColor: colors.scale.info[300],
   },
   filterChipText: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: colors.info[700],
+    color: colors.scale.info[700],
   },
   card: {
     gap: spacing.sm,
@@ -390,39 +391,39 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   cardMeta: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   cardBody: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   actionRow: {
     gap: spacing.sm,
   },
   targetCard: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[50],
+    borderColor: colors.scale.neutral[200],
+    backgroundColor: colors.scale.neutral[50],
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     gap: spacing.xs,
   },
   targetTitle: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
   },
   targetMeta: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   targetBody: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   openTargetButton: {
     alignItems: 'center',
@@ -430,37 +431,37 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.info[300],
-    backgroundColor: colors.info[50],
+    borderColor: colors.scale.info[300],
+    backgroundColor: colors.scale.info[50],
   },
   openTargetButtonText: {
     ...typography.bodySmall,
-    color: colors.info[700],
+    color: colors.scale.info[700],
     fontWeight: '600',
   },
   metaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   debugCard: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.md,
     gap: spacing.xs,
   },
   debugText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   debugError: {
     ...typography.caption,
-    color: colors.error[700],
+    color: colors.scale.error[700],
   },
   debugWarn: {
     ...typography.caption,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     fontWeight: '600',
   },
 });

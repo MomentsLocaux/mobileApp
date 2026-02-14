@@ -19,7 +19,7 @@ import { useLikesStore } from '@/store/likesStore';
 import { SocialService } from '@/services/social.service';
 import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '@/utils/filter-events';
 import { sortEvents } from '@/utils/sort-events';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
@@ -28,7 +28,6 @@ import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { TriageControl } from '@/components/search/TriageControl';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { AppBackground } from '@/components/ui';
 
 type StoryItem = {
   creatorId: string;
@@ -166,7 +165,7 @@ export default function HomeScreen() {
         if (!cancelled) {
           setSearchResults(filtered);
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setSearchResults([]);
         }
@@ -270,8 +269,8 @@ export default function HomeScreen() {
   if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground opacity={0.22} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Chargement des événements...</Text>
       </View>
     );
@@ -279,7 +278,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
+      <AppBackground opacity={0.22} />
       <View style={[styles.topOverlay, { marginTop: insets.top + spacing.xs }]}>
         <SearchBar
           onApply={() => {
@@ -314,6 +313,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={item.key}
               style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
+              accessibilityRole="button"
               onPress={() => {
                 setMetaFilter(item.key);
                 if (item.key !== 'all') {
@@ -386,7 +386,7 @@ export default function HomeScreen() {
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary[600]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
@@ -409,22 +409,23 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: colors.background,
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     marginTop: spacing.md,
   },
   sectionTitle: {
-    ...typography.h4,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
   sectionHeader: {
     marginTop: spacing.md,
@@ -444,23 +445,25 @@ const styles = StyleSheet.create({
   },
   metaFilterPill: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
+    justifyContent: 'center',
   },
   metaFilterPillActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[300],
+    backgroundColor: colors.primary,
+    borderColor: 'transparent',
   },
   metaFilterText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   metaFilterTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
   carouselContent: {
     gap: spacing.md,
@@ -482,14 +485,14 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 2,
-    borderColor: colors.primary[600],
+    borderColor: colors.primary,
   },
   storyPlaceholder: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.surfaceLevel2,
   },
   storyLabel: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
     marginTop: 4,
   },
   plusBadge: {
@@ -499,30 +502,30 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.neutral[0],
+    borderColor: colors.background,
   },
   plusText: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.background,
     fontWeight: '700',
   },
   carouselCard: {
     width: 200,
     height: 220,
-    borderRadius: borderRadius.xl,
+    borderRadius: radius.card,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.surfaceLevel2,
   },
   carouselImage: {
     width: '100%',
     height: '100%',
   },
   carouselPlaceholder: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.surfaceLevel2,
   },
   carouselOverlay: {
     position: 'absolute',
@@ -534,12 +537,12 @@ const styles = StyleSheet.create({
   },
   carouselTitle: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   carouselMeta: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.textPrimary,
   },
   topOverlay: {
     marginTop: spacing.md,
@@ -553,11 +556,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   emptyContainer: {
-    padding: spacing.lg,
+    padding: spacing.xl,
     alignItems: 'center',
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    ...shadows.surfaceSoft,
   },
   emptyText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
 });

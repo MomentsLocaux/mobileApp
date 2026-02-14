@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Platform, Linking, Alert } from 'react-native';
 import type { EventWithCreator } from '../../types/database';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 
 interface Props {
   visible: boolean;
@@ -126,31 +126,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#00000055',
   },
   sheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     marginBottom: spacing.md,
   },
   option: {
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   optionText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   cancel: {
     borderBottomWidth: 0,
     marginTop: spacing.sm,
   },
   cancelText: {
-    color: colors.error[600],
+    color: colors.scale.error[600],
     textAlign: 'center',
   },
 });

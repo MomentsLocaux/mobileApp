@@ -17,7 +17,7 @@ import { useAuth } from '../../hooks';
 import { useLocationStore, useFilterStore } from '../../store';
 import { filterEvents } from '../../utils/filter-events';
 import { sortEvents } from '../../utils/sort-events';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { AppBackground, colors, radius, spacing, typography } from '@/components/ui/v2';
 import type { EventWithCreator } from '../../types/database';
 import { useEvents } from '@/hooks/useEvents';
 import { useFavoritesStore } from '@/store/favoritesStore';
@@ -121,7 +121,8 @@ export default function EventsListScreen() {
   if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground opacity={0.2} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Chargement des événements...</Text>
       </View>
     );
@@ -129,12 +130,13 @@ export default function EventsListScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground opacity={0.2} />
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
-          <Search size={16} color={colors.neutral[500]} />
+          <Search size={16} color={colors.textMuted} />
           <TextInput
             placeholder="Rechercher un événement"
-            placeholderTextColor={colors.neutral[400]}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
             style={styles.searchInput}
@@ -147,19 +149,19 @@ export default function EventsListScreen() {
         <QuickChip
           label="À proximité"
           active={quickFilter === 'nearby'}
-          icon={<MapPin size={14} color={quickFilter === 'nearby' ? colors.primary[700] : colors.neutral[500]} />}
+          icon={<MapPin size={14} color={quickFilter === 'nearby' ? colors.primary : colors.textMuted} />}
           onPress={() => setQuickFilter(quickFilter === 'nearby' ? null : 'nearby')}
         />
         <QuickChip
           label="Bientôt"
           active={quickFilter === 'soon'}
-          icon={<Clock size={14} color={quickFilter === 'soon' ? colors.primary[700] : colors.neutral[500]} />}
+          icon={<Clock size={14} color={quickFilter === 'soon' ? colors.primary : colors.textMuted} />}
           onPress={() => setQuickFilter(quickFilter === 'soon' ? null : 'soon')}
         />
         <QuickChip
           label="Populaire"
           active={quickFilter === 'popular'}
-          icon={<Flame size={14} color={quickFilter === 'popular' ? colors.primary[700] : colors.neutral[500]} />}
+          icon={<Flame size={14} color={quickFilter === 'popular' ? colors.primary : colors.textMuted} />}
           onPress={() => setQuickFilter(quickFilter === 'popular' ? null : 'popular')}
         />
       </View>
@@ -191,7 +193,7 @@ export default function EventsListScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.primary[600]}
+            tintColor={colors.primary}
           />
         }
         ListEmptyComponent={
@@ -212,29 +214,29 @@ export default function EventsListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background,
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     marginTop: spacing.md,
   },
   restrictionBanner: {
-    backgroundColor: colors.warning[50],
+    backgroundColor: 'rgba(245, 158, 11, 0.16)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.warning[200],
+    borderBottomColor: 'rgba(245, 158, 11, 0.35)',
     padding: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   restrictionText: {
-    ...typography.bodySmall,
-    color: colors.warning[700],
+    ...typography.body,
+    color: '#f59e0b',
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -247,14 +249,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   searchRow: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   searchBox: {
     flexDirection: 'row',
@@ -262,22 +264,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.neutral[0],
-    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surfaceLevel1,
+    borderRadius: radius.element,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
   },
   searchInput: {
     flex: 1,
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
   },
   quickFilters: {
     flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   quickChip: {
     flexDirection: 'row',
@@ -285,18 +287,18 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
   },
   quickChipActive: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
   },
   quickChipText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
 });

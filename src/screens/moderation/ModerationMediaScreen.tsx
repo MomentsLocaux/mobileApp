@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Image, RefreshControl } from 'react-native';
 import { ArrowLeft, X, Image as ImageIcon, AlertTriangle } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks';
 import { ModerationService } from '@/services/moderation.service';
 import type { ModerationMediaSubmission } from '@/types/moderation';
-import { Button, Card } from '@/components/ui';
+import { AppBackground, Button, Card } from '@/components/ui/v2';
 import { supabase } from '@/lib/supabase/client';
 
 export default function ModerationMediaScreen() {
@@ -70,14 +70,15 @@ export default function ModerationMediaScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground />
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/moderation')}>
-          <ArrowLeft size={18} color={colors.neutral[700]} />
+          <ArrowLeft size={18} color={colors.scale.neutral[700]} />
           <Text style={styles.headerButtonText}>Dashboard</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Photos de la communauté</Text>
         <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()}>
-          <X size={18} color={colors.neutral[700]} />
+          <X size={18} color={colors.scale.neutral[700]} />
         </TouchableOpacity>
       </View>
 
@@ -98,7 +99,7 @@ export default function ModerationMediaScreen() {
         {submissions.map((submission) => (
           <Card key={submission.id} padding="md" style={styles.card}>
             <View style={styles.cardHeader}>
-              <ImageIcon size={18} color={colors.info[700]} />
+              <ImageIcon size={18} color={colors.scale.info[700]} />
               <Text style={styles.cardTitle}>{submission.event?.title || 'Événement'}</Text>
             </View>
             <View style={styles.mediaRow}>
@@ -108,7 +109,7 @@ export default function ModerationMediaScreen() {
                 <Text style={styles.cardMeta}>Statut: {submission.status}</Text>
                 {submission.report_count ? (
                   <View style={styles.reportMetaRow}>
-                    <AlertTriangle size={14} color={colors.warning[700]} />
+                    <AlertTriangle size={14} color={colors.scale.warning[700]} />
                     <Text style={styles.cardMeta}>
                       {submission.report_count} signalement{submission.report_count > 1 ? 's' : ''}
                       {submission.report_severity ? ` · ${submission.report_severity}` : ''}
@@ -169,7 +170,7 @@ export default function ModerationMediaScreen() {
               <Text style={styles.modalTitle}>{reasonModal.title}</Text>
               <TextInput
                 placeholder="Ajouter un motif"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.scale.neutral[400]}
                 value={reason}
                 onChangeText={setReason}
                 style={styles.modalInput}
@@ -197,7 +198,7 @@ export default function ModerationMediaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   header: {
     paddingTop: spacing.xxl,
@@ -206,14 +207,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   headerTitle: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   headerButton: {
     flexDirection: 'row',
@@ -222,14 +223,14 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   headerIcon: {
     width: 32,
     height: 32,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -248,11 +249,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   cardMeta: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   mediaRow: {
     flexDirection: 'row',
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
   },
   mediaInfo: {
     flex: 1,
@@ -279,27 +280,27 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   debugCard: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.md,
     gap: spacing.xs,
   },
   debugText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   debugError: {
     ...typography.caption,
-    color: colors.error[700],
+    color: colors.scale.error[700],
   },
   debugWarn: {
     ...typography.caption,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     fontWeight: '600',
   },
   modalBackdrop: {
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     gap: spacing.md,
@@ -319,15 +320,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   modalInput: {
     minHeight: 90,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     padding: spacing.md,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     textAlignVertical: 'top',
   },
   modalActions: {

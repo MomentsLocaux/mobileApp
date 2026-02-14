@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { borderRadius, colors, minimumTouchTarget, spacing, typography } from '@/constants/theme';
-import { Card } from '@/components/ui';
+import { Card, Typography, colors, radius, spacing } from '@/components/ui/v2';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -28,6 +27,7 @@ const RANGES: EngagementRange[] = ['7D', '30D', '90D'];
 const CHART_HEIGHT = 168;
 const VERTICAL_PADDING = 16;
 const HORIZONTAL_PADDING = 12;
+const MIN_TOUCH = 48;
 
 function buildLinePath(points: { x: number; y: number }[]) {
   if (!points.length) return '';
@@ -102,9 +102,12 @@ export function CreatorEngagementChart({
   };
 
   return (
-    <Card padding="md" elevation="sm" style={styles.card}>
+    <Card padding="md" style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Engagement</Text>
+        <Typography variant="subsection" color={colors.textPrimary} weight="700">
+          Engagement
+        </Typography>
+
         <View style={styles.rangeTabs}>
           {RANGES.map((range) => {
             const active = range === activeRange;
@@ -117,7 +120,13 @@ export function CreatorEngagementChart({
                 accessibilityRole="button"
                 accessibilityLabel={`Filtre ${range}`}
               >
-                <Text style={[styles.rangeText, active && styles.rangeTextActive]}>{range}</Text>
+                <Typography
+                  variant="caption"
+                  color={active ? colors.background : colors.textSecondary}
+                  weight="700"
+                >
+                  {range}
+                </Typography>
               </Pressable>
             );
           })}
@@ -128,8 +137,8 @@ export function CreatorEngagementChart({
         <Svg width={chartGeometry.safeWidth} height={CHART_HEIGHT}>
           <Defs>
             <LinearGradient id="engagementArea" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={colors.primary[500]} stopOpacity="0.28" />
-              <Stop offset="100%" stopColor={colors.primary[500]} stopOpacity="0.02" />
+              <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.34" />
+              <Stop offset="100%" stopColor={colors.primary} stopOpacity="0.02" />
             </LinearGradient>
           </Defs>
 
@@ -141,7 +150,7 @@ export function CreatorEngagementChart({
             <Path
               d={chartGeometry.linePath}
               fill="none"
-              stroke={colors.primary[600]}
+              stroke={colors.primary}
               strokeWidth={3}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -151,8 +160,8 @@ export function CreatorEngagementChart({
           {chartGeometry.last ? (
             <Path
               d={`M ${chartGeometry.last.x} ${chartGeometry.last.y} m -5, 0 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0`}
-              fill={colors.secondaryAccent[500]}
-              stroke={colors.primary[600]}
+              fill={colors.surfaceLevel1}
+              stroke={colors.primary}
               strokeWidth={2}
             />
           ) : null}
@@ -160,8 +169,12 @@ export function CreatorEngagementChart({
       </AnimatedView>
 
       <View style={styles.footerRow}>
-        <Text style={styles.metricLabel}>Pic sur {activeRange}</Text>
-        <Text style={styles.metricValue}>{Math.round(chartGeometry.maxValue)} pts</Text>
+        <Typography variant="caption" color={colors.textSecondary}>
+          Pic sur {activeRange}
+        </Typography>
+        <Typography variant="body" color={colors.primary} weight="700">
+          {Math.round(chartGeometry.maxValue)} pts
+        </Typography>
       </View>
     </Card>
   );
@@ -169,8 +182,6 @@ export function CreatorEngagementChart({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.secondaryAccent[500],
     gap: spacing.sm,
   },
   headerRow: {
@@ -179,53 +190,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  title: {
-    ...typography.h6,
-    color: colors.textPrimary[500],
-  },
   rangeTabs: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   rangeButton: {
-    minHeight: minimumTouchTarget,
+    minHeight: MIN_TOUCH,
     paddingHorizontal: spacing.sm + 2,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.element,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background[500],
+    backgroundColor: colors.surfaceLevel2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   rangeButtonActive: {
-    backgroundColor: colors.primary[600],
-  },
-  rangeText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary[500],
-    fontWeight: '700',
-  },
-  rangeTextActive: {
-    color: colors.secondaryAccent[500],
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chartContainer: {
     minHeight: CHART_HEIGHT,
     overflow: 'hidden',
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.background[500],
+    borderRadius: radius.element,
+    backgroundColor: colors.surfaceLevel2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     paddingVertical: spacing.xs,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  metricLabel: {
-    ...typography.caption,
-    color: colors.textSecondary[500],
-  },
-  metricValue: {
-    ...typography.bodySmall,
-    color: colors.primary[700],
-    fontWeight: '700',
   },
 });

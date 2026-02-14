@@ -2,7 +2,7 @@ import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
-import { colors, spacing, typography } from '../../constants/theme';
+import { colors, spacing, typography } from '@/components/ui/v2/theme';
 import { EventResultCard } from './EventResultCard';
 
 export type SearchResultsBottomSheetHandle = {
@@ -100,7 +100,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         <View style={styles.header}>
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator color={colors.primary[600]} />
+              <ActivityIndicator color={colors.scale.primary[600]} />
               <Text style={styles.loadingText}>Chargement...</Text>
             </View>
           ) : (
@@ -180,10 +180,10 @@ SearchResultsBottomSheet.displayName = 'SearchResultsBottomSheet';
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
   },
   handleIndicator: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.scale.neutral[300],
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -193,11 +193,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   headerSubtitle: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
     marginTop: spacing.xs,
   },
   loadingContainer: {
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
 
   listContent: {
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   },
   peekText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   singleContainer: {
     paddingHorizontal: spacing.xs,
@@ -236,12 +236,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '700',
   },
   emptySubtitle: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
     textAlign: 'center',
   },
 });

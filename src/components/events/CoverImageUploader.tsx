@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { Image as ImageIcon } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -73,15 +73,15 @@ export const CoverImageUploader = () => {
         <Image source={{ uri }} style={styles.hero} />
       ) : (
         <View style={styles.placeholder}>
-          <ImageIcon size={40} color={colors.neutral[400]} />
+          <ImageIcon size={40} color={colors.textSecondary} />
         </View>
       )}
-      <TouchableOpacity style={styles.overlayBtn} onPress={onPick} disabled={uploading}>
+      <TouchableOpacity style={styles.overlayBtn} onPress={onPick} disabled={uploading} accessibilityRole="button">
         {uploading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.background} />
         ) : (
           <>
-            <ImageIcon size={18} color="#fff" />
+            <ImageIcon size={18} color={colors.background} />
             <Text style={styles.overlayText}>Photo de couverture</Text>
           </>
         )}
@@ -98,14 +98,18 @@ const styles = StyleSheet.create({
   hero: {
     width: '100%',
     height: 220,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceLevel2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   placeholder: {
     width: '100%',
     height: 220,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -114,17 +118,20 @@ const styles = StyleSheet.create({
     bottom: spacing.md,
     left: '50%',
     transform: [{ translateX: -90 }],
-    backgroundColor: colors.neutral[900],
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
+    minHeight: 48,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
+    ...shadows.primaryGlow,
   },
   overlayText: {
     ...typography.body,
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
 });

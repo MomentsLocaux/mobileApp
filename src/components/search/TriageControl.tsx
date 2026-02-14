@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SlidersHorizontal } from 'lucide-react-native';
 import type { SortOption, SortOrder } from '@/types/filters';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 
 const LABELS: Record<SortOption, string> = {
   triage: 'Pertinence',
@@ -44,7 +44,7 @@ export const TriageControl: React.FC<Props> = ({
         style={[styles.pill, !showLabel && styles.pillIconOnly]}
         onPress={() => setOpen(true)}
       >
-        <SlidersHorizontal size={16} color={colors.neutral[700]} />
+        <SlidersHorizontal size={16} color={colors.scale.neutral[700]} />
         {showLabel ? (
           <Text style={styles.pillText}>
             {LABELS[value]}
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.full,
     shadowColor: '#000',
     shadowOpacity: 0.08,
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   pillIconOnly: {
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.25)',
   },
   sheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     ...typography.subtitle,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     marginBottom: spacing.md,
   },
   option: {
@@ -151,14 +151,14 @@ const styles = StyleSheet.create({
   },
   optionText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   optionTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '700',
   },
   optionTextDisabled: {
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   orderRow: {
     flexDirection: 'row',
@@ -170,18 +170,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   orderChipActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[300],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[300],
   },
   orderText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   orderTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
   },
 });

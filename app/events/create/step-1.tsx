@@ -14,7 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { CoverImageUploader } from '@/components/events/CoverImageUploader';
 import { AdditionalImagesUploader } from '@/components/events/AdditionalImagesUploader';
 import { CreateEventForm } from '@/components/events/CreateEventForm';
@@ -273,6 +273,7 @@ export default function CreateEventStep1() {
   if (isGuest) {
     return (
       <SafeAreaView style={styles.safe}>
+        <AppBackground opacity={0.2} />
         <GuestGateModal
           visible
           title="Créer un événement"
@@ -286,19 +287,21 @@ export default function CreateEventStep1() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AppBackground opacity={0.2} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={insets.top}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerBtn} onPress={handleAttemptExit}>
-            <ChevronLeft size={20} color={colors.neutral[800]} />
+          <TouchableOpacity style={styles.headerBtn} onPress={handleAttemptExit} accessibilityRole="button">
+            <ChevronLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Nouvel évènement</Text>
           <TouchableOpacity
             style={[styles.headerBtn, styles.nextBtn, !canProceed && styles.nextBtnDisabled]}
             disabled={!canProceed}
+            accessibilityRole="button"
             onPress={() => {
               const dest = edit ? `/events/create/step-2?edit=${edit}` : '/events/create/step-2';
               router.push(dest as any);
@@ -336,7 +339,7 @@ export default function CreateEventStep1() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.background,
   },
   header: {
     height: 64,
@@ -344,30 +347,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
+    backgroundColor: 'transparent',
   },
   headerBtn: {
-    padding: spacing.sm,
+    minHeight: 44,
     minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: radius.pill,
   },
   headerTitle: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   nextBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
+    borderWidth: 0,
+    ...shadows.primaryGlow,
   },
   nextBtnDisabled: {
-    backgroundColor: colors.neutral[300],
+    opacity: 0.45,
   },
   nextText: {
     ...typography.body,
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
   content: {
@@ -377,7 +384,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[500],
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.md,
   },

@@ -1,22 +1,21 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
   ActivityIndicator,
+  FlatList,
   RefreshControl,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Calendar, MapPin } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { Calendar, MapPin } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBackground, Card, TopBar, colors, radius, spacing, typography } from '@/components/ui/v2';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import type { EventWithCreator } from '@/types/database';
-import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 type StatusMeta = {
   label: string;
@@ -28,42 +27,42 @@ const getModerationStatusMeta = (status: string | null | undefined): StatusMeta 
   if (status === 'draft') {
     return {
       label: 'Brouillon',
-      textColor: colors.neutral[700],
-      backgroundColor: colors.neutral[100],
+      textColor: colors.textSecondary,
+      backgroundColor: 'rgba(148, 163, 184, 0.18)',
     };
   }
   if (status === 'pending') {
     return {
       label: 'En validation',
-      textColor: colors.warning[700],
-      backgroundColor: colors.warning[50],
+      textColor: '#f59e0b',
+      backgroundColor: 'rgba(245, 158, 11, 0.18)',
     };
   }
   if (status === 'published') {
     return {
       label: 'Publié',
-      textColor: colors.success[700],
-      backgroundColor: colors.success[50],
+      textColor: colors.success,
+      backgroundColor: 'rgba(52, 199, 89, 0.18)',
     };
   }
   if (status === 'refused') {
     return {
       label: 'Refusé',
-      textColor: colors.error[700],
-      backgroundColor: colors.error[50],
+      textColor: colors.danger,
+      backgroundColor: 'rgba(255, 90, 102, 0.18)',
     };
   }
   if (status === 'archived') {
     return {
       label: 'Archivé',
-      textColor: colors.neutral[600],
-      backgroundColor: colors.neutral[100],
+      textColor: colors.textMuted,
+      backgroundColor: 'rgba(107, 124, 133, 0.18)',
     };
   }
   return {
     label: status || 'Inconnu',
-    textColor: colors.neutral[700],
-    backgroundColor: colors.neutral[100],
+    textColor: colors.textSecondary,
+    backgroundColor: 'rgba(148, 163, 184, 0.18)',
   };
 };
 
@@ -137,6 +136,7 @@ export default function MyEventsScreen() {
   if (isGuest) {
     return (
       <SafeAreaView style={styles.safe}>
+        <AppBackground opacity={0.18} />
         <GuestGateModal
           visible
           title="Mes évènements"
@@ -150,25 +150,24 @@ export default function MyEventsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mes évènements</Text>
-        <View style={styles.headerSpacer} />
+      <AppBackground opacity={0.18} />
+      <View style={styles.topBarWrap}>
+        <TopBar title="Mes évènements" onBack={() => router.back()} />
       </View>
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
-          <Text style={styles.centerText}>Chargement…</Text>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.centerText}>Chargement...</Text>
         </View>
       ) : (
         <FlatList
           data={sortedEvents}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
           ListEmptyComponent={
             <View style={styles.centerState}>
               <Text style={styles.centerText}>Aucun évènement créé.</Text>
@@ -178,15 +177,16 @@ export default function MyEventsScreen() {
             const statusMeta = getModerationStatusMeta(item.status);
             const temporalLabel = getTemporalLabel(item.starts_at, item.ends_at);
             const isEditable = item.status === 'draft' || item.status === 'refused';
+
             return (
-              <TouchableOpacity
-                style={styles.card}
+              <Card
+                padding="md"
                 onPress={() =>
                   router.push(
                     (isEditable ? `/events/create/step-1?edit=${item.id}` : `/events/${item.id}`) as any
                   )
                 }
-                activeOpacity={0.85}
+                style={styles.card}
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle} numberOfLines={1}>
@@ -198,19 +198,20 @@ export default function MyEventsScreen() {
                 </View>
 
                 <View style={styles.metaRow}>
-                  <MapPin size={14} color={colors.neutral[500]} />
+                  <MapPin size={14} color={colors.textSecondary} />
                   <Text style={styles.metaText} numberOfLines={1}>
                     {item.city || item.address || 'Lieu inconnu'}
                   </Text>
                 </View>
+
                 <View style={styles.metaRow}>
-                  <Calendar size={14} color={colors.neutral[500]} />
+                  <Calendar size={14} color={colors.textSecondary} />
                   <Text style={styles.metaText}>
                     {formatDate(item.starts_at)}
                     {temporalLabel ? ` · ${temporalLabel}` : ''}
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Card>
             );
           }}
         />
@@ -222,43 +223,19 @@ export default function MyEventsScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    ...typography.h5,
-    color: colors.neutral[900],
-  },
-  headerSpacer: {
-    width: 36,
-    height: 36,
+  topBarWrap: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
-    padding: spacing.md,
     gap: spacing.xs,
   },
   cardHeader: {
@@ -268,12 +245,11 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    ...typography.body,
-    color: colors.neutral[900],
-    fontWeight: '700',
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
   },
   statusBadge: {
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
   },
@@ -287,8 +263,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   metaText: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
     flex: 1,
   },
   centerState: {
@@ -298,8 +274,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   centerText: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
-

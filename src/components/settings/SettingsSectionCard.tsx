@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, radius, shadows } from '@/components/ui/v2';
 
 type CardProps = {
   title: string;
@@ -26,7 +26,7 @@ type RowProps = {
 export const SettingsSectionCard: React.FC<CardProps> = ({ title, description, icon: Icon, accent, children }) => (
   <View style={[styles.card, accent && styles.cardAccent]}>
     <View style={styles.cardHeader}>
-      <Icon size={22} color={colors.neutral[800]} />
+      <Icon size={22} color={colors.primary} />
       <View style={styles.cardHeaderText}>
         <Text style={styles.cardTitle}>{title}</Text>
         {description ? <Text style={styles.cardDescription}>{description}</Text> : null}
@@ -49,14 +49,14 @@ export const SettingsRow: React.FC<RowProps> = ({
   const content = (
     <>
       <View style={styles.rowLeft}>
-        <Icon size={20} color={danger ? colors.error[600] : colors.neutral[700]} />
+        <Icon size={20} color={danger ? colors.danger : colors.textSecondary} />
         <Text style={[styles.rowLabel, danger && styles.rowLabelDanger, disabled && styles.rowLabelDisabled]}>
           {label}
         </Text>
       </View>
       <View style={styles.rowRight}>
         {right}
-        {onPress && showChevron ? <ChevronRight size={18} color={colors.neutral[400]} /> : null}
+        {onPress && showChevron ? <ChevronRight size={18} color={colors.textMuted} /> : null}
       </View>
     </>
   );
@@ -79,19 +79,17 @@ export const SettingsRow: React.FC<RowProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: borderRadius.xl,
+    backgroundColor: colors.surfaceLevel1,
+    borderRadius: radius.card,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    ...shadows.surfaceSoft,
   },
   cardAccent: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(43, 191, 227, 0.45)',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -103,12 +101,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    ...typography.h4,
-    color: colors.neutral[900],
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   cardDescription: {
-    ...typography.caption,
-    color: colors.neutral[500],
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   cardBody: {
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: colors.divider,
   },
   rowNoBorder: {
     borderTopWidth: 0,
@@ -137,15 +137,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   rowLabel: {
-    ...typography.body,
-    color: colors.neutral[900],
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   rowLabelDanger: {
-    color: colors.error[600],
+    color: colors.danger,
   },
   rowLabelDisabled: {
-    color: colors.neutral[400],
+    color: colors.textMuted,
   },
   rowDisabled: {
     opacity: 0.6,

@@ -15,12 +15,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   Bell,
   CalendarCheck2,
-  ChevronLeft,
   Image as ImageIcon,
   MessageSquareWarning,
   ShieldAlert,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { AppBackground, TopBar, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { useAuth } from '@/hooks';
 import { NotificationsService, type AppNotification, type AppNotificationType } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
@@ -198,13 +197,14 @@ export default function NotificationsInboxScreen() {
     return (
       <TouchableOpacity
         style={[styles.itemCard, !item.read && styles.itemUnread]}
+        accessibilityRole="button"
         onPress={() => handleOpen(item)}
         activeOpacity={0.8}
       >
         <View style={styles.itemHeader}>
           <View style={styles.itemTitleRow}>
             <View style={styles.itemIcon}>
-              <IconCmp size={16} color={colors.neutral[700]} />
+              <IconCmp size={16} color={colors.textSecondary} />
             </View>
             <Text style={styles.itemTitle}>{item.title}</Text>
           </View>
@@ -220,31 +220,37 @@ export default function NotificationsInboxScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity
-          style={[styles.readAllButton, unreadCount === 0 && styles.readAllButtonDisabled]}
-          onPress={handleMarkAllRead}
-          disabled={unreadCount === 0}
-        >
-          <Text style={[styles.readAllText, unreadCount === 0 && styles.readAllTextDisabled]}>Tout lire</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AppBackground opacity={0.2} />
+      <View style={styles.content}>
+        <TopBar
+          title="Notifications"
+          onBack={() => router.back()}
+          rightSlot={
+            <TouchableOpacity
+              style={[styles.readAllButton, unreadCount === 0 && styles.readAllButtonDisabled]}
+              onPress={handleMarkAllRead}
+              accessibilityRole="button"
+              disabled={unreadCount === 0}
+            >
+              <Text style={[styles.readAllText, unreadCount === 0 && styles.readAllTextDisabled]}>Tout lire</Text>
+            </TouchableOpacity>
+          }
+        />
       </View>
 
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[styles.filterPill, mode === 'all' && styles.filterPillActive]}
           onPress={() => setMode('all')}
+          accessibilityRole="button"
         >
           <Text style={[styles.filterText, mode === 'all' && styles.filterTextActive]}>Toutes</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterPill, mode === 'unread' && styles.filterPillActive]}
           onPress={() => setMode('unread')}
+          accessibilityRole="button"
         >
           <Text style={[styles.filterText, mode === 'unread' && styles.filterTextActive]}>Non lues</Text>
         </TouchableOpacity>
@@ -252,7 +258,7 @@ export default function NotificationsInboxScreen() {
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
+          <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.stateText}>Chargement des notifications...</Text>
         </View>
       ) : (
@@ -264,7 +270,7 @@ export default function NotificationsInboxScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           ListEmptyComponent={
             <View style={styles.centerState}>
-              <Bell size={20} color={colors.neutral[500]} />
+              <Bell size={20} color={colors.textMuted} />
               <Text style={styles.stateText}>
                 {error ? `Erreur: ${error}` : mode === 'unread' ? 'Aucune notification non lue.' : 'Aucune notification.'}
               </Text>
@@ -279,44 +285,33 @@ export default function NotificationsInboxScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  content: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  headerTitle: {
-    flex: 1,
-    ...typography.h5,
-    color: colors.neutral[900],
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
   readAllButton: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
+    minHeight: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   readAllButtonDisabled: {
-    backgroundColor: colors.neutral[100],
+    opacity: 0.45,
   },
   readAllText: {
-    ...typography.caption,
-    color: colors.primary[700],
+    ...typography.body,
+    color: colors.primary,
     fontWeight: '700',
   },
   readAllTextDisabled: {
-    color: colors.neutral[500],
+    color: colors.textMuted,
   },
   filterRow: {
     flexDirection: 'row',
@@ -325,21 +320,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   filterPill: {
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    paddingVertical: 10,
+    justifyContent: 'center',
   },
   filterPillActive: {
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.primary,
+    borderColor: 'transparent',
   },
   filterText: {
-    ...typography.caption,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   filterTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
   listContent: {
     padding: spacing.lg,
@@ -347,16 +347,16 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   itemCard: {
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceCard,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
     padding: spacing.md,
     gap: spacing.sm,
+    ...shadows.surfaceSoft,
   },
   itemUnread: {
-    borderColor: colors.primary[300],
-    backgroundColor: colors.primary[0],
+    borderColor: colors.primary,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -370,28 +370,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: borderRadius.full,
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
   },
   itemTitle: {
-    ...typography.bodySmall,
-    color: colors.neutral[900],
+    ...typography.body,
+    color: colors.textPrimary,
     fontWeight: '700',
     flex: 1,
   },
   unreadDot: {
     width: 9,
     height: 9,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[500],
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   itemBody: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
   },
   itemFooter: {
     flexDirection: 'row',
@@ -401,12 +401,12 @@ const styles = StyleSheet.create({
   },
   itemType: {
     ...typography.caption,
-    color: colors.info[700],
+    color: colors.primary,
     fontWeight: '700',
   },
   itemDate: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.textMuted,
   },
   centerState: {
     alignItems: 'center',
@@ -415,8 +415,8 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   stateText: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 });

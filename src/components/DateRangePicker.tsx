@@ -3,7 +3,7 @@ import { Modal, View, Text, ScrollView, Pressable, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDateRangeSelection } from '@/hooks/useDateRangeSelection';
 import type { DateRangeMode, DateRangeValue, DateRangeContext } from '@/types/eventDate.model';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 
 type Props = {
   open: boolean;
@@ -160,7 +160,7 @@ export const DateRangePicker = ({ open, mode, value, onChange, onClose, context 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
   },
   header: {
     paddingHorizontal: spacing.md,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
   },
   content: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   monthLabel: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
     textTransform: 'capitalize',
   },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   weekDay: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
     width: `${100 / 7}%`,
     textAlign: 'center',
   },
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 32,
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.scale.primary[100],
     top: '50%',
     marginTop: -16,
   },
@@ -237,18 +237,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayBubbleActive: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   dayText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '600',
   },
   dayTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
   },
   dayTextEndpoint: {
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   footer: {
     flexDirection: 'row',
@@ -256,22 +256,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: colors.scale.neutral[200],
   },
   validateBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
   },
   validateText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
   },
   link: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '600',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { Lock, Unlock, Navigation } from 'lucide-react-native';
 import { Input } from '../ui';
 import { GeocodingService } from '../../services/geocoding.service';
 import type { AddressDetails, LocationState } from '../../types/event-form';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import Constants from 'expo-constants';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
@@ -145,7 +145,7 @@ export function LocationPicker({
                 iconSize: 1.4,
                 iconAllowOverlap: true,
                 iconIgnorePlacement: true,
-                iconColor: location.isLocked ? colors.neutral[500] : colors.primary[600],
+                iconColor: location.isLocked ? colors.scale.neutral[500] : colors.scale.primary[600],
               }}
             />
           </Mapbox.ShapeSource>
@@ -153,7 +153,7 @@ export function LocationPicker({
 
         {location.isLocked && (
           <View style={styles.lockOverlay}>
-            <Lock size={16} color={colors.neutral[0]} />
+            <Lock size={16} color={colors.scale.neutral[0]} />
             <Text style={styles.lockText}>Position verrouillée</Text>
           </View>
         )}
@@ -236,10 +236,10 @@ export function LocationPicker({
                 disabled={geocodeLoading}
               >
                 {geocodeLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary[600]} />
+                  <ActivityIndicator size="small" color={colors.scale.primary[600]} />
                 ) : (
                   <>
-                    <Navigation size={18} color={colors.primary[600]} />
+                    <Navigation size={18} color={colors.scale.primary[600]} />
                     <Text style={styles.buttonSecondaryText}>Localiser</Text>
                   </>
                 )}
@@ -251,10 +251,10 @@ export function LocationPicker({
                 disabled={geocodeLoading}
               >
                 {geocodeLoading ? (
-                  <ActivityIndicator size="small" color={colors.neutral[0]} />
+                  <ActivityIndicator size="small" color={colors.scale.neutral[0]} />
                 ) : (
                   <>
-                    <Lock size={18} color={colors.neutral[0]} />
+                    <Lock size={18} color={colors.scale.neutral[0]} />
                     <Text style={styles.buttonPrimaryText}>Valider</Text>
                   </>
                 )}
@@ -265,7 +265,7 @@ export function LocationPicker({
               style={[styles.button, styles.buttonSecondary, { flex: 1 }]}
               onPress={handleUnlockLocation}
             >
-              <Unlock size={18} color={colors.primary[600]} />
+              <Unlock size={18} color={colors.scale.primary[600]} />
               <Text style={styles.buttonSecondaryText}>Modifier</Text>
             </TouchableOpacity>
           )}
@@ -295,14 +295,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.success[600],
+    backgroundColor: colors.scale.success[600],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
   },
   lockText: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   controls: {
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     marginTop: spacing.xs,
   },
   actions: {
@@ -341,21 +341,21 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   buttonPrimary: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   buttonSecondary: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderWidth: 1,
-    borderColor: colors.primary[200],
+    borderColor: colors.scale.primary[200],
   },
   buttonPrimaryText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   buttonSecondaryText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '600',
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, type ViewProps, type PressableProps } from 'react-native';
-import { colors, spacing, borderRadius, shadows } from '../../constants/theme';
+import { colors, spacing, borderRadius, shadows } from '@/components/ui/v2/theme';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -80,9 +80,9 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.secondaryAccent[500],
+    backgroundColor: colors.scale.secondaryAccent[500],
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
 });

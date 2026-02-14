@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
 import { MapPin, Calendar, Tag, Navigation2, Heart, Star } from 'lucide-react-native';
 import type { EventWithCreator } from '../../types/database';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 import { useLocationStore } from '@/store';
@@ -154,13 +154,13 @@ export const EventResultCard: React.FC<Props> = ({
               {event.title}
             </Text>
             <View style={styles.row}>
-              <MapPin size={16} color={colors.neutral[0]} />
+              <MapPin size={16} color={colors.scale.neutral[0]} />
               <Text style={styles.meta} numberOfLines={1}>
                 {event.city || event.address || 'Lieu à venir'}
               </Text>
             </View>
             <View style={styles.row}>
-              <Calendar size={16} color={colors.neutral[0]} />
+              <Calendar size={16} color={colors.scale.neutral[0]} />
               <Text style={styles.meta} numberOfLines={1}>
                 {dateLabel}
               </Text>
@@ -169,7 +169,7 @@ export const EventResultCard: React.FC<Props> = ({
               <View style={styles.tags}>
                 {tags.map((tag) => (
                   <View key={tag} style={styles.tag}>
-                    <Tag size={12} color={colors.neutral[0]} />
+                    <Tag size={12} color={colors.scale.neutral[0]} />
                     <Text style={styles.tagText}>{tag}</Text>
                   </View>
                 ))}
@@ -178,7 +178,7 @@ export const EventResultCard: React.FC<Props> = ({
           </View>
           <View style={styles.ctaRow} pointerEvents="auto">
             <TouchableOpacity style={styles.ctaButton} onPress={onNavigate}>
-              <Navigation2 size={16} color={colors.neutral[900]} />
+              <Navigation2 size={16} color={colors.scale.neutral[900]} />
               <View style={styles.ctaTextRow}>
                 <Text style={styles.ctaText}>Itinéraire</Text>
                 {distanceLabel ? <Text style={styles.ctaDistance}>· {distanceLabel}</Text> : null}
@@ -192,8 +192,8 @@ export const EventResultCard: React.FC<Props> = ({
               >
                 <Heart
                   size={18}
-                  color={isLiked ? colors.error[500] : colors.neutral[0]}
-                  fill={isLiked ? colors.error[500] : 'transparent'}
+                  color={isLiked ? colors.scale.error[500] : colors.scale.neutral[0]}
+                  fill={isLiked ? colors.scale.error[500] : 'transparent'}
                 />
               </TouchableOpacity>
             )}
@@ -205,8 +205,8 @@ export const EventResultCard: React.FC<Props> = ({
               >
                 <Star
                   size={18}
-                  color={isFavorite ? colors.warning[500] : colors.neutral[0]}
-                  fill={isFavorite ? colors.warning[500] : 'transparent'}
+                  color={isFavorite ? colors.scale.warning[500] : colors.scale.neutral[0]}
+                  fill={isFavorite ? colors.scale.warning[500] : 'transparent'}
                 />
               </TouchableOpacity>
               )}
@@ -219,15 +219,15 @@ export const EventResultCard: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     borderWidth: 0,
     marginHorizontal: 0,
   },
   cardActive: {
-    borderColor: colors.primary[500],
-    shadowColor: colors.neutral[900],
+    borderColor: colors.scale.primary[500],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 14,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 260,
     resizeMode: 'cover',
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
   },
   topBadge: {
     position: 'absolute',
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
   },
   row: {
     flexDirection: 'row',
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     flex: 1,
   },
   tags: {
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
   },
   avatarWrapper: {
     position: 'absolute',
@@ -310,8 +310,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: colors.neutral[0],
-    backgroundColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[0],
+    backgroundColor: colors.scale.neutral[200],
   },
   avatar: {
     width: '100%',
@@ -321,11 +321,11 @@ const styles = StyleSheet.create({
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[400],
+    backgroundColor: colors.scale.neutral[400],
   },
   avatarInitials: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
   },
   ctaRow: {
@@ -338,14 +338,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
   ctaText: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '700',
   },
   ctaTextRow: {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   },
   ctaDistance: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '700',
   },
   favoriteBtn: {

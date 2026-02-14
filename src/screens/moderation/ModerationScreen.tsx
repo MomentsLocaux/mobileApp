@@ -25,7 +25,8 @@ import {
   Ban,
   Image as ImageIcon,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { AppBackground } from '@/components/ui/v2';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks';
 import { useRouter } from 'expo-router';
@@ -95,23 +96,23 @@ const formatRelative = (value: string) => {
 };
 
 const severityColor = (severity: ReportSeverity) => {
-  if (severity === 'minor') return colors.info[100];
-  if (severity === 'harmful') return colors.warning[100];
-  if (severity === 'abusive') return colors.error[100];
-  return colors.error[200];
+  if (severity === 'minor') return colors.scale.info[100];
+  if (severity === 'harmful') return colors.scale.warning[100];
+  if (severity === 'abusive') return colors.scale.error[100];
+  return colors.scale.error[200];
 };
 
 const severityTextColor = (severity: ReportSeverity) => {
-  if (severity === 'minor') return colors.info[700];
-  if (severity === 'harmful') return colors.warning[700];
-  return colors.error[700];
+  if (severity === 'minor') return colors.scale.info[700];
+  if (severity === 'harmful') return colors.scale.warning[700];
+  return colors.scale.error[700];
 };
 
 const targetIcon = (target: ReportTargetType) => {
-  if (target === 'event') return <CalendarCheck2 size={16} color={colors.info[700]} />;
-  if (target === 'comment') return <MessageSquare size={16} color={colors.warning[700]} />;
-  if (target === 'media') return <ImageIcon size={16} color={colors.info[700]} />;
-  return <Users size={16} color={colors.error[700]} />;
+  if (target === 'event') return <CalendarCheck2 size={16} color={colors.scale.info[700]} />;
+  if (target === 'comment') return <MessageSquare size={16} color={colors.scale.warning[700]} />;
+  if (target === 'media') return <ImageIcon size={16} color={colors.scale.info[700]} />;
+  return <Users size={16} color={colors.scale.error[700]} />;
 };
 
 const KpiCard = ({
@@ -156,7 +157,7 @@ const EventModerationRow = ({
         {event.city || 'Ville inconnue'} · {formatDate(event.starts_at)}
       </Text>
       <View style={styles.eventReport}>
-        <Flag size={14} color={colors.warning[600]} />
+        <Flag size={14} color={colors.scale.warning[600]} />
         <Text style={styles.eventReportText}>{event.reports_count} signalements</Text>
       </View>
     </View>
@@ -186,7 +187,7 @@ const ReportItem = ({
           <Image source={{ uri: report.reporter.avatar_url }} style={styles.reportAvatar} />
         ) : (
           <View style={styles.reportAvatarPlaceholder}>
-            <User size={16} color={colors.neutral[500]} />
+            <User size={16} color={colors.scale.neutral[500]} />
           </View>
         )}
       </View>
@@ -223,14 +224,14 @@ const UserRiskRow = ({
         <Image source={{ uri: profile.avatar_url }} style={styles.userAvatar} />
       ) : (
         <View style={styles.userAvatarPlaceholder}>
-          <User size={16} color={colors.neutral[500]} />
+          <User size={16} color={colors.scale.neutral[500]} />
         </View>
       )}
       <View>
         <Text style={styles.userName}>{profile.display_name}</Text>
         <View style={styles.userBadges}>
           <View style={styles.userWarningBadge}>
-            <AlertTriangle size={12} color={colors.warning[700]} />
+            <AlertTriangle size={12} color={colors.scale.warning[700]} />
             <Text style={styles.userWarningText}>Niveau {warning.level}</Text>
           </View>
           <View style={styles.userStatusBadge}>
@@ -250,7 +251,7 @@ const UserRiskRow = ({
   </View>
 );
 
-const DonutChart = ({ data }: { data: Array<{ label: string; value: number; color: string }> }) => {
+const DonutChart = ({ data }: { data: { label: string; value: number; color: string }[] }) => {
   const total = data.reduce((sum, item) => sum + item.value, 0);
   return (
     <View style={styles.donutCard}>
@@ -273,7 +274,7 @@ const DonutChart = ({ data }: { data: Array<{ label: string; value: number; colo
   );
 };
 
-const BarChart = ({ data }: { data: Array<{ label: string; value: number; color: string }> }) => (
+const BarChart = ({ data }: { data: { label: string; value: number; color: string }[] }) => (
   <View style={styles.barCard}>
     {data.map((item) => (
       <View key={item.label} style={styles.barRow}>
@@ -446,7 +447,7 @@ export default function ModerationScreen() {
     }
   };
 
-  const menuItems: Array<{ label: string; route: string }> = [
+  const menuItems: { label: string; route: string }[] = [
     { label: 'Dashboard', route: '/moderation' },
     { label: 'Événements', route: '/moderation/events' },
     { label: 'Commentaires', route: '/moderation/comments' },
@@ -465,29 +466,30 @@ export default function ModerationScreen() {
     return (Object.values(REPORT_REASONS) || []).map((reason, idx) => ({
       label: reason.label,
       value: counts[reason.code] || 0,
-      color: idx % 2 === 0 ? colors.info[400] : colors.warning[400],
+      color: idx % 2 === 0 ? colors.scale.info[400] : colors.scale.warning[400],
     }));
   }, [reports]);
 
   const moderationStats = useMemo(
     () => [
-      { label: 'Événements rejetés', value: stats.rejectedEvents, color: colors.error[500] },
-      { label: 'Actions résolues', value: stats.resolvedActions, color: colors.success[500] },
-      { label: 'Utilisateurs bannis', value: stats.bannedUsers, color: colors.warning[500] },
+      { label: 'Événements rejetés', value: stats.rejectedEvents, color: colors.scale.error[500] },
+      { label: 'Actions résolues', value: stats.resolvedActions, color: colors.scale.success[500] },
+      { label: 'Utilisateurs bannis', value: stats.bannedUsers, color: colors.scale.warning[500] },
     ],
     [stats]
   );
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AppBackground />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Modération – Moments Locaux</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)}>
-            <Menu size={22} color={colors.neutral[800]} />
+            <Menu size={22} color={colors.scale.neutral[800]} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuButton} onPress={() => router.back()}>
-            <X size={20} color={colors.neutral[700]} />
+            <X size={20} color={colors.scale.neutral[700]} />
           </TouchableOpacity>
         </View>
       </View>
@@ -499,7 +501,7 @@ export default function ModerationScreen() {
       >
         {loading && (
           <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.info[600]} />
+            <ActivityIndicator color={colors.scale.info[600]} />
             <Text style={styles.loadingText}>Chargement des données…</Text>
           </View>
         )}
@@ -610,15 +612,15 @@ export default function ModerationScreen() {
           <BarChart data={moderationStats} />
           <View style={styles.statRow}>
             <View style={styles.statChip}>
-              <CheckCircle2 size={16} color={colors.success[600]} />
+              <CheckCircle2 size={16} color={colors.scale.success[600]} />
               <Text style={styles.statChipText}>Résolues</Text>
             </View>
             <View style={styles.statChip}>
-              <Ban size={16} color={colors.error[600]} />
+              <Ban size={16} color={colors.scale.error[600]} />
               <Text style={styles.statChipText}>Bloquées</Text>
             </View>
             <View style={styles.statChip}>
-              <ShieldAlert size={16} color={colors.info[600]} />
+              <ShieldAlert size={16} color={colors.scale.info[600]} />
               <Text style={styles.statChipText}>Suivi</Text>
             </View>
           </View>
@@ -640,7 +642,7 @@ export default function ModerationScreen() {
             <View style={styles.menuHeader}>
               <Text style={styles.menuTitle}>Navigation</Text>
               <TouchableOpacity onPress={() => setMenuOpen(false)}>
-                <X size={18} color={colors.neutral[600]} />
+                <X size={18} color={colors.scale.neutral[600]} />
               </TouchableOpacity>
             </View>
             {menuItems.map((item) => (
@@ -665,7 +667,7 @@ export default function ModerationScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -674,13 +676,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   headerTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   menuButton: {
     width: 36,
@@ -688,7 +690,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   headerActions: {
     flexDirection: 'row',
@@ -704,36 +706,36 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
-    shadowColor: colors.neutral[900],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
   loadingText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   debugCard: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.md,
     gap: spacing.xs,
   },
   debugText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   debugError: {
     ...typography.caption,
-    color: colors.error[700],
+    color: colors.scale.error[700],
   },
   debugWarn: {
     ...typography.caption,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     fontWeight: '600',
   },
   kpiRow: {
@@ -743,20 +745,20 @@ const styles = StyleSheet.create({
     width: 180,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
+    backgroundColor: colors.scale.neutral[0],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
   },
   kpiValue: {
     ...typography.h3,
-    color: colors.info[700],
+    color: colors.scale.info[700],
     marginBottom: spacing.xs,
   },
   kpiLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   section: {
     gap: spacing.md,
@@ -769,18 +771,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   sectionAction: {
     ...typography.bodySmall,
-    color: colors.info[600],
+    color: colors.scale.info[600],
     fontWeight: '600',
   },
   eventCard: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
+    backgroundColor: colors.scale.neutral[0],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -792,11 +794,11 @@ const styles = StyleSheet.create({
   eventTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   eventMeta: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   eventReport: {
     flexDirection: 'row',
@@ -805,7 +807,7 @@ const styles = StyleSheet.create({
   },
   eventReportText: {
     ...typography.bodySmall,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
   },
   eventActions: {
     flexDirection: 'row',
@@ -815,12 +817,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.info[600],
+    backgroundColor: colors.scale.info[600],
     alignItems: 'center',
   },
   eventButtonPrimaryText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   eventButtonGhost: {
@@ -828,19 +830,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.error[200],
+    borderColor: colors.scale.error[200],
     alignItems: 'center',
   },
   eventButtonGhostText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     fontWeight: '600',
   },
   card: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
+    backgroundColor: colors.scale.neutral[0],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -848,7 +850,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   reportItem: {
     flexDirection: 'row',
@@ -856,7 +858,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.scale.neutral[100],
   },
   reportAvatarWrap: {
     width: 40,
@@ -872,7 +874,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   reportContent: {
     flex: 1,
@@ -880,7 +882,7 @@ const styles = StyleSheet.create({
   },
   reportReason: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   reportMeta: {
@@ -900,7 +902,7 @@ const styles = StyleSheet.create({
   },
   reportTime: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   reportTarget: {
     width: 36,
@@ -908,13 +910,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   userRow: {
     gap: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.scale.neutral[100],
   },
   userInfo: {
     flexDirection: 'row',
@@ -930,14 +932,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   userName: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   userBadges: {
     flexDirection: 'row',
@@ -952,22 +954,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.warning[100],
+    backgroundColor: colors.scale.warning[100],
   },
   userWarningText: {
     ...typography.caption,
-    color: colors.warning[700],
+    color: colors.scale.warning[700],
     fontWeight: '600',
   },
   userStatusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error[100],
+    backgroundColor: colors.scale.error[100],
   },
   userStatusText: {
     ...typography.caption,
-    color: colors.error[700],
+    color: colors.scale.error[700],
     fontWeight: '600',
   },
   userActions: {
@@ -979,31 +981,31 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.info[200],
+    borderColor: colors.scale.info[200],
     alignItems: 'center',
   },
   userActionOutlineText: {
     ...typography.bodySmall,
-    color: colors.info[700],
+    color: colors.scale.info[700],
     fontWeight: '600',
   },
   userActionDanger: {
     flex: 1,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error[600],
+    backgroundColor: colors.scale.error[600],
     alignItems: 'center',
   },
   userActionDangerText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   donutCard: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
+    backgroundColor: colors.scale.neutral[0],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -1018,19 +1020,19 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 12,
-    borderColor: colors.info[200],
+    borderColor: colors.scale.info[200],
   },
   donutTotal: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   donutSubtitle: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   donutLegend: {
     gap: spacing.sm,
@@ -1047,19 +1049,19 @@ const styles = StyleSheet.create({
   },
   donutLegendLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     flex: 1,
   },
   donutLegendValue: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '600',
   },
   barCard: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
+    backgroundColor: colors.scale.neutral[0],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -1070,12 +1072,12 @@ const styles = StyleSheet.create({
   },
   barLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   barTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     overflow: 'hidden',
   },
   barFill: {
@@ -1084,7 +1086,7 @@ const styles = StyleSheet.create({
   },
   barValue: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     textAlign: 'right',
   },
   statRow: {
@@ -1099,11 +1101,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   statChipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   footer: {
@@ -1112,16 +1114,16 @@ const styles = StyleSheet.create({
   primaryButton: {
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.info[600],
+    backgroundColor: colors.scale.info[600],
     alignItems: 'center',
-    shadowColor: colors.info[600],
+    shadowColor: colors.scale.info[600],
     shadowOpacity: 0.2,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
   },
   primaryButtonText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
   },
   menuBackdrop: {
@@ -1130,7 +1132,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   menuSheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
@@ -1145,17 +1147,17 @@ const styles = StyleSheet.create({
   menuTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   menuItem: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   menuItemText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '600',
   },
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Image as ImageIcon, Trash2 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -92,6 +92,7 @@ export const AdditionalImagesUploader = () => {
               onPress={() => {
                 markRemoved(img.publicUrl);
               }}
+              accessibilityRole="button"
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <Trash2 size={14} color="#fff" />
@@ -100,12 +101,12 @@ export const AdditionalImagesUploader = () => {
         ))}
 
         {validGallery.length < 3 ? (
-          <TouchableOpacity style={styles.addTile} onPress={onPick} disabled={uploading}>
+          <TouchableOpacity style={styles.addTile} onPress={onPick} disabled={uploading} accessibilityRole="button">
             {uploading ? (
-              <ActivityIndicator color={colors.primary[600]} />
+              <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <ImageIcon size={24} color={colors.primary[600]} />
+                <ImageIcon size={24} color={colors.primary} />
                 <Text style={styles.addText}>Ajouter</Text>
               </>
             )}
@@ -124,11 +125,12 @@ export const AdditionalImagesUploader = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surfaceLevel1,
+    borderRadius: radius.card,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.borderSubtle,
+    ...shadows.surfaceSoft,
   },
   header: {
     flexDirection: 'row',
@@ -137,12 +139,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
   },
   subtitle: {
-    ...typography.bodySmall,
-    color: colors.neutral[500],
+    ...typography.body,
+    color: colors.textSecondary,
   },
   grid: {
     flexDirection: 'row',
@@ -152,10 +154,10 @@ const styles = StyleSheet.create({
   thumbWrapper: {
     width: 96,
     height: 96,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.element,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
   },
   thumb: {
     width: '100%',
@@ -166,23 +168,23 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     padding: 4,
   },
   addTile: {
     width: 96,
     height: 96,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.element,
     borderWidth: 1,
-    borderColor: colors.primary[200],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel2,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
   },
   addText: {
     ...typography.caption,
-    color: colors.primary[700],
+    color: colors.primary,
     fontWeight: '600',
   },
 });

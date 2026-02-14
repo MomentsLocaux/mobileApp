@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { X, MapPin, Calendar, Heart } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from '../events/EventImageCarousel';
@@ -28,7 +28,7 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <X size={20} color={colors.neutral[600]} />
+        <X size={20} color={colors.scale.neutral[600]} />
       </TouchableOpacity>
 
       <EventImageCarousel
@@ -56,20 +56,20 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
         </Text>
 
         <View style={styles.infoRow}>
-          <MapPin size={14} color={colors.neutral[600]} />
+          <MapPin size={14} color={colors.scale.neutral[600]} />
           <Text style={styles.infoText} numberOfLines={1}>
             {event.address}
           </Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Calendar size={14} color={colors.neutral[600]} />
+          <Calendar size={14} color={colors.scale.neutral[600]} />
           <Text style={styles.infoText}>{formatDate(event.starts_at)}</Text>
         </View>
 
         <View style={styles.footer}>
           <View style={styles.statsRow}>
-            <Heart size={14} color={colors.error[500]} />
+            <Heart size={14} color={colors.scale.error[500]} />
             <Text style={styles.statsText}>{event.interests_count}</Text>
           </View>
 
@@ -84,7 +84,7 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     maxWidth: 320,
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       },
       default: {
-        shadowColor: colors.neutral[900],
+        shadowColor: colors.scale.neutral[900],
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     top: spacing.sm,
     right: spacing.sm,
     zIndex: 10,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.full,
     padding: spacing.xs,
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     marginBottom: spacing.sm,
   },
   infoRow: {
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     flex: 1,
   },
   footer: {
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[100],
+    borderTopColor: colors.scale.neutral[100],
   },
   statsRow: {
     flexDirection: 'row',
@@ -157,18 +157,18 @@ const styles = StyleSheet.create({
   },
   statsText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   viewButton: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
   },
   viewButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
 });

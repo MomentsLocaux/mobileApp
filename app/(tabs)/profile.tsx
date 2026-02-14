@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,9 @@ import {
   PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, BarChart3 } from 'lucide-react-native';
-import { AppBackground, Button, Card } from '../../src/components/ui';
+import { Settings, Calendar, Award, BarChart3 } from 'lucide-react-native';
 import { useAuth } from '../../src/hooks';
-import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
+import { AppBackground, Avatar, Button, Card, colors, radius, spacing, typography } from '@/components/ui/v2';
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
 import { EventsService } from '../../src/services/events.service';
 import type { EventWithCreator } from '../../src/types/database';
@@ -85,7 +84,7 @@ export default function ProfileScreen() {
     })
   ).current;
 
-  const loadMyEvents = async () => {
+  const loadMyEvents = useCallback(async () => {
     if (!profile?.id) return;
     setLoadingEvents(true);
     try {
@@ -96,7 +95,7 @@ export default function ProfileScreen() {
     } finally {
       setLoadingEvents(false);
     }
-  };
+  }, [profile?.id]);
 
   useEffect(() => {
     const loadWallet = async () => {
@@ -126,10 +125,15 @@ export default function ProfileScreen() {
     loadWallet();
   }, [profile?.id]);
 
+  useEffect(() => {
+    if (!sheetVisible) return;
+    loadMyEvents();
+  }, [loadMyEvents, sheetVisible]);
+
   if (isGuest) {
     return (
       <View style={styles.container}>
-        <AppBackground />
+        <AppBackground opacity={0.2} />
         <GuestGateModal
           visible
           title="Accéder à votre profil"
@@ -144,9 +148,9 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <AppBackground />
+        <AppBackground opacity={0.2} />
         <View style={styles.fallback}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Chargement du profil...</Text>
         </View>
       </View>
@@ -155,22 +159,16 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
+      <AppBackground opacity={0.2} />
       <ScrollView style={styles.scroll}>
         <View style={styles.header}>
           {profile.cover_url ? (
             <Image source={{ uri: profile.cover_url }} style={styles.cover} />
           ) : (
-            <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
+            <View style={[styles.cover, { backgroundColor: colors.surfaceLevel2 }]} />
           )}
           <View style={styles.headerOverlay}>
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <UserIcon size={40} color={colors.neutral[0]} />
-              </View>
-            )}
+            <Avatar uri={profile.avatar_url} name={profile.display_name} size={100} style={styles.avatar} />
             <Text style={styles.displayName}>{profile.display_name}</Text>
             <Text style={styles.email}>{profile.email}</Text>
             {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
@@ -194,8 +192,9 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => router.push('/profile/edit' as any)}
+              accessibilityRole="button"
             >
-              <Settings size={20} color={colors.primary[600]} />
+              <Settings size={20} color={colors.primary} />
               <Text style={styles.editButtonText}>Modifier le profil</Text>
             </TouchableOpacity>
           </View>
@@ -229,15 +228,15 @@ export default function ProfileScreen() {
           <Card padding="md" style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
             <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/creator' as any)}>
-              <BarChart3 size={18} color={colors.primary[600]} />
+              <BarChart3 size={18} color={colors.primary} />
               <Text style={styles.linkText}>Espace créateur</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
-              <Calendar size={18} color={colors.primary[600]} />
+              <Calendar size={18} color={colors.primary} />
               <Text style={styles.linkText}>Mes événements</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/onboarding' as any)}>
-              <Award size={18} color={colors.primary[600]} />
+              <Award size={18} color={colors.primary} />
               <Text style={styles.linkText}>Recommencer l'onboarding</Text>
             </TouchableOpacity>
           </Card>
@@ -249,7 +248,7 @@ export default function ProfileScreen() {
                 style={styles.linkButton}
                 onPress={() => router.push('/moderation' as any)}
               >
-                <Award size={18} color={colors.secondary[600]} />
+                <Award size={18} color={colors.danger} />
                 <Text style={styles.linkText}>Accès modération</Text>
               </TouchableOpacity>
             </Card>
@@ -281,7 +280,7 @@ export default function ProfileScreen() {
             </View>
             {loadingEvents ? (
               <View style={styles.loadingEvents}>
-                <ActivityIndicator size="small" color={colors.primary[600]} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : myEvents.length === 0 ? (
               <Text style={styles.emptySheetText}>Aucun événement créé</Text>
@@ -344,55 +343,47 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
     backgroundColor: 'transparent',
   },
   header: {
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.surfaceLevel1,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   cover: {
     width: '100%',
     height: 180,
+    opacity: 0.45,
   },
   headerOverlay: {
     alignItems: 'center',
     marginTop: -60,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.full,
-    marginBottom: spacing.md,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: spacing.md,
   },
   displayName: {
-    ...typography.h2,
-    color: colors.neutral[900],
+    ...typography.sectionTitle,
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   email: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
   bio: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
+    lineHeight: 24,
   },
   roleBadge: {
     flexDirection: 'row',
@@ -400,8 +391,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   roleText: {
     ...typography.caption,
@@ -413,20 +406,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    padding: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     marginTop: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCard,
   },
   editButtonText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.primary,
     fontWeight: '600',
   },
   content: {
     padding: spacing.lg,
+    gap: spacing.md,
   },
   sectionTitle: {
-    ...typography.h4,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
+    fontWeight: '700',
     marginBottom: spacing.md,
   },
   infoRow: {
@@ -435,30 +435,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.divider,
   },
   infoLabel: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   infoValue: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   actionCard: {
-    marginTop: spacing.md,
+    marginTop: 0,
   },
   linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.sm,
+    minHeight: 48,
   },
   linkText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.primary,
     fontWeight: '600',
   },
   signOutButton: {
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     marginTop: spacing.md,
   },
   sheetOverlay: {
@@ -482,20 +483,22 @@ const styles = StyleSheet.create({
   },
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: colors.overlay,
   },
   sheet: {
-    backgroundColor: colors.neutral[0],
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    backgroundColor: colors.surfaceLevel1,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
   sheetHandle: {
     width: 48,
     height: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[300],
+    borderRadius: radius.pill,
+    backgroundColor: colors.divider,
     alignSelf: 'center',
     marginBottom: spacing.md,
   },
@@ -506,12 +509,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sheetTitle: {
-    ...typography.h4,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
   },
   closeText: {
-    ...typography.bodySmall,
-    color: colors.primary[600],
+    ...typography.body,
+    color: colors.primary,
     fontWeight: '600',
   },
   loadingEvents: {
@@ -520,13 +523,13 @@ const styles = StyleSheet.create({
   },
   emptySheetText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingVertical: spacing.md,
   },
   eventTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   eventTitleRow: {
@@ -537,33 +540,33 @@ const styles = StyleSheet.create({
   },
   eventDraft: {
     ...typography.caption,
-    color: colors.warning[700],
-    backgroundColor: colors.warning[50],
+    color: colors.background,
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
   },
   eventStatus: {
     ...typography.caption,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
   },
   eventStatusPast: {
-    color: colors.neutral[600],
-    backgroundColor: colors.neutral[100],
+    color: colors.textSecondary,
+    backgroundColor: colors.surfaceLevel2,
   },
   eventStatusLive: {
-    color: colors.success[700],
-    backgroundColor: colors.success[50],
+    color: colors.background,
+    backgroundColor: colors.success,
   },
   eventStatusUpcoming: {
-    color: colors.primary[700],
-    backgroundColor: colors.primary[50],
+    color: colors.background,
+    backgroundColor: colors.primary,
   },
   eventMeta: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
+    ...typography.body,
+    color: colors.textSecondary,
     marginTop: 2,
   },
 });

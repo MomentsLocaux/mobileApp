@@ -8,15 +8,15 @@ import {
   TextInput,
 } from 'react-native';
 import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
-import type { EventFilters, TimeFilter, PopularityFilter } from '../../types/filters';
+import type { EventFilters as EventFiltersState, TimeFilter, PopularityFilter } from '../../types/filters';
 import type { EventCategory } from '../../types/database';
 
 interface EventFiltersProps {
-  filters: EventFilters;
-  onFiltersChange: (filters: Partial<EventFilters>) => void;
+  filters: EventFiltersState;
+  onFiltersChange: (filters: Partial<EventFiltersState>) => void;
   onReset: () => void;
   activeFiltersCount: number;
 }
@@ -98,7 +98,7 @@ export function EventFilters({
         onPress={() => setIsVisible(!isVisible)}
       >
         <View style={styles.toggleLeft}>
-          <Filter size={18} color={colors.neutral[700]} />
+          <Filter size={18} color={colors.scale.neutral[700]} />
           <Text style={styles.toggleText}>
             {isVisible ? 'Masquer les filtres' : 'Afficher les filtres'}
           </Text>
@@ -109,9 +109,9 @@ export function EventFilters({
           )}
         </View>
         {isVisible ? (
-          <ChevronUp size={18} color={colors.neutral[700]} />
+          <ChevronUp size={18} color={colors.scale.neutral[700]} />
         ) : (
-          <ChevronDown size={18} color={colors.neutral[700]} />
+          <ChevronDown size={18} color={colors.scale.neutral[700]} />
         )}
       </TouchableOpacity>
 
@@ -341,7 +341,7 @@ export function EventFilters({
 
           {activeFiltersCount > 0 && (
             <TouchableOpacity style={styles.resetButton} onPress={onReset}>
-              <X size={16} color={colors.error[600]} />
+              <X size={16} color={colors.scale.error[600]} />
               <Text style={styles.resetText}>Réinitialiser</Text>
             </TouchableOpacity>
           )}
@@ -353,9 +353,9 @@ export function EventFilters({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   toggleButton: {
     flexDirection: 'row',
@@ -370,11 +370,11 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   badge: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     borderRadius: borderRadius.full,
     minWidth: 20,
     height: 20,
@@ -384,13 +384,13 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...typography.caption,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '700',
     fontSize: 11,
   },
   filtersScroll: {
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: colors.scale.neutral[200],
   },
   filtersContent: {
     padding: spacing.md,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     fontWeight: '600',
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
@@ -419,22 +419,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     marginRight: spacing.sm,
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[600],
   },
   chipText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '500',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
   input: {
@@ -442,9 +442,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    backgroundColor: colors.neutral[0],
-    color: colors.neutral[900],
+    borderColor: colors.scale.neutral[300],
+    backgroundColor: colors.scale.neutral[0],
+    color: colors.scale.neutral[900],
   },
   resetButton: {
     flexDirection: 'row',
@@ -454,15 +454,15 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.error[50],
+    backgroundColor: colors.scale.error[50],
     borderWidth: 1,
-    borderColor: colors.error[200],
+    borderColor: colors.scale.error[200],
     alignSelf: 'flex-start',
     marginTop: spacing.sm,
   },
   resetText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     fontWeight: '600',
   },
 });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, type LayoutChangeEvent } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, spacing, typography } from '@/components/ui/v2';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 
@@ -35,6 +35,7 @@ export const CategorySelector = ({
               key={cat.id}
               style={[styles.card, active && styles.cardActive]}
               onPress={() => onSelect(cat.id)}
+              accessibilityRole="button"
               activeOpacity={0.85}
             >
               <Text style={[styles.cardText, active && styles.cardTextActive]}>{cat.label}</Text>
@@ -47,6 +48,7 @@ export const CategorySelector = ({
           <TouchableOpacity
             style={styles.collapseHeader}
             onPress={() => setShowSubcategories((prev) => !prev)}
+            accessibilityRole="button"
             activeOpacity={0.85}
           >
             <Text style={styles.title}>Sous-catégorie</Text>
@@ -65,12 +67,13 @@ export const CategorySelector = ({
                     const active = subcategory === sub.id;
                     return (
                       <TouchableOpacity
-                        key={sub.id}
-                        style={[styles.card, active && styles.cardActive]}
-                        onPress={() => onSelectSubcategory(active ? undefined : sub.id)}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={[styles.cardText, active && styles.cardTextActive]}>{sub.label}</Text>
+                      key={sub.id}
+                      style={[styles.card, active && styles.cardActive]}
+                      onPress={() => onSelectSubcategory(active ? undefined : sub.id)}
+                      accessibilityRole="button"
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.cardText, active && styles.cardTextActive]}>{sub.label}</Text>
                       </TouchableOpacity>
                     );
                   })
@@ -78,6 +81,7 @@ export const CategorySelector = ({
               <TouchableOpacity
                 style={[styles.card, !subcategory && styles.cardActive]}
                 onPress={() => onSelectSubcategory(undefined)}
+                accessibilityRole="button"
                 activeOpacity={0.85}
               >
                 <Text style={[styles.cardText, !subcategory && styles.cardTextActive]}>Autre / non précisé</Text>
@@ -96,7 +100,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   grid: {
@@ -110,29 +114,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   collapseLabel: {
-    ...typography.bodySmall,
-    color: colors.primary[600],
+    ...typography.body,
+    color: colors.primary,
     fontWeight: '600',
   },
   card: {
+    minHeight: 52,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.element,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
     minWidth: '45%',
+    justifyContent: 'center',
   },
   cardActive: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: 'transparent',
+    backgroundColor: colors.primary,
   },
   cardText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   cardTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
 });

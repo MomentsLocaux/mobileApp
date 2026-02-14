@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CalendarDays, Star, Heart } from 'lucide-react-native';
-import { AppBackground, Card } from '@/components/ui';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { CalendarDays, Heart, Star } from 'lucide-react-native';
+import { AppBackground, Card, TopBar, colors, spacing, typography } from '@/components/ui/v2';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 
@@ -67,37 +66,34 @@ export default function JourneyScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={18} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Mon parcours</Text>
+      <AppBackground opacity={0.2} />
+      <View style={styles.topBarWrap}>
+        <TopBar title="Mon parcours" onBack={() => router.back()} />
       </View>
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <View style={styles.cards}>
           <Card style={styles.card}>
             <View style={styles.cardRow}>
-              <CalendarDays size={18} color={colors.primary[600]} />
+              <CalendarDays size={18} color={colors.primary} />
               <Text style={styles.cardLabel}>Événements créés</Text>
             </View>
             <Text style={styles.cardValue}>{stats.eventsCreated}</Text>
           </Card>
           <Card style={styles.card}>
             <View style={styles.cardRow}>
-              <Star size={18} color={colors.warning[600]} />
+              <Star size={18} color={colors.success} />
               <Text style={styles.cardLabel}>Favoris enregistrés</Text>
             </View>
             <Text style={styles.cardValue}>{stats.favoritesSaved}</Text>
           </Card>
           <Card style={styles.card}>
             <View style={styles.cardRow}>
-              <Heart size={18} color={colors.error[500]} />
+              <Heart size={18} color={colors.danger} />
               <Text style={styles.cardLabel}>Likes donnés</Text>
             </View>
             <Text style={styles.cardValue}>{stats.likesGiven}</Text>
@@ -111,28 +107,13 @@ export default function JourneyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.lg,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
     gap: spacing.md,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  title: {
-    ...typography.h4,
-    color: colors.neutral[900],
-    fontWeight: '700',
+  topBarWrap: {
+    paddingTop: spacing.xs,
   },
   loadingWrap: {
     flex: 1,
@@ -153,12 +134,12 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   cardValue: {
-    ...typography.h3,
-    color: colors.neutral[900],
+    ...typography.sectionTitle,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
 });

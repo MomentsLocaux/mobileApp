@@ -1,26 +1,25 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Alert,
-  Platform,
   ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Upload, User as UserIcon, ChevronLeft } from 'lucide-react-native';
-import { Button, Input } from '../../components/ui';
-import { useAuth } from '../../hooks';
+import { Upload, User as UserIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
-import { ProfileService } from '../../services/profile.service';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getRoleLabel } from '../../utils/roleHelpers';
+import { AppBackground, Button, Input, TopBar, Card, colors, radius, spacing, typography } from '@/components/ui/v2';
+import { useAuth } from '@/hooks';
+import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { ProfileService } from '@/services/profile.service';
+import { getRoleLabel } from '@/utils/roleHelpers';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -39,13 +38,13 @@ export default function ProfileEditScreen() {
     if (!user || !profile) return;
 
     if (!displayName.trim()) {
-      Alert.alert('Erreur', 'Le nom d\'affichage est requis');
+      Alert.alert('Erreur', "Le nom d'affichage est requis");
       return;
     }
 
     setLoading(true);
-    const updates: any = {
-      display_name: displayName,
+    const updates: Record<string, unknown> = {
+      display_name: displayName.trim(),
       bio: bio || null,
     };
 
@@ -85,7 +84,6 @@ export default function ProfileEditScreen() {
     }
 
     const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes,
       allowsEditing: true,
@@ -93,9 +91,7 @@ export default function ProfileEditScreen() {
       quality: 0.8,
     });
 
-    if (result.canceled || !result.assets?.length) {
-      return;
-    }
+    if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
     if (!asset.uri) return;
@@ -106,9 +102,9 @@ export default function ProfileEditScreen() {
 
     if (uploadedUrl) {
       setAvatarUri(uploadedUrl);
-      Alert.alert('Succès', 'Avatar uploadé');
+      Alert.alert('Succès', 'Avatar mis à jour');
     } else {
-      Alert.alert('Erreur', 'Impossible d\'uploader l\'avatar');
+      Alert.alert('Erreur', "Impossible d'uploader l'avatar");
     }
   };
 
@@ -119,6 +115,7 @@ export default function ProfileEditScreen() {
       Alert.alert('Autorisation requise', 'Veuillez autoriser l’accès à vos photos pour changer la couverture.');
       return;
     }
+
     const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes,
@@ -126,17 +123,21 @@ export default function ProfileEditScreen() {
       aspect: [16, 9],
       quality: 0.8,
     });
+
     if (result.canceled || !result.assets?.length) return;
+
     const asset = result.assets[0];
     if (!asset.uri) return;
+
     setUploadingAvatar(true);
     const uploadedUrl = await ProfileService.uploadAvatar(user.id, asset.uri);
     setUploadingAvatar(false);
+
     if (uploadedUrl) {
       setCoverUri(uploadedUrl);
       Alert.alert('Succès', 'Couverture mise à jour');
     } else {
-      Alert.alert('Erreur', 'Impossible d\'uploader la couverture');
+      Alert.alert('Erreur', "Impossible d'uploader la couverture");
     }
   };
 
@@ -152,258 +153,262 @@ export default function ProfileEditScreen() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      Alert.alert('Erreur', 'L\'image ne doit pas dépasser 5 Mo');
+      Alert.alert('Erreur', "L'image ne doit pas dépasser 5 Mo");
       return;
     }
 
     setUploadingAvatar(true);
-
     const reader = new FileReader();
     reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
       const uploadedUrl = await ProfileService.uploadAvatar(user.id, dataUrl);
-
       if (uploadedUrl) {
         setAvatarUri(uploadedUrl);
-        Alert.alert('Succès', 'Avatar uploadé');
+        Alert.alert('Succès', 'Avatar mis à jour');
       } else {
-        Alert.alert('Erreur', 'Impossible d&apos;uploader l&apos;avatar');
+        Alert.alert('Erreur', "Impossible d'uploader l'avatar");
       }
       setUploadingAvatar(false);
     };
-
     reader.readAsDataURL(file);
   };
 
   if (!profile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground opacity={0.18} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top}
-    >
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={{ paddingBottom: spacing.xl + insets.bottom }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+    <View style={styles.container}>
+      <AppBackground opacity={0.18} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
       >
-      <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[700]} />
-          <Text style={styles.backText}>Retour</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.topBarWrap}>
+          <TopBar title="Modifier le profil" onBack={() => router.back()} />
+        </View>
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.coverWrapper} onPress={handleCoverUpload} disabled={uploadingAvatar}>
-          {coverUri ? (
-            <Image source={{ uri: coverUri }} style={styles.cover} />
-          ) : (
-            <View style={[styles.cover, styles.coverPlaceholder]} />
-          )}
-          <View style={styles.coverOverlay}>
-            <Text style={styles.coverText}>Changer la couverture</Text>
-          </View>
-        </TouchableOpacity>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.xl + insets.bottom }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          <Card padding="none" style={styles.heroCard}>
+            <TouchableOpacity
+              style={styles.coverWrapper}
+              onPress={handleCoverUpload}
+              disabled={uploadingAvatar}
+              accessibilityRole="button"
+              activeOpacity={0.85}
+            >
+              {coverUri ? (
+                <Image source={{ uri: coverUri }} style={styles.cover} />
+              ) : (
+                <View style={[styles.cover, styles.coverPlaceholder]} />
+              )}
+              <View style={styles.coverOverlay}>
+                <Text style={styles.coverText}>Changer la couverture</Text>
+              </View>
+            </TouchableOpacity>
 
-        <View style={styles.avatarContainer}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <UserIcon size={48} color={colors.neutral[400]} />
+            <View style={styles.avatarContainer}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <UserIcon size={42} color={colors.textSecondary} />
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.cameraButton}
+                onPress={handleAvatarUpload}
+                disabled={uploadingAvatar}
+                accessibilityRole="button"
+              >
+                {uploadingAvatar ? (
+                  <ActivityIndicator size="small" color={colors.background} />
+                ) : (
+                  <Upload size={18} color={colors.background} />
+                )}
+              </TouchableOpacity>
             </View>
-          )}
-          <TouchableOpacity
-            style={styles.cameraButton}
-            onPress={handleAvatarUpload}
-            disabled={uploadingAvatar}
-          >
-            {uploadingAvatar ? (
-              <ActivityIndicator size="small" color={colors.neutral[0]} />
-            ) : (
-              <Upload size={20} color={colors.neutral[0]} />
-            )}
-          </TouchableOpacity>
-        </View>
-        {Platform.OS === 'web' && (
-          <input
-            ref={fileInputRef as any}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
-        )}
-        <Text style={styles.uploadHint}>Cliquez sur l&apos;icône pour changer votre avatar</Text>
-      </View>
 
-      <View style={styles.form}>
-        <Input
-          label="Nom d'affichage *"
-          placeholder="Votre nom"
-          value={displayName}
-          onChangeText={setDisplayName}
-          ref={registerFieldRef('displayName')}
-          onFocus={() => handleInputFocus('displayName')}
-        />
+            {Platform.OS === 'web' ? (
+              <input
+                ref={fileInputRef as any}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+            ) : null}
 
-        <Input
-          label="Bio"
-          placeholder="Parlez-nous de vous..."
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          numberOfLines={4}
-          ref={registerFieldRef('bio')}
-          onFocus={() => handleInputFocus('bio')}
-        />
+            <Text style={styles.uploadHint}>Touchez l’icône pour changer votre avatar</Text>
+          </Card>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{profile.email}</Text>
-        </View>
+          <Card padding="md" style={styles.formCard}>
+            <Input
+              label="Nom d'affichage *"
+              placeholder="Votre nom"
+              value={displayName}
+              onChangeText={setDisplayName}
+              ref={registerFieldRef('displayName')}
+              onFocus={() => handleInputFocus('displayName')}
+            />
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Rôle</Text>
-          <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
-        </View>
+            <Input
+              label="Bio"
+              placeholder="Parlez-nous de vous..."
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              numberOfLines={4}
+              style={styles.bioInput}
+              ref={registerFieldRef('bio')}
+              onFocus={() => handleInputFocus('bio')}
+            />
 
-        <Button
-          title="Enregistrer"
-          onPress={handleSave}
-          loading={loading}
-          fullWidth
-          style={styles.saveButton}
-        />
-      </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <View style={styles.infoBox}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{profile.email}</Text>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoLabel}>Rôle</Text>
+              <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
+            </View>
+
+            <Button
+              title="Enregistrer"
+              onPress={handleSave}
+              loading={loading}
+              fullWidth
+              accessibilityRole="button"
+            />
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
+  },
+  topBarWrap: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
-  navRow: {
-    flexDirection: 'row',
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
+  },
+  heroCard: {
+    overflow: 'hidden',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
-    fontWeight: '600',
-  },
-  header: {
-    alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
   },
   coverWrapper: {
     width: '100%',
-    height: 180,
-    backgroundColor: colors.neutral[200],
+    height: 170,
+    backgroundColor: colors.surfaceLevel2,
   },
   cover: {
     width: '100%',
     height: '100%',
   },
   coverPlaceholder: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.surfaceLevel2,
   },
   coverOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.32)',
   },
   coverText: {
-    ...typography.caption,
-    color: colors.neutral[0],
-    fontWeight: '600',
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
   },
   avatarContainer: {
+    marginTop: -52,
     position: 'relative',
-    marginTop: -60,
-    marginBottom: spacing.sm,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: borderRadius.full,
+    width: 104,
+    height: 104,
+    borderRadius: radius.full,
+    borderWidth: 3,
+    borderColor: colors.background,
   },
   avatarPlaceholder: {
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
+    backgroundColor: colors.surfaceLevel2,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cameraButton: {
     position: 'absolute',
-    bottom: 0,
     right: 0,
-    backgroundColor: colors.primary[600],
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    justifyContent: 'center',
+    bottom: 0,
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.neutral[0],
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
   },
   uploadHint: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
-    textAlign: 'center',
+    marginTop: spacing.sm,
+    ...typography.caption,
+    color: colors.textSecondary,
   },
-  form: {
-    padding: spacing.lg,
+  formCard: {
+    gap: spacing.md,
+  },
+  bioInput: {
+    minHeight: 120,
+    borderRadius: radius.element,
+    textAlignVertical: 'top',
+    paddingTop: spacing.md,
   },
   infoBox: {
+    borderRadius: radius.element,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: 'rgba(36, 49, 51, 0.55)',
     padding: spacing.md,
-    backgroundColor: colors.neutral[100],
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
+    gap: spacing.xxs,
   },
   infoLabel: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
-    marginBottom: spacing.xs,
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   infoValue: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '600',
-  },
-  saveButton: {
-    marginTop: spacing.lg,
   },
 });

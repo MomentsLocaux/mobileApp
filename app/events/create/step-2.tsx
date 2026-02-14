@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { colors, typography, spacing, borderRadius } from '@/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { CategorySelector } from '@/components/events/CategorySelector';
 import { TagsSelector } from '@/components/events/TagsSelector';
 import { VisibilitySelector } from '@/components/events/VisibilitySelector';
@@ -81,6 +81,7 @@ export default function CreateEventStep2() {
   if (isGuest) {
     return (
       <SafeAreaView style={styles.safe}>
+        <AppBackground opacity={0.2} />
         <GuestGateModal
           visible
           title="Créer un événement"
@@ -94,14 +95,15 @@ export default function CreateEventStep2() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AppBackground opacity={0.2} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={insets.top}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={colors.neutral[800]} />
+          <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()} accessibilityRole="button">
+            <ChevronLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Détails de l'événement</Text>
           <View style={styles.headerBtn} />
@@ -165,6 +167,7 @@ export default function CreateEventStep2() {
           <TouchableOpacity
             style={[styles.publishBtn, !canPublish && styles.publishDisabled]}
             disabled={!canPublish}
+            accessibilityRole="button"
             onPress={() =>
               router.push({
                 pathname: '/events/create/preview',
@@ -172,7 +175,7 @@ export default function CreateEventStep2() {
               } as any)
             }
           >
-            <Text style={styles.publishText}>Publier l'événement</Text>
+            <Text style={styles.publishText}>Prévisualiser</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -183,7 +186,7 @@ export default function CreateEventStep2() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.background,
   },
   header: {
     height: 64,
@@ -193,14 +196,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   headerBtn: {
-    padding: spacing.sm,
+    minHeight: 44,
     minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: radius.pill,
   },
   headerTitle: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   content: {
@@ -210,22 +214,25 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: spacing.md,
+    bottom: Math.max(spacing.md, 10),
     left: spacing.md,
     right: spacing.md,
   },
   publishBtn: {
-    backgroundColor: colors.primary[600],
+    minHeight: 56,
+    backgroundColor: colors.primary,
     paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.primaryGlow,
   },
   publishDisabled: {
-    backgroundColor: colors.neutral[300],
+    opacity: 0.45,
   },
   publishText: {
     ...typography.body,
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
 });

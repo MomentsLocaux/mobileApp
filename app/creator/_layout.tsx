@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../src/constants/theme';
+import { colors } from '@/components/ui/v2';
 
 export default function CreatorLayout() {
   return (
@@ -7,11 +7,14 @@ export default function CreatorLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.secondaryAccent[500],
+          backgroundColor: colors.background,
         },
-        headerTintColor: colors.textPrimary[500],
+        headerTintColor: colors.primary,
+        headerShadowVisible: false,
+        headerTitleAlign: 'center',
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
+          color: colors.textPrimary,
         },
       }}
     >

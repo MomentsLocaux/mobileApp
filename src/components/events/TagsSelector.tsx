@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, spacing, typography } from '@/components/ui/v2';
 
 const TAGS = [
   'Gratuit',
@@ -37,6 +37,7 @@ export const TagsSelector = ({ selected, onChange }: Props) => {
               key={tag}
               style={[styles.chip, active && styles.chipActive]}
               onPress={() => toggle(tag)}
+              accessibilityRole="button"
               activeOpacity={0.8}
             >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>{tag}</Text>
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   row: {
@@ -64,22 +65,24 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
+    justifyContent: 'center',
   },
   chipActive: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: 'transparent',
+    backgroundColor: colors.primary,
   },
   chipText: {
-    ...typography.bodySmall,
-    color: colors.neutral[800],
+    ...typography.body,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
 });

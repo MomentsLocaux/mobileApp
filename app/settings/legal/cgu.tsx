@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { BookOpenCheck } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/components/ui/v2';
 
 const CGU_TEXT = [
   'CONDITIONS GENERALES D\'UTILISATION',
@@ -114,12 +114,12 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   heading: {
-    ...typography.body,
-    color: colors.neutral[900],
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
     fontWeight: '700',
     marginTop: spacing.sm,
   },

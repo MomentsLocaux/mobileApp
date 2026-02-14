@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../src/constants/theme';
+import { colors } from '@/components/ui/v2';
 
 export default function ProfileLayout() {
   return (
@@ -7,11 +7,14 @@ export default function ProfileLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.neutral[0],
+          backgroundColor: colors.background,
         },
-        headerTintColor: colors.neutral[900],
+        headerTintColor: colors.primary,
+        headerShadowVisible: false,
+        headerTitleAlign: 'center',
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
+          color: colors.textPrimary,
         },
       }}
     >

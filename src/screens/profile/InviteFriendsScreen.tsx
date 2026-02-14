@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, Share, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Send, ArrowLeft } from 'lucide-react-native';
-import { AppBackground, Card, Button } from '@/components/ui';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { Send } from 'lucide-react-native';
+import { AppBackground, Button, Card, TopBar, colors, radius, spacing, typography } from '@/components/ui/v2';
 
 const DEFAULT_SHARE_URL = 'https://momentslocaux.app';
 
@@ -29,17 +28,14 @@ export default function InviteFriendsScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={18} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Inviter des amis</Text>
+      <AppBackground opacity={0.2} />
+      <View style={styles.topBarWrap}>
+        <TopBar title="Inviter des amis" onBack={() => router.back()} />
       </View>
 
       <Card style={styles.card}>
         <View style={styles.iconWrap}>
-          <Send size={20} color={colors.primary[600]} />
+          <Send size={20} color={colors.primary} />
         </View>
         <Text style={styles.cardTitle}>Partagez l’application</Text>
         <Text style={styles.cardBody}>
@@ -54,48 +50,33 @@ export default function InviteFriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.lg,
-    gap: spacing.md,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.lg,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  title: {
-    ...typography.h4,
-    color: colors.neutral[900],
-    fontWeight: '700',
+  topBarWrap: {
+    paddingTop: spacing.xs,
   },
   card: {
     padding: spacing.lg,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
   },
   cardTitle: {
-    ...typography.h5,
-    color: colors.neutral[900],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   cardBody: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
 });

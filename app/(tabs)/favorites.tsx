@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
+import { AppBackground, colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { EventResultCard } from '@/components/search/EventResultCard';
@@ -23,7 +23,6 @@ import { supabase } from '@/lib/supabase/client';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { SocialService } from '@/services/social.service';
-import { AppBackground } from '@/components/ui';
 
 type FavoriteRow = {
   event_id: string;
@@ -156,8 +155,8 @@ export default function FavoritesScreen() {
   if (isLoading) {
     return (
       <View style={styles.centeredContainer}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground opacity={0.2} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -165,7 +164,7 @@ export default function FavoritesScreen() {
   if (!session) {
     return (
       <View style={styles.centeredContainer}>
-        <AppBackground />
+        <AppBackground opacity={0.2} />
         <Text style={styles.emptyTitle}>Connexion requise</Text>
         <Text style={styles.emptySubtitle}>Connectez-vous pour accéder à vos favoris.</Text>
       </View>
@@ -175,8 +174,8 @@ export default function FavoritesScreen() {
   if (initialLoading) {
     return (
       <View style={styles.centeredContainer}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground opacity={0.2} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Chargement de vos favoris...</Text>
       </View>
     );
@@ -184,11 +183,11 @@ export default function FavoritesScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
+      <AppBackground opacity={0.2} />
       <View style={styles.header}>
         <Text style={styles.title}>Mes favoris</Text>
         {favorites.length > 0 && (
-          <TouchableOpacity onPress={handleClearAll}>
+          <TouchableOpacity onPress={handleClearAll} accessibilityRole="button">
             <Text style={styles.clearText}>Vider</Text>
           </TouchableOpacity>
         )}
@@ -200,6 +199,7 @@ export default function FavoritesScreen() {
             key={item || 'all'}
             onPress={() => setSelectedCategory(item as string | 'all')}
             style={[styles.chip, selectedCategory === item && styles.chipActive]}
+            accessibilityRole="button"
             activeOpacity={0.85}
           >
             <Text style={[styles.chipText, selectedCategory === item && styles.chipTextActive]}>
@@ -214,7 +214,7 @@ export default function FavoritesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary[600]} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.lg,
+    backgroundColor: colors.background,
   },
   centeredContainer: {
     flex: 1,
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.textSecondary,
   },
   header: {
     flexDirection: 'row',
@@ -266,13 +267,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    ...typography.h4,
-    color: colors.neutral[900],
+    ...typography.sectionTitle,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   clearText: {
     ...typography.caption,
-    color: colors.error[600],
+    color: colors.danger,
     fontWeight: '700',
   },
   chips: {
@@ -282,24 +283,27 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[200],
+    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceLevel1,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    justifyContent: 'center',
     alignSelf: 'flex-start',
     marginRight: spacing.sm,
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
-    borderWidth: 1,
-    borderColor: colors.primary[200],
+    backgroundColor: colors.primary,
+    borderColor: 'transparent',
   },
   chipText: {
-    ...typography.caption,
-    color: colors.neutral[700],
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.background,
   },
   listContent: {
     paddingBottom: spacing.xl,
@@ -308,15 +312,20 @@ const styles = StyleSheet.create({
   empty: {
     padding: spacing.lg,
     alignItems: 'center',
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    ...shadows.surfaceSoft,
   },
   emptyTitle: {
-    ...typography.h5,
-    color: colors.neutral[800],
+    ...typography.subsection,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   emptySubtitle: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xs,
   },

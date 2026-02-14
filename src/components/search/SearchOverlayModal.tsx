@@ -11,7 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { X, MapPin, Calendar, Users, Tag, ChevronRight } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '../../constants/theme';
+import { colors, spacing, borderRadius, typography } from '@/components/ui/v2/theme';
 import { getCategoryColor, getCategoryTextColor } from '../../constants/categories';
 import { useSearchStore } from '../../store/searchStore';
 import { MapboxService } from '../../services/mapbox.service';
@@ -45,7 +45,7 @@ interface Props {
 export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply }) => {
   const [activeSection, setActiveSection] = useState<SectionKey>('where');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Array<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }>>([]);
+  const [results, setResults] = useState<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showRangePicker, setShowRangePicker] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -173,7 +173,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
         ? `${categoryCount} catégories, ${tagCount} tags`
         : 'Type d’évènement';
     return { whereLabel, whenLabel, whoLabel, whatLabel };
-  }, [where, when, who, what]);
+  }, [includePast, where, when, who, what]);
 
   const rangeValue: DateRangeValue = {
     startDate: when.startDate || null,
@@ -224,7 +224,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
         if (!cancelled) {
           setSearchCount(filteredEvents.length);
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setSearchCount(0);
         }
@@ -273,7 +273,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Rechercher un évènement</Text>
             <TouchableOpacity onPress={onClose}>
-              <X size={22} color={colors.neutral[700]} />
+              <X size={22} color={colors.scale.neutral[700]} />
             </TouchableOpacity>
           </View>
 
@@ -282,12 +282,12 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Où"
               summary={summary.whereLabel}
               active={activeSection === 'where'}
-              icon={<MapPin size={18} color={colors.neutral[700]} />}
+              icon={<MapPin size={18} color={colors.scale.neutral[700]} />}
               onPress={() => setActiveSection('where')}
             >
               <TextInput
                 placeholder="Ville, adresse ou lieu"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.scale.neutral[400]}
                 value={query}
                 onChangeText={setQuery}
                 style={styles.input}
@@ -339,7 +339,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               {loading && <Text style={styles.meta}>Recherche...</Text>}
               {results.map((item) => (
                 <TouchableOpacity key={`${item.latitude}-${item.longitude}-${item.label}`} style={styles.result} onPress={() => handleSelectLocation(item)}>
-                  <MapPin size={16} color={colors.primary[600]} />
+                  <MapPin size={16} color={colors.scale.primary[600]} />
                   <Text style={styles.resultText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -369,7 +369,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Quand"
               summary={summary.whenLabel}
               active={activeSection === 'when'}
-              icon={<Calendar size={18} color={colors.neutral[700]} />}
+              icon={<Calendar size={18} color={colors.scale.neutral[700]} />}
               onPress={() => setActiveSection('when')}
             >
               <View style={styles.row}>
@@ -433,7 +433,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Qui"
               summary={summary.whoLabel}
               active={activeSection === 'who'}
-              icon={<Users size={18} color={colors.neutral[700]} />}
+              icon={<Users size={18} color={colors.scale.neutral[700]} />}
               onPress={() => setActiveSection('who')}
             >
               <CounterRow
@@ -460,7 +460,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Quoi"
               summary={summary.whatLabel}
               active={activeSection === 'what'}
-              icon={<Tag size={18} color={colors.neutral[700]} />}
+              icon={<Tag size={18} color={colors.scale.neutral[700]} />}
               onPress={() => setActiveSection('what')}
             >
               <Text style={styles.sectionLabel}>Catégories</Text>
@@ -620,7 +620,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               }}
             >
               <Text style={styles.primaryText}>{footerLabel}</Text>
-              <ChevronRight size={16} color={colors.neutral[0]} />
+              <ChevronRight size={16} color={colors.scale.neutral[0]} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   modal: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.xl,
     maxHeight: '88%',
     shadowColor: '#000',
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
     alignSelf: 'center',
     marginTop: spacing.sm,
   },
@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.subtitle,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   content: {
     paddingHorizontal: spacing.lg,
@@ -783,14 +783,14 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
     marginBottom: spacing.md,
     padding: spacing.md,
   },
   cardActive: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   cardHeader: {
     flexDirection: 'row',
@@ -804,23 +804,23 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   cardSummary: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   cardContent: {
     marginTop: spacing.sm,
     gap: spacing.sm,
   },
   input: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   row: {
     flexDirection: 'row',
@@ -837,26 +837,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderWidth: 1,
-    borderColor: colors.primary[500],
+    borderColor: colors.scale.primary[500],
   },
   chipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
   },
   sliderRow: {
     width: '100%',
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.scale.neutral[500],
   },
   result: {
     flexDirection: 'row',
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     flex: 1,
   },
   history: {
@@ -876,21 +876,21 @@ const styles = StyleSheet.create({
   dateBox: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
     padding: spacing.sm,
   },
   dateBoxFull: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
     borderRadius: borderRadius.md,
     padding: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     gap: spacing.xs,
   },
   dateValue: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '700',
   },
   counterRow: {
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   },
   counterLabel: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
   },
   counterControls: {
     flexDirection: 'row',
@@ -913,13 +913,13 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
     alignItems: 'center',
     justifyContent: 'center',
   },
   counterBtnText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   counterValue: {
     ...typography.body,
@@ -937,27 +937,27 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: colors.neutral[400],
+    borderColor: colors.scale.neutral[400],
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[600],
   },
   checkboxMark: {
     width: 10,
     height: 10,
     borderRadius: 2,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   checkboxLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   sectionLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
   },
   footer: {
     flexDirection: 'row',
@@ -966,16 +966,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderColor: colors.neutral[100],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.scale.neutral[100],
+    backgroundColor: colors.scale.neutral[0],
   },
   resetText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     textDecorationLine: 'underline',
   },
   primaryBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
@@ -985,6 +985,6 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     ...typography.bodyBold,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
   },
 });

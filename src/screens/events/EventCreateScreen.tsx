@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Button, Input } from '../../components/ui';
+import { AppBackground, Button, Input } from '@/components/ui/v2';
 import {
   LocationPicker,
   SchedulePlanner,
@@ -22,14 +22,12 @@ import { GeocodingService } from '../../services/geocoding.service';
 import { useAuth, useLocation } from '../../hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
-import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/components/ui/v2/theme';
 import type {
   EventFormData,
   EventFormErrors,
   LocationState,
-  ScheduleMode,
 } from '../../types/event-form';
-import type { EventCategory, EventVisibility } from '../../types/database';
 
 const STEPS = [
   { id: 0, title: 'Détails', subtitle: 'Informations de base' },
@@ -398,17 +396,18 @@ export default function EventCreateScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground opacity={0.2} />
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <ChevronLeft size={20} color={colors.neutral[700]} />
+              <ChevronLeft size={20} color={colors.scale.neutral[700]} />
               <Text style={styles.backText}>Retour</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Créer un événement</Text>
           </View>
           <TouchableOpacity onPress={handleReset} style={styles.cancelButton}>
-            <X size={20} color={colors.neutral[600]} />
+            <X size={20} color={colors.scale.neutral[600]} />
           </TouchableOpacity>
         </View>
 
@@ -550,7 +549,7 @@ export default function EventCreateScreen() {
                 onPress={() => openDatePicker('startsAt')}
               >
                 <Text style={styles.dateText}>{formatDateTime(formData.startsAt)}</Text>
-                <ChevronRight size={18} color={colors.neutral[500]} />
+                <ChevronRight size={18} color={colors.scale.neutral[500]} />
               </TouchableOpacity>
               {errors.startsAt && <Text style={styles.error}>{errors.startsAt}</Text>}
             </View>
@@ -562,7 +561,7 @@ export default function EventCreateScreen() {
                 onPress={() => openDatePicker('endsAt')}
               >
                 <Text style={styles.dateText}>{formatDateTime(formData.endsAt)}</Text>
-                <ChevronRight size={18} color={colors.neutral[500]} />
+                <ChevronRight size={18} color={colors.scale.neutral[500]} />
               </TouchableOpacity>
               {errors.endsAt && <Text style={styles.error}>{errors.endsAt}</Text>}
             </View>
@@ -741,7 +740,7 @@ export default function EventCreateScreen() {
         <View style={styles.footerButtons}>
           {currentStep > 0 && (
             <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
-              <ChevronLeft size={20} color={colors.primary[600]} />
+              <ChevronLeft size={20} color={colors.scale.primary[600]} />
               <Text style={styles.navButtonText}>Précédent</Text>
             </TouchableOpacity>
           )}
@@ -752,7 +751,7 @@ export default function EventCreateScreen() {
               onPress={handleNext}
             >
               <Text style={styles.navButtonTextPrimary}>Suivant</Text>
-              <ChevronRight size={20} color={colors.neutral[0]} />
+              <ChevronRight size={20} color={colors.scale.neutral[0]} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -832,14 +831,14 @@ export default function EventCreateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.scale.neutral[50],
   },
   header: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.scale.neutral[200],
   },
   headerTop: {
     flexDirection: 'row',
@@ -850,7 +849,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   headerLeft: {
     flexDirection: 'row',
@@ -864,7 +863,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   cancelButton: {
@@ -872,24 +871,24 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
     marginBottom: spacing.md,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
   },
   stepInfo: {
     paddingHorizontal: spacing.lg,
   },
   stepTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
     fontWeight: '600',
   },
   stepSubtitle: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.scale.neutral[600],
     marginTop: spacing.xs,
   },
   content: {
@@ -903,7 +902,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '500',
     marginBottom: spacing.sm,
   },
@@ -915,8 +914,8 @@ const styles = StyleSheet.create({
   },
   datePicker: {
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.scale.neutral[300],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.md,
     padding: spacing.md,
     flexDirection: 'row',
@@ -925,7 +924,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   quickDates: {
     flexDirection: 'row',
@@ -936,40 +935,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.scale.neutral[200],
   },
   quickChipText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '600',
   },
   categoryChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
     marginRight: spacing.sm,
   },
   categoryChipActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[600],
   },
   categoryChipText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '500',
   },
   categoryChipTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
   separator: {
     height: 1,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.scale.neutral[200],
     marginVertical: spacing.md,
   },
   visibilityButtons: {
@@ -982,33 +981,33 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.scale.neutral[100],
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: colors.scale.neutral[300],
   },
   visibilityButtonActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[50],
+    borderColor: colors.scale.primary[600],
   },
   visibilityButtonText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
     fontWeight: '500',
   },
   visibilityButtonTextActive: {
-    color: colors.primary[700],
+    color: colors.scale.primary[700],
     fontWeight: '600',
   },
   error: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.scale.error[600],
     marginTop: spacing.xs,
   },
   footer: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: colors.scale.neutral[200],
   },
   footerButtons: {
     flexDirection: 'row',
@@ -1022,22 +1021,22 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.scale.primary[50],
     borderWidth: 1,
-    borderColor: colors.primary[200],
+    borderColor: colors.scale.primary[200],
   },
   navButtonPrimary: {
-    backgroundColor: colors.primary[600],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.scale.primary[600],
+    borderColor: colors.scale.primary[600],
   },
   navButtonText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.scale.primary[600],
     fontWeight: '600',
   },
   navButtonTextPrimary: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.scale.neutral[0],
     fontWeight: '600',
   },
   previewOverlay: {
@@ -1051,11 +1050,11 @@ const styles = StyleSheet.create({
   previewCard: {
     width: '100%',
     maxWidth: 480,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.scale.neutral[0],
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     gap: spacing.sm,
-    shadowColor: colors.neutral[900],
+    shadowColor: colors.scale.neutral[900],
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
@@ -1063,16 +1062,16 @@ const styles = StyleSheet.create({
   },
   previewTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.scale.neutral[900],
   },
   previewLabel: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.scale.neutral[800],
     fontWeight: '600',
   },
   previewText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.scale.neutral[700],
   },
   previewActions: {
     flexDirection: 'row',

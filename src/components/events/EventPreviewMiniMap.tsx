@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, radius, shadows, spacing, typography } from '@/components/ui/v2';
 import type { EventLocation } from '@/hooks/useCreateEventStore';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
@@ -71,16 +71,17 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   card: {
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceLevel1,
     padding: spacing.md,
     gap: spacing.md,
+    ...shadows.surfaceSoft,
   },
   headerRow: {
     flexDirection: 'row',
@@ -89,8 +90,8 @@ const styles = StyleSheet.create({
   cover: {
     width: 72,
     height: 72,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[200],
+    borderRadius: radius.element,
+    backgroundColor: colors.surfaceLevel2,
   },
   coverPlaceholder: {
     alignItems: 'center',
@@ -98,20 +99,20 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   mapBox: {
     height: 160,
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.element,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
   },
   mapPlaceholder: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceLevel2,
   },
 });
