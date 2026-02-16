@@ -17,6 +17,18 @@ const formatSupabaseError = (error: any, context: string) => {
 const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatars';
 const EVENT_COVER_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_EVENT_COVER_BUCKET || 'public';
 
+const generateEventQrToken = () => {
+  try {
+    const uuid = (globalThis as any)?.crypto?.randomUUID?.();
+    if (typeof uuid === 'string' && uuid.length > 0) {
+      return uuid.replace(/-/g, '');
+    }
+  } catch {
+    // fallback below
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`;
+};
+
 const EVENT_FULL_SELECT = `
   id,
   creator_id,
@@ -44,6 +56,8 @@ const EVENT_FULL_SELECT = `
   external_url,
   contact_email,
   contact_phone,
+  qr_token,
+  qr_generated_at,
   operating_hours,
   comments_count,
   media_count,
@@ -307,9 +321,12 @@ export const supabaseProvider: (Pick<
   },
 
   async createEvent(payload: Partial<Event>) {
+    const shouldGenerateQr = payload.status === 'published' && !payload.qr_token;
     const normalizedPayload = {
       ...payload,
       status: payload.status ?? 'pending',
+      qr_token: shouldGenerateQr ? generateEventQrToken() : payload.qr_token ?? null,
+      qr_generated_at: shouldGenerateQr ? new Date().toISOString() : payload.qr_generated_at ?? null,
     };
     const { data, error } = await supabase
       .from('events')

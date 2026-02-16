@@ -10,8 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,10 +102,7 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={colors.brand.text} />
-            <Text style={styles.backText}>Retour</Text>
-          </TouchableOpacity>
+          <ScreenHeader title="" onBack={() => router.back()} />
           <Text style={styles.title}>Créer un compte</Text>
           <Text style={styles.subtitle}>Rejoignez la communauté Moments Locaux</Text>
         </View>
@@ -175,18 +171,6 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.xl,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '600',
   },
   title: {
     ...typography.h1,

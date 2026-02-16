@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Upload, User as UserIcon, ChevronLeft } from 'lucide-react-native';
-import { Button, Input } from '../../components/ui';
+import { Upload, User as UserIcon } from 'lucide-react-native';
+import { Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
@@ -197,12 +197,7 @@ export default function ProfileEditScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-      <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[700]} />
-          <Text style={styles.backText}>Retour</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title="Modifier le profil" onBack={() => router.back()} />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.coverWrapper} onPress={handleCoverUpload} disabled={uploadingAvatar}>
@@ -301,23 +296,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
-    fontWeight: '600',
   },
   header: {
     alignItems: 'center',

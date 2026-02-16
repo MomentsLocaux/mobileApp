@@ -15,7 +15,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   Bell,
   CalendarCheck2,
-  ChevronLeft,
   Image as ImageIcon,
   MessageSquareWarning,
   ShieldAlert,
@@ -24,6 +23,7 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { NotificationsService, type AppNotification, type AppNotificationType } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
+import { ScreenHeader } from '@/components/ui';
 
 type FilterMode = 'all' | 'unread';
 
@@ -220,20 +220,20 @@ export default function NotificationsInboxScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.brand.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity
-          style={[styles.readAllButton, unreadCount === 0 && styles.readAllButtonDisabled]}
-          onPress={handleMarkAllRead}
-          disabled={unreadCount === 0}
-        >
-          <Text style={[styles.readAllText, unreadCount === 0 && styles.readAllTextDisabled]}>Tout lire</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safe}>
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity
+            style={[styles.readAllButton, unreadCount === 0 && styles.readAllButtonDisabled]}
+            onPress={handleMarkAllRead}
+            disabled={unreadCount === 0}
+          >
+            <Text style={[styles.readAllText, unreadCount === 0 && styles.readAllTextDisabled]}>Tout lire</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.filterRow}>
         <TouchableOpacity
@@ -280,26 +280,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: 'transparent',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  headerTitle: {
-    flex: 1,
-    ...typography.h5,
-    color: colors.brand.text,
   },
   readAllButton: {
     paddingHorizontal: spacing.sm,

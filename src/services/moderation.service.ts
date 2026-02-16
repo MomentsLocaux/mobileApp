@@ -59,6 +59,18 @@ const addDaysIso = (days: number) => {
   return at.toISOString();
 };
 
+const generateEventQrToken = () => {
+  try {
+    const uuid = (globalThis as any)?.crypto?.randomUUID?.();
+    if (typeof uuid === 'string' && uuid.length > 0) {
+      return uuid.replace(/-/g, '');
+    }
+  } catch {
+    // fallback below
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`;
+};
+
 const getWarningSanction = (level: number): {
   profileStatus: 'active' | 'restricted' | 'banned';
   banUntil: string | null;
@@ -157,9 +169,27 @@ export const ModerationService = {
     actionType: ModerationActionType;
     note?: string;
   }) {
+    let updateData: { status: string; qr_token?: string; qr_generated_at?: string } = { status: payload.status };
+
+    if (payload.status === 'published') {
+      const { data: existing } = await supabase
+        .from('events')
+        .select('qr_token')
+        .eq('id', payload.eventId)
+        .maybeSingle();
+
+      if (!existing?.qr_token) {
+        updateData = {
+          ...updateData,
+          qr_token: generateEventQrToken(),
+          qr_generated_at: new Date().toISOString(),
+        };
+      }
+    }
+
     const { data, error } = await supabase
       .from('events')
-      .update({ status: payload.status })
+      .update(updateData)
       .eq('id', payload.eventId)
       .select('id, title, description, status, category, city, address, starts_at, ends_at, cover_url, creator_id')
       .single();

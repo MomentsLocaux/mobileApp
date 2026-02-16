@@ -11,13 +11,23 @@ export default function EventsLayout() {
         },
         headerTintColor: colors.brand.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
         },
-        contentStyle: { backgroundColor: colors.brand.primary },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.brand.background },
       }}
     >
       <Stack.Screen
         name="[id]"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          gestureEnabled: true,
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="echoes"
         options={{
           headerShown: false,
           presentation: 'modal',

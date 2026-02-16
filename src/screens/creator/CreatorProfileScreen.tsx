@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { User, MapPin, Calendar, ArrowLeft } from 'lucide-react-native';
-import { Card, AppBackground } from '../../components/ui';
+import { User, MapPin, Calendar } from 'lucide-react-native';
+import { Card, AppBackground, ScreenHeader } from '../../components/ui';
 import { EventCard } from '../../components/events';
 import { ProfileService } from '../../services/profile.service';
 import { EventsService } from '../../services/events.service';
@@ -62,21 +62,15 @@ export default function CreatorProfileScreen() {
     <View style={styles.container}>
       <AppBackground />
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={20} color={colors.brand.text} />
-            <Text style={styles.backText}>Retour</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.homeButton}
-            onPress={() => router.replace('/(tabs)')}
-          >
-            <Text style={styles.homeText}>Accueil</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Profil créateur"
+          onBack={() => router.back()}
+          right={(
+            <TouchableOpacity style={styles.homeButton} onPress={() => router.replace('/(tabs)' as any)}>
+              <Text style={styles.homeText}>Accueil</Text>
+            </TouchableOpacity>
+          )}
+        />
         <View style={styles.header}>
           {creator.avatar_url ? (
             <Image source={{ uri: creator.avatar_url }} style={styles.avatar} />
@@ -144,25 +138,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    backgroundColor: 'transparent',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  backText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '600',
   },
   homeButton: {
     paddingHorizontal: spacing.md,

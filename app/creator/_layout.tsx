@@ -7,12 +7,14 @@ export default function CreatorLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.secondaryAccent[500],
+          backgroundColor: colors.brand.primary,
         },
-        headerTintColor: colors.textPrimary[500],
+        headerTintColor: colors.brand.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
         },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.brand.background },
       }}
     >
       <Stack.Screen

@@ -11,13 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Calendar, MapPin, Eye } from 'lucide-react-native';
+import { Calendar, MapPin, Eye } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import type { EventWithCreator } from '@/types/database';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
-import { AppBackground } from '@/components/ui';
+import { AppBackground, ScreenHeader } from '@/components/ui';
 
 type StatusMeta = {
   label: string;
@@ -153,14 +153,8 @@ export default function MyEventsScreen() {
   return (
     <View style={styles.safe}>
       <AppBackground />
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ChevronLeft size={24} color={colors.brand.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mes évènements</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
+        <ScreenHeader title="Mes évènements" onBack={() => router.back()} />
 
         {loading ? (
           <View style={styles.centerState}>
@@ -229,30 +223,6 @@ const styles = StyleSheet.create({
     flex: 1,
     // backgroundColor: colors.neutral[50], // Removed for global background
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    ...typography.h5,
-    color: colors.brand.text,
-  },
-  headerSpacer: {
-    width: 36,
-    height: 36,
-  },
   content: {
     padding: spacing.lg,
     gap: spacing.sm,
@@ -307,4 +277,3 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
   },
 });
-

@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Send, ArrowLeft } from 'lucide-react-native';
-import { AppBackground, Card, Button } from '@/components/ui';
+import { Send } from 'lucide-react-native';
+import { AppBackground, Card, Button, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
 const DEFAULT_SHARE_URL = 'https://momentslocaux.app';
@@ -30,12 +30,7 @@ export default function InviteFriendsScreen() {
   return (
     <View style={styles.container}>
       <AppBackground />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={18} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Inviter des amis</Text>
-      </View>
+      <ScreenHeader title="Inviter des amis" onBack={() => router.back()} />
 
       <Card style={styles.card}>
         <View style={styles.iconWrap}>
@@ -54,30 +49,10 @@ export default function InviteFriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.lg,
     gap: spacing.md,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  title: {
-    ...typography.h4,
-    color: colors.neutral[900],
-    fontWeight: '700',
-  },
   card: {
+    marginHorizontal: spacing.lg,
     padding: spacing.lg,
     gap: spacing.sm,
   },

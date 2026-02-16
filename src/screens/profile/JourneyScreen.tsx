@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CalendarDays, Star, Heart } from 'lucide-react-native';
-import { AppBackground, Card } from '@/components/ui';
+import { CalendarDays, Star, Heart } from 'lucide-react-native';
+import { AppBackground, Card, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
@@ -68,12 +68,7 @@ export default function JourneyScreen() {
   return (
     <View style={styles.container}>
       <AppBackground />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={18} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Mon parcours</Text>
-      </View>
+      <ScreenHeader title="Mon parcours" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -111,28 +106,7 @@ export default function JourneyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.lg,
     gap: spacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  title: {
-    ...typography.h4,
-    color: colors.neutral[900],
-    fontWeight: '700',
   },
   loadingWrap: {
     flex: 1,
@@ -140,6 +114,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cards: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.md,
   },
   card: {
@@ -153,12 +128,12 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   cardValue: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
 });
