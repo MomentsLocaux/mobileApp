@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 
 export const AdditionalImagesUploader = () => {
-  const { pickImage } = useImagePicker();
+  const { pickImages } = useImagePicker();
   const gallery = useCreateEventStore((s) => s.gallery);
   const addGalleryImage = useCreateEventStore((s) => s.addGalleryImage);
   const markRemoved = useCreateEventStore((s) => s.markGalleryImageRemoved);
@@ -19,9 +19,12 @@ export const AdditionalImagesUploader = () => {
       Alert.alert('Limite atteinte', 'Vous pouvez ajouter jusqu’à 3 images supplémentaires.');
       return;
     }
-    const asset = await pickImage({ allowsEditing: true });
-    if (asset?.uri) {
-      await upload(asset.uri);
+    const remaining = 3 - activeCount;
+    const assets = await pickImages({ allowsEditing: false, maxSelection: remaining });
+    for (const asset of assets.slice(0, remaining)) {
+      if (asset?.uri) {
+        await upload(asset.uri);
+      }
     }
   };
 
@@ -102,10 +105,10 @@ export const AdditionalImagesUploader = () => {
         {validGallery.length < 3 ? (
           <TouchableOpacity style={styles.addTile} onPress={onPick} disabled={uploading}>
             {uploading ? (
-              <ActivityIndicator color={colors.primary[600]} />
+              <ActivityIndicator color={colors.brand.secondary} />
             ) : (
               <>
-                <ImageIcon size={24} color={colors.primary[600]} />
+                <ImageIcon size={24} color={colors.brand.secondary} />
                 <Text style={styles.addText}>Ajouter</Text>
               </>
             )}
@@ -124,11 +127,11 @@ export const AdditionalImagesUploader = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   header: {
     flexDirection: 'row',
@@ -138,11 +141,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   grid: {
     flexDirection: 'row',
@@ -155,7 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
   thumb: {
     width: '100%',
@@ -174,15 +177,15 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.primary[200],
-    backgroundColor: colors.primary[50],
+    borderColor: 'rgba(43,191,227,0.4)',
+    backgroundColor: 'rgba(43,191,227,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
   },
   addText: {
     ...typography.caption,
-    color: colors.primary[700],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
 });

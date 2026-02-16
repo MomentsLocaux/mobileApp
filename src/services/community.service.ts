@@ -3,6 +3,25 @@ import type { CommunityMember, LeaderboardEntry } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
 
 export const CommunityService = {
+  async listMyFollowers(): Promise<Array<{ id: string; display_name: string; avatar_url: string | null }>> {
+    const currentUser = (await supabase.auth.getUser()).data.user?.id;
+    if (!currentUser) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('follows')
+      .select('follower, profile:profiles!follows_follower_fkey(id, display_name, avatar_url)')
+      .eq('following', currentUser);
+    if (error) throw error;
+
+    return (data || [])
+      .map((row: any) => ({
+        id: row?.profile?.id || row?.follower,
+        display_name: row?.profile?.display_name || 'Utilisateur',
+        avatar_url: row?.profile?.avatar_url || null,
+      }))
+      .filter((row: any) => !!row.id);
+  },
+
   async searchMembers(options: { query?: string; city?: string; limit?: number }) {
     const { query, city, limit = 12 } = options;
     let db = supabase

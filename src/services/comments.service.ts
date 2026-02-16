@@ -7,8 +7,9 @@ export const CommentsService = {
     eventId: string,
     authorId: string,
     message: string,
-    rating?: number | null
+    rating?: number | null,
+    parentCommentId?: string | null,
   ): Promise<CommentWithAuthor | null> =>
-    dataProvider.createComment({ eventId, authorId, message, rating }),
+    dataProvider.createComment({ eventId, authorId, message, rating, parentCommentId }),
   delete: (commentId: string): Promise<boolean> => dataProvider.deleteComment(commentId),
 };

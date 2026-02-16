@@ -214,6 +214,7 @@ export interface EventComment {
   id: string;
   event_id: string;
   author_id: string;
+  parent_comment_id: string | null;
   message: string;
   rating?: number | null;
   created_at: string;

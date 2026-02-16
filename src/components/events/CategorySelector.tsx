@@ -1,5 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, type LayoutChangeEvent } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, type LayoutChangeEvent } from 'react-native';
+import {
+  Calendar,
+  Camera,
+  Car,
+  Coffee,
+  Dumbbell,
+  Landmark,
+  Leaf,
+  LucideIcon,
+  Music2,
+  Palette,
+  Ticket,
+  Utensils,
+} from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -12,6 +26,27 @@ type Props = {
   onSubcategoryLayout?: (event: LayoutChangeEvent) => void;
 };
 
+const iconBySlug: Record<string, LucideIcon> = {
+  musique: Music2,
+  concert: Music2,
+  food: Utensils,
+  restauration: Utensils,
+  culture: Landmark,
+  art: Palette,
+  sport: Dumbbell,
+  bien_etre: Leaf,
+  loisirs: Ticket,
+  photo: Camera,
+  auto: Car,
+  cafe: Coffee,
+  autre: Calendar,
+};
+
+const getCategoryIcon = (slug?: string | null) => {
+  if (!slug) return Calendar;
+  return iconBySlug[slug] || Calendar;
+};
+
 export const CategorySelector = ({
   selected,
   onSelect,
@@ -22,68 +57,71 @@ export const CategorySelector = ({
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
-  const [showSubcategories, setShowSubcategories] = useState(true);
+
+  const selectedSubcategories = useMemo(
+    () => subcategories.filter((s) => s.category_id === selected),
+    [subcategories, selected],
+  );
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Catégorie</Text>
-      <View style={styles.grid}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
         {categories.map((cat) => {
           const active = selected === cat.id;
+          const Icon = getCategoryIcon(cat.slug || cat.icon);
+          const catColor = cat.color || colors.brand.secondary;
           return (
             <TouchableOpacity
               key={cat.id}
-              style={[styles.card, active && styles.cardActive]}
+              style={[
+                styles.card,
+                { backgroundColor: `${catColor}20`, borderColor: `${catColor}66` },
+                active && { backgroundColor: `${catColor}30`, borderColor: catColor },
+              ]}
               onPress={() => onSelect(cat.id)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.cardText, active && styles.cardTextActive]}>{cat.label}</Text>
+              <View style={[styles.iconWrap, { backgroundColor: `${catColor}3A` }]}>
+                <Icon size={18} color={catColor} />
+              </View>
+              <Text style={[styles.cardText, active && { color: catColor }]} numberOfLines={2}>
+                {cat.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
+
       {selected && onSelectSubcategory && (
-        <View style={{ gap: spacing.sm }} onLayout={onSubcategoryLayout}>
-          <TouchableOpacity
-            style={styles.collapseHeader}
-            onPress={() => setShowSubcategories((prev) => !prev)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.title}>Sous-catégorie</Text>
-            <Text style={styles.collapseLabel}>{showSubcategories ? 'Masquer' : 'Afficher'}</Text>
-          </TouchableOpacity>
-          {showSubcategories && (
-            <View style={styles.grid}>
-              {subcategories.filter((s) => s.category_id === selected).length === 0 ? (
-                <View style={[styles.card, styles.cardActive]}>
-                  <Text style={[styles.cardText, styles.cardTextActive]}>Aucune sous-catégorie disponible</Text>
-                </View>
-              ) : (
-                subcategories
-                  .filter((s) => s.category_id === selected)
-                  .map((sub) => {
-                    const active = subcategory === sub.id;
-                    return (
-                      <TouchableOpacity
-                        key={sub.id}
-                        style={[styles.card, active && styles.cardActive]}
-                        onPress={() => onSelectSubcategory(active ? undefined : sub.id)}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={[styles.cardText, active && styles.cardTextActive]}>{sub.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })
-              )}
-              <TouchableOpacity
-                style={[styles.card, !subcategory && styles.cardActive]}
-                onPress={() => onSelectSubcategory(undefined)}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.cardText, !subcategory && styles.cardTextActive]}>Autre / non précisé</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        <View style={styles.subSection} onLayout={onSubcategoryLayout}>
+          <Text style={styles.title}>Sous-catégorie</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
+            {selectedSubcategories.map((sub) => {
+              const active = subcategory === sub.id;
+              return (
+                <TouchableOpacity
+                  key={sub.id}
+                  style={[styles.subCard, active && styles.subCardActive]}
+                  onPress={() => onSelectSubcategory(active ? undefined : sub.id)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.subCardText, active && styles.subCardTextActive]} numberOfLines={2}>
+                    {sub.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.subCard, !subcategory && styles.subCardActive]}
+              onPress={() => onSelectSubcategory(undefined)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.subCardText, !subcategory && styles.subCardTextActive]}>
+                Autre / non précisé
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       )}
     </View>
@@ -99,40 +137,54 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     fontWeight: '700',
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  scrollRow: {
     gap: spacing.sm,
-  },
-  collapseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  collapseLabel: {
-    ...typography.bodySmall,
-    color: colors.brand.secondary,
-    fontWeight: '600',
+    paddingRight: spacing.md,
   },
   card: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    width: 116,
+    minHeight: 104,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: colors.brand.surface,
-    minWidth: '45%',
+    padding: spacing.sm,
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
-  cardActive: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43, 191, 227, 0.1)',
+  iconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardText: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: colors.brand.text,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  cardTextActive: {
+  subSection: {
+    gap: spacing.sm,
+  },
+  subCard: {
+    width: 128,
+    minHeight: 76,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.brand.surface,
+    padding: spacing.sm,
+    justifyContent: 'center',
+  },
+  subCardActive: {
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.12)',
+  },
+  subCardText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  subCardTextActive: {
     color: colors.brand.secondary,
   },
 });

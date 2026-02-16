@@ -7,20 +7,29 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Calendar, MapPin, Tag, Euro, Rocket, Pencil } from 'lucide-react-native';
+import { ChevronLeft, Calendar, MapPin, Euro, Rocket, Pencil } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
-import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 import { useEventsStore } from '@/store';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { NotificationsService } from '@/services/notifications.service';
+import {
+  buildOperatingHoursPayload,
+  isSameDayRange,
+  validateEventSchedule,
+} from '@/utils/event-schedule';
+import MapboxGL from '@rnmapbox/maps';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 export default function CreateEventPreview() {
   const router = useRouter();
@@ -37,13 +46,20 @@ export default function CreateEventPreview() {
   const subcategory = useCreateEventStore((s) => s.subcategory);
   const tags = useCreateEventStore((s) => s.tags);
   const visibility = useCreateEventStore((s) => s.visibility);
+  const privateAudienceIds = useCreateEventStore((s) => s.privateAudienceIds);
   const price = useCreateEventStore((s) => s.price);
-  const duration = useCreateEventStore((s) => s.duration);
   const contact = useCreateEventStore((s) => s.contact);
   const externalLink = useCreateEventStore((s) => s.externalLink);
   const videoLink = useCreateEventStore((s) => s.videoLink);
   const gallery = useCreateEventStore((s) => s.gallery);
+  const scheduleMode = useCreateEventStore((s) => s.scheduleMode);
+  const scheduleOpenDays = useCreateEventStore((s) => s.scheduleOpenDays);
+  const scheduleFixedSlots = useCreateEventStore((s) => s.scheduleFixedSlots);
+  const scheduleVariableDays = useCreateEventStore((s) => s.scheduleVariableDays);
   const resetStore = useCreateEventStore((s) => s.reset);
+  const categoriesMap = useTaxonomyStore((s) => s.categoriesMap);
+  const categoryInfo = categoriesMap[category || ''];
+  const markerColor = categoryInfo?.color || colors.brand.secondary;
 
   const [submitting, setSubmitting] = useState(false);
   const isGuest = !user;
@@ -66,17 +82,61 @@ export default function CreateEventPreview() {
       minute: '2-digit',
     });
   }, [startDate]);
+  const calendarStartLabel = useMemo(() => {
+    if (!startDate) return '';
+    return new Date(startDate).toLocaleString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, [startDate]);
+  const calendarEndLabel = useMemo(() => {
+    if (!endDate) return null;
+    return new Date(endDate).toLocaleString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, [endDate]);
 
-  const canPublish = useMemo(() => !!category && !!title && !!startDate && !!location, [
-    category,
-    title,
-    startDate,
-    location,
-  ]);
+  const scheduleValidation = useMemo(
+    () =>
+      validateEventSchedule({
+        startDate,
+        endDate,
+        mode: isSameDayRange(startDate, endDate) ? 'single_day' : scheduleMode,
+        fixedSlots: scheduleFixedSlots,
+        openDays: scheduleOpenDays,
+        variableSchedules: scheduleVariableDays,
+      }),
+    [startDate, endDate, scheduleMode, scheduleFixedSlots, scheduleOpenDays, scheduleVariableDays],
+  );
+  const canPublish = useMemo(
+    () =>
+      !!category &&
+      !!title &&
+      !!startDate &&
+      !!location &&
+      scheduleValidation.valid &&
+      (visibility === 'public' || privateAudienceIds.length > 0),
+    [category, title, startDate, location, scheduleValidation.valid, visibility, privateAudienceIds.length],
+  );
 
   const handleConfirm = async () => {
     if (!canPublish || !location || !startDate) return;
     if (!user) return;
+    if (visibility === 'unlisted' && privateAudienceIds.length === 0) {
+      Alert.alert('Audience privée requise', 'Sélectionnez au moins un follower pour un événement privé.');
+      return;
+    }
+    if (!scheduleValidation.valid) {
+      Alert.alert('Horaires incomplets', scheduleValidation.message || 'Veuillez vérifier les horaires.');
+      return;
+    }
 
     // Sécurité : si on arrive directement sur la preview avec ?edit=... sans être passé par step-1
     if (edit && (!title || !location || !coverImage)) {
@@ -143,6 +203,20 @@ export default function CreateEventPreview() {
         external_url: externalLink || videoLink || null,
         contact_email,
         contact_phone,
+        schedule_mode: isSameDayRange(startDate, endDate)
+          ? 'ponctuel'
+          : scheduleMode === 'variable'
+            ? 'recurrent'
+            : 'recurrent',
+        recurrence_rule: null,
+        operating_hours: buildOperatingHoursPayload({
+          startDate,
+          endDate,
+          mode: isSameDayRange(startDate, endDate) ? 'single_day' : scheduleMode,
+          fixedSlots: scheduleFixedSlots,
+          openDays: scheduleOpenDays,
+          variableSchedules: scheduleVariableDays,
+        }),
         status: 'pending',
         creator_id: user?.id,
       };
@@ -161,6 +235,14 @@ export default function CreateEventPreview() {
         await EventsService.update(edit, payload as any);
         if ((EventsService as any).setMedia) {
           await EventsService.setMedia(edit, activeMedias as any);
+        }
+        if (visibility === 'unlisted' && privateAudienceIds.length > 0) {
+          await NotificationsService.notifyPrivateAudience({
+            userIds: privateAudienceIds,
+            eventId: edit,
+            eventTitle: title || 'Événement privé',
+            creatorName: (user as any)?.user_metadata?.display_name || null,
+          });
         }
 
         const finalRemovedPaths = [...removedPaths];
@@ -183,6 +265,14 @@ export default function CreateEventPreview() {
       const created = await EventsService.create(payload as any);
       if (activeMedias.length > 0 && (EventsService as any).setMedia) {
         await EventsService.setMedia(created.id, activeMedias as any);
+      }
+      if (visibility === 'unlisted' && privateAudienceIds.length > 0) {
+        await NotificationsService.notifyPrivateAudience({
+          userIds: privateAudienceIds,
+          eventId: created.id,
+          eventTitle: title || 'Événement privé',
+          creatorName: (user as any)?.user_metadata?.display_name || null,
+        });
       }
       if (removedPaths.length > 0) {
         try {
@@ -222,57 +312,72 @@ export default function CreateEventPreview() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Aperçu de l'événement</Text>
-
-        {/* Rich Event Card Preview */}
         <View style={styles.previewCard}>
-          <EventPreviewMiniMap
-            coverUrl={coverImage?.publicUrl}
-            title={title}
-            dateLabel={dateLabel}
-            category={category}
-            city={location?.city}
-            location={location}
-          />
+          <View style={styles.hero}>
+            {coverImage?.publicUrl ? <Image source={{ uri: coverImage.publicUrl }} style={styles.heroMedia} /> : null}
+            <View style={[styles.heroImageWrap, !coverImage?.publicUrl && styles.heroFallback]}>
+              <View style={styles.heroImageOverlay}>
+                <View style={[styles.categoryPill, { borderColor: markerColor }]}>
+                  <Text style={[styles.categoryPillText, { color: markerColor }]}>
+                    {categoryInfo?.label || 'Catégorie'}
+                  </Text>
+                </View>
+                <Text style={styles.heroTitle}>{title || 'Nom de l’événement'}</Text>
+              </View>
+            </View>
+          </View>
 
           <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>{title}</Text>
+            <Text style={styles.sectionTitle}>Détails de l'événement</Text>
 
             <View style={styles.infoRow}>
               <Calendar size={16} color={colors.brand.secondary} />
-              <Text style={styles.infoText}>{dateLabel}</Text>
+              <View style={styles.infoTextWrap}>
+                <Text style={styles.infoTextStrong}>{calendarStartLabel || dateLabel}</Text>
+                <Text style={styles.infoTextSecondary}>
+                  {calendarEndLabel ? `Se termine le ${calendarEndLabel}` : 'Horaire de fin non renseigné'}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.infoRow}>
               <MapPin size={16} color={colors.brand.secondary} />
-              <Text style={styles.infoText}>{location?.addressLabel || location?.city}</Text>
+              <View style={styles.infoTextWrap}>
+                <Text style={styles.infoTextStrong}>{location?.addressLabel || location?.city || 'Adresse non renseignée'}</Text>
+                <Text style={styles.infoTextSecondary}>{location?.postalCode || ''} {location?.city || ''}</Text>
+              </View>
             </View>
 
             <View style={styles.infoRow}>
               <Euro size={16} color={colors.brand.secondary} />
-              <Text style={styles.infoText}>
-                {!price || price === '0' ? 'Gratuit' : `${price}€ par personne`}
-              </Text>
+              <Text style={styles.infoTextStrong}>{!price || price === '0' ? 'Gratuit' : `${price}€`}</Text>
             </View>
 
             <View style={styles.divider} />
 
             <Text style={styles.descriptionLabel}>Description</Text>
-            {description ? <Text style={styles.description}>{description}</Text> : null}
-          </View>
-        </View>
+            <Text style={styles.description}>{description || 'Aucune description pour le moment.'}</Text>
 
-        <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Simulation du fil</Text>
-        <View style={styles.feedSimulation}>
-          <View style={styles.feedHeader}>
-            <View style={styles.feedAvatar} />
-            <View style={{ gap: 2 }}>
-              <View style={styles.feedNamePatch} />
-              <View style={styles.feedTimePatch} />
+            <View style={styles.mapBox}>
+              {location ? (
+                <MapboxGL.MapView
+                  style={StyleSheet.absoluteFill}
+                  styleURL={MapboxGL.StyleURL.Dark}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                >
+                  <MapboxGL.Camera zoomLevel={13} centerCoordinate={[location.longitude, location.latitude]} />
+                  <MapboxGL.PointAnnotation id="preview-marker" coordinate={[location.longitude, location.latitude]}>
+                    <View style={[styles.mapMarker, { backgroundColor: markerColor }]} />
+                  </MapboxGL.PointAnnotation>
+                </MapboxGL.MapView>
+              ) : (
+                <View style={styles.mapFallback} />
+              )}
             </View>
           </View>
-          <View style={styles.feedImagePlaceholder} />
-          <View style={styles.feedTitlePatch} />
         </View>
       </ScrollView>
 
@@ -341,13 +446,13 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     paddingBottom: spacing.xl * 2,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   sectionTitle: {
     ...typography.h6,
     color: colors.brand.text,
     fontWeight: '700',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   previewCard: {
     backgroundColor: colors.brand.surface,
@@ -356,23 +461,64 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
+  hero: {
+    height: 220,
+    backgroundColor: colors.brand.surface,
+  },
+  heroMedia: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroImageWrap: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(6,10,12,0.38)',
+  },
+  heroFallback: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  heroImageOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  categoryPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: 'rgba(15,23,25,0.45)',
+  },
+  categoryPillText: {
+    ...typography.caption,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    ...typography.h3,
+    color: '#fff',
+    fontWeight: '800',
+  },
   cardContent: {
     padding: spacing.md,
     gap: spacing.sm,
   },
-  cardTitle: {
-    ...typography.h4,
-    color: colors.brand.text,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  infoText: {
+  infoTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  infoTextStrong: {
     ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  infoTextSecondary: {
+    ...typography.bodySmall,
     color: colors.brand.textSecondary,
   },
   divider: {
@@ -391,47 +537,23 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     lineHeight: 22,
   },
-  feedSimulation: {
-    opacity: 0.5,
-    backgroundColor: colors.brand.surface,
+  mapBox: {
+    marginTop: spacing.sm,
+    height: 180,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  feedHeader: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  feedAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  feedNamePatch: {
-    width: 80,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  feedTimePatch: {
-    width: 40,
-    height: 8,
-    borderRadius: 4,
+    overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  feedImagePlaceholder: {
-    width: '100%',
-    height: 120,
-    borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+  mapFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  feedTitlePatch: {
-    width: '60%',
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  mapMarker: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 3,
+    borderColor: 'rgba(15,23,25,0.9)',
   },
   footer: {
     padding: spacing.md,

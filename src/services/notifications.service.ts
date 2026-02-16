@@ -43,6 +43,31 @@ const emitLocalNotificationChange = () => {
 };
 
 export const NotificationsService = {
+  async notifyPrivateAudience(params: {
+    userIds: string[];
+    eventId: string;
+    eventTitle: string;
+    creatorName?: string | null;
+  }) {
+    const { userIds, eventId, eventTitle, creatorName } = params;
+    if (!userIds.length) return;
+    const rows = userIds.map((userId) => ({
+      user_id: userId,
+      type: 'system',
+      title: 'Invitation privée',
+      body: `${creatorName || 'Un créateur'} vous invite à un événement privé: ${eventTitle}`,
+      data: {
+        kind: 'private_invite',
+        event_id: eventId,
+        event_title: eventTitle,
+      },
+      read: false,
+    }));
+    const { error } = await supabase.from('notifications').insert(rows as any);
+    if (error) throw new Error(error.message || "Impossible d'envoyer les invitations privées");
+    emitLocalNotificationChange();
+  },
+
   async listMyNotifications(params?: { limit?: number; unreadOnly?: boolean }) {
     let query = supabase
       .from('notifications')

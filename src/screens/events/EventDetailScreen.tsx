@@ -56,11 +56,13 @@ import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
 import { isEventLive } from '@/utils/event-status';
 import { getDistanceText } from '@/utils/sort-events';
+import MapboxGL from '@rnmapbox/maps';
 
 const { width } = Dimensions.get('window');
 const BOTTOM_BAR_HEIGHT = 104;
 const XP_REWARD_FALLBACK = 50;
 const EVENT_QR_BASE_URL = process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL || 'https://momentslocaux.app/events';
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 type AttendeePreview = {
   user_id: string;
@@ -114,6 +116,8 @@ export default function EventDetailScreen() {
   });
   const [checkinXpReward, setCheckinXpReward] = useState(XP_REWARD_FALLBACK);
   const [qrScannerVisible, setQrScannerVisible] = useState(false);
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [locationExpanded, setLocationExpanded] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const autoQrAttemptedRef = useRef(new Set<string>());
   const autoQrGuestPromptedRef = useRef(new Set<string>());
@@ -611,9 +615,20 @@ export default function EventDetailScreen() {
   };
 
   const locationLabel = useMemo(() => {
-    if (!event) return 'Ville non précisée';
-    const formatted = [event.postal_code, event.city].filter(Boolean).join(' ');
-    return formatted || event.city || 'Ville non précisée';
+    if (!event) return 'Lieu à venir';
+    const venueName = typeof event.venue_name === 'string' ? event.venue_name.trim() : '';
+    const city = typeof event.city === 'string' ? event.city.trim() : '';
+    const address = typeof event.address === 'string' ? event.address.trim() : '';
+    return venueName || city || address || 'Lieu à venir';
+  }, [event]);
+
+  const locationSubLabel = useMemo(() => {
+    if (!event) return 'Lieu de l’événement';
+    const postalCode = typeof event.postal_code === 'string' ? event.postal_code.trim() : '';
+    const city = typeof event.city === 'string' ? event.city.trim() : '';
+    const address = typeof event.address === 'string' ? event.address.trim() : '';
+    const cityLine = [postalCode, city].filter(Boolean).join(' ');
+    return cityLine || address || 'Lieu de l’événement';
   }, [event]);
 
   const eventCoordinates = useMemo(() => {
@@ -669,6 +684,77 @@ export default function EventDetailScreen() {
     );
     return `Se termine à ${formatTime(event.ends_at)} le ${day}.`;
   }, [event?.ends_at]);
+
+  const calendarDetailLines = useMemo(() => {
+    if (!event) return [] as Array<{ title: string; value: string }>;
+    const lines: Array<{ title: string; value: string }> = [];
+    const weekLabels: Record<number, string> = {
+      1: 'Lundi',
+      2: 'Mardi',
+      3: 'Mercredi',
+      4: 'Jeudi',
+      5: 'Vendredi',
+      6: 'Samedi',
+      7: 'Dimanche',
+    };
+    const formatDateOnly = (value: string) =>
+      capitalizeFirst(
+        new Date(`${value}T12:00:00.000Z`).toLocaleDateString('fr-FR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        }),
+      );
+    const toSlotLabel = (slot: any) => {
+      const opens = slot?.opens || slot?.start;
+      const closes = slot?.closes || slot?.end;
+      return opens && closes ? `${opens} - ${closes}` : null;
+    };
+    const addLine = (title: string, value: string) => lines.push({ title, value });
+
+    const raw = event.operating_hours as any;
+    if (Array.isArray(raw) && raw.length > 0) {
+      raw.forEach((entry: any) => {
+        if (entry?.kind === 'fixed') {
+          const openDays = Array.isArray(entry.open_days)
+            ? entry.open_days.map((d: number) => weekLabels[d]).filter(Boolean)
+            : [];
+          if (openDays.length) addLine('Jours d’ouverture', openDays.join(', '));
+          const slots = Array.isArray(entry.slots) ? entry.slots.map(toSlotLabel).filter(Boolean) : [];
+          slots.forEach((slot: string, index: number) => addLine(`Créneau ${index + 1}`, slot));
+          return;
+        }
+
+        if (entry?.kind === 'single_day') {
+          const dateLabel = entry.date ? formatDateOnly(entry.date) : null;
+          const slots = Array.isArray(entry.slots) ? entry.slots.map(toSlotLabel).filter(Boolean) : [];
+          if (dateLabel && slots.length) {
+            addLine(dateLabel, slots.join(' • '));
+            return;
+          }
+        }
+
+        if (entry?.date) {
+          const dateLabel = formatDateOnly(entry.date);
+          const slots = Array.isArray(entry.slots) ? entry.slots.map(toSlotLabel).filter(Boolean) : [];
+          if (slots.length) addLine(dateLabel, slots.join(' • '));
+        }
+      });
+    } else if (raw && typeof raw === 'object') {
+      Object.entries(raw as Record<string, any>)
+        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+        .forEach(([date, slotObj]) => {
+          const slot = toSlotLabel(slotObj);
+          if (slot) addLine(formatDateOnly(date), slot);
+        });
+    }
+
+    if (!lines.length) {
+      addLine('Début', startDateTimeLabel);
+      addLine('Fin', endDateTimeLabel);
+    }
+    return lines;
+  }, [event, startDateTimeLabel, endDateTimeLabel]);
 
   const handleOpenNavigationOptions = useCallback(() => {
     if (!event) return;
@@ -809,10 +895,14 @@ export default function EventDetailScreen() {
     const derivedAvg = derivedCount > 0
       ? Math.round((commentRatings.reduce((sum, rating) => sum + rating, 0) / derivedCount) * 100) / 100
       : 0;
+    const dbCount = Number(event?.rating_count || 0);
+    const dbAvg = Number(event?.rating_avg || 0);
+    const effectiveCount = Math.max(derivedCount, dbCount);
+    const effectiveAvg = derivedCount > 0 && derivedCount >= dbCount ? derivedAvg : dbAvg;
 
     return {
-      ratingAvg: derivedCount > 0 ? derivedAvg : event?.rating_avg ?? 0,
-      ratingCount: derivedCount > 0 ? derivedCount : event?.rating_count ?? 0,
+      ratingAvg: Number.isFinite(effectiveAvg) ? effectiveAvg : 0,
+      ratingCount: Number.isFinite(effectiveCount) ? effectiveCount : 0,
     };
   }, [comments, event]);
 
@@ -892,12 +982,16 @@ export default function EventDetailScreen() {
         <View style={styles.content}>
           <Text style={styles.title}>{event.title}</Text>
 
-          <TouchableOpacity style={styles.cardTouchable} activeOpacity={0.85} onPress={confirmOpenCalendar}>
+          <TouchableOpacity
+            style={styles.cardTouchable}
+            activeOpacity={0.85}
+            onPress={() => setCalendarExpanded((prev) => !prev)}
+          >
             <Card padding="md" style={styles.infoCard}>
               <View style={styles.infoRowNoMargin}>
-                <View style={styles.infoIconWrap}>
+                <TouchableOpacity style={styles.infoIconWrap} onPress={confirmOpenCalendar} activeOpacity={0.85}>
                   <Calendar size={20} color={colors.brand.secondary} />
-                </View>
+                </TouchableOpacity>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoDatePrimary}>{startDateTimeLabel}</Text>
                   <Text style={styles.infoDateSecondary}>{endDateTimeLabel}</Text>
@@ -907,25 +1001,68 @@ export default function EventDetailScreen() {
                   {hasTicketPrice ? <Text style={styles.priceHint}>PAR BILLET</Text> : null}
                 </View>
               </View>
+              {calendarExpanded ? (
+                <View style={styles.calendarExpandedWrap}>
+                  {calendarDetailLines.map((line, index) => (
+                    <View key={`${line.title}-${line.value}-${index}`} style={styles.calendarExpandedRow}>
+                      <Text style={styles.calendarExpandedTitle}>{line.title}</Text>
+                      <Text style={styles.calendarExpandedValue}>{line.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </Card>
           </TouchableOpacity>
 
-          <Card padding="md" style={[styles.infoCard, { marginTop: spacing.md }]}> 
-            <View style={styles.infoRowNoMargin}>
-              <View style={styles.infoIconWrap}>
-                <MapPin size={20} color={colors.brand.secondary} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoValue}>{locationLabel}</Text>
-                <Text style={styles.infoLabel}>{event.venue_name || 'Lieu de l\'événement'}</Text>
-              </View>
-              <View style={styles.routeColumn}>
-                <TouchableOpacity style={styles.routeButton} onPress={handleOpenNavigationOptions}>
-                  <Text style={styles.routeText}>S&apos;y rendre</Text>
-                </TouchableOpacity>
-                {distanceLabel ? <Text style={styles.routeDistanceText}>{distanceLabel}</Text> : null}
-              </View>
-            </View>
+          <Card padding="md" style={[styles.infoCard, { marginTop: spacing.md }]}>
+            <TouchableOpacity
+              style={styles.infoRowNoMargin}
+              activeOpacity={0.85}
+              onPress={() => setLocationExpanded((prev) => !prev)}
+            >
+                <View style={styles.infoIconWrap}>
+                  <MapPin size={20} color={colors.brand.secondary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoValue}>{locationLabel}</Text>
+                  <Text style={styles.infoLabel}>{locationSubLabel}</Text>
+                </View>
+                <View style={styles.routeColumn}>
+                  <TouchableOpacity style={styles.routeButton} onPress={handleOpenNavigationOptions}>
+                    <Text style={styles.routeText}>S&apos;y rendre</Text>
+                  </TouchableOpacity>
+                  {distanceLabel ? <Text style={styles.routeDistanceText}>{distanceLabel}</Text> : null}
+                </View>
+            </TouchableOpacity>
+              {locationExpanded ? (
+                <View style={styles.locationExpandedWrap}>
+                  <View style={styles.locationMapBox}>
+                    {eventCoordinates ? (
+                      <MapboxGL.MapView
+                        style={StyleSheet.absoluteFill}
+                        styleURL={MapboxGL.StyleURL.Dark}
+                        scrollEnabled
+                        zoomEnabled
+                        pitchEnabled
+                        rotateEnabled
+                      >
+                        <MapboxGL.Camera
+                          zoomLevel={13}
+                          centerCoordinate={[eventCoordinates.longitude, eventCoordinates.latitude]}
+                        />
+                        <MapboxGL.PointAnnotation
+                          id="event-location-preview"
+                          coordinate={[eventCoordinates.longitude, eventCoordinates.latitude]}
+                        >
+                          <View style={styles.locationMarker} />
+                        </MapboxGL.PointAnnotation>
+                      </MapboxGL.MapView>
+                    ) : (
+                      <View style={styles.locationMapFallback} />
+                    )}
+                  </View>
+                </View>
+              ) : null}
           </Card>
 
           {event.status === 'published' && (isOwner || isAdmin) ? (
@@ -961,11 +1098,11 @@ export default function EventDetailScreen() {
               <Users size={20} color={colors.brand.secondary} style={{ marginBottom: 4 }} />
               <Text style={styles.statBoxValue}>{eventStats.checkins + (event.interests_count || eventStats.interests || 0)}</Text>
             </View>
-            <View style={styles.statBox}>
+            <TouchableOpacity style={styles.statBox} onPress={handleGoToEchoes} activeOpacity={0.85}>
               <Star size={20} color="#FBBF24" fill="#FBBF24" style={{ marginBottom: 4 }} />
               <Text style={styles.statBoxValue}>{ratingAvg.toFixed(1)}</Text>
               <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <LinearGradient
@@ -1323,6 +1460,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
+  calendarExpandedWrap: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+    gap: spacing.xs,
+  },
+  calendarExpandedRow: {
+    gap: 2,
+  },
+  calendarExpandedTitle: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  calendarExpandedValue: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    lineHeight: 18,
+  },
   routeButton: {
     borderWidth: 1,
     borderColor: 'rgba(43,191,227,0.5)',
@@ -1345,6 +1504,30 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     fontWeight: '600',
+  },
+  locationExpandedWrap: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  locationMapBox: {
+    height: 150,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  locationMapFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  locationMarker: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.brand.secondary,
+    borderWidth: 3,
+    borderColor: 'rgba(15,23,25,0.9)',
   },
   qrCard: {
     marginBottom: 0,

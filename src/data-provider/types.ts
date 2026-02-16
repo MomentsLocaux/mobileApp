@@ -22,6 +22,7 @@ export interface IDataProvider {
     authorId: string;
     message: string;
     rating?: number | null;
+    parentCommentId?: string | null;
   }): Promise<CommentWithAuthor | null>;
   deleteComment(id: string): Promise<boolean>;
 

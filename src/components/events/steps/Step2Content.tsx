@@ -18,16 +18,16 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
     const subcategory = useCreateEventStore((s) => s.subcategory);
     const tags = useCreateEventStore((s) => s.tags);
     const visibility = useCreateEventStore((s) => s.visibility);
+    const privateAudienceIds = useCreateEventStore((s) => s.privateAudienceIds);
     const price = useCreateEventStore((s) => s.price);
-    const duration = useCreateEventStore((s) => s.duration);
     const contact = useCreateEventStore((s) => s.contact);
     const externalLink = useCreateEventStore((s) => s.externalLink);
     const setCategory = useCreateEventStore((s) => s.setCategory);
     const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
     const setTags = useCreateEventStore((s) => s.setTags);
     const setVisibility = useCreateEventStore((s) => s.setVisibility);
+    const setPrivateAudienceIds = useCreateEventStore((s) => s.setPrivateAudienceIds);
     const setPrice = useCreateEventStore((s) => s.setPrice);
-    const setDuration = useCreateEventStore((s) => s.setDuration);
     const setContact = useCreateEventStore((s) => s.setContact);
     const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
 
@@ -86,7 +86,15 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
                 />
             </View>
             <View onLayout={registerSection('visibility')}>
-                <VisibilitySelector value={visibility} onChange={setVisibility} />
+                <VisibilitySelector
+                    value={visibility}
+                    privateAudienceIds={privateAudienceIds}
+                    onChange={(next) => {
+                        setVisibility(next);
+                        if (next === 'public') setPrivateAudienceIds([]);
+                    }}
+                    onChangeAudience={setPrivateAudienceIds}
+                />
                 <View style={styles.togglesContainer}>
                     <View style={styles.toggleRow}>
                         <View>
@@ -111,7 +119,6 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
             <View onLayout={registerSection('optional')}>
                 <OptionalInfoSection
                     price={price}
-                    duration={duration}
                     contact={contact}
                     externalLink={externalLink}
                     onOpen={() => requestAnimationFrame(() => scrollToSection('optional'))}
@@ -119,7 +126,6 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
                     onInputRef={onInputRef}
                     onChange={(data) => {
                         if (data.price !== undefined) setPrice(data.price);
-                        if (data.duration !== undefined) setDuration(data.duration);
                         if (data.contact !== undefined) setContact(data.contact);
                         if (data.externalLink !== undefined) setExternalLink(data.externalLink);
                     }}

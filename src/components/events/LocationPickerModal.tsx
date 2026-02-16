@@ -6,6 +6,7 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 import { useCreateEventStore, type EventLocation } from '@/hooks/useCreateEventStore';
 import { MapPin } from 'lucide-react-native';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
@@ -18,11 +19,30 @@ type Props = {
 
 export const LocationPickerModal = ({ visible, onClose }: Props) => {
   const location = useCreateEventStore((s) => s.location);
+  const categoryId = useCreateEventStore((s) => s.category);
   const setLocation = useCreateEventStore((s) => s.setLocation);
+  const category = useTaxonomyStore((s) => s.categoriesMap[categoryId || '']);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<GeocodeResult | null>(null);
+  const markerColor = category?.color || colors.brand.secondary;
+
+  useEffect(() => {
+    if (!visible) return;
+    if (location) {
+      setSelected({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        label: location.addressLabel,
+        city: location.city,
+        postalCode: location.postalCode,
+        country: location.country,
+      });
+    } else {
+      setSelected(null);
+    }
+  }, [visible, location]);
 
   const center = useMemo<[number, number]>(() => {
     if (selected) return [selected.longitude, selected.latitude];
@@ -78,10 +98,11 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
         </View>
 
         <View style={styles.searchRow}>
-          <MapPin size={18} color={colors.neutral[500]} />
+          <MapPin size={18} color={colors.brand.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher une adresse"
+            placeholderTextColor={colors.brand.textSecondary}
             value={query}
             onChangeText={setQuery}
             autoFocus
@@ -100,7 +121,7 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
         />
 
         <View style={styles.mapContainer}>
-          <MapboxGL.MapView style={StyleSheet.absoluteFill} styleURL={MapboxGL.StyleURL.Street}>
+          <MapboxGL.MapView style={StyleSheet.absoluteFill} styleURL={MapboxGL.StyleURL.Dark}>
             <MapboxGL.Camera centerCoordinate={center} zoomLevel={selected ? 13 : 5} />
             <MapboxGL.PointAnnotation
               id="selected-point"
@@ -108,7 +129,7 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
               draggable
               onDragEnd={(e) => onDragEnd(e.geometry.coordinates as number[])}
             >
-              <View />
+              <View style={[styles.markerDot, { backgroundColor: markerColor }]} />
             </MapboxGL.PointAnnotation>
           </MapboxGL.MapView>
         </View>
@@ -129,7 +150,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.md,
-    backgroundColor: '#fff',
+    backgroundColor: colors.brand.primary,
     paddingTop: spacing.xxl,
   },
   header: {
@@ -140,11 +161,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   link: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   searchRow: {
@@ -154,39 +175,47 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[50],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
   },
   searchInput: {
     flex: 1,
+    color: colors.brand.text,
   },
   resultRow: {
     paddingVertical: spacing.sm,
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   mapContainer: {
     marginTop: spacing.md,
     height: 260,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surface,
   },
   confirmBtn: {
     marginTop: spacing.lg,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     alignItems: 'center',
   },
   confirmDisabled: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   confirmText: {
     ...typography.body,
-    color: '#fff',
+    color: '#0f1719',
     fontWeight: '700',
+  },
+  markerDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 3,
+    borderColor: 'rgba(15,23,25,0.9)',
   },
 });

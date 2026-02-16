@@ -11,6 +11,7 @@ export type ImageAsset = {
 interface UseImagePickerResult {
   selectedImage: ImageAsset | null;
   pickImage: (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => Promise<ImageAsset | null>;
+  pickImages: (options?: { allowsEditing?: boolean; maxSelection?: number }) => Promise<ImageAsset[]>;
   takePhoto: (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => Promise<ImageAsset | null>;
   clearImage: () => void;
 }
@@ -65,6 +66,34 @@ export const useImagePicker = (): UseImagePickerResult => {
     }
   }, []);
 
+  const pickImages = useCallback(async (options?: { allowsEditing?: boolean; maxSelection?: number }) => {
+    const ok = await requestPermission('library');
+    if (!ok) {
+      console.warn('Permission to access gallery denied');
+      return [];
+    }
+
+    try {
+      const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes,
+        allowsEditing: options?.allowsEditing ?? false,
+        allowsMultipleSelection: true,
+        orderedSelection: true,
+        selectionLimit: options?.maxSelection ?? 5,
+        quality: 0.8,
+      } as any);
+
+      if (result.canceled || !result.assets?.length) return [];
+      const assets = result.assets.map(buildAsset);
+      setSelectedImage(assets[0] || null);
+      return assets;
+    } catch (err) {
+      console.warn('pickImages error', err);
+      return [];
+    }
+  }, []);
+
   const takePhoto = useCallback(async (options?: { aspect?: [number, number]; allowsEditing?: boolean }) => {
     const ok = await requestPermission('camera');
     if (!ok) {
@@ -91,5 +120,5 @@ export const useImagePicker = (): UseImagePickerResult => {
 
   const clearImage = useCallback(() => setSelectedImage(null), []);
 
-  return { selectedImage, pickImage, takePhoto, clearImage };
+  return { selectedImage, pickImage, pickImages, takePhoto, clearImage };
 };

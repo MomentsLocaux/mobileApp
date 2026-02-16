@@ -24,6 +24,11 @@ import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import {
+  buildOperatingHoursPayload,
+  deriveScheduleStateFromEvent,
+  isSameDayRange,
+} from '@/utils/event-schedule';
 
 export default function CreateEventStep1() {
   const router = useRouter();
@@ -60,6 +65,10 @@ export default function CreateEventStep1() {
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
   const setVideoLink = useCreateEventStore((s) => s.setVideoLink);
   const setGallery = useCreateEventStore((s) => s.setGallery);
+  const setScheduleMode = useCreateEventStore((s) => s.setScheduleMode);
+  const setScheduleOpenDays = useCreateEventStore((s) => s.setScheduleOpenDays);
+  const setScheduleFixedSlots = useCreateEventStore((s) => s.setScheduleFixedSlots);
+  const setScheduleVariableDays = useCreateEventStore((s) => s.setScheduleVariableDays);
   const resetStore = useCreateEventStore((s) => s.reset);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [formValid, setFormValid] = useState(false);
@@ -106,6 +115,11 @@ export default function CreateEventStep1() {
         setContact(evt.contact_email || evt.contact_phone || undefined);
         setExternalLink(evt.external_url || undefined);
         setVideoLink(undefined);
+        const scheduleState = deriveScheduleStateFromEvent(evt as any);
+        setScheduleMode(scheduleState.mode);
+        setScheduleOpenDays(scheduleState.openDays);
+        setScheduleFixedSlots(scheduleState.fixedSlots);
+        setScheduleVariableDays(scheduleState.variableSchedules);
         setCoverImage(evt.cover_url ? { publicUrl: evt.cover_url, storagePath: '' } : undefined);
         setGallery(
           (evt.media || [])
@@ -133,13 +147,40 @@ export default function CreateEventStep1() {
       }
     };
     prefill();
-  }, [edit, resetStore, setCategory, setContact, setCoverImage, setDescription, setDuration, setEndDate, setExternalLink, setGallery, setLocation, setPrice, setStartDate, setSubcategory, setTags, setTitle, setVideoLink, setVisibility]);
+  }, [
+    edit,
+    resetStore,
+    setCategory,
+    setContact,
+    setCoverImage,
+    setDescription,
+    setDuration,
+    setEndDate,
+    setExternalLink,
+    setGallery,
+    setLocation,
+    setPrice,
+    setScheduleFixedSlots,
+    setScheduleMode,
+    setScheduleOpenDays,
+    setScheduleVariableDays,
+    setStartDate,
+    setSubcategory,
+    setTags,
+    setTitle,
+    setVideoLink,
+    setVisibility,
+  ]);
 
   const canProceed = useMemo(() => {
     return !!coverImage && formValid && !!title.trim() && !!startDate && !!location;
   }, [coverImage, formValid, title, startDate, location]);
 
   const canSaveDraft = !!title.trim() && !!location;
+  const scheduleMode = useCreateEventStore((s) => s.scheduleMode);
+  const scheduleOpenDays = useCreateEventStore((s) => s.scheduleOpenDays);
+  const scheduleFixedSlots = useCreateEventStore((s) => s.scheduleFixedSlots);
+  const scheduleVariableDays = useCreateEventStore((s) => s.scheduleVariableDays);
 
   const handleSaveDraft = useCallback(async () => {
     if (!user || savingDraft) return;
@@ -187,6 +228,20 @@ export default function CreateEventStep1() {
         external_url: externalLink || videoLink || null,
         contact_email,
         contact_phone,
+        schedule_mode: isSameDayRange(startDate, endDate)
+          ? 'ponctuel'
+          : scheduleMode === 'variable'
+            ? 'recurrent'
+            : 'recurrent',
+        recurrence_rule: null,
+        operating_hours: buildOperatingHoursPayload({
+          startDate,
+          endDate,
+          mode: isSameDayRange(startDate, endDate) ? 'single_day' : scheduleMode,
+          fixedSlots: scheduleFixedSlots,
+          openDays: scheduleOpenDays,
+          variableSchedules: scheduleVariableDays,
+        }),
         status: 'draft',
         creator_id: user.id,
       };
@@ -240,6 +295,10 @@ export default function CreateEventStep1() {
     externalLink,
     videoLink,
     contact,
+    scheduleFixedSlots,
+    scheduleMode,
+    scheduleOpenDays,
+    scheduleVariableDays,
     gallery,
     resetStore,
     router,

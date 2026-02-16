@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Star } from 'lucide-react-native';
+import { Star, Heart, Flag } from 'lucide-react-native';
 import { AppBackground, Button, Card, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
@@ -11,6 +11,10 @@ import { EventMediaSubmissionsService } from '@/services/event-media-submissions
 import { EventPhotoContributionModal } from '@/components/events/EventPhotoContributionModal';
 import type { EventMediaSubmission, EventWithCreator } from '@/types/database';
 import { supabase } from '@/lib/supabase/client';
+import { SocialService } from '@/services/social.service';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
+import { ReportService } from '@/services/report.service';
+import type { ReportReasonCode } from '@/constants/report-reasons';
 
 export default function EventEchoesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,13 +29,33 @@ export default function EventEchoesScreen() {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentRating, setCommentRating] = useState<number | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [contribVisible, setContribVisible] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(new Set());
+  const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [reportCommentId, setReportCommentId] = useState<string | null>(null);
+  const [reportedCommentIds, setReportedCommentIds] = useState<Set<string>>(new Set());
 
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
   const canAddCommunityPhoto = !isGuest && !!event && (isAdmin || isOwner || hasCheckedIn);
+  const rootComments = useMemo(
+    () => comments.filter((comment) => !comment.parent_comment_id),
+    [comments],
+  );
+  const repliesByParent = useMemo(() => {
+    const map = new Map<string, typeof comments>();
+    comments
+      .filter((comment) => !!comment.parent_comment_id)
+      .forEach((comment) => {
+        const parentId = comment.parent_comment_id as string;
+        map.set(parentId, [...(map.get(parentId) || []), comment]);
+      });
+    return map;
+  }, [comments]);
 
   const organizerUrls = useMemo(() => {
     const urls = [event?.cover_url, ...((event?.media || []).map((m) => m.url).filter(Boolean) as string[])].filter(Boolean) as string[];
@@ -71,6 +95,28 @@ export default function EventEchoesScreen() {
     loadData();
   }, [loadData]);
 
+  const loadLikedComments = useCallback(async () => {
+    if (isGuest || !comments.length) {
+      setLikedCommentIds(new Set());
+      return;
+    }
+    const ids = comments.map((comment) => comment.id);
+    const { data, error } = await supabase
+      .from('comment_likes')
+      .select('comment_id')
+      .in('comment_id', ids);
+    if (error) {
+      console.warn('load liked comments', error);
+      return;
+    }
+    const liked = new Set((data || []).map((row: any) => row.comment_id as string));
+    setLikedCommentIds(liked);
+  }, [comments, isGuest]);
+
+  useEffect(() => {
+    loadLikedComments();
+  }, [loadLikedComments]);
+
   const handleAddPhoto = () => {
     if (!event) return;
     if (!canAddCommunityPhoto) {
@@ -85,15 +131,71 @@ export default function EventEchoesScreen() {
     if (!commentText.trim()) return;
     setSubmittingComment(true);
     try {
-      await addComment(commentText.trim(), commentRating ?? undefined);
+      if (replyTo) {
+        await addComment(commentText.trim(), null, replyTo.id);
+      } else {
+        await addComment(commentText.trim(), commentRating ?? undefined);
+      }
       setCommentText('');
       setCommentRating(null);
+      setReplyTo(null);
       reloadComments();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Impossible d'envoyer votre avis.";
       Alert.alert('Erreur', message);
     } finally {
       setSubmittingComment(false);
+    }
+  };
+
+  const handleToggleCommentLike = async (commentId: string) => {
+    if (isGuest || !profile?.id || likingCommentId) {
+      if (isGuest) Alert.alert('Connexion requise', 'Connectez-vous pour aimer un commentaire.');
+      return;
+    }
+    setLikingCommentId(commentId);
+    try {
+      await SocialService.likeComment(profile.id, commentId);
+      setLikedCommentIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(commentId)) {
+          next.delete(commentId);
+        } else {
+          next.add(commentId);
+        }
+        return next;
+      });
+    } catch (error) {
+      Alert.alert('Erreur', "Impossible de mettre à jour le like pour l'instant.");
+    } finally {
+      setLikingCommentId(null);
+    }
+  };
+
+  const handleOpenReport = (commentId: string) => {
+    if (isGuest) {
+      Alert.alert('Connexion requise', 'Connectez-vous pour signaler un commentaire.');
+      return;
+    }
+    setReportCommentId(commentId);
+    setReportVisible(true);
+  };
+
+  const handleReportComment = async (reason: ReportReasonCode) => {
+    if (!reportCommentId) return;
+    try {
+      await ReportService.comment(reportCommentId, { reason });
+      setReportedCommentIds((prev) => {
+        const next = new Set(prev);
+        next.add(reportCommentId);
+        return next;
+      });
+      Alert.alert('Signalement envoyé', 'Merci, notre équipe de modération va examiner ce commentaire.');
+    } catch (error) {
+      Alert.alert('Erreur', "Impossible d'envoyer le signalement pour l'instant.");
+    } finally {
+      setReportVisible(false);
+      setReportCommentId(null);
     }
   };
 
@@ -128,41 +230,147 @@ export default function EventEchoesScreen() {
           <>
             {loadingComments ? (
               <ActivityIndicator color={colors.brand.secondary} />
-            ) : comments.length === 0 ? (
+            ) : rootComments.length === 0 ? (
               <Text style={styles.muted}>Aucun avis pour le moment</Text>
             ) : (
-              comments.map((comment) => (
-                <Card key={comment.id} padding="md" style={styles.card}>
-                  <View style={styles.rowBetween}>
-                    <Text style={styles.author}>{comment.author?.display_name || 'Utilisateur'}</Text>
-                    {typeof comment.rating === 'number' ? (
-                      <View style={styles.rowCenter}>
-                        <Star size={14} color="#FBBF24" fill="#FBBF24" />
-                        <Text style={styles.muted}> {comment.rating.toFixed(1)}</Text>
+              rootComments.map((comment) => {
+                const replies = repliesByParent.get(comment.id) || [];
+                return (
+                  <Card key={comment.id} padding="md" style={styles.card}>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.author}>{comment.author?.display_name || 'Utilisateur'}</Text>
+                      {typeof comment.rating === 'number' ? (
+                        <View style={styles.rowCenter}>
+                          <Star size={14} color="#FBBF24" fill="#FBBF24" />
+                          <Text style={styles.muted}> {comment.rating.toFixed(1)}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.body}>{comment.message}</Text>
+                    <View style={styles.commentActions}>
+                      <TouchableOpacity
+                        style={styles.commentAction}
+                        onPress={() => handleToggleCommentLike(comment.id)}
+                        disabled={likingCommentId === comment.id}
+                      >
+                        <Heart
+                          size={14}
+                          color={likedCommentIds.has(comment.id) ? colors.error[500] : colors.brand.textSecondary}
+                          fill={likedCommentIds.has(comment.id) ? colors.error[500] : 'transparent'}
+                        />
+                        <Text
+                          style={[
+                            styles.commentActionText,
+                            likedCommentIds.has(comment.id) && styles.commentActionTextActive,
+                          ]}
+                        >
+                          {likedCommentIds.has(comment.id) ? 'Aimé' : 'Aimer'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.commentAction}
+                        onPress={() =>
+                          setReplyTo({
+                            id: comment.id,
+                            name: comment.author?.display_name || 'Utilisateur',
+                          })
+                        }
+                      >
+                        <Text style={styles.commentActionText}>Répondre</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.commentAction} onPress={() => handleOpenReport(comment.id)}>
+                        <Flag
+                          size={14}
+                          color={reportedCommentIds.has(comment.id) ? colors.warning[500] : colors.brand.textSecondary}
+                          fill={reportedCommentIds.has(comment.id) ? colors.warning[500] : 'transparent'}
+                        />
+                        <Text
+                          style={[
+                            styles.commentActionText,
+                            reportedCommentIds.has(comment.id) && styles.commentActionTextReported,
+                          ]}
+                        >
+                          {reportedCommentIds.has(comment.id) ? 'Signalé' : 'Signaler'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {replies.length > 0 ? (
+                      <View style={styles.repliesWrap}>
+                        {replies.map((reply) => (
+                          <View key={reply.id} style={styles.replyItem}>
+                            <Text style={styles.replyAuthor}>{reply.author?.display_name || 'Utilisateur'}</Text>
+                            <Text style={styles.replyBody}>{reply.message}</Text>
+                            <View style={styles.commentActions}>
+                              <TouchableOpacity
+                                style={styles.commentAction}
+                                onPress={() => handleToggleCommentLike(reply.id)}
+                                disabled={likingCommentId === reply.id}
+                              >
+                                <Heart
+                                  size={13}
+                                  color={likedCommentIds.has(reply.id) ? colors.error[500] : colors.brand.textSecondary}
+                                  fill={likedCommentIds.has(reply.id) ? colors.error[500] : 'transparent'}
+                                />
+                                <Text
+                                  style={[
+                                    styles.commentActionText,
+                                    likedCommentIds.has(reply.id) && styles.commentActionTextActive,
+                                  ]}
+                                >
+                                  {likedCommentIds.has(reply.id) ? 'Aimé' : 'Aimer'}
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={styles.commentAction} onPress={() => handleOpenReport(reply.id)}>
+                                <Flag
+                                  size={13}
+                                  color={reportedCommentIds.has(reply.id) ? colors.warning[500] : colors.brand.textSecondary}
+                                  fill={reportedCommentIds.has(reply.id) ? colors.warning[500] : 'transparent'}
+                                />
+                                <Text
+                                  style={[
+                                    styles.commentActionText,
+                                    reportedCommentIds.has(reply.id) && styles.commentActionTextReported,
+                                  ]}
+                                >
+                                  {reportedCommentIds.has(reply.id) ? 'Signalé' : 'Signaler'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ))}
                       </View>
                     ) : null}
-                  </View>
-                  <Text style={styles.body}>{comment.message}</Text>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
 
             {!isGuest ? (
               <Card padding="md" style={styles.card}>
                 <Text style={styles.label}>Votre avis</Text>
-                <View style={styles.starsRow}>
-                  {[1, 2, 3, 4, 5].map((v) => {
-                    const active = (commentRating ?? 0) >= v;
-                    return (
-                      <TouchableOpacity key={v} onPress={() => setCommentRating(v)}>
-                        <Star size={20} color={active ? '#FBBF24' : colors.neutral[500]} fill={active ? '#FBBF24' : 'transparent'} />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                {replyTo ? (
+                  <View style={styles.replyContext}>
+                    <Text style={styles.replyContextText}>Réponse à {replyTo.name}</Text>
+                    <TouchableOpacity onPress={() => setReplyTo(null)}>
+                      <Text style={styles.replyCancel}>Annuler</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.starsRow}>
+                    {[1, 2, 3, 4, 5].map((v) => {
+                      const active = (commentRating ?? 0) >= v;
+                      return (
+                        <TouchableOpacity key={v} onPress={() => setCommentRating(v)}>
+                          <Star size={20} color={active ? '#FBBF24' : colors.neutral[500]} fill={active ? '#FBBF24' : 'transparent'} />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
                 <TextInput
                   style={styles.commentInput}
-                  placeholder="Partager votre avis"
+                  placeholder={replyTo ? 'Rédiger votre réponse' : 'Partager votre avis'}
                   placeholderTextColor={colors.brand.textSecondary}
                   value={commentText}
                   onChangeText={setCommentText}
@@ -214,6 +422,15 @@ export default function EventEchoesScreen() {
           onSubmitted={() => loadData()}
         />
       ) : null}
+
+      <ReportReasonModal
+        visible={reportVisible}
+        onClose={() => {
+          setReportVisible(false);
+          setReportCommentId(null);
+        }}
+        onSelect={handleReportComment}
+      />
     </View>
   );
 }
@@ -237,8 +454,75 @@ const styles = StyleSheet.create({
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   author: { ...typography.bodySmall, color: colors.brand.text, fontWeight: '700' },
   body: { ...typography.bodySmall, color: colors.brand.textSecondary, marginTop: spacing.xs },
+  commentActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  commentAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  commentActionText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+  },
+  commentActionTextActive: {
+    color: colors.error[500],
+  },
+  commentActionTextReported: {
+    color: colors.warning[500],
+  },
+  repliesWrap: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    gap: spacing.sm,
+  },
+  replyItem: {
+    marginLeft: spacing.sm,
+    paddingLeft: spacing.sm,
+    borderLeftWidth: 2,
+    borderLeftColor: 'rgba(255,255,255,0.12)',
+  },
+  replyAuthor: {
+    ...typography.caption,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  replyBody: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    marginTop: 2,
+  },
   muted: { ...typography.bodySmall, color: colors.brand.textSecondary },
   label: { ...typography.caption, color: colors.brand.textSecondary, marginBottom: spacing.xs },
+  replyContext: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+    backgroundColor: 'rgba(43,191,227,0.12)',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(43,191,227,0.4)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  replyContextText: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+  },
+  replyCancel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+  },
   starsRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
   commentInput: {
     ...typography.body,

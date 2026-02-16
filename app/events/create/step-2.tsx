@@ -34,17 +34,17 @@ export default function CreateEventStep2() {
   const tags = useCreateEventStore((s) => s.tags);
   const visibility = useCreateEventStore((s) => s.visibility);
   const price = useCreateEventStore((s) => s.price);
-  const duration = useCreateEventStore((s) => s.duration);
   const contact = useCreateEventStore((s) => s.contact);
   const externalLink = useCreateEventStore((s) => s.externalLink);
+  const privateAudienceIds = useCreateEventStore((s) => s.privateAudienceIds);
   const setCategory = useCreateEventStore((s) => s.setCategory);
   const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
   const setTags = useCreateEventStore((s) => s.setTags);
   const setVisibility = useCreateEventStore((s) => s.setVisibility);
   const setPrice = useCreateEventStore((s) => s.setPrice);
-  const setDuration = useCreateEventStore((s) => s.setDuration);
   const setContact = useCreateEventStore((s) => s.setContact);
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
+  const setPrivateAudienceIds = useCreateEventStore((s) => s.setPrivateAudienceIds);
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
@@ -148,33 +148,19 @@ export default function CreateEventStep2() {
             />
           </View>
           <View onLayout={registerSection('visibility')}>
-            <VisibilitySelector value={visibility} onChange={setVisibility} />
-            <View style={styles.togglesContainer}>
-              <View style={styles.toggleRow}>
-                <View>
-                  <Text style={styles.toggleLabel}>Places limitées</Text>
-                  <Text style={styles.toggleSubLabel}>Définir un nombre maximum de participants</Text>
-                </View>
-                {/* Switch component placeholder - using View for now as standard Switch isn't imported */}
-                <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                  <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
-                </View>
-              </View>
-              <View style={styles.toggleRow}>
-                <View>
-                  <Text style={styles.toggleLabel}>Inscription requise</Text>
-                  <Text style={styles.toggleSubLabel}>Valider chaque demande manuellement</Text>
-                </View>
-                <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                  <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
-                </View>
-              </View>
-            </View>
+            <VisibilitySelector
+              value={visibility}
+              privateAudienceIds={privateAudienceIds}
+              onChange={(next) => {
+                setVisibility(next);
+                if (next === 'public') setPrivateAudienceIds([]);
+              }}
+              onChangeAudience={setPrivateAudienceIds}
+            />
           </View>
           <View onLayout={registerSection('optional')}>
             <OptionalInfoSection
               price={price}
-              duration={duration}
               contact={contact}
               externalLink={externalLink}
               onOpen={() => requestAnimationFrame(() => scrollToSection('optional'))}
@@ -182,7 +168,6 @@ export default function CreateEventStep2() {
               onInputRef={registerFieldRef}
               onChange={(data) => {
                 if (data.price !== undefined) setPrice(data.price);
-                if (data.duration !== undefined) setDuration(data.duration);
                 if (data.contact !== undefined) setContact(data.contact);
                 if (data.externalLink !== undefined) setExternalLink(data.externalLink);
               }}
@@ -304,46 +289,5 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     fontWeight: '700',
     marginBottom: spacing.xs,
-  },
-  togglesContainer: {
-    gap: spacing.md,
-    backgroundColor: colors.brand.surface,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  toggleLabel: {
-    ...typography.body,
-    color: colors.brand.text,
-    fontWeight: '600',
-  },
-  toggleSubLabel: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    maxWidth: 200,
-  },
-  switchTrack: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-  },
-  switchThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2.5,
-    elevation: 2,
   },
 });

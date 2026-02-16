@@ -276,7 +276,14 @@ export default function TabsLayout() {
         {/* User Header Section */}
         <View style={styles.drawerHeader}>
           <View style={styles.drawerUserRow}>
-            <View style={styles.avatarContainer}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              activeOpacity={0.85}
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/(tabs)/profile' as any);
+              }}
+            >
               <View style={styles.avatarBorder}>
                 {profile?.avatar_url ? (
                   <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
@@ -289,7 +296,7 @@ export default function TabsLayout() {
               <View style={styles.levelBadge}>
                 <Text style={styles.levelBadgeText}>LVL 24</Text>
               </View>
-            </View>
+            </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
               <Text style={styles.drawerEmail}>{profile?.email || 'email@exemple.com'}</Text>

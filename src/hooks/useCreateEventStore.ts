@@ -1,4 +1,9 @@
 import { create } from 'zustand';
+import type {
+  EventScheduleModeMobile,
+  EventTimeSlot,
+  VariableSchedules,
+} from '@/utils/event-schedule';
 
 type CoverImage = {
   storagePath: string;
@@ -38,6 +43,11 @@ interface CreateEventState {
   duration?: string;
   contact?: string;
   externalLink?: string;
+  scheduleMode: EventScheduleModeMobile;
+  scheduleOpenDays: number[];
+  scheduleFixedSlots: EventTimeSlot[];
+  scheduleVariableDays: VariableSchedules;
+  privateAudienceIds: string[];
   setCoverImage: (img: CoverImage | undefined) => void;
   setTitle: (title: string) => void;
   setStartDate: (date?: string) => void;
@@ -56,6 +66,11 @@ interface CreateEventState {
   setDuration: (duration?: string) => void;
   setContact: (contact?: string) => void;
   setExternalLink: (link?: string) => void;
+  setScheduleMode: (mode: EventScheduleModeMobile) => void;
+  setScheduleOpenDays: (days: number[]) => void;
+  setScheduleFixedSlots: (slots: EventTimeSlot[]) => void;
+  setScheduleVariableDays: (days: VariableSchedules) => void;
+  setPrivateAudienceIds: (ids: string[]) => void;
   reset: () => void;
 }
 
@@ -76,6 +91,11 @@ const initialState = {
   duration: undefined,
   contact: undefined,
   externalLink: undefined,
+  scheduleMode: 'single_day' as EventScheduleModeMobile,
+  scheduleOpenDays: [1, 2, 3, 4, 5, 6, 7],
+  scheduleFixedSlots: [{ start: '09:00', end: '18:00' }] as EventTimeSlot[],
+  scheduleVariableDays: {} as VariableSchedules,
+  privateAudienceIds: [] as string[],
 };
 
 export const useCreateEventStore = create<CreateEventState>((set) => ({
@@ -121,5 +141,10 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setDuration: (duration) => set({ duration }),
   setContact: (contact) => set({ contact }),
   setExternalLink: (externalLink) => set({ externalLink }),
+  setScheduleMode: (scheduleMode) => set({ scheduleMode }),
+  setScheduleOpenDays: (scheduleOpenDays) => set({ scheduleOpenDays }),
+  setScheduleFixedSlots: (scheduleFixedSlots) => set({ scheduleFixedSlots }),
+  setScheduleVariableDays: (scheduleVariableDays) => set({ scheduleVariableDays }),
+  setPrivateAudienceIds: (privateAudienceIds) => set({ privateAudienceIds }),
   reset: () => set(initialState),
 }));

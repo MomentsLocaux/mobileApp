@@ -5,18 +5,16 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 
 type Props = {
   price?: string;
-  duration?: string;
   contact?: string;
   externalLink?: string;
   onInputFocus?: (key: string) => void;
   onInputRef?: (key: string) => (node: any) => void;
   onOpen?: () => void;
-  onChange: (data: { price?: string; duration?: string; contact?: string; externalLink?: string }) => void;
+  onChange: (data: { price?: string; contact?: string; externalLink?: string }) => void;
 };
 
 export const OptionalInfoSection = ({
   price,
-  duration,
   contact,
   externalLink,
   onInputFocus,
@@ -44,24 +42,21 @@ export const OptionalInfoSection = ({
       {open && (
         <View style={styles.fields}>
           <Text style={styles.label}>Prix</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Gratuit, 5€..."
-            value={price}
-            onChangeText={(text) => onChange({ price: text })}
-            ref={onInputRef?.('price')}
-            onFocus={() => onInputFocus?.('price')}
-          />
-
-          <Text style={styles.label}>Durée estimée</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: 2h"
-            value={duration}
-            onChangeText={(text) => onChange({ duration: text })}
-            ref={onInputRef?.('duration')}
-            onFocus={() => onInputFocus?.('duration')}
-          />
+          <View style={styles.priceWrap}>
+            <TextInput
+              style={[styles.input, styles.priceInput]}
+              placeholder="0"
+              value={price}
+              keyboardType="decimal-pad"
+              onChangeText={(text) => {
+                const normalized = text.replace(',', '.').replace(/[^0-9.]/g, '');
+                onChange({ price: normalized });
+              }}
+              ref={onInputRef?.('price')}
+              onFocus={() => onInputFocus?.('price')}
+            />
+            <Text style={styles.currency}>€</Text>
+          </View>
 
           <Text style={styles.label}>Contact</Text>
           <TextInput
@@ -125,5 +120,19 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     backgroundColor: colors.brand.surface,
     color: colors.brand.text,
+  },
+  priceWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  priceInput: {
+    flex: 1,
+  },
+  currency: {
+    ...typography.body,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+    paddingHorizontal: spacing.xs,
   },
 });

@@ -475,12 +475,19 @@ export const supabaseProvider: (Pick<
     return (data || []) as CommentWithAuthor[];
   },
 
-  async createComment(payload: { eventId: string; authorId: string; message: string; rating?: number | null }) {
+  async createComment(payload: {
+    eventId: string;
+    authorId: string;
+    message: string;
+    rating?: number | null;
+    parentCommentId?: string | null;
+  }) {
     const insertPayload = {
       event_id: payload.eventId,
       author_id: payload.authorId,
       message: payload.message,
       rating: payload.rating ?? null,
+      parent_comment_id: payload.parentCommentId ?? null,
     } as any;
 
     const { error: insertError } = await supabase
@@ -511,6 +518,7 @@ export const supabaseProvider: (Pick<
         id: `local-${Date.now()}`,
         event_id: payload.eventId,
         author_id: payload.authorId,
+        parent_comment_id: payload.parentCommentId ?? null,
         message: payload.message,
         rating: payload.rating ?? null,
         created_at: nowIso,
@@ -525,6 +533,7 @@ export const supabaseProvider: (Pick<
         id: `local-${Date.now()}`,
         event_id: payload.eventId,
         author_id: payload.authorId,
+        parent_comment_id: payload.parentCommentId ?? null,
         message: payload.message,
         rating: payload.rating ?? null,
         created_at: nowIso,

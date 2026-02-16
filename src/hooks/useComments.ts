@@ -25,14 +25,27 @@ export function useComments(eventId: string) {
   }, [eventId]);
 
   const addComment = useCallback(
-    async (message: string, rating?: number | null) => {
+    async (message: string, rating?: number | null, parentCommentId?: string | null) => {
       if (!currentUserId) throw new Error('Non authentifié');
-      const newComment = await CommentsService.create(eventId, currentUserId, message, rating);
+      const newComment = await CommentsService.create(
+        eventId,
+        currentUserId,
+        message,
+        rating,
+        parentCommentId ?? null,
+      );
       if (newComment) {
         setComments((prev) => [newComment, ...prev]);
       }
     },
     [currentUserId, eventId],
+  );
+
+  const replyToComment = useCallback(
+    async (parentCommentId: string, message: string) => {
+      await addComment(message, null, parentCommentId);
+    },
+    [addComment],
   );
 
   const removeComment = useCallback(
@@ -48,5 +61,5 @@ export function useComments(eventId: string) {
     loadComments();
   }, [loadComments]);
 
-  return { comments, loading, error, reload: loadComments, addComment, removeComment };
+  return { comments, loading, error, reload: loadComments, addComment, replyToComment, removeComment };
 }

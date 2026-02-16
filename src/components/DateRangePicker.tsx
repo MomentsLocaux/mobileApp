@@ -160,7 +160,7 @@ export const DateRangePicker = ({ open, mode, value, onChange, onClose, context 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.primary,
   },
   header: {
     paddingHorizontal: spacing.md,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   content: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   monthLabel: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
     textTransform: 'capitalize',
   },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   weekDay: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     width: `${100 / 7}%`,
     textAlign: 'center',
   },
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 32,
-    backgroundColor: colors.primary[100],
+    backgroundColor: 'rgba(43,191,227,0.16)',
     top: '50%',
     marginTop: -16,
   },
@@ -237,18 +237,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayBubbleActive: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
   },
   dayText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   dayTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
   dayTextEndpoint: {
-    color: colors.neutral[900],
+    color: '#0f1719',
   },
   footer: {
     flexDirection: 'row',
@@ -256,22 +256,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   validateBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
   },
   validateText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: '#0f1719',
     fontWeight: '700',
   },
   link: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
 });
