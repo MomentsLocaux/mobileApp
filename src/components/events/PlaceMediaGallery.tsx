@@ -20,6 +20,15 @@ type Props = {
   children?: React.ReactNode;
 };
 
+const normalizeImageUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'none') return null;
+  return trimmed;
+};
+
 export function PlaceMediaGallery({ images, communityImages = [], onAddPhoto, children }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -28,8 +37,26 @@ export function PlaceMediaGallery({ images, communityImages = [], onAddPhoto, ch
   const listRef = useRef<FlatList<MediaImage>>(null);
   const viewerListRef = useRef<FlatList<MediaImage>>(null);
 
-  const organizerData = useMemo(() => images.filter((img) => img?.uri), [images]);
-  const communityData = useMemo(() => communityImages.filter((img) => img?.uri), [communityImages]);
+  const organizerData = useMemo(
+    () =>
+      images
+        .map((img) => {
+          const uri = normalizeImageUrl(img?.uri);
+          return uri ? { ...img, uri } : null;
+        })
+        .filter((img): img is MediaImage => !!img),
+    [images],
+  );
+  const communityData = useMemo(
+    () =>
+      communityImages
+        .map((img) => {
+          const uri = normalizeImageUrl(img?.uri);
+          return uri ? { ...img, uri } : null;
+        })
+        .filter((img): img is MediaImage => !!img),
+    [communityImages],
+  );
   const showAdd = typeof onAddPhoto === 'function';
   const currentViewerData = viewerTab === 'organizer' ? organizerData : communityData;
 

@@ -30,6 +30,15 @@ interface Props {
   onToggleFavorite?: (event: EventWithCreator) => void;
 }
 
+const normalizeImageUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'none') return null;
+  return trimmed;
+};
+
 function formatDateRange(starts_at: string) {
   const start = new Date(starts_at);
   if (isNaN(start.getTime())) return '';
@@ -92,10 +101,11 @@ export const EventResultCard: React.FC<Props> = ({
   }, [distanceKm, event, userLocation]);
 
   const images = useMemo(() => {
+    const cover = normalizeImageUrl(event.cover_url);
     const urls = [
-      event.cover_url,
-      ...(event.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
-    ].filter(Boolean) as string[];
+      cover,
+      ...((event.media || []).map((m) => normalizeImageUrl(m.url))),
+    ].filter((u): u is string => !!u);
     return Array.from(new Set(urls)).slice(0, 4);
   }, [event.cover_url, event.media]);
 

@@ -71,6 +71,15 @@ type AttendeePreview = {
   avatar_url: string | null;
 };
 
+const normalizeImageUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'none') return null;
+  return trimmed;
+};
+
 const extractQrPayload = (raw: string): { eventId: string | null; qrToken: string | null } => {
   const value = (raw || '').trim();
   if (!value) return { eventId: null, qrToken: null };
@@ -872,14 +881,20 @@ export default function EventDetailScreen() {
 
   const mediaImages = useMemo<MediaImage[]>(() => {
     if (!event) return [];
-    const media = (event.media || []).map((m, index) => ({
-      id: m.id || `${m.url}-${index}`,
-      uri: m.url,
-      authorId: (m as any).author_id,
-      isUserGenerated: false,
-    }));
+    const media = (event.media || []).reduce<MediaImage[]>((acc, m, index) => {
+        const uri = normalizeImageUrl(m.url);
+        if (!uri) return acc;
+        acc.push({
+          id: m.id || `${uri}-${index}`,
+          uri,
+          authorId: (m as any).author_id,
+          isUserGenerated: false,
+        });
+        return acc;
+      }, []);
 
-    const cover = event.cover_url ? [{ id: `cover-${event.id}`, uri: event.cover_url, isUserGenerated: false }] : [];
+    const coverUri = normalizeImageUrl(event.cover_url);
+    const cover = coverUri ? [{ id: `cover-${event.id}`, uri: coverUri, isUserGenerated: false }] : [];
     const merged = [...cover, ...media];
     const seen = new Set<string>();
     return merged.filter((item) => {
@@ -891,13 +906,17 @@ export default function EventDetailScreen() {
 
   const communityMediaImages = useMemo<MediaImage[]>(() => {
     const seen = new Set<string>();
-    return (communityPhotos || [])
-      .map((photo, index) => ({
-        id: photo.id || `community-${index}`,
-        uri: photo.url,
-        authorId: photo.author_id,
-        isUserGenerated: true,
-      }))
+    return (communityPhotos || []).reduce<MediaImage[]>((acc, photo, index) => {
+        const uri = normalizeImageUrl(photo.url);
+        if (!uri) return acc;
+        acc.push({
+          id: photo.id || `community-${index}`,
+          uri,
+          authorId: photo.author_id,
+          isUserGenerated: true,
+        });
+        return acc;
+      }, [])
       .filter((item) => {
         if (!item.uri || seen.has(item.uri)) return false;
         seen.add(item.uri);
