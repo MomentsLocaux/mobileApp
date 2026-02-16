@@ -26,15 +26,6 @@ export default function EventsLayout() {
         }}
       />
       <Stack.Screen
-        name="echoes"
-        options={{
-          headerShown: false,
-          presentation: 'card',
-          gestureEnabled: true,
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen
         name="create/index"
         options={{
           headerShown: false,

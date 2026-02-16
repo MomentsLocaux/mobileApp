@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Image as ImageIcon, Camera, X } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
-import Toast from 'react-native-toast-message';
 
 type Props = {
   visible: boolean;
@@ -70,29 +70,17 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
       });
 
       if (!result.success) {
-        Toast.show({
-          type: 'error',
-          text1: 'Limite atteinte',
-          text2: result.message || 'Vous avez atteint la limite pour cet événement.',
-        });
+        Alert.alert('Limite atteinte', result.message || 'Vous avez atteint la limite pour cet événement.');
         return;
       }
 
-      Toast.show({
-        type: 'success',
-        text1: 'Merci',
-        text2: 'Votre photo sera publiée après validation.',
-      });
+      Alert.alert('Merci', 'Votre photo sera publiée après validation.');
       setImageUri(null);
       onSubmitted?.();
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Impossible de téléverser cette image.';
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: message,
-      });
+      Alert.alert('Erreur', message);
     } finally {
       setUploading(false);
     }
@@ -105,7 +93,7 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
           <View style={styles.header}>
             <Text style={styles.title}>Proposer une photo</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={10}>
-              <X size={18} color={colors.brand.textSecondary} />
+              <X size={18} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
 
@@ -118,18 +106,18 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
               <Image source={{ uri: imageUri }} style={styles.previewImage} />
             ) : (
               <View style={styles.previewPlaceholder}>
-                <ImageIcon size={40} color={colors.brand.textSecondary} />
+                <ImageIcon size={40} color={colors.neutral[400]} />
               </View>
             )}
           </View>
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.actionButton} onPress={handlePick} disabled={uploading}>
-              <ImageIcon size={18} color={colors.brand.secondary} />
+              <ImageIcon size={18} color={colors.primary[700]} />
               <Text style={styles.actionText}>Galerie</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleTakePhoto} disabled={uploading}>
-              <Camera size={18} color={colors.brand.secondary} />
+              <Camera size={18} color={colors.primary[700]} />
               <Text style={styles.actionText}>Appareil photo</Text>
             </TouchableOpacity>
           </View>
@@ -156,17 +144,15 @@ export function EventPhotoContributionModal({ visible, eventId, userId, onClose,
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(5, 10, 12, 0.76)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.brand.surface,
+    backgroundColor: colors.neutral[0],
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     gap: spacing.md,
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   header: {
     flexDirection: 'row',
@@ -175,7 +161,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.brand.text,
+    color: colors.neutral[900],
   },
   closeButton: {
     width: 32,
@@ -183,18 +169,16 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.neutral[100],
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.brand.textSecondary,
+    color: colors.neutral[600],
   },
   preview: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.neutral[100],
   },
   previewImage: {
     width: '100%',
@@ -213,22 +197,22 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.35)',
+    borderColor: colors.primary[200],
     borderRadius: borderRadius.md,
     paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-    backgroundColor: 'rgba(43,191,227,0.1)',
+    backgroundColor: colors.primary[50],
   },
   actionText: {
     ...typography.bodySmall,
-    color: colors.brand.secondary,
+    color: colors.primary[700],
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: colors.brand.secondary,
+    backgroundColor: colors.primary[600],
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -239,12 +223,12 @@ const styles = StyleSheet.create({
   },
   submitText: {
     ...typography.body,
-    color: '#0f1719',
+    color: colors.neutral[0],
     fontWeight: '600',
   },
   limitHint: {
     ...typography.caption,
-    color: colors.brand.textSecondary,
+    color: colors.neutral[500],
     textAlign: 'center',
   },
 });

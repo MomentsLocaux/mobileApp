@@ -4,14 +4,6 @@ import type { EventMediaSubmission } from '@/types/database';
 const MAX_SUBMISSIONS_PER_EVENT = 5;
 
 const formatError = (error: any, context: string) => {
-  if (
-    (error?.code === '42501' || `${error?.message || ''}`.includes('row-level security')) &&
-    `${error?.message || ''}`.includes('event_media_submissions')
-  ) {
-    return new Error(
-      "[submit] Check-in requis: vous devez faire un check-in (ou être admin/modérateur) pour proposer une photo."
-    );
-  }
   const message =
     (typeof error?.message === 'string' && error.message) || (typeof error === 'string' && error) || 'Erreur Supabase';
   return new Error(`[${context}] ${message}`);

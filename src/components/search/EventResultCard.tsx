@@ -102,11 +102,19 @@ export const EventResultCard: React.FC<Props> = ({
   const attendeesCount = Number.isFinite(friendsGoingCount as number) ? Number(friendsGoingCount) : 0;
   const viewCount = Number.isFinite(viewsCount as number) ? Number(viewsCount) : 0;
   const isLive = useMemo(() => isEventLive(event), [event.starts_at, event.ends_at]);
+  const displayTags = useMemo(
+    () =>
+      (Array.isArray(event.tags) ? event.tags : [])
+        .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+        .map((tag) => tag.trim())
+        .slice(0, 2),
+    [event.tags],
+  );
   const locationLabel = useMemo(
     () => event.venue_name || event.city || event.address || 'Lieu à venir',
     [event.venue_name, event.city, event.address],
   );
-  const categoryLabel = getCategoryLabel(event.category || '');
+  const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
 
   return (
     <Pressable
@@ -142,16 +150,20 @@ export const EventResultCard: React.FC<Props> = ({
 
         {/* Top Badges */}
         <View style={styles.topRow}>
-          <View style={styles.heroBadges}>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>{categoryLabel}</Text>
-            </View>
+          <View style={styles.badgesContainer}>
             {isLive && (
-              <View style={[styles.heroBadge, styles.heroBadgeLive]}>
-                <View style={styles.liveDot} />
-                <Text style={[styles.heroBadgeText, styles.heroBadgeTextLive]}>EN DIRECT</Text>
+              <View style={[styles.badge, styles.badgeLive]}>
+                <Text style={styles.badgeText}>LIVE</Text>
               </View>
             )}
+            <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Text style={styles.badgeText}>{categoryLabel}</Text>
+            </View>
+            {displayTags.map((tag) => (
+              <View key={tag} style={[styles.badge, styles.tagBadge]}>
+                <Text style={styles.tagText}>#{tag}</Text>
+              </View>
+            ))}
           </View>
 
           {onToggleLike && (
@@ -266,41 +278,41 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     zIndex: 10,
   },
-  heroBadges: {
+  badgesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.xs,
     maxWidth: '80%',
   },
-  heroBadge: {
-    paddingHorizontal: 12,
+  badge: {
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.secondary,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    backdropFilter: 'blur(10px)', // For web
   },
-  heroBadgeLive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+  badgeLive: {
+    backgroundColor: '#ff3b30', // Red
+  },
+  tagBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  heroBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  heroBadgeTextLive: {
-    color: '#34D399',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#34D399',
+  tagText: {
+    color: '#eee',
+    fontSize: 11,
+    fontWeight: '600',
   },
   favoriteButton: {
     width: 44,
