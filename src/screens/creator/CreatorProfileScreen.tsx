@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { User, MapPin, Calendar, ArrowLeft } from 'lucide-react-native';
-import { Card } from '../../components/ui';
+import { Card, AppBackground } from '../../components/ui';
 import { EventCard } from '../../components/events';
 import { ProfileService } from '../../services/profile.service';
 import { EventsService } from '../../services/events.service';
@@ -45,7 +45,7 @@ export default function CreatorProfileScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <ActivityIndicator size="large" color={colors.brand.primary} />
       </View>
     );
   }
@@ -59,68 +59,75 @@ export default function CreatorProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={20} color={colors.neutral[800]} />
-          <Text style={styles.backText}>Retour</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.homeButton}
-          onPress={() => router.replace('/(tabs)')}
-        >
-          <Text style={styles.homeText}>Accueil</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.header}>
-        {creator.avatar_url ? (
-          <Image source={{ uri: creator.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <User size={48} color={colors.neutral[400]} />
-          </View>
-        )}
+    <View style={styles.container}>
+      <AppBackground />
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={20} color={colors.brand.text} />
+            <Text style={styles.backText}>Retour</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.homeButton}
+            onPress={() => router.replace('/(tabs)')}
+          >
+            <Text style={styles.homeText}>Accueil</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.header}>
+          {creator.avatar_url ? (
+            <Image source={{ uri: creator.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <User size={48} color={colors.brand.textSecondary} />
+            </View>
+          )}
 
-        <Text style={styles.displayName}>{creator.display_name}</Text>
-        <Text style={styles.role}>{getRoleLabel(creator.role)}</Text>
+          <Text style={styles.displayName}>{creator.display_name}</Text>
+          <Text style={styles.role}>{getRoleLabel(creator.role)}</Text>
 
-        {creator.bio && (
-          <Text style={styles.bio}>{creator.bio}</Text>
-        )}
-      </View>
+          {creator.bio && (
+            <Text style={styles.bio}>{creator.bio}</Text>
+          )}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Événements créés ({events.length})
-        </Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            Événements créés ({events.length})
+          </Text>
 
-        {events.length === 0 ? (
-          <Card padding="lg">
-            <Text style={styles.emptyText}>
-              Aucun événement créé pour le moment
-            </Text>
-          </Card>
-        ) : (
-          events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onPress={() => router.push(`/events/${event.id}`)}
-            />
-          ))
-        )}
-      </View>
-    </ScrollView>
+          {events.length === 0 ? (
+            <Card padding="lg">
+              <Text style={styles.emptyText}>
+                Aucun événement créé pour le moment
+              </Text>
+            </Card>
+          ) : (
+            events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onPress={() => router.push(`/events/${event.id}`)}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
@@ -129,14 +136,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.body,
-    color: colors.error[500],
+    color: colors.error[400],
   },
   header: {
     alignItems: 'center',
     padding: spacing.xl,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   topBar: {
     flexDirection: 'row',
@@ -145,7 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'transparent',
   },
   backButton: {
     flexDirection: 'row',
@@ -154,18 +161,18 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   homeButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   homeText: {
     ...typography.bodySmall,
-    color: colors.primary[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   avatar: {
@@ -175,24 +182,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   avatarPlaceholder: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   displayName: {
     ...typography.h2,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.xs,
   },
   role: {
     ...typography.bodySmall,
-    color: colors.primary[600],
+    color: colors.brand.primary,
     textTransform: 'capitalize',
     marginBottom: spacing.md,
   },
   bio: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
   },
@@ -201,12 +208,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.md,
   },
   emptyText: {
     ...typography.body,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
 });

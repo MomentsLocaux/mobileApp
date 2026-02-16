@@ -167,7 +167,7 @@ export default function NotificationsInboxScreen() {
     if (!item.read) {
       try {
         await NotificationsService.markAsRead(item.id);
-      } catch {}
+      } catch { }
       setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, read: true } : row)));
     }
 
@@ -204,7 +204,7 @@ export default function NotificationsInboxScreen() {
         <View style={styles.itemHeader}>
           <View style={styles.itemTitleRow}>
             <View style={styles.itemIcon}>
-              <IconCmp size={16} color={colors.neutral[700]} />
+              <IconCmp size={16} color={colors.brand.secondary} />
             </View>
             <Text style={styles.itemTitle}>{item.title}</Text>
           </View>
@@ -223,7 +223,7 @@ export default function NotificationsInboxScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
+          <ChevronLeft size={20} color={colors.brand.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         <TouchableOpacity
@@ -264,7 +264,7 @@ export default function NotificationsInboxScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           ListEmptyComponent={
             <View style={styles.centerState}>
-              <Bell size={20} color={colors.neutral[500]} />
+              <Bell size={20} color={colors.brand.textSecondary} />
               <Text style={styles.stateText}>
                 {error ? `Erreur: ${error}` : mode === 'unread' ? 'Aucune notification non lue.' : 'Aucune notification.'}
               </Text>
@@ -279,7 +279,7 @@ export default function NotificationsInboxScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
@@ -294,29 +294,30 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   headerTitle: {
     flex: 1,
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   readAllButton: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   readAllButtonDisabled: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
+    opacity: 0.5,
   },
   readAllText: {
     ...typography.caption,
-    color: colors.primary[700],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   readAllTextDisabled: {
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   filterRow: {
     flexDirection: 'row',
@@ -326,20 +327,20 @@ const styles = StyleSheet.create({
   },
   filterPill: {
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
   },
   filterPillActive: {
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.brand.secondary,
   },
   filterText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   filterTextActive: {
-    color: colors.primary[700],
+    color: '#0f1719',
   },
   listContent: {
     padding: spacing.lg,
@@ -348,15 +349,15 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.05)',
     padding: spacing.md,
     gap: spacing.sm,
   },
   itemUnread: {
-    borderColor: colors.primary[300],
-    backgroundColor: colors.primary[0],
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.05)',
   },
   itemHeader: {
     flexDirection: 'row',
@@ -375,11 +376,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   itemTitle: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
     flex: 1,
   },
@@ -387,11 +388,11 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.brand.primary,
   },
   itemBody: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   itemFooter: {
     flexDirection: 'row',
@@ -401,12 +402,12 @@ const styles = StyleSheet.create({
   },
   itemType: {
     ...typography.caption,
-    color: colors.info[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   itemDate: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   centerState: {
     alignItems: 'center',
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
   },
   stateText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
 });

@@ -1,5 +1,6 @@
 import type { EventWithCreator } from '../types/database';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../types/filters';
+import { isEventLive } from './event-status';
 
 const POPULARITY_THRESHOLDS = {
   trending: 10,
@@ -18,17 +19,6 @@ function getUpcomingWeekendWindow(now: Date): { start: Date; end: Date } {
   end.setDate(start.getDate() + 2); // Saturday to end of Sunday
   end.setHours(23, 59, 59, 999);
   return { start, end };
-}
-
-function isLive(event: EventWithCreator, now: Date): boolean {
-  const startsAt = new Date(event.starts_at);
-  const endsAt = new Date(event.ends_at);
-
-  if (isNaN(startsAt.getTime()) || isNaN(endsAt.getTime())) {
-    return false;
-  }
-
-  return now >= startsAt && now <= endsAt;
 }
 
 function matchesTimeFilter(
@@ -65,7 +55,7 @@ function matchesTimeFilter(
   }
 
   if (timeFilter === 'live') {
-    return isLive(event, now);
+    return isEventLive(event, now);
   }
 
   return false;

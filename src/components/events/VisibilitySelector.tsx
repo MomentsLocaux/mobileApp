@@ -37,12 +37,12 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: borderRadius.full,
     padding: spacing.xs,
   },
@@ -53,18 +53,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segmentActive: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2,
   },
   segmentText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   segmentTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.text,
   },
 });

@@ -73,7 +73,7 @@ export const CoverImageUploader = () => {
         <Image source={{ uri }} style={styles.hero} />
       ) : (
         <View style={styles.placeholder}>
-          <ImageIcon size={40} color={colors.neutral[400]} />
+          <ImageIcon size={40} color={colors.brand.textSecondary} />
         </View>
       )}
       <TouchableOpacity style={styles.overlayBtn} onPress={onPick} disabled={uploading}>
@@ -99,13 +99,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 220,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surface,
   },
   placeholder: {
     width: '100%',
     height: 220,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     bottom: spacing.md,
     left: '50%',
     transform: [{ translateX: -90 }],
-    backgroundColor: colors.neutral[900],
+    backgroundColor: 'rgba(0,0,0,0.7)',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,

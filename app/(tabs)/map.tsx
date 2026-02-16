@@ -307,7 +307,7 @@ export default function MapScreen() {
     const location = searchState.where.location;
     const selectedRadius = searchState.where.radiusKm;
     const effectiveRadius = selectedRadius && selectedRadius > 0 ? selectedRadius : 10;
-    
+
     const moveAction = () => {
       if (location) {
         useSearchRadiusBoundsRef.current = true;
@@ -332,7 +332,7 @@ export default function MapScreen() {
         }
       }, 650); // After map move settles
     }, 600);
-    
+
   }, [fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove, handleBoundsChange]);
 
   const handleFeaturePress = useCallback(
@@ -565,6 +565,7 @@ export default function MapScreen() {
       <SearchResultsBottomSheet
         ref={resultsSheetRef}
         events={sheetEvents}
+        currentUserId={profile?.id}
         activeEventId={activeEventId}
         onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
         onNavigate={(event) => setNavEvent(event)}
@@ -587,7 +588,7 @@ export default function MapScreen() {
           } else {
             updateMapPadding('low');
           }
-          
+
           if (idx <= 0) {
             hideBottomBar();
             closeSheet();
@@ -595,7 +596,7 @@ export default function MapScreen() {
             showBottomBar();
           }
 
-           if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
+          if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
             focusOnEvent(sheetEvents[0], idx);
           }
         }}
@@ -637,14 +638,14 @@ const styles = StyleSheet.create({
   fallbackText: {
     marginTop: spacing.md,
     textAlign: 'center',
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
   fallbackSubtext: {
     marginTop: spacing.sm,
     textAlign: 'center',
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     fontSize: 14,
   },
   topOverlay: {
@@ -665,21 +666,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   metaFilterPillActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[300],
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
+    borderColor: colors.brand.secondary,
   },
   metaFilterText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   metaFilterTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
   recenterTopButton: {
     position: 'absolute',
@@ -687,7 +688,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.neutral[900],
@@ -707,23 +708,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2,
   },
   layerButtonActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
+    borderColor: colors.brand.secondary,
     borderWidth: 1,
   },
   layerButtonText: {
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
     fontSize: 12,
   },
   layerButtonTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
 });

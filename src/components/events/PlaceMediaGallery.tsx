@@ -17,9 +17,10 @@ const THUMB_SIZE = 64;
 type Props = {
   images: MediaImage[];
   onAddPhoto?: () => void;
+  children?: React.ReactNode;
 };
 
-export function PlaceMediaGallery({ images, onAddPhoto }: Props) {
+export function PlaceMediaGallery({ images, onAddPhoto, children }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<FlatList<MediaImage>>(null);
 
@@ -71,6 +72,7 @@ export function PlaceMediaGallery({ images, onAddPhoto }: Props) {
             <Text style={styles.addPhotoText}>＋ Ajouter une photo</Text>
           </Pressable>
         )}
+        {children}
       </View>
 
       <FlatList
@@ -103,7 +105,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: HERO_HEIGHT,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.background,
   },
   heroImage: {
     width,
@@ -115,7 +117,7 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   addPhotoCta: {
     position: 'absolute',
@@ -128,7 +130,7 @@ const styles = StyleSheet.create({
   },
   addPhotoText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: '#FFF',
     fontWeight: '600',
   },
   thumbList: {
@@ -145,7 +147,7 @@ const styles = StyleSheet.create({
   thumbActive: {
     opacity: 1,
     borderWidth: 2,
-    borderColor: colors.neutral[900],
+    borderColor: colors.brand.secondary,
   },
   addThumb: {
     width: THUMB_SIZE,
@@ -153,12 +155,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.neutral[300],
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addThumbText: {
     fontSize: 22,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
 });

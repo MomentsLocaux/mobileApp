@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowUpRight, Users } from 'lucide-react-native';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, AppBackground } from '@/components/ui';
 import { CreatorEngagementChart, CreatorKpiRow, CreatorTopEventsList } from '@/components/creator';
 import type { EngagementRange } from '@/components/creator/CreatorEngagementChart';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -128,6 +128,7 @@ export default function CreatorDashboardScreen() {
   if (isGuest) {
     return (
       <View style={styles.container}>
+        <AppBackground opacity={0.9} />
         <GuestGateModal
           visible
           title="Dashboard créateur"
@@ -143,8 +144,9 @@ export default function CreatorDashboardScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />}
     >
+      <AppBackground />
       <View style={styles.topActions}>
         <Button
           title="Quitter"
@@ -209,7 +211,7 @@ export default function CreatorDashboardScreen() {
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
+          <ActivityIndicator size="small" color={colors.brand.primary} />
           <Text style={styles.loadingText}>Chargement des statistiques…</Text>
         </View>
       ) : null}
@@ -242,7 +244,7 @@ export default function CreatorDashboardScreen() {
 
       <Card padding="md" elevation="sm" style={styles.ctaCard}>
         <View style={styles.ctaIconWrap}>
-          <Users size={16} color={colors.primary[700]} />
+          <Users size={16} color={colors.brand.secondary} />
         </View>
         <View style={styles.ctaTextWrap}>
           <Text style={styles.ctaTitle}>Communauté & Récompenses</Text>
@@ -256,7 +258,7 @@ export default function CreatorDashboardScreen() {
           accessibilityLabel="Ouvrir la communauté créateur"
           accessibilityRole="button"
         />
-        <ArrowUpRight size={16} color={colors.primary[600]} />
+        <ArrowUpRight size={16} color={colors.brand.secondary} />
       </Card>
     </ScrollView>
   );
@@ -265,7 +267,7 @@ export default function CreatorDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background[500],
+    backgroundColor: 'transparent',
   },
   content: {
     padding: spacing.lg,
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: borderRadius.full,
     borderWidth: 2,
-    borderColor: colors.secondaryAccent[500],
+    borderColor: colors.brand.secondary,
   },
   avatarFallback: {
     width: 64,
@@ -308,7 +310,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     ...typography.h4,
-    color: colors.secondaryAccent[500],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   levelBadge: {
@@ -318,11 +320,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.xs + 2,
     paddingVertical: 4,
-    backgroundColor: colors.secondaryAccent[500],
+    backgroundColor: colors.brand.secondary,
   },
   levelText: {
     ...typography.caption,
-    color: colors.primary[700],
+    color: colors.brand.surface,
     fontWeight: '700',
   },
   heroTextWrap: {
@@ -331,11 +333,11 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     ...typography.h5,
-    color: colors.secondaryAccent[500],
+    color: colors.brand.secondary,
   },
   heroSubtitle: {
     ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.92)',
+    color: colors.brand.textSecondary,
   },
   heroMetrics: {
     flexDirection: 'row',
@@ -351,7 +353,7 @@ const styles = StyleSheet.create({
   },
   heroMetricValue: {
     ...typography.h6,
-    color: colors.secondaryAccent[500],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   heroMetricLabel: {
@@ -363,11 +365,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h5,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
   },
   sectionSubtitle: {
     ...typography.caption,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   loadingBox: {
     flexDirection: 'row',
@@ -377,7 +379,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   errorCard: {
     borderWidth: 1,
@@ -412,7 +414,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background[500],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   ctaTextWrap: {
     flex: 1,
@@ -420,12 +422,12 @@ const styles = StyleSheet.create({
   },
   ctaTitle: {
     ...typography.body,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   ctaBody: {
     ...typography.caption,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   ctaButton: {
     minWidth: 92,

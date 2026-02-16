@@ -120,12 +120,12 @@ export const EventCard: React.FC<EventCardProps> = ({
           </View>
 
           <View style={styles.metaRow}>
-            <Calendar size={14} color={colors.neutral[600]} />
+            <Calendar size={14} color={colors.brand.textSecondary} />
             <Text style={styles.metaText}>{formatDate(event.starts_at)}</Text>
           </View>
 
           <View style={styles.metaRow}>
-            <MapPin size={14} color={colors.neutral[600]} />
+            <MapPin size={14} color={colors.brand.textSecondary} />
             <Text style={styles.metaText} numberOfLines={1}>
               {event.city || event.address}
             </Text>
@@ -136,7 +136,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           {event.interests_count > 0 && (
             <View style={styles.metaRow}>
-              <Users size={14} color={colors.neutral[600]} />
+              <Users size={14} color={colors.brand.textSecondary} />
               <Text style={styles.metaText}>
                 {event.interests_count} intéressé{event.interests_count > 1 ? 's' : ''}
               </Text>
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.sm,
   },
   metaRow: {
@@ -216,12 +216,12 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     flex: 1,
   },
   distanceText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   freeBadge: {
     alignSelf: 'flex-start',

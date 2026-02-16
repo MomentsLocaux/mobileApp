@@ -11,12 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Calendar, MapPin } from 'lucide-react-native';
+import { ChevronLeft, Calendar, MapPin, Eye } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import type { EventWithCreator } from '@/types/database';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { AppBackground } from '@/components/ui';
 
 type StatusMeta = {
   label: string;
@@ -28,42 +29,42 @@ const getModerationStatusMeta = (status: string | null | undefined): StatusMeta 
   if (status === 'draft') {
     return {
       label: 'Brouillon',
-      textColor: colors.neutral[700],
-      backgroundColor: colors.neutral[100],
+      textColor: colors.neutral[300],
+      backgroundColor: 'rgba(255,255,255,0.1)',
     };
   }
   if (status === 'pending') {
     return {
       label: 'En validation',
-      textColor: colors.warning[700],
-      backgroundColor: colors.warning[50],
+      textColor: '#FCD34D', // warning-300
+      backgroundColor: 'rgba(251, 191, 36, 0.15)', // warning-500 @ 15%
     };
   }
   if (status === 'published') {
     return {
       label: 'Publié',
-      textColor: colors.success[700],
-      backgroundColor: colors.success[50],
+      textColor: '#6EE7B7', // success-300
+      backgroundColor: 'rgba(52, 211, 153, 0.15)', // success-500 @ 15%
     };
   }
   if (status === 'refused') {
     return {
       label: 'Refusé',
-      textColor: colors.error[700],
-      backgroundColor: colors.error[50],
+      textColor: '#FCA5A5', // error-300
+      backgroundColor: 'rgba(239, 68, 68, 0.15)', // error-500 @ 15%
     };
   }
   if (status === 'archived') {
     return {
       label: 'Archivé',
-      textColor: colors.neutral[600],
-      backgroundColor: colors.neutral[100],
+      textColor: colors.neutral[400],
+      backgroundColor: 'rgba(255,255,255,0.05)',
     };
   }
   return {
     label: status || 'Inconnu',
-    textColor: colors.neutral[700],
-    backgroundColor: colors.neutral[100],
+    textColor: colors.neutral[300],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   };
 };
 
@@ -137,6 +138,7 @@ export default function MyEventsScreen() {
   if (isGuest) {
     return (
       <SafeAreaView style={styles.safe}>
+        <AppBackground />
         <GuestGateModal
           visible
           title="Mes évènements"
@@ -149,80 +151,83 @@ export default function MyEventsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mes évènements</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {loading ? (
-        <View style={styles.centerState}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
-          <Text style={styles.centerText}>Chargement…</Text>
+    <View style={styles.safe}>
+      <AppBackground />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ChevronLeft size={24} color={colors.brand.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mes évènements</Text>
+          <View style={styles.headerSpacer} />
         </View>
-      ) : (
-        <FlatList
-          data={sortedEvents}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={
-            <View style={styles.centerState}>
-              <Text style={styles.centerText}>Aucun évènement créé.</Text>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const statusMeta = getModerationStatusMeta(item.status);
-            const temporalLabel = getTemporalLabel(item.starts_at, item.ends_at);
-            const isEditable = item.status === 'draft' || item.status === 'refused';
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() =>
-                  router.push(
-                    (isEditable ? `/events/create/step-1?edit=${item.id}` : `/events/${item.id}`) as any
-                  )
-                }
-                activeOpacity={0.85}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {item.title || 'Sans titre'}
-                  </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: statusMeta.backgroundColor }]}>
-                    <Text style={[styles.statusText, { color: statusMeta.textColor }]}>{statusMeta.label}</Text>
-                  </View>
-                </View>
 
-                <View style={styles.metaRow}>
-                  <MapPin size={14} color={colors.neutral[500]} />
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {item.city || item.address || 'Lieu inconnu'}
-                  </Text>
-                </View>
-                <View style={styles.metaRow}>
-                  <Calendar size={14} color={colors.neutral[500]} />
-                  <Text style={styles.metaText}>
-                    {formatDate(item.starts_at)}
-                    {temporalLabel ? ` · ${temporalLabel}` : ''}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
-    </SafeAreaView>
+        {loading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator size="small" color={colors.brand.secondary} />
+            <Text style={styles.centerText}>Chargement…</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={sortedEvents}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.content}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />}
+            ListEmptyComponent={
+              <View style={styles.centerState}>
+                <Text style={styles.centerText}>Aucun évènement créé.</Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const statusMeta = getModerationStatusMeta(item.status);
+              const temporalLabel = getTemporalLabel(item.starts_at, item.ends_at);
+              const isEditable = item.status === 'draft' || item.status === 'refused';
+              return (
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() =>
+                    router.push(
+                      (isEditable ? `/events/create/step-1?edit=${item.id}` : `/events/${item.id}`) as any
+                    )
+                  }
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {item.title || 'Sans titre'}
+                    </Text>
+                    <View style={[styles.statusBadge, { backgroundColor: statusMeta.backgroundColor }]}>
+                      <Text style={[styles.statusText, { color: statusMeta.textColor }]}>{statusMeta.label}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <MapPin size={14} color={colors.brand.textSecondary} />
+                    <Text style={styles.metaText} numberOfLines={1}>
+                      {item.city || item.address || 'Lieu inconnu'}
+                    </Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Calendar size={14} color={colors.brand.textSecondary} />
+                    <Text style={styles.metaText}>
+                      {formatDate(item.starts_at)}
+                      {temporalLabel ? ` · ${temporalLabel}` : ''}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    // backgroundColor: colors.neutral[50], // Removed for global background
   },
   header: {
     flexDirection: 'row',
@@ -236,13 +241,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   headerSpacer: {
     width: 36,
@@ -256,8 +261,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
     padding: spacing.md,
     gap: spacing.xs,
   },
@@ -269,7 +274,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     flex: 1,
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   statusBadge: {
@@ -288,7 +293,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     flex: 1,
   },
   centerState: {
@@ -299,7 +304,7 @@ const styles = StyleSheet.create({
   },
   centerText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
 });
 

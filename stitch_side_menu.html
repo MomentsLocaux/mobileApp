@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2bbfe3",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#0f1719",
+                        "drawer-neutral": "#162226",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "1.5rem", // 24px per requirements
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .active-glow {
+            box-shadow: 0 0 15px rgba(43, 191, 227, 0.2);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(43, 191, 227, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased overflow-hidden">
+<!-- Backdrop -->
+<div class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"></div>
+<!-- Navigation Drawer (80% width) -->
+<div class="fixed top-0 left-0 z-50 h-screen w-4/5 max-w-md bg-background-dark border-r border-primary/10 flex flex-col shadow-2xl overflow-hidden">
+<!-- User Header Section -->
+<div class="px-6 pt-8 pb-6 flex flex-col gap-5 border-b border-primary/5">
+<div class="flex items-center gap-4">
+<div class="relative">
+<div class="size-16 rounded-full border-2 border-primary p-0.5 bg-background-dark">
+<img alt="Photo de profil" class="rounded-full bg-drawer-neutral" data-alt="Avatar portrait of a smiling user" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaYkf0coMyCSD77g2fZ-5NV87CGBQd7qc2m0t5-QMH-SgJ2ljLqhhD35nWAlg9t9YpD1Y0YZgAYFSwyN9-hEpQOWcmqEgLcMA1cl960-U3Wt6lNIYtCXvrTM6axN8aUGjthzrtN-UyR6tjkb5t-eN0Uc4w5_WvqVvu_SZOoJuE0DLu3OLlFidZiNDc_83I9Q11jsF3d_04L7PYWlyKq-WYp7oCshhZ0PMdl7g5psdbV_LNn76egHrx1xrKpWaKKrUkkgUaZq9agXTZ"/>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-primary text-background-dark text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                        LVL 24
+                    </div>
+</div>
+<div class="flex flex-col">
+<h3 class="text-white text-lg font-bold leading-tight">Alexandre G.</h3>
+<p class="text-primary/60 text-sm">alex.g@moments.io</p>
+</div>
+</div>
+<!-- Wallet Pill -->
+<div class="flex items-center justify-between bg-drawer-neutral/50 border border-primary/20 rounded-lg p-3 active-glow">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">payments</span>
+<span class="text-white font-bold tracking-tight">1,250 Lumo Coins</span>
+</div>
+<span class="material-symbols-outlined text-primary/40 text-lg">chevron_right</span>
+</div>
+</div>
+<!-- Scrollable Menu Content -->
+<div class="flex-1 overflow-y-auto custom-scrollbar px-3 py-4 flex flex-col gap-8">
+<!-- Section: Découverte -->
+<section>
+<h4 class="px-5 mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-primary/40">Découverte</h4>
+<ul class="flex flex-col gap-1">
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">add_circle</span>
+<span class="text-[15px] font-medium">Créer un évènement</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg bg-primary/10 text-primary border border-primary/20 active-glow group cursor-pointer">
+<span class="material-symbols-outlined font-light fill-1">person</span>
+<span class="text-[15px] font-bold">Mon profil</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">auto_awesome</span>
+<span class="text-[15px] font-medium">Espace créateur</span>
+</li>
+</ul>
+</section>
+<!-- Section: Compte -->
+<section>
+<h4 class="px-5 mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-primary/40">Compte</h4>
+<ul class="flex flex-col gap-1">
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">star</span>
+<span class="text-[15px] font-medium">Offres &amp; abonnements</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">settings</span>
+<span class="text-[15px] font-medium">Paramètres</span>
+</li>
+<li class="flex items-center justify-between h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined font-light">notifications</span>
+<span class="text-[15px] font-medium">Notifications</span>
+</div>
+<span class="bg-primary text-background-dark text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center">3</span>
+</li>
+</ul>
+</section>
+<!-- Section: Activité -->
+<section>
+<h4 class="px-5 mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-primary/40">Activité</h4>
+<ul class="flex flex-col gap-1">
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">map</span>
+<span class="text-[15px] font-medium">Mon parcours</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">track_changes</span>
+<span class="text-[15px] font-medium">Missions</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">shopping_bag</span>
+<span class="text-[15px] font-medium">Boutique</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">favorite</span>
+<span class="text-[15px] font-medium">Mes favoris</span>
+</li>
+</ul>
+</section>
+<!-- Section: Assistance -->
+<section>
+<h4 class="px-5 mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-primary/40">Assistance</h4>
+<ul class="flex flex-col gap-1">
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light text-rose-400">bug_report</span>
+<span class="text-[15px] font-medium">Reporter un bug</span>
+</li>
+<li class="flex items-center gap-4 h-12 px-5 rounded-lg text-white/70 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer">
+<span class="material-symbols-outlined font-light">shield_with_heart</span>
+<span class="text-[15px] font-medium">Modération</span>
+</li>
+</ul>
+</section>
+</div>
+<!-- Footer / Logout -->
+<div class="p-6 border-t border-primary/5 bg-background-dark/80 backdrop-blur-md">
+<button class="flex items-center justify-center gap-2 w-full h-12 rounded-lg bg-drawer-neutral text-white/60 hover:text-primary border border-primary/5 hover:border-primary/20 transition-all font-semibold">
+<span class="material-symbols-outlined text-xl">logout</span>
+                Déconnexion
+            </button>
+<p class="mt-4 text-center text-[10px] text-white/20 font-medium tracking-widest uppercase">Version 2.4.0 • Moments Locaux</p>
+</div>
+</div>
+<!-- Main Content Simulation (Behind Drawer) -->
+<main class="h-screen w-full flex items-center justify-center p-8 text-center">
+<div>
+<h1 class="text-4xl font-bold mb-4 opacity-10">Interface Principale</h1>
+<p class="text-primary/20">Le panneau de navigation recouvre 80% de l'écran.</p>
+</div>
+</main>
+</body></html>

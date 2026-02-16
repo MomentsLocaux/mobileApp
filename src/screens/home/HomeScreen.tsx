@@ -8,7 +8,10 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvents } from '@/hooks/useEvents';
@@ -29,6 +32,7 @@ import { EventsService } from '@/services/events.service';
 import { TriageControl } from '@/components/search/TriageControl';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { AppBackground } from '@/components/ui';
+import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 type StoryItem = {
   creatorId: string;
@@ -53,6 +57,7 @@ export default function HomeScreen() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
+  const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const insets = useSafeAreaInsets();
 
   const userLocation = useMemo(() => {
@@ -96,6 +101,11 @@ export default function HomeScreen() {
     const metaFiltered = filterEventsByMetaStatus(base, metaFilter);
     return sortEvents(metaFiltered, sortBy, userLocation, sortOrder);
   }, [fetchedEvents, metaFilter, searchApplied, searchResults, sortBy, sortOrder, userLocation]);
+  const filteredEventIds = useMemo(
+    () => filteredAndSortedEvents.map((event) => event.id).filter(Boolean),
+    [filteredAndSortedEvents],
+  );
+  const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -182,6 +192,32 @@ export default function HomeScreen() {
       cancelled = true;
     };
   }, [effectiveRadiusKm, filters, hasSearchCriteria, metaFilter, searchApplied, searchCenter, searchState.when.includePast]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!filteredEventIds.length) {
+      setEventCardStatsById({});
+      return;
+    }
+
+    const loadStats = async () => {
+      try {
+        const stats = await EventCardStatsService.getStatsForEvents(filteredEventIds, profile?.id);
+        if (!cancelled) {
+          setEventCardStatsById(stats);
+        }
+      } catch {
+        if (!cancelled) {
+          setEventCardStatsById({});
+        }
+      }
+    };
+
+    loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [filteredEventIds, filteredEventIdsKey, profile?.id]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -271,7 +307,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.loadingContainer}>
         <AppBackground />
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <ActivityIndicator size="large" color={colors.brand.secondary} />
         <Text style={styles.loadingText}>Chargement des événements...</Text>
       </View>
     );
@@ -279,29 +315,114 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
-      <View style={[styles.topOverlay, { marginTop: insets.top + spacing.xs }]}>
-        <SearchBar
-          onApply={() => {
-            setMetaFilter('all');
-            setSearchApplied(true);
-          }}
-          hasLocation={!!userLocation}
-          applied={searchApplied}
-          enableCommunitySearch
+      {/* AppBackground is now global in _layout.tsx */}
+      {/* Header */}
+      <View style={[styles.header, { marginTop: insets.top }]}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
+            <View style={styles.headerAvatarContainer}>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatar} />
+              ) : (
+                <View style={[styles.headerAvatar, { backgroundColor: colors.brand.secondary }]} />
+              )}
+              <View style={styles.headerAvatarIcon}>
+                <Image source={require('../../../assets/images/icon.png')} style={{ width: 12, height: 12 }} />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerSubtitle}>Salut, {profile?.display_name?.split(' ')[0] || 'Alex'} 👋</Text>
+            <Text style={styles.headerTitle}>Moments Locaux</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.notificationBtn}
+            onPress={() => router.push('/notifications' as any)}
+          >
+            <Bell size={20} color={colors.brand.secondary} />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <SearchBar
+            onApply={() => {
+              setMetaFilter('all');
+              setSearchApplied(true);
+            }}
+            hasLocation={!!userLocation}
+            applied={searchApplied}
+            enableCommunitySearch
+            placeholder="Rechercher des événements..."
+          />
+        </View>
+      </View>
+
+      {/* Stories / Creators */}
+      <View style={styles.storiesContainer}>
+        <View style={styles.storiesHeader}>
+          <Text style={styles.sectionTitle}>En ce moment</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+            <Text style={styles.seeAllText}>Tout voir</Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          horizontal
+          data={[{ me: true }, ...stories]}
+          keyExtractor={(item: any, index) => (item.me ? 'me' : item.creatorId || String(index))}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.storiesContent}
+          renderItem={({ item }: any) =>
+            item.me ? (
+              <TouchableOpacity style={styles.storyItem} onPress={() => router.push('/events/create/step-1' as any)}>
+                <LinearGradient
+                  colors={['#2bbfe3', '#2bbfe3']}
+                  style={styles.storyGradientBorder}
+                >
+                  <View style={styles.storyInner}>
+                    {profile?.avatar_url ? (
+                      <Image source={{ uri: profile.avatar_url }} style={styles.storyAvatar} />
+                    ) : (
+                      <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
+                    )}
+                    <View style={styles.plusBadge}>
+                      <Text style={styles.plusText}>+</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+                <Text style={[styles.storyLabel, styles.storyLabelActive]} numberOfLines={1}>
+                  Live
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.storyItem}
+                onPress={() => router.push(`/community/${item.creatorId}` as any)}
+              >
+                <LinearGradient
+                  colors={['#8b5cf6', '#2bbfe3']} // Purple to Cyan gradient
+                  style={styles.storyGradientBorder}
+                >
+                  <View style={styles.storyInner}>
+                    {item.avatar ? (
+                      <Image source={{ uri: item.avatar }} style={styles.storyAvatar} />
+                    ) : (
+                      <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
+                    )}
+                  </View>
+                </LinearGradient>
+                <Text style={styles.storyLabel} numberOfLines={1}>
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            )
+          }
         />
       </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Pour vous</Text>
-        <TriageControl
-          value={sortBy}
-          onChange={(value) => searchState.setSortBy(value)}
-          sortOrder={sortOrder}
-          onSortOrderChange={(order) => searchState.setSortOrder(order)}
-          hasLocation={!!userLocation}
-        />
-      </View>
+      {/* Filters */}
       <View style={styles.metaFilterRow}>
         {([
           { key: 'all', label: 'Tous' },
@@ -328,44 +449,17 @@ export default function HomeScreen() {
           );
         })}
       </View>
-      <FlatList
-        horizontal
-        data={[{ me: true }, ...stories]}
-        keyExtractor={(item: any, index) => (item.me ? 'me' : item.creatorId || String(index))}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.storiesContent}
-        renderItem={({ item }: any) =>
-          item.me ? (
-            <TouchableOpacity style={styles.storyItem} onPress={() => router.push('/events/create/step-1' as any)}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.storyAvatar} />
-              ) : (
-                <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
-              )}
-              <View style={styles.plusBadge}>
-                <Text style={styles.plusText}>+</Text>
-              </View>
-              <Text style={styles.storyLabel} numberOfLines={1}>
-                Nouveau
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.storyItem}
-              onPress={() => router.push(`/community/${item.creatorId}` as any)}
-            >
-              {item.avatar ? (
-                <Image source={{ uri: item.avatar }} style={styles.storyAvatar} />
-              ) : (
-                <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
-              )}
-              <Text style={styles.storyLabel} numberOfLines={1}>
-                {item.name}
-              </Text>
-            </TouchableOpacity>
-          )
-        }
-      />
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Pour vous</Text>
+        <TriageControl
+          value={sortBy}
+          onChange={(value) => searchState.setSortBy(value)}
+          sortOrder={sortOrder}
+          onSortOrderChange={(order) => searchState.setSortOrder(order)}
+          hasLocation={!!userLocation}
+        />
+      </View>
 
       <FlatList
         data={filteredAndSortedEvents}
@@ -373,9 +467,11 @@ export default function HomeScreen() {
         renderItem={({ item }: { item: EventWithCreator }) => (
           <EventResultCard
             event={item}
+            viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
+            friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
             showCarousel={false}
             onPress={() => router.push(`/events/${item.id}` as any)}
-            onSelect={() => {}}
+            onSelect={() => { }}
             onNavigate={() => setNavEvent(item)}
             onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
             isLiked={likesSet.has(item.id)}
@@ -386,7 +482,7 @@ export default function HomeScreen() {
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary[600]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.brand.secondary} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
@@ -409,148 +505,206 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    // backgroundColor: colors.brand.primary, // Removed to allow AppBackground to show
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: colors.brand.primary,
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     marginTop: spacing.md,
+  },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    // backgroundColor: colors.brand.primary, // Removed for uniformity
+    zIndex: 10,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  headerAvatarContainer: {
+    position: 'relative',
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  headerAvatarIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: colors.brand.primary,
+    borderRadius: 8,
+    padding: 2,
+  },
+  headerCenter: {
+    alignItems: 'center',
+  },
+  headerSubtitle: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+  },
+  headerTitle: {
+    ...typography.h4,
+    color: colors.brand.text,
+    lineHeight: 24,
+  },
+  notificationBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.brand.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.brand.secondary,
+    borderWidth: 1,
+    borderColor: colors.brand.surface,
+  },
+  searchContainer: {
+    marginTop: spacing.xs,
+  },
+  storiesContainer: {
+    paddingBottom: spacing.md,
+  },
+  storiesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
-  sectionHeader: {
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  metaFilterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  metaFilterPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  metaFilterPillActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[300],
-  },
-  metaFilterText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
+  seeAllText: {
+    ...typography.caption,
+    color: colors.brand.secondary,
     fontWeight: '600',
-  },
-  metaFilterTextActive: {
-    color: colors.primary[700],
-  },
-  carouselContent: {
-    gap: spacing.md,
-    paddingBottom: spacing.lg,
   },
   storiesContent: {
     gap: spacing.md,
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.sm,
-    alignItems: 'center',
+    paddingHorizontal: spacing.md,
   },
   storyItem: {
-    width: 68,
-    position: 'relative',
     alignItems: 'center',
+    width: 72,
   },
-  storyAvatar: {
+  storyGradientBorder: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    borderWidth: 2,
-    borderColor: colors.primary[600],
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  storyInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.brand.primary, // Create a gap effect
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  storyAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    backgroundColor: colors.brand.surface,
   },
   storyPlaceholder: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.brand.surface,
   },
   storyLabel: {
     ...typography.caption,
-    color: colors.neutral[700],
-    marginTop: 4,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+  },
+  storyLabelActive: {
+    color: colors.brand.secondary,
+    fontWeight: '700',
   },
   plusBadge: {
     position: 'absolute',
-    bottom: 20,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary[600],
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.brand.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.neutral[0],
+    borderColor: colors.brand.primary,
   },
   plusText: {
-    ...typography.caption,
-    color: colors.neutral[0],
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.brand.text,
   },
-  carouselCard: {
-    width: 200,
-    height: 220,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    backgroundColor: colors.neutral[200],
+  // Section Header for "Pour vous" (reused style, can adjust if needed)
+  sectionHeader: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  carouselImage: {
-    width: '100%',
-    height: '100%',
+  metaFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  carouselPlaceholder: {
-    backgroundColor: colors.neutral[200],
+  metaFilterPill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  carouselOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+  metaFilterPillActive: {
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
   },
-  carouselTitle: {
-    ...typography.body,
-    color: colors.neutral[0],
-    fontWeight: '700',
+  metaFilterText: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
   },
-  carouselMeta: {
-    ...typography.caption,
-    color: colors.neutral[0],
-  },
-  topOverlay: {
-    marginTop: spacing.md,
-    marginHorizontal: spacing.md,
-    maxWidth: 400,
-    zIndex: 10,
+  metaFilterTextActive: {
+    color: '#0f1719', // Dark text on active cyan pill
   },
   listContent: {
     paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.sm,
-    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.lg,
   },
   emptyContainer: {
     padding: spacing.lg,
@@ -558,6 +712,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
+  // Legacy styles kept just in case, but they seem unused now:
+  // storyAvatarContainer, storyAvatarMe
 });

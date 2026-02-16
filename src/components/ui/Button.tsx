@@ -93,12 +93,11 @@ const styles = StyleSheet.create({
     minHeight: minimumTouchTarget,
   },
   primary: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
   },
   secondary: {
-    backgroundColor: colors.secondaryAccent[500],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 0,
   },
   danger: {
     backgroundColor: colors.error[500],
@@ -106,7 +105,7 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.primary[600],
+    borderColor: colors.brand.secondary,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -134,19 +133,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryText: {
-    color: colors.secondaryAccent[500],
+    color: '#0f1719', // Dark text on bright secondary button
   },
   secondaryText: {
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
   },
   dangerText: {
     color: colors.secondaryAccent[500],
   },
   outlineText: {
-    color: colors.primary[600],
+    color: colors.brand.secondary,
   },
   ghostText: {
-    color: colors.primary[600],
+    color: colors.brand.secondary,
   },
   smText: {
     fontSize: 14,

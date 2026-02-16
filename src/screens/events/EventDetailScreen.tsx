@@ -14,6 +14,7 @@ import {
   Platform,
   Share,
   TextInput,
+  StatusBar,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,8 +37,12 @@ import {
   Mail,
   Phone,
   Flag,
+  Eye,
+  Award,
+  Zap,
 } from 'lucide-react-native';
-import { Button, Card } from '../../components/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Button, Card, AppBackground } from '../../components/ui';
 import { EventsService } from '../../services/events.service';
 import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
@@ -59,6 +64,7 @@ import type { ReportReasonCode } from '@/constants/report-reasons';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
+import { isEventLive } from '@/utils/event-status';
 
 const { width } = Dimensions.get('window');
 const BOTTOM_BAR_HEIGHT = 72;
@@ -93,6 +99,7 @@ export default function EventDetailScreen() {
     favorites: 0,
     interests: 0,
     checkins: 0,
+    views: 0,
   });
   const [loadingCommunityPhotos, setLoadingCommunityPhotos] = useState(false);
   const [contribModalVisible, setContribModalVisible] = useState(false);
@@ -104,15 +111,35 @@ export default function EventDetailScreen() {
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
 
-  useEffect(() => {
-    loadEventDetails();
-  }, [id]);
+  // Track event view with daily deduplication
+  const trackEventView = useCallback(async (eventId: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const storageKey = `event_view_${eventId}_${today}`;
 
-  useFocusEffect(
-    useCallback(() => {
-      loadEventDetails();
-    }, [id])
-  );
+      // Check if already viewed today (using AsyncStorage for React Native)
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const alreadyViewed = await AsyncStorage.getItem(storageKey);
+
+      if (alreadyViewed) return;
+
+      // Insert view record
+      const { error } = await supabase.from('event_views').insert({
+        event_id: eventId,
+        profile_id: profile?.id || null,
+      });
+
+      if (error) {
+        console.warn('track view error', error);
+        return;
+      }
+
+      // Mark as viewed for today
+      await AsyncStorage.setItem(storageKey, 'true');
+    } catch (err) {
+      console.warn('trackEventView error', err);
+    }
+  }, [profile?.id]);
 
   const loadCommunityPhotos = useCallback(
     async (evt: EventWithCreator | null) => {
@@ -141,44 +168,62 @@ export default function EventDetailScreen() {
 
   const loadEventStats = useCallback(async (eventId: string) => {
     try {
-      const [likesResp, favoritesResp, interestsResp, checkinsResp] = await Promise.all([
+      const [likesResp, favoritesResp, interestsResp, checkinsResp, viewsResp] = await Promise.all([
         supabase.from('event_likes').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
         supabase.from('favorites').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
         supabase.from('event_interests').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
         supabase.from('event_checkins').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
+        supabase.from('event_views').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
       ]);
 
       if (likesResp.error) throw likesResp.error;
       if (favoritesResp.error) throw favoritesResp.error;
       if (interestsResp.error) throw interestsResp.error;
       if (checkinsResp.error) throw checkinsResp.error;
+      if (viewsResp.error) throw viewsResp.error;
 
       setEventStats({
         likes: likesResp.count || 0,
         favorites: favoritesResp.count || 0,
         interests: interestsResp.count || 0,
         checkins: checkinsResp.count || 0,
+        views: viewsResp.count || 0,
       });
     } catch (error) {
       console.warn('load event stats', error);
     }
   }, []);
 
-  const loadEventDetails = async () => {
+  const loadEventDetails = useCallback(async () => {
     if (!id) return;
-    const data = await EventsService.getEventById(id);
-    const withSocialFlags = data
-      ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) }
-      : null;
-    setEvent(withSocialFlags);
-    setLoading(false);
-    if (withSocialFlags) {
-      loadCommunityPhotos(withSocialFlags);
-      loadEventStats(withSocialFlags.id);
-    } else {
-      setEventStats({ likes: 0, favorites: 0, interests: 0, checkins: 0 });
+    try {
+      const data = await EventsService.getEventById(id);
+      const withSocialFlags = data
+        ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) }
+        : null;
+      setEvent(withSocialFlags);
+      if (withSocialFlags) {
+        await loadEventStats(withSocialFlags.id);
+      } else {
+        setEventStats({ likes: 0, favorites: 0, interests: 0, checkins: 0, views: 0 });
+      }
+    } catch (error) {
+      console.warn('loadEventDetails error', error);
+      setEvent(null);
+      setEventStats({ likes: 0, favorites: 0, interests: 0, checkins: 0, views: 0 });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id, isFavorite, isLiked, loadEventStats]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEventDetails();
+      if (id) {
+        trackEventView(id);
+      }
+    }, [id, loadEventDetails, trackEventView]),
+  );
 
   useEffect(() => {
     sectionOpacity.setValue(0);
@@ -209,10 +254,9 @@ export default function EventDetailScreen() {
   }, [event?.creator_id, event?.id]);
 
   useEffect(() => {
-    if (event) {
-      loadCommunityPhotos(event);
-    }
-  }, [event, loadCommunityPhotos]);
+    if (!event) return;
+    loadCommunityPhotos(event);
+  }, [event?.id, loadCommunityPhotos]);
 
   const handleToggleLike = async () => {
     if (isGuest) {
@@ -545,6 +589,8 @@ export default function EventDetailScreen() {
     return [event.address, cityLine].filter(Boolean).join(', ') || 'Lieu à venir';
   }, [event]);
 
+  const isLiveNow = useMemo(() => isEventLive(event), [event?.starts_at, event?.ends_at]);
+
   const overviewStats = useMemo(
     () => {
       if (!event) return [];
@@ -566,31 +612,31 @@ export default function EventDetailScreen() {
           key: 'interests',
           label: 'Intéressés',
           value: eventStats.interests,
-          icon: <Users size={16} color={colors.primary[600]} />,
+          icon: <Users size={16} color={colors.brand.secondary} />,
         },
         {
           key: 'checkins',
           label: 'Check-ins',
           value: eventStats.checkins,
-          icon: <MapPin size={16} color={colors.primary[600]} />,
+          icon: <MapPin size={16} color={colors.brand.secondary} />,
         },
         {
           key: 'reviews',
           label: 'Avis',
           value: commentsCount,
-          icon: <MessageSquare size={16} color={colors.primary[600]} />,
+          icon: <MessageSquare size={16} color={colors.brand.secondary} />,
         },
         {
           key: 'rating',
           label: 'Note moy.',
           value: ratingCount > 0 ? ratingAvg.toFixed(1) : '—',
-          icon: <Star size={16} color={colors.primary[600]} fill={colors.primary[600]} />,
+          icon: <Star size={16} color={colors.brand.secondary} fill={colors.brand.secondary} />,
         },
         {
           key: 'photos',
           label: 'Photos',
           value: (event.media_count ?? 0) + communityPhotos.length,
-          icon: <ImageIcon size={16} color={colors.primary[600]} />,
+          icon: <ImageIcon size={16} color={colors.brand.secondary} />,
         },
       ];
     },
@@ -607,18 +653,30 @@ export default function EventDetailScreen() {
     ],
   );
 
+  // 1) Show loading
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+      <View style={{ flex: 1, backgroundColor: colors.brand.background, alignItems: 'center', justifyContent: 'center' }}>
+        <AppBackground />
+        <ActivityIndicator size="large" color={colors.brand.primary} />
       </View>
     );
   }
 
+  // 2) Show error if no event
   if (!event) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Événement introuvable</Text>
+      <View style={{ flex: 1, backgroundColor: colors.brand.background, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
+        <AppBackground />
+        <Text style={{ ...typography.h4, color: colors.brand.text, textAlign: 'center' }}>
+          Événement introuvable
+        </Text>
+        <Button
+          title="Retour"
+          variant="outline"
+          onPress={() => router.back()}
+          style={{ marginTop: spacing.md }}
+        />
       </View>
     );
   }
@@ -730,26 +788,32 @@ export default function EventDetailScreen() {
 
       <Text style={styles.title}>{event.title}</Text>
 
-      <TouchableOpacity
-        style={styles.creatorRow}
-        activeOpacity={0.7}
-        onPress={() => {
-          if (isGuest) {
-            openGuestGate('Accéder à la communauté');
-            return;
-          }
-          router.push(`/community/${event.creator.id}`);
-        }}
-      >
-        {event.creator.avatar_url && <Image source={{ uri: event.creator.avatar_url }} style={styles.avatar} />}
-        <Text style={styles.creatorName}>Par {event.creator.display_name}</Text>
-      </TouchableOpacity>
+      {event.creator ? (
+        <TouchableOpacity
+          style={styles.creatorRow}
+          activeOpacity={0.7}
+          onPress={() => {
+            if (isGuest) {
+              openGuestGate('Accéder à la communauté');
+              return;
+            }
+            router.push(`/community/${event.creator.id}`);
+          }}
+        >
+          {event.creator.avatar_url && <Image source={{ uri: event.creator.avatar_url }} style={styles.avatar} />}
+          <Text style={styles.creatorName}>Par {event.creator.display_name}</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.creatorRow}>
+          <Text style={styles.creatorName}>Par Moments Locaux</Text>
+        </View>
+      )}
 
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.actionButton} onPress={handleToggleLike}>
           <Heart
             size={24}
-            color={event.is_liked ? colors.error[500] : colors.neutral[600]}
+            color={event.is_liked ? colors.error[500] : colors.brand.textSecondary}
             fill={event.is_liked ? colors.error[500] : 'transparent'}
           />
         </TouchableOpacity>
@@ -757,18 +821,18 @@ export default function EventDetailScreen() {
         <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
           <Star
             size={24}
-            color={event.is_favorited ? colors.warning[500] : colors.neutral[600]}
+            color={event.is_favorited ? colors.warning[500] : colors.brand.textSecondary}
             fill={event.is_favorited ? colors.warning[500] : 'transparent'}
           />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-          <Share2 size={24} color={colors.neutral[600]} />
+          <Share2 size={24} color={colors.brand.textSecondary} />
         </TouchableOpacity>
 
         {!isOwner && (
           <TouchableOpacity style={styles.actionButton} onPress={() => handleOpenReport('event', event.id)}>
-            <Flag size={22} color={colors.neutral[600]} />
+            <Flag size={22} color={colors.brand.textSecondary} />
           </TouchableOpacity>
         )}
 
@@ -780,7 +844,7 @@ export default function EventDetailScreen() {
                 router.push(`/events/create/step-1?edit=${event.id}` as any);
               }}
             >
-              <Edit size={24} color={colors.primary[600]} />
+              <Edit size={24} color={colors.brand.secondary} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionButton} onPress={handleDeleteEvent}>
@@ -790,22 +854,85 @@ export default function EventDetailScreen() {
         )}
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Statistiques</Text>
-          <Text style={styles.sectionSubtitle}>Engagement sur l&apos;événement</Text>
+      {/* Engagement Stats Grid (Stitch Style) */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statBox}>
+          <Eye size={20} color={colors.neutral[400]} style={{ marginBottom: 4 }} />
+          <Text style={styles.statBoxValue}>
+            {eventStats.views > 999
+              ? `${(eventStats.views / 1000).toFixed(1)}k`
+              : eventStats.views}
+          </Text>
         </View>
-        <View style={styles.statsGrid}>
-          {overviewStats.map((stat) => (
-            <Card key={stat.key} padding="md" style={styles.statCard}>
-              <View style={styles.statHeader}>
-                <View style={styles.statIconWrap}>{stat.icon}</View>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-              <Text style={styles.statValue}>{stat.value}</Text>
-            </Card>
+        <TouchableOpacity style={styles.statBox} onPress={handleToggleLike}>
+          <Heart
+            size={20}
+            color={event.is_liked ? colors.error[500] : colors.error[500]}
+            fill={event.is_liked ? colors.error[500] : 'transparent'}
+            style={{ marginBottom: 4 }}
+          />
+          <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
+        </TouchableOpacity>
+        <View style={styles.statBox}>
+          <Users size={20} color={colors.brand.secondary} style={{ marginBottom: 4 }} />
+          <Text style={styles.statBoxValue}>{eventStats.checkins + eventStats.interests}</Text>
+        </View>
+        {ratingCount > 0 && (
+          <View style={styles.statBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4 }}>
+              <Star size={20} color="#FBBF24" fill="#FBBF24" />
+            </View>
+            <Text style={styles.statBoxValue}>{ratingAvg.toFixed(1)}</Text>
+            <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
+          </View>
+        )}
+        <View style={styles.statBox}>
+          <ImageIcon size={20} color={colors.brand.secondary} style={{ marginBottom: 4 }} />
+          <Text style={styles.statBoxValue}>{(event.media_count ?? 0) + communityPhotos.length}</Text>
+        </View>
+      </View>
+
+      {/* XP Reward Card */}
+      <LinearGradient
+        colors={[colors.brand.secondary, '#2A4FE3']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.xpCard}
+      >
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={styles.xpTitle}>Gagnez une récompense XP</Text>
+          <Text style={styles.xpSubtitle}>
+            Participez pour gagner <Text style={{ fontWeight: '800' }}>+50 XP</Text> <Award size={14} color="#FFF" />
+          </Text>
+        </View>
+        <View style={styles.xpIcon}>
+          <Zap size={32} color="#FFF" fill="#FFF" />
+        </View>
+      </LinearGradient>
+
+      {/* Community Facepile */}
+      <View style={styles.facepileSection}>
+        <View style={styles.facepileRow}>
+          {communityPhotos.slice(0, 3).map((photo, i) => (
+            <Image
+              key={photo.id}
+              source={{ uri: photo.url }}
+              style={[styles.facepileAvatar, { zIndex: 3 - i }]}
+            />
           ))}
+          {/* Mock avatars if no community photos */}
+          {communityPhotos.length === 0 && (
+            <>
+              <View style={[styles.facepileAvatar, { backgroundColor: colors.neutral[700], zIndex: 3 }]} />
+              <View style={[styles.facepileAvatar, { backgroundColor: colors.neutral[600], zIndex: 2 }]} />
+              <View style={[styles.facepileAvatar, { backgroundColor: colors.neutral[500], zIndex: 1 }]} />
+            </>
+          )}
+          <View style={[styles.facepileAvatar, styles.facepileCounter, { zIndex: 0 }]}>
+            <Text style={styles.facepileCountText}>+72</Text>
+          </View>
         </View>
+        <Text style={styles.facepileLabel}>Top fans et amis présents</Text>
       </View>
 
       <View style={styles.section}>
@@ -1107,51 +1234,68 @@ export default function EventDetailScreen() {
     </>
   );
 
-  const renderCreator = () => (
-    <>
-      <Card padding="md" style={styles.creatorCard}>
-        <View style={styles.creatorCardRow}>
-          {event.creator.avatar_url ? (
-            <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
-          ) : (
+  const renderCreator = () => {
+    if (!event.creator) {
+      return (
+        <Card padding="md" style={styles.creatorCard}>
+          <View style={styles.creatorCardRow}>
             <View style={[styles.creatorCardAvatar, styles.creatorCardAvatarFallback]} />
-          )}
-          <View style={styles.creatorCardInfo}>
-            <Text style={styles.creatorCardName}>{event.creator.display_name}</Text>
-            {event.creator.city ? <Text style={styles.creatorCardMeta}>{event.creator.city}</Text> : null}
+            <View style={styles.creatorCardInfo}>
+              <Text style={styles.creatorCardName}>Moments Locaux</Text>
+              <Text style={styles.creatorCardMeta}>Événement importé</Text>
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.creatorCardAction}
-            onPress={() => {
-              if (isGuest) {
-                openGuestGate('Accéder à la communauté');
-                return;
-              }
-              router.push(`/community/${event.creator.id}` as any);
-            }}
-          >
-            <Text style={styles.creatorCardLink}>Voir</Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
+        </Card>
+      );
+    }
 
-      {creatorEvents.length > 0 ? (
-        <View style={styles.creatorEvents}>
-          <Text style={styles.sectionTitle}>Autres événements</Text>
-          {creatorEvents.map((evt) => (
+    return (
+      <>
+        <Card padding="md" style={styles.creatorCard}>
+          <View style={styles.creatorCardRow}>
+            {event.creator.avatar_url ? (
+              <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
+            ) : (
+              <View style={[styles.creatorCardAvatar, styles.creatorCardAvatarFallback]} />
+            )}
+            <View style={styles.creatorCardInfo}>
+              <Text style={styles.creatorCardName}>{event.creator.display_name}</Text>
+              {event.creator.city ? <Text style={styles.creatorCardMeta}>{event.creator.city}</Text> : null}
+            </View>
             <TouchableOpacity
-              key={evt.id}
-              style={styles.creatorEventRow}
-              onPress={() => router.push(`/events/${evt.id}` as any)}
+              style={styles.creatorCardAction}
+              onPress={() => {
+                if (isGuest) {
+                  openGuestGate('Accéder à la communauté');
+                  return;
+                }
+                router.push(`/community/${event.creator.id}` as any);
+              }}
             >
-              <Text style={styles.creatorEventTitle}>{evt.title}</Text>
-              <Text style={styles.creatorEventMeta}>{evt.city || evt.address || ''}</Text>
+              <Text style={styles.creatorCardLink}>Voir</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-      ) : null}
-    </>
-  );
+          </View>
+        </Card>
+
+        {creatorEvents.length > 0 ? (
+          <View style={styles.creatorEvents}>
+            <Text style={styles.sectionTitle}>Autres événements</Text>
+            {creatorEvents.map((evt) => (
+              <TouchableOpacity
+                key={evt.id}
+                style={styles.creatorEventRow}
+                onPress={() => router.push(`/events/${evt.id}` as any)}
+              >
+                <Text style={styles.creatorEventTitle}>{evt.title}</Text>
+                <Text style={styles.creatorEventMeta}>{evt.city || evt.address || ''}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+      </>
+    );
+  };
+
 
   const openCalendar = async () => {
     const start = new Date(event.starts_at);
@@ -1198,7 +1342,22 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <PlaceMediaGallery images={mediaImages} onAddPhoto={handleAddPhoto} />
+        <StatusBar barStyle="light-content" />
+        <View style={styles.heroContainer}>
+          <PlaceMediaGallery images={mediaImages} onAddPhoto={handleAddPhoto}>
+            <View style={styles.heroBadges}>
+              <View style={styles.heroBadge}>
+                <Text style={styles.heroBadgeText}>{getCategoryLabel(event.category || '')}</Text>
+              </View>
+              {isLiveNow && (
+                <View style={[styles.heroBadge, styles.heroBadgeLive]}>
+                  <View style={styles.liveDot} />
+                  <Text style={[styles.heroBadgeText, styles.heroBadgeTextLive]}>EN DIRECT</Text>
+                </View>
+              )}
+            </View>
+          </PlaceMediaGallery>
+        </View>
 
         <View style={styles.content}>
           <ScrollView
@@ -1316,7 +1475,7 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
@@ -1340,7 +1499,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     shadowColor: colors.neutral[900],
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -1361,17 +1520,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   sectionTabActive: {
-    backgroundColor: colors.neutral[900],
+    backgroundColor: colors.brand.secondary,
   },
   sectionTabText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   sectionTabTextActive: {
-    color: colors.neutral[0],
+    color: '#0f1719',
   },
   sectionContent: {
     minHeight: 200,
@@ -1382,16 +1541,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
   categoryText: {
-    color: colors.neutral[50],
-    fontSize: 12,
+    color: colors.brand.textSecondary,
+    fontSize: 16,
     fontWeight: '600',
+  },
+  fallbackSubtext: {
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    color: colors.brand.textSecondary,
+    fontSize: 14,
   },
   title: {
     ...typography.h2,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.md,
   },
   creatorRow: {
@@ -1407,7 +1573,7 @@ const styles = StyleSheet.create({
   },
   creatorName: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -1421,7 +1587,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   infoCard: {
     marginBottom: 0,
@@ -1437,19 +1603,19 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
   },
   infoValue: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   section: {
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.md,
   },
   sectionTitleRow: {
@@ -1457,7 +1623,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -1484,15 +1650,15 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   statValue: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   description: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     lineHeight: 24,
   },
   tagsContainer: {
@@ -1501,14 +1667,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   tag: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
   },
   tagText: {
     ...typography.bodySmall,
-    color: colors.primary[700],
+    color: colors.brand.text,
   },
   ratingSummary: {
     flexDirection: 'row',
@@ -1518,18 +1684,18 @@ const styles = StyleSheet.create({
   },
   ratingValue: {
     ...typography.h2,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   ratingMeta: {
     gap: 2,
   },
   ratingMetaText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   emptyComments: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.md,
   },
   commentCard: {
@@ -1547,12 +1713,12 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   commentAvatarFallback: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   commentAuthor: {
     ...typography.bodySmall,
     fontWeight: '600',
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   commentRating: {
     flexDirection: 'row',
@@ -1562,11 +1728,11 @@ const styles = StyleSheet.create({
   },
   commentRatingText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   commentContent: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   commentActions: {
     flexDirection: 'row',
@@ -1580,8 +1746,147 @@ const styles = StyleSheet.create({
   },
   commentActionText: {
     ...typography.caption,
-    color: colors.neutral[600],
-    fontWeight: '600',
+    color: colors.neutral[500],
+    fontWeight: '500',
+  },
+  // Gamification Styles
+  heroContainer: {
+    position: 'relative',
+  },
+  heroBadges: {
+    position: 'absolute',
+    bottom: 12, // Adjusted to sit above the gradient/add button
+    left: 12,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 10,
+    maxWidth: '65%', // Prevent overlap with Add Photo button
+    flexWrap: 'wrap',
+  },
+  heroBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+  },
+  heroBadgeLive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)', // Emerald-500/20
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backdropFilter: 'blur(12px)', // Note: backdropFilter needs specific handling in RN, but backgroundColor alpha helps
+  },
+  heroBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroBadgeTextLive: {
+    color: '#34D399', // Emerald-400
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  statBoxValue: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  statBoxLabel: {
+    color: colors.brand.textSecondary,
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  xpCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: spacing.lg,
+    shadowColor: colors.brand.secondary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  xpTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  xpSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+  },
+  xpIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  facepileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+    paddingVertical: 8,
+  },
+  facepileRow: {
+    flexDirection: 'row',
+    marginLeft: 10,
+  },
+  facepileAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: -12,
+    borderWidth: 2,
+    borderColor: colors.brand.background,
+  },
+  facepileCounter: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: -12,
+    borderWidth: 2,
+    backgroundColor: colors.brand.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: colors.brand.background,
+  },
+  facepileCountText: {
+    color: colors.brand.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  facepileLabel: {
+    color: colors.brand.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
   },
   commentInputCard: {
     marginBottom: spacing.md,
@@ -1593,14 +1898,15 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     ...typography.body,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: 8,
     padding: spacing.sm,
     marginBottom: spacing.sm,
     minHeight: 60,
     textAlignVertical: 'top',
+    color: colors.brand.text,
   },
   participateButton: {
     marginBottom: spacing.md,
@@ -1619,18 +1925,18 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   ownerText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   deleteButton: {
-    backgroundColor: colors.error[50],
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   deleteText: {
-    color: colors.error[600],
+    color: '#ef4444',
   },
   photoGrid: {
     flexDirection: 'row',
@@ -1660,16 +1966,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   pendingItem: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.05)',
     overflow: 'hidden',
   },
   pendingImage: {
     width: '100%',
     height: 180,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   pendingActions: {
     flexDirection: 'row',
@@ -1678,7 +1984,7 @@ const styles = StyleSheet.create({
   },
   pendingApprove: {
     flex: 1,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.primary,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1686,22 +1992,22 @@ const styles = StyleSheet.create({
   },
   pendingApproveText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   pendingReject: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   pendingRejectText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   emptyPhotos: {
@@ -1711,7 +2017,7 @@ const styles = StyleSheet.create({
   },
   emptyPhotosText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   creatorCard: {
     marginBottom: spacing.md,
@@ -1726,7 +2032,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   creatorCardAvatarFallback: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   creatorCardInfo: {
     flex: 1,
@@ -1734,23 +2040,23 @@ const styles = StyleSheet.create({
   },
   creatorCardName: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   creatorCardMeta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
   creatorCardAction: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   creatorCardLink: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   creatorEvents: {
@@ -1759,16 +2065,16 @@ const styles = StyleSheet.create({
   creatorEventRow: {
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   creatorEventTitle: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   creatorEventMeta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
   bottomBar: {
@@ -1776,9 +2082,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: 'rgba(255,255,255,0.1)',
     paddingTop: spacing.sm,
   },
   bottomBarContent: {
@@ -1793,7 +2099,7 @@ const styles = StyleSheet.create({
   },
   bottomBarText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
 });

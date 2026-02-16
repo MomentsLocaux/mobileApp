@@ -7,12 +7,13 @@ export default function EventsLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.neutral[0],
+          backgroundColor: colors.brand.primary,
         },
-        headerTintColor: colors.neutral[900],
+        headerTintColor: colors.brand.text,
         headerTitleStyle: {
           fontWeight: '600',
         },
+        contentStyle: { backgroundColor: colors.brand.primary },
       }}
     >
       <Stack.Screen
@@ -25,12 +26,14 @@ export default function EventsLayout() {
         }}
       />
       <Stack.Screen
-        name="create"
+        name="create/index"
         options={{
-          title: 'Créer un événement',
-          headerBackTitle: 'Annuler',
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
         }}
       />
+      {/* Legacy step routes - deprecated in favor of create/index */}
       <Stack.Screen
         name="create/step-1"
         options={{

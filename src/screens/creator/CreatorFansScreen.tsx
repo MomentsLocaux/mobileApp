@@ -13,7 +13,7 @@ import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider } from 
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Gift, Sparkles, Trophy, Users } from 'lucide-react-native';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, AppBackground } from '@/components/ui';
 import { CreatorFanItem } from '@/components/creator';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { borderRadius, colors, minimumTouchTarget, spacing, typography } from '@/constants/theme';
@@ -131,6 +131,7 @@ export default function CreatorFansScreen() {
   if (isGuest) {
     return (
       <View style={styles.container}>
+        <AppBackground opacity={0.9} />
         <GuestGateModal
           visible
           title="Communauté créateur"
@@ -144,6 +145,7 @@ export default function CreatorFansScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
+      <AppBackground />
       <BottomSheetModalProvider>
         <View style={styles.contentWrap}>
           <View style={styles.headerRow}>
@@ -196,7 +198,7 @@ export default function CreatorFansScreen() {
 
           {loading && !fans.length ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="small" color={colors.primary[600]} />
+              <ActivityIndicator size="small" color={colors.brand.primary} />
               <Text style={styles.loadingText}>Chargement de la communauté…</Text>
             </View>
           ) : null}
@@ -211,7 +213,7 @@ export default function CreatorFansScreen() {
             ListEmptyComponent={
               !loading ? (
                 <View style={styles.emptyBox}>
-                  <Users size={18} color={colors.textSecondary[500]} />
+                  <Users size={18} color={colors.brand.textSecondary} />
                   <Text style={styles.emptyText}>Aucun fan trouvé pour ce segment.</Text>
                 </View>
               ) : null
@@ -227,7 +229,7 @@ export default function CreatorFansScreen() {
                     accessibilityLabel={`Récompenser ${item.profile?.display_name || 'ce fan'}`}
                     accessible
                   >
-                    <Gift size={16} color={colors.secondaryAccent[500]} />
+                    <Gift size={16} color={colors.brand.secondary} />
                     <Text style={styles.swipeActionText}>Récompenser</Text>
                   </Pressable>
                 )}
@@ -330,7 +332,7 @@ export default function CreatorFansScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background[500],
+    backgroundColor: 'transparent',
   },
   contentWrap: {
     flex: 1,
@@ -355,11 +357,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h3,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   segmentRow: {
     flexDirection: 'row',
@@ -371,23 +373,23 @@ const styles = StyleSheet.create({
     minHeight: minimumTouchTarget,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.secondaryAccent[500],
+    backgroundColor: colors.brand.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   segmentButtonActive: {
-    backgroundColor: colors.primary[600],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
   },
   segmentText: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
     fontWeight: '700',
   },
   segmentTextActive: {
-    color: colors.secondaryAccent[500],
+    color: colors.brand.text,
   },
   feedbackCard: {
     flexDirection: 'row',
@@ -410,7 +412,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   errorText: {
     ...typography.bodySmall,
@@ -429,7 +431,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   swipeAction: {
     marginVertical: 4,
@@ -442,14 +444,14 @@ const styles = StyleSheet.create({
   },
   swipeActionText: {
     ...typography.caption,
-    color: colors.secondaryAccent[500],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   sheetBackground: {
-    backgroundColor: colors.secondaryAccent[500],
+    backgroundColor: colors.brand.surface,
   },
   sheetHandle: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.brand.textSecondary,
   },
   sheetContent: {
     paddingHorizontal: spacing.lg,
@@ -458,23 +460,23 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     ...typography.h5,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
   },
   sheetSubtitle: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
   },
   insightCard: {
-    backgroundColor: colors.background[500],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   insightStat: {
     ...typography.h6,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
   },
   insightBody: {
     ...typography.caption,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   perksColumn: {
     gap: spacing.xs,
@@ -483,8 +485,8 @@ const styles = StyleSheet.create({
     minHeight: minimumTouchTarget,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.background[500],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -492,8 +494,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   perkItemActive: {
-    backgroundColor: colors.primary[600],
-    borderColor: colors.primary[600],
+    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
   },
   perkIconWrap: {
     width: 28,
@@ -508,26 +510,26 @@ const styles = StyleSheet.create({
   },
   perkTitle: {
     ...typography.bodySmall,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   perkTitleActive: {
-    color: colors.secondaryAccent[500],
+    color: colors.brand.surface,
   },
   perkDescription: {
     ...typography.caption,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
   perkDescriptionActive: {
     color: 'rgba(255,255,255,0.9)',
   },
   perkXp: {
     ...typography.caption,
-    color: colors.primary[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   perkXpActive: {
-    color: colors.secondaryAccent[500],
+    color: colors.brand.surface,
   },
   messageInput: {
     textAlignVertical: 'top',

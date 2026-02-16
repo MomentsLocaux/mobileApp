@@ -14,6 +14,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -103,7 +104,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={colors.neutral[700]} />
+            <ChevronLeft size={20} color={colors.brand.text} />
             <Text style={styles.backText}>Retour</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Créer un compte</Text>
@@ -165,7 +166,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    // backgroundColor: colors.neutral[50], // Removed for global background
   },
   scrollContent: {
     flexGrow: 1,
@@ -184,17 +185,17 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   title: {
     ...typography.h1,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   form: {
     width: '100%',
@@ -209,11 +210,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   link: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
 });

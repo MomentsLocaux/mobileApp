@@ -101,10 +101,17 @@ export default function CreateEventStep2() {
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={colors.neutral[800]} />
+            <ChevronLeft size={20} color={colors.brand.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Détails de l'événement</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Détails de l'événement</Text>
+            <Text style={styles.headerSubtitle}>Étape 2 sur 3</Text>
+          </View>
           <View style={styles.headerBtn} />
+        </View>
+
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBar, { width: '66%' }]} />
         </View>
 
         <ScrollView
@@ -115,6 +122,7 @@ export default function CreateEventStep2() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
+          <Text style={styles.sectionTitle}>Catégorie & Visibilité</Text>
           <CategorySelector
             selected={category}
             subcategory={subcategory}
@@ -141,6 +149,27 @@ export default function CreateEventStep2() {
           </View>
           <View onLayout={registerSection('visibility')}>
             <VisibilitySelector value={visibility} onChange={setVisibility} />
+            <View style={styles.togglesContainer}>
+              <View style={styles.toggleRow}>
+                <View>
+                  <Text style={styles.toggleLabel}>Places limitées</Text>
+                  <Text style={styles.toggleSubLabel}>Définir un nombre maximum de participants</Text>
+                </View>
+                {/* Switch component placeholder - using View for now as standard Switch isn't imported */}
+                <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                  <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
+                </View>
+              </View>
+              <View style={styles.toggleRow}>
+                <View>
+                  <Text style={styles.toggleLabel}>Inscription requise</Text>
+                  <Text style={styles.toggleSubLabel}>Valider chaque demande manuellement</Text>
+                </View>
+                <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                  <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
+                </View>
+              </View>
+            </View>
           </View>
           <View onLayout={registerSection('optional')}>
             <OptionalInfoSection
@@ -162,8 +191,12 @@ export default function CreateEventStep2() {
         </ScrollView>
 
         <View style={styles.footer}>
+          <TouchableOpacity style={styles.prevBtn} onPress={() => router.back()}>
+            <Text style={styles.prevText}>Précédent</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.publishBtn, !canPublish && styles.publishDisabled]}
+            style={[styles.nextBtn, !canPublish && styles.nextBtnDisabled]}
             disabled={!canPublish}
             onPress={() =>
               router.push({
@@ -172,7 +205,7 @@ export default function CreateEventStep2() {
               } as any)
             }
           >
-            <Text style={styles.publishText}>Publier l'événement</Text>
+            <Text style={styles.nextText}>Continuer</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -183,7 +216,7 @@ export default function CreateEventStep2() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.primary,
   },
   header: {
     height: 64,
@@ -200,7 +233,65 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
+  },
+  headerSubtitle: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#1e293b',
+    width: '100%',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: colors.brand.secondary,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.md,
+    backgroundColor: colors.brand.primary,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  prevBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  prevText: {
+    ...typography.body,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  nextBtn: {
+    flex: 1,
+    backgroundColor: colors.brand.secondary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+  },
+  nextBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  nextText: {
+    ...typography.body,
+    color: '#0f1719',
     fontWeight: '700',
   },
   content: {
@@ -208,24 +299,51 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl * 2,
     gap: spacing.lg,
   },
-  footer: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-  },
-  publishBtn: {
-    backgroundColor: colors.primary[600],
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-  },
-  publishDisabled: {
-    backgroundColor: colors.neutral[300],
-  },
-  publishText: {
-    ...typography.body,
-    color: '#fff',
+  sectionTitle: {
+    ...typography.h6,
+    color: colors.brand.text,
     fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  togglesContainer: {
+    gap: spacing.md,
+    backgroundColor: colors.brand.surface,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleLabel: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  toggleSubLabel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    maxWidth: 200,
+  },
+  switchTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
 });

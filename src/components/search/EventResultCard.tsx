@@ -1,16 +1,23 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
-import { MapPin, Calendar, Tag, Navigation2, Heart, Star } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable, Dimensions } from 'react-native';
+import { MapPin, Heart, Eye } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
+import { getCategoryLabel } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
+import { isEventLive } from '@/utils/event-status';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_HEIGHT = 420;
 
 interface Props {
   event: EventWithCreator;
   distanceKm?: number;
+  viewsCount?: number;
+  friendsGoingCount?: number;
   active?: boolean;
   showCarousel?: boolean;
   onPress: () => void;
@@ -23,22 +30,17 @@ interface Props {
   onToggleFavorite?: (event: EventWithCreator) => void;
 }
 
-function formatDateRange(starts_at: string, ends_at: string) {
+function formatDateRange(starts_at: string) {
   const start = new Date(starts_at);
-  const end = new Date(ends_at);
-
   if (isNaN(start.getTime())) return '';
 
-  const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
-  const startLabel = start.toLocaleDateString('fr-FR', options);
-
-  if (!isNaN(end.getTime()) && end.toDateString() !== start.toDateString()) {
-    const endLabel = end.toLocaleDateString('fr-FR', options);
-    return `${startLabel} - ${endLabel}`;
-  }
-
   const timeLabel = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return `${startLabel} • ${timeLabel}`;
+
+  // Format: "Samedi, 21:00"
+  const dayName = start.toLocaleDateString('fr-FR', { weekday: 'long' });
+  const dayNameCap = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+
+  return `${dayNameCap}, ${timeLabel}`;
 }
 
 function extractCoords(event: EventWithCreator): { lat: number; lon: number } | null {
@@ -48,17 +50,17 @@ function extractCoords(event: EventWithCreator): { lat: number; lon: number } | 
       return { lat, lon };
     }
   }
-
   if (typeof event.latitude === 'number' && typeof event.longitude === 'number') {
     return { lat: event.latitude, lon: event.longitude };
   }
-
   return null;
 }
 
 export const EventResultCard: React.FC<Props> = ({
   event,
   distanceKm,
+  viewsCount,
+  friendsGoingCount,
   active = false,
   showCarousel = true,
   onPress,
@@ -67,15 +69,11 @@ export const EventResultCard: React.FC<Props> = ({
   onOpenCreator,
   isLiked,
   onToggleLike,
-  isFavorite,
-  onToggleFavorite,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
   const { currentLocation } = useLocationStore();
-  const categoryLabel = getCategoryLabel(event.category || '');
-  const categoryColor = getCategoryColor(event.category || '');
-  const categoryTextColor = getCategoryTextColor(event.category || '');
-  const dateLabel = useMemo(() => formatDateRange(event.starts_at, event.ends_at), [event.starts_at, event.ends_at]);
+  const dateLabel = useMemo(() => formatDateRange(event.starts_at), [event.starts_at]);
+
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
     return {
@@ -83,15 +81,16 @@ export const EventResultCard: React.FC<Props> = ({
       longitude: currentLocation.coords.longitude,
     };
   }, [currentLocation]);
+
   const distanceLabel = useMemo(() => {
     if (typeof distanceKm === 'number' && Number.isFinite(distanceKm)) {
-      return distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`;
+      return distanceKm < 1 ? null : `${distanceKm.toFixed(1)} km`;
     }
     const coords = extractCoords(event);
     if (!coords) return null;
     return getDistanceText(coords.lat, coords.lon, userLocation);
   }, [distanceKm, event, userLocation]);
-  const tags = event.tags?.slice(0, 3) || [];
+
   const images = useMemo(() => {
     const urls = [
       event.cover_url,
@@ -99,6 +98,23 @@ export const EventResultCard: React.FC<Props> = ({
     ].filter(Boolean) as string[];
     return Array.from(new Set(urls)).slice(0, 4);
   }, [event.cover_url, event.media]);
+
+  const attendeesCount = Number.isFinite(friendsGoingCount as number) ? Number(friendsGoingCount) : 0;
+  const viewCount = Number.isFinite(viewsCount as number) ? Number(viewsCount) : 0;
+  const isLive = useMemo(() => isEventLive(event), [event.starts_at, event.ends_at]);
+  const displayTags = useMemo(
+    () =>
+      (Array.isArray(event.tags) ? event.tags : [])
+        .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+        .map((tag) => tag.trim())
+        .slice(0, 2),
+    [event.tags],
+  );
+  const locationLabel = useMemo(
+    () => event.venue_name || event.city || event.address || 'Lieu à venir',
+    [event.venue_name, event.city, event.address],
+  );
+  const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
 
   return (
     <Pressable
@@ -108,108 +124,115 @@ export const EventResultCard: React.FC<Props> = ({
         onSelect?.();
         onPress();
       }}
-      onStartShouldSetResponder={() => false}
-      onMoveShouldSetResponder={() => false}
     >
-      <View style={styles.imageWrapper}>
-        {showCarousel ? (
+      <View style={styles.imageContainer}>
+        {showCarousel && images.length > 0 ? (
           <EventImageCarousel
             images={images}
-            height={260}
-            borderRadius={borderRadius.lg}
+            height={CARD_HEIGHT}
+            borderRadius={borderRadius.xl}
             onSwipeStart={() => setIsSwiping(true)}
             onSwipeEnd={() => setIsSwiping(false)}
           />
-        ) : images.length > 0 ? (
-          <Image
-            source={{ uri: images[0] }}
-            style={[styles.staticImage, { borderRadius: borderRadius.lg }]}
-          />
         ) : (
-          <View style={[styles.staticImage, { borderRadius: borderRadius.lg }]} />
+          <Image
+            source={{ uri: images[0] || 'https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?q=80&w=1000&auto=format&fit=crop' }}
+            style={styles.image}
+          />
         )}
-        <View style={[styles.topBadge, { backgroundColor: categoryColor }]}>
-          <Text style={[styles.topBadgeText, { color: categoryTextColor }]}>{categoryLabel}</Text>
-        </View>
-        {event.creator?.id && (
-          <TouchableOpacity
-            style={styles.avatarWrapper}
-            activeOpacity={0.85}
-            onPress={() => onOpenCreator?.(event.creator!.id)}
-          >
-            {event.creator.avatar_url ? (
-              <Image source={{ uri: event.creator.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarInitials}>
-                  {event.creator.display_name?.slice(0, 2)?.toUpperCase() || '?'}
-                </Text>
+
+        {/* Gradient Overlay */}
+        <LinearGradient
+          colors={['transparent', 'rgba(15, 23, 25, 0.4)', 'rgba(15, 23, 25, 0.95)']}
+          locations={[0, 0.5, 1]}
+          style={styles.gradientOverlay}
+        />
+
+        {/* Top Badges */}
+        <View style={styles.topRow}>
+          <View style={styles.badgesContainer}>
+            {isLive && (
+              <View style={[styles.badge, styles.badgeLive]}>
+                <Text style={styles.badgeText}>LIVE</Text>
               </View>
             )}
-          </TouchableOpacity>
-        )}
-        <View style={styles.infoOverlay} pointerEvents="box-none">
-          <View style={styles.infoContent} pointerEvents="none">
-            <Text style={styles.title} numberOfLines={2}>
-              {event.title}
-            </Text>
-            <View style={styles.row}>
-              <MapPin size={16} color={colors.neutral[0]} />
-              <Text style={styles.meta} numberOfLines={1}>
-                {event.city || event.address || 'Lieu à venir'}
-              </Text>
+            <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Text style={styles.badgeText}>{categoryLabel}</Text>
             </View>
-            <View style={styles.row}>
-              <Calendar size={16} color={colors.neutral[0]} />
-              <Text style={styles.meta} numberOfLines={1}>
-                {dateLabel}
-              </Text>
-            </View>
-            {tags.length > 0 && (
-              <View style={styles.tags}>
-                {tags.map((tag) => (
-                  <View key={tag} style={styles.tag}>
-                    <Tag size={12} color={colors.neutral[0]} />
-                    <Text style={styles.tagText}>{tag}</Text>
+            {displayTags.map((tag) => (
+              <View key={tag} style={[styles.badge, styles.tagBadge]}>
+                <Text style={styles.tagText}>#{tag}</Text>
+              </View>
+            ))}
+          </View>
+
+          {onToggleLike && (
+            <TouchableOpacity
+              style={styles.favoriteButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onToggleLike(event);
+              }}
+            >
+              <Heart
+                size={22}
+                color={isLiked ? colors.brand.error : '#fff'}
+                fill={isLiked ? colors.brand.error : 'rgba(0,0,0,0.3)'}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Content Overlay */}
+        <View style={styles.contentContainer}>
+          {/* Date & Location */}
+          <Text style={styles.subtitle}>
+            {dateLabel} • <Text style={styles.venueName}>{locationLabel}</Text>
+          </Text>
+
+          {/* Title */}
+          <Text style={styles.title} numberOfLines={2}>
+            {event.title}
+          </Text>
+
+          {/* Footer: Attendees & Stats */}
+          <View style={styles.footer}>
+            <View style={styles.attendeesContainer}>
+              <View style={styles.avatarPile}>
+                {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
+                  <View key={i} style={[styles.attendeeAvatar, { transform: [{ translateX: -i * 10 }] }]}>
+                    <View style={styles.attendeeDot} />
                   </View>
                 ))}
+                {attendeesCount > 3 && (
+                  <View style={[styles.attendeeAvatar, styles.attendeeMore, { transform: [{ translateX: -30 }] }]}>
+                    <Text style={styles.moreText}>+</Text>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-          <View style={styles.ctaRow} pointerEvents="auto">
-            <TouchableOpacity style={styles.ctaButton} onPress={onNavigate}>
-              <Navigation2 size={16} color={colors.neutral[900]} />
-              <View style={styles.ctaTextRow}>
-                <Text style={styles.ctaText}>Itinéraire</Text>
-                {distanceLabel ? <Text style={styles.ctaDistance}>· {distanceLabel}</Text> : null}
-              </View>
-            </TouchableOpacity>
-            {onToggleLike && (
+              <Text style={[styles.attendeeText, { marginLeft: -20 }]}>
+                {attendeesCount} ami{attendeesCount > 1 ? 's' : ''} y vont
+              </Text>
+            </View>
+
+            <View style={styles.statsContainer}>
+              <Eye size={14} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.statsText}>{viewCount} vues</Text>
+            </View>
+
+            {distanceLabel && (
               <TouchableOpacity
-                style={styles.favoriteBtn}
-                onPress={() => onToggleLike(event)}
+                style={styles.locationBadge}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onNavigate();
+                }}
                 activeOpacity={0.8}
               >
-                <Heart
-                  size={18}
-                  color={isLiked ? colors.error[500] : colors.neutral[0]}
-                  fill={isLiked ? colors.error[500] : 'transparent'}
-                />
+                <MapPin size={12} color={colors.brand.textSecondary} />
+                <Text style={styles.statsText}>{distanceLabel}</Text>
               </TouchableOpacity>
             )}
-            {onToggleFavorite && (
-              <TouchableOpacity
-                style={styles.favoriteBtn}
-                onPress={() => onToggleFavorite(event)}
-                activeOpacity={0.8}
-              >
-                <Star
-                  size={18}
-                  color={isFavorite ? colors.warning[500] : colors.neutral[0]}
-                  fill={isFavorite ? colors.warning[500] : 'transparent'}
-                />
-              </TouchableOpacity>
-              )}
           </View>
         </View>
       </View>
@@ -219,151 +242,183 @@ export const EventResultCard: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: borderRadius.md,
+    height: CARD_HEIGHT,
+    width: '100%',
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
-    borderWidth: 0,
-    marginHorizontal: 0,
+    backgroundColor: colors.brand.surface,
+    marginBottom: spacing.lg,
   },
   cardActive: {
-    borderColor: colors.primary[500],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 3,
+    transform: [{ scale: 0.98 }],
   },
-  imageWrapper: {
+  imageContainer: {
+    flex: 1,
     position: 'relative',
-    width: '100%',
   },
-  staticImage: {
+  image: {
     width: '100%',
-    height: 260,
+    height: '100%',
     resizeMode: 'cover',
-    backgroundColor: colors.neutral[200],
   },
-  topBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  topBadgeText: {
-    ...typography.caption,
-    fontWeight: '700',
-  },
-  infoOverlay: {
+  gradientOverlay: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    gap: spacing.xs,
+    height: '60%',
   },
-  infoContent: {
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.h4,
-    color: colors.neutral[0],
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  meta: {
-    ...typography.bodySmall,
-    color: colors.neutral[0],
-    flex: 1,
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: '#00000044',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  tagText: {
-    ...typography.caption,
-    color: colors.neutral[0],
-  },
-  avatarWrapper: {
+  topRow: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: colors.neutral[0],
-    backgroundColor: colors.neutral[200],
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: borderRadius.full,
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[400],
-  },
-  avatarInitials: {
-    ...typography.caption,
-    color: colors.neutral[0],
-    fontWeight: '700',
-  },
-  ctaRow: {
-    marginTop: spacing.sm,
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    zIndex: 10,
   },
-  ctaButton: {
+  badgesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.xs,
-    backgroundColor: colors.neutral[0],
+    maxWidth: '80%',
+  },
+  badge: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
     borderRadius: borderRadius.full,
-  },
-  ctaText: {
-    ...typography.bodySmall,
-    color: colors.neutral[900],
-    fontWeight: '700',
-  },
-  ctaTextRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    backdropFilter: 'blur(10px)', // For web
   },
-  ctaDistance: {
-    ...typography.caption,
-    color: colors.neutral[700],
-    fontWeight: '700',
+  badgeLive: {
+    backgroundColor: '#ff3b30', // Red
   },
-  favoriteBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  tagBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tagText: {
+    color: '#eee',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  favoriteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(0,0,0,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  contentContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  subtitle: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  venueName: {
+    color: colors.brand.text,
+  },
+  title: {
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: spacing.md,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  attendeesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarPile: {
+    flexDirection: 'row',
+    marginRight: 8,
+  },
+  attendeeAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#0f1719', // Match dark bg
+    overflow: 'hidden',
+    backgroundColor: '#333',
+  },
+  attendeeDot: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  attendeeMore: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brand.secondary,
+  },
+  moreText: {
+    fontSize: 8,
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  attendeeText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  locationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  statsText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
   },
 });

@@ -146,7 +146,7 @@ export default function ProfileScreen() {
       <View style={styles.container}>
         <AppBackground />
         <View style={styles.fallback}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <ActivityIndicator size="large" color={colors.brand.secondary} />
           <Text style={styles.loadingText}>Chargement du profil...</Text>
         </View>
       </View>
@@ -168,7 +168,7 @@ export default function ProfileScreen() {
               <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <UserIcon size={40} color={colors.neutral[0]} />
+                <UserIcon size={40} color={colors.brand.text} />
               </View>
             )}
             <Text style={styles.displayName}>{profile.display_name}</Text>
@@ -195,7 +195,7 @@ export default function ProfileScreen() {
               style={styles.editButton}
               onPress={() => router.push('/profile/edit' as any)}
             >
-              <Settings size={20} color={colors.primary[600]} />
+              <Settings size={20} color={colors.brand.secondary} />
               <Text style={styles.editButtonText}>Modifier le profil</Text>
             </TouchableOpacity>
           </View>
@@ -229,15 +229,15 @@ export default function ProfileScreen() {
           <Card padding="md" style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
             <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/creator' as any)}>
-              <BarChart3 size={18} color={colors.primary[600]} />
+              <BarChart3 size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Espace créateur</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
-              <Calendar size={18} color={colors.primary[600]} />
+              <Calendar size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Mes événements</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/onboarding' as any)}>
-              <Award size={18} color={colors.primary[600]} />
+              <Award size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Recommencer l'onboarding</Text>
             </TouchableOpacity>
           </Card>
@@ -303,34 +303,34 @@ export default function ProfileScreen() {
                     }
                   }
                   return (
-                  <Card key={event.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                    <TouchableOpacity
-                      onPress={() =>
-                        router.push(
-                          (isDraft ? `/events/create/step-1?edit=${event.id}` : `/events/${event.id}`) as any
-                        )
-                      }
-                    >
-                      <View style={styles.eventTitleRow}>
-                        <Text style={styles.eventTitle}>{event.title || 'Brouillon sans titre'}</Text>
-                        {isDraft && <Text style={styles.eventDraft}>Brouillon</Text>}
-                        {!isDraft && timeLabel && (
-                          <Text
-                            style={[
-                              styles.eventStatus,
-                              timeLabel === 'Passé' && styles.eventStatusPast,
-                              timeLabel === 'En cours' && styles.eventStatusLive,
-                              timeLabel === 'À venir' && styles.eventStatusUpcoming,
-                            ]}
-                          >
-                            {timeLabel}
-                          </Text>
-                        )}
-                      </View>
-                      <Text style={styles.eventMeta}>{event.city || event.address || ''}</Text>
-                    </TouchableOpacity>
-                  </Card>
-                );
+                    <Card key={event.id} padding="md" style={{ marginBottom: spacing.sm }}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          router.push(
+                            (isDraft ? `/events/create/step-1?edit=${event.id}` : `/events/${event.id}`) as any
+                          )
+                        }
+                      >
+                        <View style={styles.eventTitleRow}>
+                          <Text style={styles.eventTitle}>{event.title || 'Brouillon sans titre'}</Text>
+                          {isDraft && <Text style={styles.eventDraft}>Brouillon</Text>}
+                          {!isDraft && timeLabel && (
+                            <Text
+                              style={[
+                                styles.eventStatus,
+                                timeLabel === 'Passé' && styles.eventStatusPast,
+                                timeLabel === 'En cours' && styles.eventStatusLive,
+                                timeLabel === 'À venir' && styles.eventStatusUpcoming,
+                              ]}
+                            >
+                              {timeLabel}
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={styles.eventMeta}>{event.city || event.address || ''}</Text>
+                      </TouchableOpacity>
+                    </Card>
+                  );
                 })}
               </ScrollView>
             )}
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   header: {
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   cover: {
     width: '100%',
@@ -372,24 +372,24 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
   },
   displayName: {
     ...typography.h2,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.xs,
   },
   email: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
   },
   bio: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
   content: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.md,
   },
   infoRow: {
@@ -435,16 +435,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   infoLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     fontWeight: '500',
   },
   infoValue: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   actionCard: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
   signOutButton: {

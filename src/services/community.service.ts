@@ -159,7 +159,10 @@ export const CommunityService = {
   async follow(userId: string) {
     const currentUser = (await supabase.auth.getUser()).data.user?.id;
     if (!currentUser) throw new Error('Not authenticated');
-    const { error } = await supabase.from('follows').insert({ follower: currentUser, following: userId });
+    if (currentUser === userId) return;
+    const { error } = await supabase
+      .from('follows')
+      .upsert({ follower: currentUser, following: userId }, { onConflict: 'follower,following', ignoreDuplicates: true });
     if (error) throw error;
   },
 

@@ -4,6 +4,7 @@ import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard } from './EventResultCard';
+import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 export type SearchResultsBottomSheetHandle = {
   open: (index?: number) => void;
@@ -12,6 +13,7 @@ export type SearchResultsBottomSheetHandle = {
 
 interface Props {
   events: EventWithCreator[];
+  currentUserId?: string | null;
   activeEventId?: string;
   onSelectEvent: (event: EventWithCreator) => void;
   onNavigate: (event: EventWithCreator) => void;
@@ -32,6 +34,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
   (
     {
       events,
+      currentUserId,
       activeEventId,
       onSelectEvent,
       onNavigate,
@@ -60,6 +63,39 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const clampedIndex = Math.min(Math.max(0, effectiveIndex), maxIndex);
     const showList = mode === 'single' || clampedIndex > 0;
     const showEmpty = clampedIndex > 0 && mode !== 'single' && !hasEvents && !isLoading;
+    const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
+
+    const eventIds = React.useMemo(
+      () => events.map((event) => event.id).filter(Boolean),
+      [events],
+    );
+    const eventIdsKey = React.useMemo(() => eventIds.join(','), [eventIds]);
+
+    React.useEffect(() => {
+      let cancelled = false;
+      if (!eventIds.length) {
+        setStatsByEventId({});
+        return;
+      }
+
+      const load = async () => {
+        try {
+          const stats = await EventCardStatsService.getStatsForEvents(eventIds, currentUserId);
+          if (!cancelled) {
+            setStatsByEventId(stats);
+          }
+        } catch {
+          if (!cancelled) {
+            setStatsByEventId({});
+          }
+        }
+      };
+
+      load();
+      return () => {
+        cancelled = true;
+      };
+    }, [eventIds, eventIdsKey, currentUserId]);
 
     useImperativeHandle(ref, () => ({
       open: (index = 1) => {
@@ -100,7 +136,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         <View style={styles.header}>
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator color={colors.primary[600]} />
+              <ActivityIndicator color={colors.brand.secondary} />
               <Text style={styles.loadingText}>Chargement...</Text>
             </View>
           ) : (
@@ -119,6 +155,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           <View style={styles.singleContainer}>
             <EventResultCard
               event={events[0]}
+              viewsCount={statsByEventId[events[0].id]?.viewsCount ?? 0}
+              friendsGoingCount={statsByEventId[events[0].id]?.friendsGoingCount ?? 0}
               active
               onPress={() => onOpenDetails(events[0])}
               onSelect={() => onSelectEvent(events[0])}
@@ -159,6 +197,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             renderItem={({ item }: { item: EventWithCreator }) => (
               <EventResultCard
                 event={item}
+                viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
+                friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
                 active={item.id === activeEventId}
                 onPress={() => onOpenDetails(item)}
                 onSelect={() => onSelectEvent(item)}
@@ -180,10 +220,10 @@ SearchResultsBottomSheet.displayName = 'SearchResultsBottomSheet';
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
   },
   handleIndicator: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -193,11 +233,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   headerSubtitle: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
   loadingContainer: {
@@ -207,7 +247,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
 
   listContent: {
@@ -222,7 +262,7 @@ const styles = StyleSheet.create({
   },
   peekText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.text,
   },
   singleContainer: {
     paddingHorizontal: spacing.xs,
@@ -236,12 +276,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   emptySubtitle: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
 });

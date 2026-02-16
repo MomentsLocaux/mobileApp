@@ -17,7 +17,7 @@ export const SettingsLayout: React.FC<Props> = ({ title, children }) => {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={22} color={colors.neutral[800]} />
+          <ChevronLeft size={22} color={colors.brand.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
         <View style={styles.headerSpacer} />
@@ -32,7 +32,7 @@ export const SettingsLayout: React.FC<Props> = ({ title, children }) => {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F3F3F3',
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
-    backgroundColor: '#F3F3F3',
+    backgroundColor: 'transparent',
   },
   backButton: {
     width: 40,
@@ -48,13 +48,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   headerSpacer: {
     width: 40,

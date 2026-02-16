@@ -61,7 +61,7 @@ export default function CreatorIndexScreen() {
         <Card padding="md" style={styles.card} onPress={() => router.push('/creator/dashboard' as any)}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <BarChart3 size={18} color={colors.primary[700]} />
+              <BarChart3 size={18} color={colors.brand.secondary} />
             </View>
             <View style={styles.cardTextWrap}>
               <Text style={styles.cardTitle}>Statistiques</Text>
@@ -78,7 +78,7 @@ export default function CreatorIndexScreen() {
         <Card padding="md" style={styles.card} onPress={() => router.push('/creator/fans' as any)}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <Users size={18} color={colors.primary[700]} />
+              <Users size={18} color={colors.brand.secondary} />
             </View>
             <View style={styles.cardTextWrap}>
               <Text style={styles.cardTitle}>Communauté</Text>
@@ -107,7 +107,7 @@ export default function CreatorIndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background[500],
+    backgroundColor: 'transparent',
   },
   scroll: {
     flex: 1,
@@ -133,18 +133,18 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     ...typography.body,
-    color: 'rgba(255,255,255,0.92)',
+    color: colors.brand.textSecondary,
   },
   heroFoot: {
     ...typography.caption,
-    color: 'rgba(255,255,255,0.86)',
+    color: 'rgba(255,255,255,0.6)',
     marginTop: spacing.xs,
   },
   card: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.secondaryAccent[500],
+    borderColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.brand.surface,
     gap: spacing.md,
   },
   cardHeader: {
@@ -158,17 +158,17 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background[500],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   cardTextWrap: {
     flex: 1,
   },
   cardTitle: {
     ...typography.h6,
-    color: colors.textPrimary[500],
+    color: colors.brand.text,
   },
   cardBody: {
     ...typography.bodySmall,
-    color: colors.textSecondary[500],
+    color: colors.brand.textSecondary,
   },
 });

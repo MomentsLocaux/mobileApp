@@ -205,9 +205,8 @@ export const SearchBar: React.FC<Props> = ({
           : when.preset
             ? presetLabel(when.preset)
             : 'Flexible';
-    const whoLabel = `${who.adults} adulte${who.adults > 1 ? 's' : ''}${
-      who.children ? ` · ${who.children} enfant${who.children > 1 ? 's' : ''}` : ''
-    }${who.babies ? ` · ${who.babies} bébé${who.babies > 1 ? 's' : ''}` : ''}`;
+    const whoLabel = `${who.adults} adulte${who.adults > 1 ? 's' : ''}${who.children ? ` · ${who.children} enfant${who.children > 1 ? 's' : ''}` : ''
+      }${who.babies ? ` · ${who.babies} bébé${who.babies > 1 ? 's' : ''}` : ''}`;
     const categoryLabel = what.categories.length
       ? categories.find((c) => c.id === what.categories[0])?.label
       : undefined;
@@ -461,7 +460,7 @@ export const SearchBar: React.FC<Props> = ({
     <View style={styles.wrapper}>
       <Animated.View style={[styles.collapsedRow, barAnimatedStyle]} ref={barRef}>
         <Pressable style={styles.searchPill} onPress={openExpanded}>
-          <Search size={18} color={colors.neutral[500]} />
+          <Search size={18} color={colors.brand.textSecondary} />
           <Text style={styles.searchText} numberOfLines={1}>
             {collapsedLabel}
           </Text>
@@ -743,30 +742,30 @@ export const SearchBar: React.FC<Props> = ({
                           const categoryColor = getCategoryColor(cat.id);
                           const categoryTextColor = getCategoryTextColor(cat.id);
                           return (
-                          <Chip
-                            key={cat.id}
-                            label={cat.label}
-                            active={what.categories.includes(cat.id)}
-                            tone={{
-                              inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
-                              inactiveBorderColor: withAlpha(categoryColor, '33'),
-                              inactiveTextColor: categoryColor,
-                              activeBackgroundColor: categoryColor,
-                              activeBorderColor: categoryColor,
-                              activeTextColor: categoryTextColor,
-                            }}
-                            onPress={() => {
-                              const exists = what.categories.includes(cat.id);
-                              const next = exists
-                                ? what.categories.filter((c) => c !== cat.id)
-                                : [...what.categories, cat.id];
-                              const filteredSubs = (what.subcategories || []).filter((s) => {
-                                const sub = subcategories.find((sc) => sc.id === s);
-                                return sub ? next.includes(sub.category_id) : false;
-                              });
-                              setWhat({ categories: next, subcategories: filteredSubs });
-                            }}
-                          />
+                            <Chip
+                              key={cat.id}
+                              label={cat.label}
+                              active={what.categories.includes(cat.id)}
+                              tone={{
+                                inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                                inactiveBorderColor: withAlpha(categoryColor, '33'),
+                                inactiveTextColor: categoryColor,
+                                activeBackgroundColor: categoryColor,
+                                activeBorderColor: categoryColor,
+                                activeTextColor: categoryTextColor,
+                              }}
+                              onPress={() => {
+                                const exists = what.categories.includes(cat.id);
+                                const next = exists
+                                  ? what.categories.filter((c) => c !== cat.id)
+                                  : [...what.categories, cat.id];
+                                const filteredSubs = (what.subcategories || []).filter((s) => {
+                                  const sub = subcategories.find((sc) => sc.id === s);
+                                  return sub ? next.includes(sub.category_id) : false;
+                                });
+                                setWhat({ categories: next, subcategories: filteredSubs });
+                              }}
+                            />
                           );
                         })}
                       </View>
@@ -946,20 +945,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[100],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 4,
   },
   searchText: {
     marginLeft: spacing.sm,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     ...typography.body,
     flex: 1,
   },
@@ -977,7 +976,7 @@ const styles = StyleSheet.create({
   },
   expandedContainer: {
     position: 'absolute',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.primary,
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 24,
@@ -993,15 +992,17 @@ const styles = StyleSheet.create({
   },
   expandedTitle: {
     ...typography.subtitle,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   closeBtn: {
     width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[100],
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.brand.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   modeSwitch: {
     flexDirection: 'row',
@@ -1034,7 +1035,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.brand.surface,
     marginBottom: spacing.md,
     padding: spacing.md,
   },
@@ -1055,23 +1056,23 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   cardSummary: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   cardContent: {
     marginTop: spacing.sm,
     gap: spacing.sm,
   },
   input: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.brand.textSecondary,
   },
   row: {
     flexDirection: 'row',
@@ -1133,13 +1134,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   memberAvatar: {
     width: 40,
     height: 40,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surface,
   },
   memberAvatarPlaceholder: {
     width: 40,
@@ -1152,12 +1153,12 @@ const styles = StyleSheet.create({
   },
   memberName: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   memberCity: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   counterRow: {
     flexDirection: 'row',
@@ -1245,8 +1246,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderColor: colors.neutral[100],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.primary,
   },
   resetText: {
     ...typography.body,

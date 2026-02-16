@@ -39,7 +39,7 @@ export const OptionalInfoSection = ({
         }
       >
         <Text style={styles.title}>Infos pratiques (facultatif)</Text>
-        {open ? <ChevronUp size={18} color={colors.neutral[700]} /> : <ChevronDown size={18} color={colors.neutral[700]} />}
+        {open ? <ChevronUp size={18} color={colors.brand.textSecondary} /> : <ChevronDown size={18} color={colors.brand.textSecondary} />}
       </TouchableOpacity>
       {open && (
         <View style={styles.fields}>
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
     overflow: 'hidden',
   },
   header: {
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   fields: {
@@ -115,14 +115,15 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
+    color: colors.brand.text,
   },
 });

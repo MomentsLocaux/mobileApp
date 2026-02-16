@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   row: {
@@ -67,19 +67,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
   },
   chipActive: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
   },
   chipText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
 });

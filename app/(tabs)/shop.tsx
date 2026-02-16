@@ -39,46 +39,48 @@ export default function ShopScreen() {
   }, [loadItems]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.wrapper}>
       <AppBackground />
-      <View style={styles.header}>
-        <View style={styles.iconBadge}>
-          <ShoppingBag size={20} color={colors.primary[600]} />
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.iconBadge}>
+            <ShoppingBag size={20} color={colors.brand.primary} />
+          </View>
+          <View>
+            <Text style={styles.title}>Boutique</Text>
+            <Text style={styles.subtitle}>Objets disponibles</Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.title}>Boutique</Text>
-          <Text style={styles.subtitle}>Objets disponibles</Text>
-        </View>
-      </View>
 
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-        </View>
-      ) : items.length === 0 ? (
-        <Card style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Aucun article</Text>
-          <Text style={styles.emptyBody}>La boutique sera alimentée bientôt.</Text>
-        </Card>
-      ) : (
-        items.map((item) => (
-          <Card key={item.id} style={styles.itemCard}>
-            <View style={styles.itemHeader}>
-              <View style={styles.itemTypeWrap}>
-                <Sparkles size={14} color={colors.secondary[600]} />
-                <Text style={styles.itemType}>{item.type}</Text>
-              </View>
-              <View style={styles.priceWrap}>
-                <Coins size={14} color={colors.warning[600]} />
-                <Text style={styles.priceText}>{item.price}</Text>
-              </View>
-            </View>
-            <Text style={styles.itemTitle}>{item.title}</Text>
-            <Text style={styles.itemDescription}>{item.description || 'Aucune description.'}</Text>
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={colors.brand.primary} />
+          </View>
+        ) : items.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucun article</Text>
+            <Text style={styles.emptyBody}>La boutique sera alimentée bientôt.</Text>
           </Card>
-        ))
-      )}
-    </ScrollView>
+        ) : (
+          items.map((item) => (
+            <Card key={item.id} style={styles.itemCard}>
+              <View style={styles.itemHeader}>
+                <View style={styles.itemTypeWrap}>
+                  <Sparkles size={14} color={colors.brand.secondary} />
+                  <Text style={styles.itemType}>{item.type}</Text>
+                </View>
+                <View style={styles.priceWrap}>
+                  <Coins size={14} color={colors.brand.secondary} />
+                  <Text style={styles.priceText}>{item.price}</Text>
+                </View>
+              </View>
+              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemDescription}>{item.description || 'Aucune description.'}</Text>
+            </Card>
+          ))
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -97,38 +99,44 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   loadingWrap: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
   },
+  wrapper: {
+    flex: 1,
+  },
   emptyCard: {
     padding: spacing.lg,
     gap: spacing.xs,
+    backgroundColor: colors.brand.surface,
   },
   emptyTitle: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   emptyBody: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   itemCard: {
     padding: spacing.md,
     gap: spacing.sm,
+    backgroundColor: colors.brand.surface,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   itemHeader: {
     flexDirection: 'row',
@@ -142,7 +150,7 @@ const styles = StyleSheet.create({
   },
   itemType: {
     ...typography.caption,
-    color: colors.secondary[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
     textTransform: 'capitalize',
   },
@@ -153,16 +161,16 @@ const styles = StyleSheet.create({
   },
   priceText: {
     ...typography.bodySmall,
-    color: colors.warning[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   itemTitle: {
     ...typography.bodyLarge,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   itemDescription: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
 });

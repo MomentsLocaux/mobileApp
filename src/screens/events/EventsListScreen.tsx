@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Search, Flame, Clock, MapPin } from 'lucide-react-native';
 import { EventCard, EventFilters } from '../../components/events';
+import { AppBackground } from '@/components/ui';
 import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
 import { useLocationStore, useFilterStore } from '../../store';
@@ -129,12 +130,13 @@ export default function EventsListScreen() {
 
   return (
     <View style={styles.container}>
+      <AppBackground />
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
-          <Search size={16} color={colors.neutral[500]} />
+          <Search size={16} color={colors.brand.textSecondary} />
           <TextInput
             placeholder="Rechercher un événement"
-            placeholderTextColor={colors.neutral[400]}
+            placeholderTextColor={colors.brand.textSecondary}
             value={search}
             onChangeText={setSearch}
             style={styles.searchInput}
@@ -147,19 +149,19 @@ export default function EventsListScreen() {
         <QuickChip
           label="À proximité"
           active={quickFilter === 'nearby'}
-          icon={<MapPin size={14} color={quickFilter === 'nearby' ? colors.primary[700] : colors.neutral[500]} />}
+          icon={<MapPin size={14} color={quickFilter === 'nearby' ? colors.brand.primary : colors.brand.textSecondary} />}
           onPress={() => setQuickFilter(quickFilter === 'nearby' ? null : 'nearby')}
         />
         <QuickChip
           label="Bientôt"
           active={quickFilter === 'soon'}
-          icon={<Clock size={14} color={quickFilter === 'soon' ? colors.primary[700] : colors.neutral[500]} />}
+          icon={<Clock size={14} color={quickFilter === 'soon' ? colors.brand.primary : colors.brand.textSecondary} />}
           onPress={() => setQuickFilter(quickFilter === 'soon' ? null : 'soon')}
         />
         <QuickChip
           label="Populaire"
           active={quickFilter === 'popular'}
-          icon={<Flame size={14} color={quickFilter === 'popular' ? colors.primary[700] : colors.neutral[500]} />}
+          icon={<Flame size={14} color={quickFilter === 'popular' ? colors.brand.primary : colors.brand.textSecondary} />}
           onPress={() => setQuickFilter(quickFilter === 'popular' ? null : 'popular')}
         />
       </View>
@@ -191,7 +193,7 @@ export default function EventsListScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.primary[600]}
+            tintColor={colors.brand.primary}
           />
         }
         ListEmptyComponent={
@@ -212,17 +214,17 @@ export default function EventsListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     marginTop: spacing.md,
   },
   restrictionBanner: {
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
   },
   restrictionText: {
     ...typography.bodySmall,
-    color: colors.warning[700],
+    color: colors.warning[400],
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -247,14 +249,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
   searchRow: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   searchBox: {
     flexDirection: 'row',
@@ -262,22 +264,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   searchInput: {
     flex: 1,
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   quickFilters: {
     flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   quickChip: {
     flexDirection: 'row',
@@ -287,16 +289,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   quickChipActive: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.primary,
+    backgroundColor: colors.brand.primary,
   },
   quickChipText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
 });

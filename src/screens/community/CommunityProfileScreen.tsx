@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Flag } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { AppBackground } from '@/components/ui';
 import { CommunityService } from '../../services/community.service';
 import { ReportService } from '@/services/report.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
@@ -16,7 +18,7 @@ export default function CommunityProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile } = useAuth();
+  const { profile, user, session } = useAuth();
   const [member, setMember] = useState<CommunityMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
@@ -26,6 +28,17 @@ export default function CommunityProfileScreen() {
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const currentUserId = user?.id || session?.user?.id || profile?.id;
+
+  const refreshFollowingState = React.useCallback(async () => {
+    if (!id || !currentUserId) return;
+    try {
+      const following = await CommunityService.isFollowing(id);
+      setIsFollowing(following);
+    } catch (e) {
+      console.warn('check following', e);
+    }
+  }, [id, currentUserId]);
 
   useEffect(() => {
     const load = async () => {
@@ -63,17 +76,14 @@ export default function CommunityProfileScreen() {
   }, [id, dateFilter, visibilityFilter]);
 
   useEffect(() => {
-    const checkFollowing = async () => {
-      if (!id || !profile) return;
-      try {
-        const following = await CommunityService.isFollowing(id);
-        setIsFollowing(following);
-      } catch (e) {
-        console.warn('check following', e);
-      }
-    };
-    checkFollowing();
-  }, [id, profile]);
+    refreshFollowingState();
+  }, [refreshFollowingState]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshFollowingState();
+    }, [refreshFollowingState]),
+  );
 
   const filteredLabel = useMemo(() => {
     const parts = [];
@@ -87,7 +97,8 @@ export default function CommunityProfileScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground />
+        <ActivityIndicator size="large" color={colors.brand.primary} />
       </View>
     );
   }
@@ -95,6 +106,7 @@ export default function CommunityProfileScreen() {
   if (!member) {
     return (
       <View style={styles.loadingContainer}>
+        <AppBackground />
         <Text style={styles.error}>Profil introuvable</Text>
       </View>
     );
@@ -102,26 +114,27 @@ export default function CommunityProfileScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <AppBackground />
       <View style={styles.header}>
         <TouchableOpacity style={[styles.backButton, { paddingTop: insets.top + spacing.xs }]} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={colors.neutral[800]} />
+          <ArrowLeft size={20} color={colors.brand.text} />
           <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
         {member.cover_url ? (
           <Image source={{ uri: member.cover_url }} style={styles.cover} />
         ) : (
-          <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
+          <View style={[styles.cover, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
         )}
         <View style={styles.headerOverlay}>
           {member.avatar_url ? (
             <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, { backgroundColor: colors.neutral[300] }]} />
+            <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
           )}
           <Text style={styles.name}>{member.display_name}</Text>
           <Text style={styles.meta}>{member.city || 'Sans ville'}</Text>
           {member.bio ? <Text style={styles.bio}>{member.bio}</Text> : null}
-          {profile?.id !== member.user_id && (
+          {currentUserId !== member.user_id && (
             <View style={styles.profileActions}>
               <TouchableOpacity
                 style={[styles.followButton, isFollowing && styles.followButtonActive]}
@@ -131,13 +144,12 @@ export default function CommunityProfileScreen() {
                   try {
                     if (isFollowing) {
                       await CommunityService.unfollow(id);
-                      setIsFollowing(false);
                     } else {
                       await CommunityService.follow(id);
-                      setIsFollowing(true);
                     }
+                    await refreshFollowingState();
                   } catch (e) {
-                    console.warn('follow toggle', e);
+                    console.warn('follow toggle error', e);
                   } finally {
                     setFollowLoading(false);
                   }
@@ -149,7 +161,7 @@ export default function CommunityProfileScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.reportButton} onPress={() => setReportVisible(true)}>
-                <Flag size={14} color={colors.neutral[700]} />
+                <Flag size={14} color={colors.brand.textSecondary} />
                 <Text style={styles.reportText}>Signaler</Text>
               </TouchableOpacity>
             </View>
@@ -206,7 +218,7 @@ export default function CommunityProfileScreen() {
 
         {loadingEvents ? (
           <View style={styles.loadingEvents}>
-            <ActivityIndicator size="small" color={colors.primary[600]} />
+            <ActivityIndicator size="small" color={colors.brand.primary} />
             <Text style={styles.loadingText}>Chargement des événements…</Text>
           </View>
         ) : events.length === 0 ? (
@@ -267,19 +279,20 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   error: {
     ...typography.body,
-    color: colors.error[600],
+    color: colors.error[500],
   },
   header: {
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   backButton: {
     flexDirection: 'row',
@@ -290,7 +303,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   cover: {
@@ -307,21 +320,21 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: borderRadius.full,
     borderWidth: 3,
-    borderColor: colors.neutral[0],
+    borderColor: colors.brand.surface,
     marginBottom: spacing.sm,
   },
   name: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   meta: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
   },
   bio: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
   },
@@ -329,18 +342,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: spacing.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'transparent',
   },
   statBox: {
     alignItems: 'center',
   },
   statValue: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   statLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   eventsSection: {
     paddingHorizontal: spacing.md,
@@ -354,11 +367,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   sectionSubtitle: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   filterRow: {
     flexDirection: 'row',
@@ -367,23 +380,23 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   chipActive: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.primary,
+    backgroundColor: colors.brand.primary,
   },
   chipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.text,
   },
   profileActions: {
     flexDirection: 'row',
@@ -396,7 +409,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.primary,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -404,15 +417,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   followButtonActive: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.brand.surface,
   },
   followText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   followTextActive: {
-    color: colors.neutral[800],
+    color: colors.brand.textSecondary,
   },
   reportButton: {
     flexDirection: 'row',
@@ -421,11 +434,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   reportText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   loadingEvents: {
@@ -436,7 +449,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   empty: {
     paddingVertical: spacing.lg,
@@ -444,6 +457,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
 });

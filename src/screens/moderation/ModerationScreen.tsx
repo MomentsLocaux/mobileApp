@@ -108,10 +108,10 @@ const severityTextColor = (severity: ReportSeverity) => {
 };
 
 const targetIcon = (target: ReportTargetType) => {
-  if (target === 'event') return <CalendarCheck2 size={16} color={colors.info[700]} />;
-  if (target === 'comment') return <MessageSquare size={16} color={colors.warning[700]} />;
-  if (target === 'media') return <ImageIcon size={16} color={colors.info[700]} />;
-  return <Users size={16} color={colors.error[700]} />;
+  if (target === 'event') return <CalendarCheck2 size={16} color={colors.info[400]} />;
+  if (target === 'comment') return <MessageSquare size={16} color={colors.warning[400]} />;
+  if (target === 'media') return <ImageIcon size={16} color={colors.info[400]} />;
+  return <Users size={16} color={colors.error[400]} />;
 };
 
 const KpiCard = ({
@@ -156,7 +156,7 @@ const EventModerationRow = ({
         {event.city || 'Ville inconnue'} · {formatDate(event.starts_at)}
       </Text>
       <View style={styles.eventReport}>
-        <Flag size={14} color={colors.warning[600]} />
+        <Flag size={14} color={colors.warning[400]} />
         <Text style={styles.eventReportText}>{event.reports_count} signalements</Text>
       </View>
     </View>
@@ -186,7 +186,7 @@ const ReportItem = ({
           <Image source={{ uri: report.reporter.avatar_url }} style={styles.reportAvatar} />
         ) : (
           <View style={styles.reportAvatarPlaceholder}>
-            <User size={16} color={colors.neutral[500]} />
+            <User size={16} color={colors.brand.textSecondary} />
           </View>
         )}
       </View>
@@ -223,7 +223,7 @@ const UserRiskRow = ({
         <Image source={{ uri: profile.avatar_url }} style={styles.userAvatar} />
       ) : (
         <View style={styles.userAvatarPlaceholder}>
-          <User size={16} color={colors.neutral[500]} />
+          <User size={16} color={colors.brand.textSecondary} />
         </View>
       )}
       <View>
@@ -307,124 +307,124 @@ export default function ModerationScreen() {
   });
 
   const loadDashboard = useCallback(async () => {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const role = (sessionData.session?.user?.app_metadata as any)?.role;
-        setJwtRole(typeof role === 'string' ? role : null);
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const role = (sessionData.session?.user?.app_metadata as any)?.role;
+      setJwtRole(typeof role === 'string' ? role : null);
 
-        const [
-          eventsRes,
-          reportsRes,
-          warningsRes,
-          reportCountsRes,
-          userReportsRes,
-          reportsCountRes,
-          actionsRejectedRes,
-          actionsResolvedRes,
-          actionsBanRes,
-        ] = await Promise.all([
-          supabase
-            .from('events')
-            .select('id, title, city, starts_at, status')
-            .neq('status', 'published')
-            .order('created_at', { ascending: false })
-            .limit(10),
-          supabase
-            .from('reports')
-            .select('id, target_type, target_id, reason, severity, status, created_at, reporter:profiles!reports_reporter_id_fkey(id, display_name, avatar_url, role)')
-            .in('status', ['new', 'in_review', 'escalated'])
-            .order('created_at', { ascending: false })
-            .limit(8),
-          supabase
-            .from('warnings')
-            .select('id, user_id, level, reason, created_at, user:profiles!warnings_user_id_fkey(id, display_name, avatar_url, role)')
-            .order('created_at', { ascending: false })
-            .limit(6),
-          supabase
-            .from('reports')
-            .select('target_id, target_type')
-            .eq('target_type', 'event')
-            .in('status', ['new', 'in_review', 'escalated']),
-          supabase
-            .from('reports')
-            .select('target_id')
-            .eq('target_type', 'user')
-            .in('status', ['new', 'in_review', 'escalated']),
-          supabase
-            .from('reports')
-            .select('id', { count: 'exact', head: true })
-            .in('status', ['new', 'in_review', 'escalated']),
-          supabase
-            .from('moderation_actions')
-            .select('id', { count: 'exact', head: true })
-            .eq('target_type', 'event')
-            .eq('action_type', 'refuse'),
-          supabase
-            .from('moderation_actions')
-            .select('id', { count: 'exact', head: true }),
-          supabase
-            .from('moderation_actions')
-            .select('id', { count: 'exact', head: true })
-            .eq('action_type', 'ban'),
-        ]);
+      const [
+        eventsRes,
+        reportsRes,
+        warningsRes,
+        reportCountsRes,
+        userReportsRes,
+        reportsCountRes,
+        actionsRejectedRes,
+        actionsResolvedRes,
+        actionsBanRes,
+      ] = await Promise.all([
+        supabase
+          .from('events')
+          .select('id, title, city, starts_at, status')
+          .neq('status', 'published')
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('reports')
+          .select('id, target_type, target_id, reason, severity, status, created_at, reporter:profiles!reports_reporter_id_fkey(id, display_name, avatar_url, role)')
+          .in('status', ['new', 'in_review', 'escalated'])
+          .order('created_at', { ascending: false })
+          .limit(8),
+        supabase
+          .from('warnings')
+          .select('id, user_id, level, reason, created_at, user:profiles!warnings_user_id_fkey(id, display_name, avatar_url, role)')
+          .order('created_at', { ascending: false })
+          .limit(6),
+        supabase
+          .from('reports')
+          .select('target_id, target_type')
+          .eq('target_type', 'event')
+          .in('status', ['new', 'in_review', 'escalated']),
+        supabase
+          .from('reports')
+          .select('target_id')
+          .eq('target_type', 'user')
+          .in('status', ['new', 'in_review', 'escalated']),
+        supabase
+          .from('reports')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['new', 'in_review', 'escalated']),
+        supabase
+          .from('moderation_actions')
+          .select('id', { count: 'exact', head: true })
+          .eq('target_type', 'event')
+          .eq('action_type', 'refuse'),
+        supabase
+          .from('moderation_actions')
+          .select('id', { count: 'exact', head: true }),
+        supabase
+          .from('moderation_actions')
+          .select('id', { count: 'exact', head: true })
+          .eq('action_type', 'ban'),
+      ]);
 
-        if (eventsRes.error) throw eventsRes.error;
-        if (reportsRes.error) throw reportsRes.error;
-        if (warningsRes.error) throw warningsRes.error;
-        if (reportCountsRes.error) throw reportCountsRes.error;
-        if (userReportsRes.error) throw userReportsRes.error;
-        if (reportsCountRes.error) throw reportsCountRes.error;
-        if (actionsRejectedRes.error) throw actionsRejectedRes.error;
-        if (actionsResolvedRes.error) throw actionsResolvedRes.error;
-        if (actionsBanRes.error) throw actionsBanRes.error;
+      if (eventsRes.error) throw eventsRes.error;
+      if (reportsRes.error) throw reportsRes.error;
+      if (warningsRes.error) throw warningsRes.error;
+      if (reportCountsRes.error) throw reportCountsRes.error;
+      if (userReportsRes.error) throw userReportsRes.error;
+      if (reportsCountRes.error) throw reportsCountRes.error;
+      if (actionsRejectedRes.error) throw actionsRejectedRes.error;
+      if (actionsResolvedRes.error) throw actionsResolvedRes.error;
+      if (actionsBanRes.error) throw actionsBanRes.error;
 
-        const reportCountByEvent = new Map<string, number>();
-        (reportCountsRes.data || []).forEach((row) => {
-          if (!row.target_id) return;
-          reportCountByEvent.set(row.target_id, (reportCountByEvent.get(row.target_id) || 0) + 1);
-        });
+      const reportCountByEvent = new Map<string, number>();
+      (reportCountsRes.data || []).forEach((row) => {
+        if (!row.target_id) return;
+        reportCountByEvent.set(row.target_id, (reportCountByEvent.get(row.target_id) || 0) + 1);
+      });
 
-        const mappedEvents = (eventsRes.data || []).map((event) => ({
-          ...event,
-          reports_count: reportCountByEvent.get(event.id) || 0,
-        })) as EventRecord[];
+      const mappedEvents = (eventsRes.data || []).map((event) => ({
+        ...event,
+        reports_count: reportCountByEvent.get(event.id) || 0,
+      })) as EventRecord[];
 
-        const reportList = ((reportsRes.data || []) as any[]).map((report) => ({
-          ...report,
-          reporter: Array.isArray(report.reporter) ? report.reporter[0] ?? null : report.reporter ?? null,
-        })) as Report[];
-        const warningList = ((warningsRes.data || []) as any[]).map((warning) => ({
-          ...warning,
-          user: Array.isArray(warning.user) ? warning.user[0] ?? null : warning.user ?? null,
-        })) as Warning[];
-        const warningByUser = new Map<string, Warning>();
-        warningList.forEach((warning) => {
-          if (!warning.user_id || warningByUser.has(warning.user_id)) return;
-          warningByUser.set(warning.user_id, warning);
-        });
-        const dedupedWarningList = Array.from(warningByUser.values());
+      const reportList = ((reportsRes.data || []) as any[]).map((report) => ({
+        ...report,
+        reporter: Array.isArray(report.reporter) ? report.reporter[0] ?? null : report.reporter ?? null,
+      })) as Report[];
+      const warningList = ((warningsRes.data || []) as any[]).map((warning) => ({
+        ...warning,
+        user: Array.isArray(warning.user) ? warning.user[0] ?? null : warning.user ?? null,
+      })) as Warning[];
+      const warningByUser = new Map<string, Warning>();
+      warningList.forEach((warning) => {
+        if (!warning.user_id || warningByUser.has(warning.user_id)) return;
+        warningByUser.set(warning.user_id, warning);
+      });
+      const dedupedWarningList = Array.from(warningByUser.values());
 
-        const flaggedUsers = new Set((userReportsRes.data || []).map((row) => row.target_id)).size;
+      const flaggedUsers = new Set((userReportsRes.data || []).map((row) => row.target_id)).size;
 
-        setEvents(mappedEvents);
-        setReports(reportList);
-        setWarnings(dedupedWarningList);
-        setStats({
-          pendingEvents: mappedEvents.length,
-          newReports: reportsCountRes.count || 0,
-          flaggedUsers,
-          rejectedEvents: actionsRejectedRes.count || 0,
-          resolvedActions: actionsResolvedRes.count || 0,
-          bannedUsers: actionsBanRes.count || 0,
-        });
-      } catch (error) {
-        console.error('[Moderation] load dashboard failed', error);
-        setLoadError(error instanceof Error ? error.message : 'Erreur inconnue');
-      } finally {
-        setLoading(false);
-      }
+      setEvents(mappedEvents);
+      setReports(reportList);
+      setWarnings(dedupedWarningList);
+      setStats({
+        pendingEvents: mappedEvents.length,
+        newReports: reportsCountRes.count || 0,
+        flaggedUsers,
+        rejectedEvents: actionsRejectedRes.count || 0,
+        resolvedActions: actionsResolvedRes.count || 0,
+        bannedUsers: actionsBanRes.count || 0,
+      });
+    } catch (error) {
+      console.error('[Moderation] load dashboard failed', error);
+      setLoadError(error instanceof Error ? error.message : 'Erreur inconnue');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -484,10 +484,10 @@ export default function ModerationScreen() {
         <Text style={styles.headerTitle}>Modération – Moments Locaux</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)}>
-            <Menu size={22} color={colors.neutral[800]} />
+            <Menu size={22} color={colors.brand.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuButton} onPress={() => router.back()}>
-            <X size={20} color={colors.neutral[700]} />
+            <X size={20} color={colors.brand.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -640,7 +640,7 @@ export default function ModerationScreen() {
             <View style={styles.menuHeader}>
               <Text style={styles.menuTitle}>Navigation</Text>
               <TouchableOpacity onPress={() => setMenuOpen(false)}>
-                <X size={18} color={colors.neutral[600]} />
+                <X size={18} color={colors.brand.text} />
               </TouchableOpacity>
             </View>
             {menuItems.map((item) => (
@@ -665,7 +665,7 @@ export default function ModerationScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -674,13 +674,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   headerTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   menuButton: {
     width: 36,
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   headerActions: {
     flexDirection: 'row',
@@ -704,28 +704,28 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.lg,
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.04,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
   loadingText: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   debugCard: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     padding: spacing.md,
     gap: spacing.xs,
   },
   debugText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   debugError: {
     ...typography.caption,
@@ -743,20 +743,22 @@ const styles = StyleSheet.create({
     width: 180,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.08,
+    backgroundColor: colors.brand.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   kpiValue: {
     ...typography.h3,
-    color: colors.info[700],
+    color: colors.brand.secondary,
     marginBottom: spacing.xs,
   },
   kpiLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   section: {
     gap: spacing.md,
@@ -769,22 +771,24 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   sectionAction: {
     ...typography.bodySmall,
-    color: colors.info[600],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
   eventCard: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.05,
+    backgroundColor: colors.brand.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
     gap: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   eventInfo: {
     gap: spacing.xs,
@@ -792,11 +796,11 @@ const styles = StyleSheet.create({
   eventTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   eventMeta: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   eventReport: {
     flexDirection: 'row',
@@ -820,7 +824,7 @@ const styles = StyleSheet.create({
   },
   eventButtonPrimaryText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.brand.surface,
     fontWeight: '600',
   },
   eventButtonGhost: {
@@ -839,16 +843,18 @@ const styles = StyleSheet.create({
   card: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.05,
+    backgroundColor: colors.brand.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
     gap: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   emptyText: {
     ...typography.bodySmall,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   reportItem: {
     flexDirection: 'row',
@@ -856,7 +862,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   reportAvatarWrap: {
     width: 40,
@@ -872,7 +878,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   reportContent: {
     flex: 1,
@@ -880,7 +886,7 @@ const styles = StyleSheet.create({
   },
   reportReason: {
     ...typography.bodySmall,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   reportMeta: {
@@ -900,7 +906,7 @@ const styles = StyleSheet.create({
   },
   reportTime: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   reportTarget: {
     width: 36,
@@ -908,13 +914,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   userRow: {
     gap: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   userInfo: {
     flexDirection: 'row',
@@ -930,14 +936,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   userName: {
     ...typography.bodySmall,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   userBadges: {
     flexDirection: 'row',
@@ -1002,12 +1008,14 @@ const styles = StyleSheet.create({
   donutCard: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.05,
+    backgroundColor: colors.brand.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
     gap: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   donutRing: {
     alignItems: 'center',
@@ -1018,19 +1026,19 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 12,
-    borderColor: colors.info[200],
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   donutTotal: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   donutSubtitle: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   donutLegend: {
     gap: spacing.sm,
@@ -1047,35 +1055,37 @@ const styles = StyleSheet.create({
   },
   donutLegendLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     flex: 1,
   },
   donutLegendValue: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   barCard: {
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.05,
+    backgroundColor: colors.brand.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
     gap: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   barRow: {
     gap: spacing.xs,
   },
   barLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   barTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
   },
   barFill: {
@@ -1084,7 +1094,7 @@ const styles = StyleSheet.create({
   },
   barValue: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'right',
   },
   statRow: {
@@ -1099,11 +1109,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   statChipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   footer: {
@@ -1121,7 +1131,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     ...typography.body,
-    color: colors.neutral[0],
+    color: colors.brand.surface,
     fontWeight: '700',
   },
   menuBackdrop: {
@@ -1130,11 +1140,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   menuSheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   menuHeader: {
     flexDirection: 'row',
@@ -1145,17 +1157,17 @@ const styles = StyleSheet.create({
   menuTitle: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   menuItem: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   menuItemText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
 });

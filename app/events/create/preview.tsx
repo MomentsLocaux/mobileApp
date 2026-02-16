@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Calendar, MapPin, Tag, Euro, Rocket, Pencil } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
 import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -215,36 +215,90 @@ export default function CreateEventPreview() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[800]} />
+          <ChevronLeft size={20} color={colors.brand.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Prévisualisation</Text>
         <View style={styles.headerBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Résumé de l'événement</Text>
-        <EventPreviewMiniMap
-          coverUrl={coverImage?.publicUrl}
-          title={title}
-          dateLabel={dateLabel}
-          category={category}
-          city={location?.city}
-          location={location}
-        />
-        {description ? <Text style={styles.description}>{description}</Text> : null}
+        <Text style={styles.sectionTitle}>Aperçu de l'événement</Text>
+
+        {/* Rich Event Card Preview */}
+        <View style={styles.previewCard}>
+          <EventPreviewMiniMap
+            coverUrl={coverImage?.publicUrl}
+            title={title}
+            dateLabel={dateLabel}
+            category={category}
+            city={location?.city}
+            location={location}
+          />
+
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>{title}</Text>
+
+            <View style={styles.infoRow}>
+              <Calendar size={16} color={colors.brand.secondary} />
+              <Text style={styles.infoText}>{dateLabel}</Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <MapPin size={16} color={colors.brand.secondary} />
+              <Text style={styles.infoText}>{location?.addressLabel || location?.city}</Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Euro size={16} color={colors.brand.secondary} />
+              <Text style={styles.infoText}>
+                {!price || price === '0' ? 'Gratuit' : `${price}€ par personne`}
+              </Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.descriptionLabel}>Description</Text>
+            {description ? <Text style={styles.description}>{description}</Text> : null}
+          </View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Simulation du fil</Text>
+        <View style={styles.feedSimulation}>
+          <View style={styles.feedHeader}>
+            <View style={styles.feedAvatar} />
+            <View style={{ gap: 2 }}>
+              <View style={styles.feedNamePatch} />
+              <View style={styles.feedTimePatch} />
+            </View>
+          </View>
+          <View style={styles.feedImagePlaceholder} />
+          <View style={styles.feedTitlePatch} />
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.confirmBtn, (!canPublish || submitting) && styles.confirmDisabled]}
+          style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
           disabled={!canPublish || submitting}
           onPress={handleConfirm}
         >
           {submitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color="#0f1719" />
           ) : (
-            <Text style={styles.confirmText}>Confirmer la création de l'événement</Text>
+            <>
+              <Rocket size={20} color="#0f1719" />
+              <Text style={styles.publishText}>Publier maintenant</Text>
+            </>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.editBtn}
+          disabled={submitting}
+          onPress={() => router.back()}
+        >
+          <Pencil size={18} color="#fff" />
+          <Text style={styles.editText}>Modifier les informations</Text>
         </TouchableOpacity>
       </View>
 
@@ -264,7 +318,7 @@ export default function CreateEventPreview() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.primary,
   },
   header: {
     height: 64,
@@ -281,7 +335,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   content: {
@@ -291,31 +345,130 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h6,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
+    marginBottom: spacing.md,
+  },
+  previewCard: {
+    backgroundColor: colors.brand.surface,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  cardContent: {
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  cardTitle: {
+    ...typography.h4,
+    color: colors.brand.text,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  infoText: {
+    ...typography.body,
+    color: colors.brand.textSecondary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: spacing.sm,
+  },
+  descriptionLabel: {
+    ...typography.h6,
+    color: colors.brand.text,
+    fontSize: 16,
+    marginBottom: 4,
   },
   description: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
+    lineHeight: 22,
+  },
+  feedSimulation: {
+    opacity: 0.5,
+    backgroundColor: colors.brand.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  feedHeader: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  feedAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  feedNamePatch: {
+    width: 80,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  feedTimePatch: {
+    width: 40,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  feedImagePlaceholder: {
+    width: '100%',
+    height: 120,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  feedTitlePatch: {
+    width: '60%',
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   footer: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.brand.primary,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+    gap: spacing.md,
   },
-  confirmBtn: {
-    backgroundColor: colors.primary[600],
+  publishBtn: {
+    backgroundColor: colors.brand.secondary,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
-  confirmDisabled: {
-    backgroundColor: colors.neutral[300],
+  publishDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  confirmText: {
+  publishText: {
+    ...typography.body,
+    color: '#0f1719',
+    fontWeight: '700',
+  },
+  editBtn: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  editText: {
     ...typography.body,
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

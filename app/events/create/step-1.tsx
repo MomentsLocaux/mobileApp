@@ -286,6 +286,9 @@ export default function CreateEventStep1() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.backgroundContainer}>
+        {/* Global background is behind, but we might want a slight overlay */}
+      </View>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -293,19 +296,17 @@ export default function CreateEventStep1() {
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerBtn} onPress={handleAttemptExit}>
-            <ChevronLeft size={20} color={colors.neutral[800]} />
+            <ChevronLeft size={20} color={colors.brand.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nouvel évènement</Text>
-          <TouchableOpacity
-            style={[styles.headerBtn, styles.nextBtn, !canProceed && styles.nextBtnDisabled]}
-            disabled={!canProceed}
-            onPress={() => {
-              const dest = edit ? `/events/create/step-2?edit=${edit}` : '/events/create/step-2';
-              router.push(dest as any);
-            }}
-          >
-            <Text style={styles.nextText}>Suivant</Text>
-          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Créer un événement</Text>
+            <Text style={styles.headerSubtitle}>Étape 1 sur 3</Text>
+          </View>
+          <View style={styles.headerBtn} />
+        </View>
+
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBar, { width: '33%' }]} />
         </View>
 
         <ScrollView
@@ -316,6 +317,7 @@ export default function CreateEventStep1() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
+          <Text style={styles.sectionTitle}>Informations de base</Text>
           <CoverImageUploader />
           <AdditionalImagesUploader />
           <CreateEventForm
@@ -328,6 +330,19 @@ export default function CreateEventStep1() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.nextBtn, !canProceed && styles.nextBtnDisabled]}
+          disabled={!canProceed}
+          onPress={() => {
+            const dest = edit ? `/events/create/step-2?edit=${edit}` : '/events/create/step-2';
+            router.push(dest as any);
+          }}
+        >
+          <Text style={styles.nextText}>Suivant</Text>
+        </TouchableOpacity>
+      </View>
+
       <LocationPickerModal visible={locationModalVisible} onClose={() => setLocationModalVisible(false)} />
     </SafeAreaView>
   );
@@ -336,7 +351,11 @@ export default function CreateEventStep1() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.primary,
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
   },
   header: {
     height: 64,
@@ -353,21 +372,45 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
+  headerTitleContainer: {
+    alignItems: 'center',
+  },
+  headerSubtitle: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#1e293b',
+    width: '100%',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: colors.brand.secondary,
+  },
+  footer: {
+    padding: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.brand.primary,
+  },
   nextBtn: {
-    backgroundColor: colors.primary[600],
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    backgroundColor: colors.brand.secondary,
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
+    alignItems: 'center',
   },
   nextBtnDisabled: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   nextText: {
     ...typography.body,
-    color: '#fff',
+    color: '#0f1719', // Dark text on bright button
     fontWeight: '700',
   },
   content: {
@@ -377,8 +420,14 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
     marginTop: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.h6,
+    color: colors.brand.text,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
 });

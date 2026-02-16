@@ -26,7 +26,7 @@ type RowProps = {
 export const SettingsSectionCard: React.FC<CardProps> = ({ title, description, icon: Icon, accent, children }) => (
   <View style={[styles.card, accent && styles.cardAccent]}>
     <View style={styles.cardHeader}>
-      <Icon size={22} color={colors.neutral[800]} />
+      <Icon size={22} color={colors.brand.secondary} />
       <View style={styles.cardHeaderText}>
         <Text style={styles.cardTitle}>{title}</Text>
         {description ? <Text style={styles.cardDescription}>{description}</Text> : null}
@@ -49,14 +49,14 @@ export const SettingsRow: React.FC<RowProps> = ({
   const content = (
     <>
       <View style={styles.rowLeft}>
-        <Icon size={20} color={danger ? colors.error[600] : colors.neutral[700]} />
+        <Icon size={20} color={danger ? colors.error[600] : colors.brand.secondary} />
         <Text style={[styles.rowLabel, danger && styles.rowLabelDanger, disabled && styles.rowLabelDisabled]}>
           {label}
         </Text>
       </View>
       <View style={styles.rowRight}>
         {right}
-        {onPress && showChevron ? <ChevronRight size={18} color={colors.neutral[400]} /> : null}
+        {onPress && showChevron ? <ChevronRight size={18} color={colors.brand.textSecondary} /> : null}
       </View>
     </>
   );
@@ -79,19 +79,16 @@ export const SettingsRow: React.FC<RowProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   cardAccent: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.brand.secondary,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -104,11 +101,11 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   cardDescription: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginTop: 2,
   },
   cardBody: {
@@ -120,7 +117,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   rowNoBorder: {
     borderTopWidth: 0,
@@ -138,14 +135,14 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   rowLabelDanger: {
     color: colors.error[600],
   },
   rowLabelDisabled: {
-    color: colors.neutral[400],
+    color: colors.brand.textSecondary,
   },
   rowDisabled: {
     opacity: 0.6,

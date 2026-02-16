@@ -113,7 +113,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
 
       <View style={styles.section}>
         <Text style={styles.label}>Emplacement</Text>
-        <TouchableOpacity style={styles.pill}  onPress={onOpenLocation} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.pill} onPress={onOpenLocation} activeOpacity={0.8}>
           <Text style={[styles.pillText, location && styles.valueText]}>
             {location?.addressLabel || "Choisir l'emplacement"}
           </Text>
@@ -122,17 +122,17 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
 
       <View style={styles.section}>
         <Text style={styles.label}>Ajouter plus d'informations (facultatif)</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        placeholder="Description"
-        value={description}
-        onChangeText={(text) => {
-          if (text.length <= 1000) setDescription(text);
-        }}
-        multiline
-        ref={onInputRef?.('description')}
-        onFocus={() => onInputFocus?.('description')}
-      />
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Description"
+          value={description}
+          onChangeText={(text) => {
+            if (text.length <= 1000) setDescription(text);
+          }}
+          multiline
+          ref={onInputRef?.('description')}
+          onFocus={() => onInputFocus?.('description')}
+        />
         <Text style={styles.counter}>{(description || '').length}/1000</Text>
       </View>
 
@@ -158,21 +158,22 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.textSecondary,
     fontWeight: '700',
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
+    color: colors.brand.text,
   },
   placeholderText: {
-    color: colors.neutral[400],
+    color: colors.brand.textSecondary,
   },
   valueText: {
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   row: {
     flexDirection: 'row',
@@ -190,13 +191,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
   },
   pillText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
   },
   counter: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     alignSelf: 'flex-end',
   },
   backdrop: {
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: colors.brand.surface,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     padding: spacing.md,
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 5,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.neutral[600],
   },
   sheetHeader: {
     flexDirection: 'row',
@@ -239,10 +240,10 @@ const styles = StyleSheet.create({
   },
   link: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   linkStrong: {
-    color: colors.primary[600],
+    color: colors.brand.secondary,
   },
 });

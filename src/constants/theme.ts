@@ -116,6 +116,16 @@ export const colors: Record<string, ColorScale> = {
     500: '#5f87ff',
     700: '#2f57cc',
   },
+  brand: {
+    primary: '#0f1719',
+    secondary: '#2bbfe3',
+    surface: '#1a2426',
+    text: '#ffffff',
+    textSecondary: '#94a3b8',
+    success: '#10b981',
+    error: '#ef4444',
+    warning: '#f59e0b',
+  },
 };
 
 export const spacing = {

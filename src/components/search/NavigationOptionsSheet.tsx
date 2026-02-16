@@ -33,11 +33,11 @@ async function openNavigation(urls: ReturnType<typeof buildUrls>, preference: 'w
       ? preference === 'waze'
         ? ['wazeApp', 'wazeWeb', 'google', 'apple']
         : preference === 'apple'
-        ? ['apple', 'google', 'wazeWeb']
-        : ['google', 'wazeWeb', 'apple']
+          ? ['apple', 'google', 'wazeWeb']
+          : ['google', 'wazeWeb', 'apple']
       : preference === 'waze'
-      ? ['wazeApp', 'wazeWeb', 'google']
-      : ['google', 'wazeWeb'];
+        ? ['wazeApp', 'wazeWeb', 'google']
+        : ['google', 'wazeWeb'];
 
   for (const key of order) {
     const url = urls[key];
@@ -126,31 +126,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#00000055',
   },
   sheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
   },
   title: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.md,
   },
   option: {
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   optionText: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   cancel: {
     borderBottomWidth: 0,
     marginTop: spacing.sm,
   },
   cancelText: {
-    color: colors.error[600],
+    color: colors.brand.error,
     textAlign: 'center',
   },
 });

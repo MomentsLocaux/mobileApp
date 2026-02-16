@@ -120,6 +120,36 @@ const isDuplicateKeyError = (error: any) => {
   return code === '23505' || message.includes('duplicate key value');
 };
 
+const isTransientNetworkError = (error: any) => {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes('upstream connect error') ||
+    message.includes('disconnect/reset before headers') ||
+    message.includes('connection timeout') ||
+    message.includes('etimedout') ||
+    message.includes('network request failed') ||
+    message.includes('fetch failed')
+  );
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const withRetry = async <T>(operation: () => Promise<T>, attempts = 3): Promise<T> => {
+  let lastError: unknown = null;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || i === attempts - 1) {
+        throw error;
+      }
+      await sleep(250 * (i + 1));
+    }
+  }
+  throw lastError;
+};
+
 const getAuthedUserId = async (context: string) => {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw formatSupabaseError(userError, `${context}-auth`);
@@ -186,13 +216,15 @@ export const supabaseProvider: (Pick<
   },
 
   async getEventById(id: string) {
-    const { data, error } = await supabase
-      .from('events')
-      .select(EVENT_FULL_SELECT)
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw formatSupabaseError(error, 'getEventById');
-    return data ? (data as unknown as EventWithCreator) : null;
+    return withRetry(async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select(EVENT_FULL_SELECT)
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw formatSupabaseError(error, 'getEventById');
+      return data ? (data as unknown as EventWithCreator) : null;
+    });
   },
 
   async getEventsByIds(ids: string[]) {
@@ -202,8 +234,21 @@ export const supabaseProvider: (Pick<
     const { data, error } = await supabase
       .rpc('get_events_by_ids', { ids: cleanedIds })
       .select(EVENT_FULL_SELECT);
-    if (error) throw formatSupabaseError(error, 'getEventsByIds');
-    return (data || []) as unknown as EventWithCreator[];
+
+    if (!error) {
+      return (data || []) as unknown as EventWithCreator[];
+    }
+
+    // Fallback when RPC is missing/misconfigured: query events table directly.
+    // This keeps favorites functional across environments with partial SQL migrations.
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('events')
+      .select(EVENT_FULL_SELECT)
+      .in('id', cleanedIds);
+    if (fallbackError) {
+      throw formatSupabaseError(error, 'getEventsByIds');
+    }
+    return (fallbackData || []) as unknown as EventWithCreator[];
   },
 
   async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number; includePast?: boolean }) {

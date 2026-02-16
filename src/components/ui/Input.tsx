@@ -38,19 +38,19 @@ const styles = StyleSheet.create({
   label: {
     ...typography.bodySmall,
     fontWeight: '600',
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.md,
     minHeight: minimumTouchTarget,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     fontSize: 16,
-    color: colors.textPrimary[500],
-    backgroundColor: colors.secondaryAccent[500],
+    color: colors.brand.text,
+    backgroundColor: colors.brand.surface,
   },
   inputError: {
     borderColor: colors.error[500],
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
 });

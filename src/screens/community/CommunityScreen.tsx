@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ const SORT_OPTIONS: { key: 'followers' | 'events' | 'lumo'; label: string }[] = 
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { profile, user } = useAuth();
+  const { profile, user, session } = useAuth();
   const [tab, setTab] = useState<TabKey>('leaderboard');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
@@ -41,7 +41,8 @@ export default function CommunityScreen() {
   const [loadingBoard, setLoadingBoard] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const currentUserId = user?.id;
+  const [followPendingId, setFollowPendingId] = useState<string | null>(null);
+  const currentUserId = user?.id || session?.user?.id || profile?.id;
   const [followingIds, setFollowingIds] = useState<string[]>([]);
 
   const loadLeaderboard = useCallback(async () => {
@@ -78,11 +79,7 @@ export default function CommunityScreen() {
         setFollowingIds([]);
       }
       const data = await CommunityService.listMembers({ city: cityFilter, sort, limit: 50 });
-      const annotated = data.map((m) => ({
-        ...m,
-        is_following: currentUserId ? ids.includes(m.user_id) : false,
-      }));
-      setMembers(annotated);
+      setMembers(data);
     } catch (e) {
       console.warn('loadMembers error', e);
       Alert.alert('Erreur', 'Impossible de charger les membres');
@@ -104,25 +101,24 @@ export default function CommunityScreen() {
       Alert.alert('Connexion requise', 'Connectez-vous pour suivre des membres.');
       return;
     }
-    // optimistic update
-    setMembers((prev) =>
-      prev.map((m) => (m.user_id === memberId ? { ...m, is_following: !current, followers_count: m.followers_count + (current ? -1 : 1) } : m))
-    );
+    setFollowPendingId(memberId);
     try {
       if (current) {
         await CommunityService.unfollow(memberId);
       } else {
         await CommunityService.follow(memberId);
       }
+      // Always resync from DB so labels reflect actual follows rows.
+      await loadMembers();
     } catch (e) {
       console.warn('follow/unfollow error', e);
-      // revert
-      setMembers((prev) =>
-        prev.map((m) => (m.user_id === memberId ? { ...m, is_following: current, followers_count: m.followers_count + (current ? 1 : -1) } : m))
-      );
       Alert.alert('Erreur', 'Action impossible pour le moment');
+    } finally {
+      setFollowPendingId(null);
     }
   };
+
+  const followingSet = useMemo(() => new Set(followingIds), [followingIds]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -147,43 +143,45 @@ export default function CommunityScreen() {
     </View>
   );
 
-  const renderMemberItem = ({ item }: { item: CommunityMember }) => (
-    <TouchableOpacity style={styles.gridCard} onPress={() => router.push(`/community/${item.user_id}` as any)}>
-      {item.cover_url ? (
-        <Image source={{ uri: item.cover_url }} style={styles.cover} />
-      ) : (
-        <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
-      )}
-      <View style={styles.gridFooter}>
-        <View style={styles.gridInfo}>
-          {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: colors.neutral[300] }]} />
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name} numberOfLines={1}>
-              {item.display_name}
-            </Text>
-            <Text style={styles.meta} numberOfLines={1}>
-              {item.followers_count} followers
-            </Text>
+  const renderMemberItem = ({ item }: { item: CommunityMember }) => {
+    const isFollowing = followingSet.has(item.user_id);
+    const isSelf = item.user_id === currentUserId;
+    return (
+      <TouchableOpacity style={styles.gridCard} onPress={() => router.push(`/community/${item.user_id}` as any)}>
+        {item.cover_url ? (
+          <Image source={{ uri: item.cover_url }} style={styles.cover} />
+        ) : (
+          <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
+        )}
+        <View style={styles.gridFooter}>
+          <View style={styles.gridInfo}>
+            {item.avatar_url ? (
+              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: colors.neutral[300] }]} />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name} numberOfLines={1}>
+                {item.display_name}
+              </Text>
+              <Text style={styles.meta} numberOfLines={1}>
+                {item.followers_count} followers
+              </Text>
+            </View>
           </View>
+          <TouchableOpacity
+            style={[styles.followBtn, isFollowing && styles.followingBtn]}
+            disabled={isSelf || followPendingId === item.user_id}
+            onPress={() => toggleFollow(item.user_id, isFollowing)}
+          >
+            <Text style={[styles.followText, isFollowing && styles.followingText]}>
+              {isSelf ? 'Vous' : isFollowing ? 'Suivi' : 'Suivre'}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.followBtn, item.is_following && styles.followingBtn]}
-          disabled={!!item.is_following}
-          onPress={() => {
-            if (!item.is_following) toggleFollow(item.user_id, false);
-          }}
-        >
-          <Text style={[styles.followText, item.is_following && styles.followingText]}>
-            {item.is_following ? 'Suivi' : 'Suivre'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -322,7 +320,7 @@ function Pill({ label, active, onPress }: { label: string; active: boolean; onPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'transparent',
   },
   tabs: {
     flexDirection: 'row',
@@ -333,21 +331,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
   },
   tabButtonActive: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
   },
   tabText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   tabTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   section: {
@@ -368,20 +366,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   pillActive: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
   },
   pillText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   pillTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   listContent: {
@@ -393,9 +391,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
     gap: spacing.md,
   },
   rankBadge: {
@@ -417,16 +415,16 @@ const styles = StyleSheet.create({
   rankText: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
   name: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   score: {
     ...typography.body,
@@ -465,11 +463,11 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   cover: {
     width: '100%',
@@ -493,13 +491,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   filterButtonText: {
     ...typography.bodySmall,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   modalOverlay: {
@@ -532,10 +530,10 @@ const styles = StyleSheet.create({
   },
   optionText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   optionTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
 });

@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   grid: {
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   collapseLabel: {
     ...typography.bodySmall,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     fontWeight: '600',
   },
   card: {
@@ -119,20 +119,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
     minWidth: '45%',
   },
   cardActive: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
   },
   cardText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   cardTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
 });
