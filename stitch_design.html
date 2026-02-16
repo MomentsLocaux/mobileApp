@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Détails de l'événement - Moments Locaux</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2bbfe3",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#0A0A0A",
+                        "surface-dark": "#162529",
+                        "surface-light": "#e0e7e9",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass { background: rgba(22, 37, 41, 0.7); backdrop-filter: blur(12px); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen pb-32">
+<!-- Sticky Header -->
+<header class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 glass border-b border-white/5">
+<button class="size-10 flex items-center justify-center rounded-full bg-white/10 text-white">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex gap-2">
+<button class="size-10 flex items-center justify-center rounded-full bg-white/10 text-white">
+<span class="material-symbols-outlined">share</span>
+</button>
+<button class="size-10 flex items-center justify-center rounded-full bg-white/10 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">favorite</span>
+</button>
+</div>
+</header>
+<!-- Hero Section -->
+<div class="relative w-full h-[450px]">
+<img alt="Concert background" class="w-full h-full object-cover" data-alt="Crowd at a vibrant music festival with stage lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqLedc-6gsYssqq_bahCuz41JGIAxnGdWcGX7a21oYx8fcMeAmeOc50VYAZfM_Lr_ymM7MUj-jDLxVduaOmFTPlJ3RrXHW53dRe_C3XlszST9juJUst_RSt3ltcSlT96vxyvJN0ySa2gaR4uHYbstXRfgmSPQUNCrwwyJDSxv_5MGUBcr9IayAz0wqyStyKtcj9REfOwUKJ-x1rPw7UojoxkKfxsA7UbA4vJ4z_kyGCi9FANjZ1BTJ5lGc72dQexRoNTkKYUpJZByP"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+<!-- Badges Overlay -->
+<div class="absolute bottom-6 left-4 flex gap-2">
+<span class="px-4 py-1.5 rounded-full bg-primary text-white text-xs font-bold uppercase tracking-wider">Music</span>
+<span class="px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider backdrop-blur-md">Live Now</span>
+</div>
+</div>
+<!-- Content Container -->
+<main class="px-4 -mt-6 relative z-10 space-y-6">
+<!-- Title & Info -->
+<section class="space-y-4">
+<h1 class="text-4xl font-bold tracking-tight text-white leading-tight">Moments Locaux: Summer Underground Sessions</h1>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="size-12 rounded-xl bg-surface-dark flex items-center justify-center text-primary border border-white/5">
+<span class="material-symbols-outlined">calendar_today</span>
+</div>
+<div>
+<p class="font-bold text-white">Friday, Oct 27 • 19:00</p>
+<p class="text-slate-400 text-sm">Se termine à 23:30 (4.5 heures)</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-primary text-2xl font-bold">$25.00</p>
+<p class="text-slate-500 text-xs uppercase font-bold tracking-widest">PAR BILLET</p>
+</div>
+</div>
+<div class="flex items-center justify-between p-4 rounded-2xl bg-surface-dark border border-white/5">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">location_on</span>
+</div>
+<div>
+<p class="font-semibold text-white">The Echo Lounge</p>
+<p class="text-slate-400 text-xs">Se termine à 23:30 (4.5 heures)</p>
+</div>
+</div>
+<button class="px-4 py-2 rounded-full bg-primary/20 text-primary text-sm font-bold border border-primary/30">Voir tout</button>
+</div>
+</section>
+<!-- Engagement Stats -->
+<section class="grid grid-cols-4 gap-3">
+<div class="flex flex-col items-center justify-center p-3 rounded-2xl bg-surface-dark/50 border border-white/5">
+<span class="material-symbols-outlined text-slate-400 text-sm mb-1">visibility</span>
+<span class="font-bold text-white">1.2k</span>
+</div>
+<div class="flex flex-col items-center justify-center p-3 rounded-2xl bg-surface-dark/50 border border-white/5">
+<span class="material-symbols-outlined text-rose-500 text-sm mb-1" style="font-variation-settings: 'FILL' 1">favorite</span>
+<span class="font-bold text-white">428</span>
+</div>
+<div class="flex flex-col items-center justify-center p-3 rounded-2xl bg-surface-dark/50 border border-white/5">
+<span class="material-symbols-outlined text-primary text-sm mb-1">how_to_reg</span>
+<span class="font-bold text-white">85</span>
+</div>
+<div class="flex flex-col items-center justify-center p-3 rounded-2xl bg-surface-dark/50 border border-white/5">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-amber-400 text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="font-bold text-white">4.8</span>
+</div>
+<span class="text-[10px] text-slate-500 uppercase font-bold">120 AVIS</span>
+</div>
+</section>
+<!-- XP Reward Card -->
+<section class="p-5 rounded-2xl bg-gradient-to-br from-primary to-primary/40 text-white flex items-center justify-between shadow-xl shadow-primary/20" style="background: linear-gradient(135deg, #2bbfe3 0%, #2A4FE3 100%);">
+<div class="space-y-1">
+<h3 class="font-bold text-lg">Gagnez une récompense XP</h3>
+<p class="text-white/80 text-sm">Participez à cet événement pour gagner <span class="font-black flex items-center gap-1 inline-flex">+50 XP <span class="material-symbols-outlined text-sm">workspace_premium</span></span></p>
+</div>
+<div class="size-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+<span class="material-symbols-outlined text-3xl font-bold">military_tech</span>
+</div>
+</section>
+<!-- Community Facepile -->
+<section class="flex items-center justify-between py-2">
+<div class="flex -space-x-3">
+<img alt="Attendee" class="size-10 rounded-full ring-2 ring-background-dark" data-alt="User profile avatar 1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_9rLW74VJ7tuUs6FjZCFOzpqFCAQXtNdkASV_EVHgk2mPdK_xEFmQvCOTanF4dtnRtoCTvcISiEyJBB5CePvg1_EdTiI0CqfXKfhpldlIvW2qEyDtGrGwkP4Ff2-InyumHsW5IODY_VM9Ssjo-kAsln4z0obC4Lp9mIDVXvHi_wKdUpf-gUAGUoHU2LqTGY8vEqlW1OSysDYij5zvbUGUFZ9wSUmwigq8udb02npOUY6BL8v71GYUzHFopFgP5dbDm9hgLFGjeljM"/>
+<img alt="Attendee" class="size-10 rounded-full ring-2 ring-background-dark" data-alt="User profile avatar 2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCv9pCKybyRkcMN7BLrsg7Uk3ZmhZ69tsh1rfA6SW8vlDe-gfa1kZKho1RH17n1WG7eA1zudq5m1zQnL_bBpQMeM0Ti30D142rlVaVjvKJ4qgrvQy72Qr07dS70fefcWz-HqS-4AXlmol--ZE2FHA3cRczR2sWCGZ_o6JIQM-4R4aUaxIuYLzAgmADBs__WsMNzLOwVqYn-4f_vnQdMoiKRBwo4Q0ExwsxJdk1NfwQ1jcC74Gr1eeifo_iIQKn9mGvyIw_lkyErmTfB"/>
+<img alt="Attendee" class="size-10 rounded-full ring-2 ring-background-dark" data-alt="User profile avatar 3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuARslG7qHBl4eikumVciePkefypZjz_Uvh0QT_rxrpZDwxRX3_rEoFEHxITJT-MdyLgbFz2xFiJ2q7MCKRDGZcKddOro00-DlejK1eeiR3oC1r4NDPhnrgFOT923j8LrVqrf2uYrNFQLpvPiw0O1BIlVyw1Xatz4obLa_0BFv2Fh4wRXHHRc7ZfekvwCs1q3FphjfGJdZRwSCpyS9fV8eTgxQ6AfHpx7gMSnpnpVi-TtL38wwzUSdVzbgv25DCPCH0Z7xIe89ueuHef"/>
+<div class="size-10 rounded-full ring-2 ring-background-dark bg-surface-dark flex items-center justify-center text-xs font-bold text-slate-400">+72</div>
+</div>
+<p class="text-slate-400 text-sm font-medium">Top fans et amis présents</p>
+</section>
+<!-- Description -->
+<section class="space-y-3">
+<h2 class="text-xl font-bold text-white">À propos de l'événement</h2>
+<p class="text-slate-400 leading-relaxed">Rejoignez-nous pour une nuit exclusive de musique électronique underground et d'expositions d'art local. Cette édition présente des têtes d'affiche de la scène de Brooklyn et des performances de synthèse modulaire en direct. Capacité limitée pour une ambiance intime.</p>
+<div class="flex flex-wrap gap-2 pt-2">
+<span class="px-3 py-1.5 rounded-full bg-surface-dark text-slate-300 text-xs border border-white/5">#Techno</span>
+<span class="px-3 py-1.5 rounded-full bg-surface-dark text-slate-300 text-xs border border-white/5">#LiveMusic</span>
+<span class="px-3 py-1.5 rounded-full bg-surface-dark text-slate-300 text-xs border border-white/5">#Underground</span>
+<span class="px-3 py-1.5 rounded-full bg-surface-dark text-slate-300 text-xs border border-white/5">#NYC</span>
+</div>
+</section>
+<!-- Creator Profile -->
+<section class="p-4 rounded-2xl bg-surface-dark/30 border border-white/5 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<img alt="Creator" class="size-12 rounded-full object-cover" data-alt="Profile photo of the event organizer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKUU0hj0AeAXuqamhvQDy8UyUo_tOSybSbZryDg-6dUw9hHMpSg97GwywUIyqKsjfAixLhzKNb0whG9MrN5yICtdDZuOXfMbAK2GDJCqXJ-BNP-cgtgH03790-34ELntPCDJUJDnGICEJ7B_dwue8-tmfnArETjC5AP2MQxKw1AK869yrCys4rU41Vzz6C3L_WTMlrMfVmf6q30TVrfCYJ-KGgwza5fOtrUZvtEn6eojHrmexPsdlivWU2I5w80GSiCWHUtX7W1Cp_"/>
+<div>
+<h4 class="font-bold text-white">Urban Beats Collective</h4>
+<p class="text-slate-500 text-xs">Organisateur • 4.2k abonnés</p>
+</div>
+</div>
+<button class="px-6 py-2 rounded-full border border-primary text-primary text-sm font-bold hover:bg-primary/10 transition-colors">Suivre</button>
+</section>
+<!-- Comments Snippet -->
+<section class="space-y-4">
+<div class="flex items-center justify-between">
+<h2 class="text-xl font-bold text-white">Échos de la communauté</h2>
+<button class="text-primary text-sm font-bold">Voir tout</button>
+</div>
+<div class="space-y-4">
+<div class="flex gap-3">
+<img alt="User" class="size-8 rounded-full" data-alt="Commenter profile picture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtYN7lfcviw7xzilFkZ5x5PhROk4izVttjatAS4zFhSvIKsRI-wf9TQ8C9xKhHIh9CccL1NfF3VEN4FQueMj9dCKAoilGXmMYYSMun0r-YIN3tE82nK46ccV9WtQ8iAT0OWo8xCGd2YqD6KCpmz0A-m7de-COK45qXa-3ocQrOB5T0KO4uAKAQbYDkMBIoQVKMNReTMXZmAVYBhTWmIZ0C3ryjWaLRvh0gsIGgoudSeVitVKGr-pZniEVyEXm7Uq2oME3ia1b4SXQ_"/>
+<div class="flex-1 bg-surface-dark/50 p-3 rounded-2xl rounded-tl-none border border-white/5">
+<div class="flex justify-between items-center mb-1">
+<span class="text-sm font-bold text-white">Alex Rivera</span>
+<span class="text-[10px] text-slate-500">il y a 2h</span>
+</div>
+<p class="text-sm text-slate-400">J'ai hâte de voir cette programmation ! Qui d'autre vient ? 🚀</p>
+</div>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl border border-dashed border-slate-700 text-slate-500 text-sm font-medium flex items-center justify-center gap-2"><span class="material-symbols-outlined text-lg">add_comment</span> Laissez un commentaire...</button>
+</section>
+</main>
+<!-- Bottom Interaction Bar -->
+<div class="fixed bottom-0 left-0 right-0 p-4 glass border-t border-white/5 z-50">
+<div class="max-w-xl mx-auto flex gap-4">
+<button class="size-14 rounded-2xl bg-surface-dark flex items-center justify-center text-slate-300 border border-white/5">
+<span class="material-symbols-outlined">bookmark</span>
+</button>
+<button class="flex-1 bg-primary text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/30 active:scale-95 transition-transform"><span class="material-symbols-outlined">qr_code_scanner</span> Valider ma présence</button>
+</div>
+</div>
+</body></html>

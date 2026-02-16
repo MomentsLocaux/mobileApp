@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, MapPin, Calendar, Users, Share2, Star } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
+import { getCategoryLabel } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from './EventImageCarousel';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { isEventLive } from '@/utils/event-status';
 
 interface EventCardProps {
   event: EventWithCreator;
@@ -30,6 +32,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   showDistance,
   distance,
 }) => {
+  useTaxonomy();
   const [isSwiping, setIsSwiping] = useState(false);
   const formatDate = (date: string) => {
     const d = new Date(date);
@@ -46,8 +49,7 @@ export const EventCard: React.FC<EventCardProps> = ({
     ].filter(Boolean) as string[];
     return Array.from(new Set(urls)).slice(0, 4); // cover + 3 max
   })();
-  const categoryColor = getCategoryColor(event.category || '');
-  const categoryTextColor = getCategoryTextColor(event.category || '');
+  const isLiveNow = isEventLive(event);
 
   return (
     <TouchableOpacity
@@ -98,10 +100,16 @@ export const EventCard: React.FC<EventCardProps> = ({
                 )}
               </View>
             )}
-            <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
-              <Text style={[styles.categoryText, { color: categoryTextColor }]}>
-                {getCategoryLabel(event.category || '')}
-              </Text>
+            <View style={styles.heroBadges}>
+              <View style={styles.heroBadge}>
+                <Text style={styles.heroBadgeText}>{getCategoryLabel(event.category || '')}</Text>
+              </View>
+              {isLiveNow && (
+                <View style={[styles.heroBadge, styles.heroBadgeLive]}>
+                  <View style={styles.liveDot} />
+                  <Text style={[styles.heroBadgeText, styles.heroBadgeTextLive]}>EN DIRECT</Text>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -188,17 +196,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryBadge: {
+  heroBadges: {
     position: 'absolute',
-    bottom: spacing.sm,
-    left: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
+    bottom: 12,
+    left: 12,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 10,
+    maxWidth: '65%',
+    flexWrap: 'wrap',
   },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
+  heroBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+  },
+  heroBadgeLive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroBadgeTextLive: {
+    color: '#34D399',
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
   },
   content: {
     padding: spacing.md,
