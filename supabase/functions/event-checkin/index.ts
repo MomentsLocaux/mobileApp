@@ -70,7 +70,7 @@ serve(async (req) => {
     });
   }
 
-  let payload: { eventId?: string; lat?: number; lon?: number };
+  let payload: { eventId?: string; lat?: number; lon?: number; qrToken?: string; source?: string };
   try {
     payload = await req.json();
   } catch (error) {
@@ -84,6 +84,8 @@ serve(async (req) => {
   const eventId = payload.eventId;
   const lat = typeof payload.lat === 'number' ? payload.lat : Number(payload.lat);
   const lon = typeof payload.lon === 'number' ? payload.lon : Number(payload.lon);
+  const qrToken = typeof payload.qrToken === 'string' ? payload.qrToken.trim() : '';
+  const source = payload.source === 'qr_scan' ? 'qr_scan' : 'mobile';
 
   if (!eventId || Number.isNaN(lat) || Number.isNaN(lon)) {
     console.log('[event-checkin] missing params', { eventId, lat, lon });
@@ -98,11 +100,13 @@ serve(async (req) => {
     userId: userData.user.id,
     lat,
     lon,
+    source,
+    hasQrToken: qrToken.length > 0,
   });
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('id, latitude, longitude')
+    .select('id, latitude, longitude, qr_token')
     .eq('id', eventId)
     .maybeSingle();
 
@@ -120,6 +124,17 @@ serve(async (req) => {
     console.log('[event-checkin] invalid event coordinates', { eventId, eventLat, eventLon });
     return new Response(JSON.stringify({ success: false, message: 'Coordonnées événement invalides.' }), {
       status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (qrToken && event.qr_token !== qrToken) {
+    console.log('[event-checkin] invalid qr token', {
+      eventId,
+      userId: userData.user.id,
+    });
+    return new Response(JSON.stringify({ success: false, message: 'QR code invalide pour cet événement.' }), {
+      status: 403,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -150,7 +165,7 @@ serve(async (req) => {
     lat,
     lon,
     validated_radius: Math.round(distance),
-    source: 'mobile',
+    source,
   });
 
   if (insertError) {

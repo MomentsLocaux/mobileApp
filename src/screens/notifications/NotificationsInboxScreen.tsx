@@ -58,6 +58,44 @@ const getEventIdFromNotification = (item: AppNotification): string | null => {
   return null;
 };
 
+const getFollowerNameFromNotification = (item: AppNotification): string | null => {
+  const data = asRecord(item.data);
+  const candidates = [
+    data.followerName,
+    data.follower_name,
+    data.actorName,
+    data.actor_name,
+    data.displayName,
+    data.display_name,
+    data.username,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+};
+
+const formatNotificationText = (item: AppNotification) => {
+  const followerName = getFollowerNameFromNotification(item);
+  const safeFollowerName = followerName || 'Quelqu’un';
+  const title = item.title?.includes('%s') ? item.title.replace(/%s/g, safeFollowerName) : item.title;
+  let body = item.body;
+
+  if (body?.includes('%s')) {
+    body = body.replace(/%s/g, safeFollowerName);
+  }
+
+  if (item.type === 'social_follow' && !body) {
+    body = `${safeFollowerName} vous suit désormais.`;
+  }
+
+  return { title, body };
+};
+
 const formatRelative = (value: string) => {
   const t = new Date(value).getTime();
   if (Number.isNaN(t)) return '';
@@ -195,6 +233,7 @@ export default function NotificationsInboxScreen() {
 
   const renderItem = ({ item }: { item: AppNotification }) => {
     const IconCmp = typeIcon(item.type);
+    const formatted = formatNotificationText(item);
     return (
       <TouchableOpacity
         style={[styles.itemCard, !item.read && styles.itemUnread]}
@@ -206,11 +245,11 @@ export default function NotificationsInboxScreen() {
             <View style={styles.itemIcon}>
               <IconCmp size={16} color={colors.brand.secondary} />
             </View>
-            <Text style={styles.itemTitle}>{item.title}</Text>
+            <Text style={styles.itemTitle}>{formatted.title}</Text>
           </View>
           {!item.read ? <View style={styles.unreadDot} /> : null}
         </View>
-        {item.body ? <Text style={styles.itemBody}>{item.body}</Text> : null}
+        {formatted.body ? <Text style={styles.itemBody}>{formatted.body}</Text> : null}
         <View style={styles.itemFooter}>
           <Text style={styles.itemType}>{typeLabel[item.type]}</Text>
           <Text style={styles.itemDate}>{formatRelative(item.created_at)}</Text>
