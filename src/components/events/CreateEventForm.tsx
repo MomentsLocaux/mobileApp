@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
@@ -82,6 +83,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
 
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [timePickerTarget, setTimePickerTarget] = useState<TimePickerTarget | null>(null);
+  const [pickerValue, setPickerValue] = useState<Date>(new Date());
 
   const sameDayEvent = useMemo(() => isSameDayRange(startDate, endDate), [startDate, endDate]);
 
@@ -202,21 +204,25 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
     }
   };
 
-  const getPickerValue = () => {
-    if (!timePickerTarget) return new Date();
-    if (timePickerTarget.type === 'start') {
+  const getPickerValue = (target: TimePickerTarget | null) => {
+    if (!target) return new Date();
+    if (target.type === 'start') {
       return parseTime(startDate ? new Date(startDate).toTimeString().slice(0, 5) : '09:00');
     }
-    if (timePickerTarget.type === 'end') {
+    if (target.type === 'end') {
       return parseTime(endDate ? new Date(endDate).toTimeString().slice(0, 5) : '18:00');
     }
-    if (timePickerTarget.type === 'fixed') {
-      return parseTime(scheduleFixedSlots[timePickerTarget.slotIndex]?.[timePickerTarget.field] || '09:00');
+    if (target.type === 'fixed') {
+      return parseTime(scheduleFixedSlots[target.slotIndex]?.[target.field] || '09:00');
     }
     return parseTime(
-      scheduleVariableDays[timePickerTarget.date]?.slots[timePickerTarget.slotIndex]?.[timePickerTarget.field] ||
-        '09:00',
+      scheduleVariableDays[target.date]?.slots[target.slotIndex]?.[target.field] || '09:00',
     );
+  };
+
+  const openTimePicker = (target: TimePickerTarget) => {
+    setTimePickerTarget(target);
+    setPickerValue(getPickerValue(target));
   };
 
   const handleTimePicked = (selected: Date) => {
@@ -344,13 +350,13 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
             <View style={styles.scheduleCard}>
               <Text style={styles.scheduleHint}>Cas simple: indiquez l'heure de début et de fin.</Text>
               <View style={styles.inlineRow}>
-                <TouchableOpacity style={styles.timeChip} onPress={() => setTimePickerTarget({ type: 'start' })}>
+                <TouchableOpacity style={styles.timeChip} onPress={() => openTimePicker({ type: 'start' })}>
                   <Text style={styles.timeChipLabel}>Début</Text>
                   <Text style={styles.timeChipValue}>
                     {new Date(startDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.timeChip} onPress={() => setTimePickerTarget({ type: 'end' })}>
+                <TouchableOpacity style={styles.timeChip} onPress={() => openTimePicker({ type: 'end' })}>
                   <Text style={styles.timeChipLabel}>Fin</Text>
                   <Text style={styles.timeChipValue}>
                     {new Date(endDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -403,14 +409,14 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
                     <View key={`fixed-${slotIndex}`} style={styles.slotRow}>
                       <TouchableOpacity
                         style={styles.slotTimeChip}
-                        onPress={() => setTimePickerTarget({ type: 'fixed', slotIndex, field: 'start' })}
+                        onPress={() => openTimePicker({ type: 'fixed', slotIndex, field: 'start' })}
                       >
                         <Text style={styles.slotTimeText}>{slot.start}</Text>
                       </TouchableOpacity>
                       <Text style={styles.slotSeparator}>→</Text>
                       <TouchableOpacity
                         style={styles.slotTimeChip}
-                        onPress={() => setTimePickerTarget({ type: 'fixed', slotIndex, field: 'end' })}
+                        onPress={() => openTimePicker({ type: 'fixed', slotIndex, field: 'end' })}
                       >
                         <Text style={styles.slotTimeText}>{slot.end}</Text>
                       </TouchableOpacity>
@@ -456,7 +462,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
                                 <TouchableOpacity
                                   style={styles.slotTimeChip}
                                   onPress={() =>
-                                    setTimePickerTarget({
+                                    openTimePicker({
                                       type: 'variable',
                                       date,
                                       slotIndex,
@@ -470,7 +476,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
                                 <TouchableOpacity
                                   style={styles.slotTimeChip}
                                   onPress={() =>
-                                    setTimePickerTarget({
+                                    openTimePicker({
                                       type: 'variable',
                                       date,
                                       slotIndex,
@@ -538,20 +544,46 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
         context="creation"
       />
 
-      {timePickerTarget ? (
-        <DateTimePicker
-          value={getPickerValue()}
-          mode="time"
-          display="spinner"
-          is24Hour
-          onChange={(_, selected) => {
-            setTimePickerTarget(null);
-            if (selected) {
-              handleTimePicked(selected);
-            }
-          }}
-        />
-      ) : null}
+      <Modal
+        visible={!!timePickerTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTimePickerTarget(null)}
+      >
+        <View style={styles.pickerModalBackdrop}>
+          <View style={styles.pickerModalCard}>
+            <Text style={styles.pickerTitle}>Choisir une heure</Text>
+            <DateTimePicker
+              value={pickerValue}
+              mode="time"
+              display="spinner"
+              is24Hour
+              themeVariant="dark"
+              textColor={colors.brand.text}
+              onChange={(_, selected) => {
+                if (selected) setPickerValue(selected);
+              }}
+            />
+            <View style={styles.pickerActions}>
+              <TouchableOpacity
+                style={styles.pickerBtn}
+                onPress={() => setTimePickerTarget(null)}
+              >
+                <Text style={styles.pickerBtnText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pickerBtn, styles.pickerBtnPrimary]}
+                onPress={() => {
+                  handleTimePicked(pickerValue);
+                  setTimePickerTarget(null);
+                }}
+              >
+                <Text style={[styles.pickerBtnText, styles.pickerBtnTextPrimary]}>Valider</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -758,6 +790,57 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     fontWeight: '700',
+  },
+  pickerModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2,6,23,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  pickerModalCard: {
+    width: '100%',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.brand.surface,
+    overflow: 'hidden',
+  },
+  pickerTitle: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingTop: spacing.md,
+  },
+  pickerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  pickerBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  pickerBtnPrimary: {
+    borderColor: colors.brand.secondary,
+    backgroundColor: colors.brand.secondary,
+  },
+  pickerBtnText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  pickerBtnTextPrimary: {
+    color: colors.brand.text,
   },
   toggleBtnTextActive: {
     color: '#34D399',

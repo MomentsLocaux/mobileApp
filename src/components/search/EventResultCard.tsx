@@ -8,7 +8,7 @@ import { getCategoryLabel } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
-import { isEventLive } from '@/utils/event-status';
+import { getEventLiveWindow } from '@/utils/event-status';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_HEIGHT = 420;
@@ -101,7 +101,15 @@ export const EventResultCard: React.FC<Props> = ({
 
   const attendeesCount = Number.isFinite(friendsGoingCount as number) ? Number(friendsGoingCount) : 0;
   const viewCount = Number.isFinite(viewsCount as number) ? Number(viewsCount) : 0;
-  const isLive = useMemo(() => isEventLive(event), [event.starts_at, event.ends_at]);
+  const { isLive, liveUntilLabel } = useMemo(() => {
+    const { isLive: liveNow, liveUntil } = getEventLiveWindow(event);
+    return {
+      isLive: liveNow,
+      liveUntilLabel: liveUntil
+        ? liveUntil.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        : null,
+    };
+  }, [event.starts_at, event.ends_at, event.operating_hours]);
   const displayTags = useMemo(
     () =>
       (Array.isArray(event.tags) ? event.tags : [])
@@ -153,7 +161,8 @@ export const EventResultCard: React.FC<Props> = ({
           <View style={styles.badgesContainer}>
             {isLive && (
               <View style={[styles.badge, styles.badgeLive]}>
-                <Text style={styles.badgeText}>LIVE</Text>
+                <View style={styles.liveDot} />
+                <Text style={styles.badgeTextLive}>EN DIRECT</Text>
               </View>
             )}
             <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
@@ -187,7 +196,8 @@ export const EventResultCard: React.FC<Props> = ({
         <View style={styles.contentContainer}>
           {/* Date & Location */}
           <Text style={styles.subtitle}>
-            {dateLabel} • <Text style={styles.venueName}>{locationLabel}</Text>
+            {isLive && liveUntilLabel ? `En direct jusqu'à ${liveUntilLabel}` : dateLabel} •{' '}
+            <Text style={styles.venueName}>{locationLabel}</Text>
           </Text>
 
           {/* Title */}
@@ -295,7 +305,9 @@ const styles = StyleSheet.create({
     backdropFilter: 'blur(10px)', // For web
   },
   badgeLive: {
-    backgroundColor: '#ff3b30', // Red
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   tagBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -308,6 +320,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  badgeTextLive: {
+    color: '#F87171',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+    marginRight: 6,
   },
   tagText: {
     color: '#eee',

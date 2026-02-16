@@ -15,6 +15,8 @@ import {
   Modal,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -513,17 +515,33 @@ export default function EventDetailScreen() {
       Alert.alert('Accès restreint', 'Seuls l’organisateur et les modérateurs/admin peuvent partager ce QR code.');
       return;
     }
-    if (!eventQrPayload) {
+    if (!eventQrPayload || !eventQrImageUrl) {
       Alert.alert('QR indisponible', 'Le QR code sera généré lors de la publication de l’événement.');
       return;
     }
     const eventTitle = event?.title || 'Événement';
     try {
+      const fileName = `event-qr-${event?.id || 'share'}.png`;
+      const localUri = `${FileSystemLegacy.cacheDirectory}${fileName}`;
+      const downloaded = await FileSystemLegacy.downloadAsync(eventQrImageUrl, localUri);
+      const canShareFile = await Sharing.isAvailableAsync();
+
+      if (canShareFile) {
+        await Sharing.shareAsync(downloaded.uri, {
+          mimeType: 'image/png',
+          dialogTitle: `QR code - ${eventTitle}`,
+          UTI: 'public.png',
+        });
+        return;
+      }
+
       await Share.share({
-        message: `QR code de ${eventTitle}\n${eventQrPayload}`,
+        message: `QR code de ${eventTitle}`,
+        url: downloaded.uri,
       });
     } catch (err) {
       console.warn('share qr error', err);
+      Alert.alert('Partage indisponible', 'Impossible de partager le QR code pour le moment.');
     }
   };
 
@@ -1369,8 +1387,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.secondary,
   },
   heroBadgeLive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1384,13 +1402,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   heroBadgeTextLive: {
-    color: '#34D399',
+    color: '#F87171',
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#34D399',
+    backgroundColor: '#EF4444',
   },
   content: {
     padding: spacing.lg,
