@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, FlatList, Image, Pressable, Dimensions, StyleSheet, Text } from 'react-native';
-import { Image as ImageIcon } from 'lucide-react-native';
+import { View, FlatList, Image, Pressable, Dimensions, StyleSheet, Text, Modal } from 'react-native';
+import { Image as ImageIcon, X } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 
 export type MediaImage = {
@@ -12,38 +12,45 @@ export type MediaImage = {
 
 const { width } = Dimensions.get('window');
 const HERO_HEIGHT = 300;
-const THUMB_SIZE = 64;
 
 type Props = {
   images: MediaImage[];
+  communityImages?: MediaImage[];
   onAddPhoto?: () => void;
   children?: React.ReactNode;
 };
 
-export function PlaceMediaGallery({ images, onAddPhoto, children }: Props) {
+export function PlaceMediaGallery({ images, communityImages = [], onAddPhoto, children }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerTab, setViewerTab] = useState<'organizer' | 'community'>('organizer');
+  const [viewerIndex, setViewerIndex] = useState(0);
   const listRef = useRef<FlatList<MediaImage>>(null);
+  const viewerListRef = useRef<FlatList<MediaImage>>(null);
 
-  const data = useMemo(() => images.filter((img) => img?.uri), [images]);
+  const organizerData = useMemo(() => images.filter((img) => img?.uri), [images]);
+  const communityData = useMemo(() => communityImages.filter((img) => img?.uri), [communityImages]);
   const showAdd = typeof onAddPhoto === 'function';
-  const thumbData = useMemo(
-    () => (showAdd ? [...data, { id: 'add', uri: '' }] : data),
-    [data, showAdd]
-  );
+  const currentViewerData = viewerTab === 'organizer' ? organizerData : communityData;
 
-  const handleThumbPress = (index: number) => {
-    if (!data.length) return;
-    listRef.current?.scrollToIndex({ index, animated: true });
-    setActiveIndex(index);
+  const openViewer = (tab: 'organizer' | 'community', index = 0) => {
+    const targetData = tab === 'organizer' ? organizerData : communityData;
+    if (!targetData.length) return;
+    setViewerTab(tab);
+    setViewerIndex(index);
+    setViewerVisible(true);
+    requestAnimationFrame(() => {
+      viewerListRef.current?.scrollToIndex({ index, animated: false });
+    });
   };
 
   return (
     <View>
       <View style={styles.heroWrapper}>
-        {data.length > 0 ? (
+        {organizerData.length > 0 ? (
           <FlatList
             ref={listRef}
-            data={data}
+            data={organizerData}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -58,7 +65,9 @@ export function PlaceMediaGallery({ images, onAddPhoto, children }: Props) {
               setActiveIndex(index);
             }}
             renderItem={({ item }) => (
-              <Image source={{ uri: item.uri }} style={styles.heroImage} />
+              <Pressable onPress={() => openViewer('organizer', activeIndex)}>
+                <Image source={{ uri: item.uri }} style={styles.heroImage} />
+              </Pressable>
             )}
           />
         ) : (
@@ -69,33 +78,84 @@ export function PlaceMediaGallery({ images, onAddPhoto, children }: Props) {
 
         {showAdd && (
           <Pressable style={styles.addPhotoCta} onPress={onAddPhoto}>
-            <Text style={styles.addPhotoText}>＋ Ajouter une photo</Text>
+            <Text style={styles.addPhotoText}>＋</Text>
           </Pressable>
         )}
         {children}
       </View>
 
-      <FlatList
-        data={thumbData}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.thumbList}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) =>
-          item.id === 'add' ? (
-            <Pressable style={styles.addThumb} onPress={onAddPhoto}>
-              <Text style={styles.addThumbText}>＋</Text>
+      <Modal visible={viewerVisible} transparent={false} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+        <View style={styles.viewerContainer}>
+          <View style={styles.viewerHeader}>
+            <View style={styles.viewerTabs}>
+              <Pressable
+                style={[styles.viewerTab, viewerTab === 'organizer' && styles.viewerTabActive]}
+                onPress={() => {
+                  setViewerTab('organizer');
+                  setViewerIndex(0);
+                  requestAnimationFrame(() => {
+                    viewerListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                  });
+                }}
+              >
+                <Text style={[styles.viewerTabText, viewerTab === 'organizer' && styles.viewerTabTextActive]}>
+                  Organisateur
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.viewerTab, viewerTab === 'community' && styles.viewerTabActive]}
+                onPress={() => {
+                  setViewerTab('community');
+                  setViewerIndex(0);
+                  requestAnimationFrame(() => {
+                    viewerListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                  });
+                }}
+              >
+                <Text style={[styles.viewerTabText, viewerTab === 'community' && styles.viewerTabTextActive]}>
+                  Communauté
+                </Text>
+              </Pressable>
+            </View>
+            <Pressable style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
+              <X size={18} color="#FFF" />
             </Pressable>
+          </View>
+
+          {currentViewerData.length > 0 ? (
+            <FlatList
+              ref={viewerListRef}
+              data={currentViewerData}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => `${viewerTab}-${item.id}`}
+              extraData={viewerTab}
+              getItemLayout={(_, index) => ({
+                length: width,
+                offset: width * index,
+                index,
+              })}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / width);
+                setViewerIndex(index);
+              }}
+              renderItem={({ item }) => (
+                <Image source={{ uri: item.uri }} style={styles.viewerImage} resizeMode="contain" />
+              )}
+            />
           ) : (
-            <Pressable onPress={() => handleThumbPress(index)}>
-              <Image
-                source={{ uri: item.uri }}
-                style={[styles.thumb, index === activeIndex && styles.thumbActive]}
-              />
-            </Pressable>
-          )
-        }
-      />
+            <View style={styles.viewerEmpty}>
+              <ImageIcon size={34} color={colors.neutral[400]} />
+              <Text style={styles.viewerEmptyText}>Aucune image disponible</Text>
+            </View>
+          )}
+
+          {currentViewerData.length > 1 ? (
+            <Text style={styles.viewerIndex}>{viewerIndex + 1}/{currentViewerData.length}</Text>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -124,43 +184,78 @@ const styles = StyleSheet.create({
     right: spacing.md,
     bottom: spacing.md,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    width: 34,
+    height: 34,
     borderRadius: borderRadius.full,
-  },
-  addPhotoText: {
-    ...typography.bodySmall,
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  thumbList: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-  },
-  thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: borderRadius.md,
-    opacity: 0.8,
-  },
-  thumbActive: {
-    opacity: 1,
-    borderWidth: 2,
-    borderColor: colors.brand.secondary,
-  },
-  addThumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addThumbText: {
-    fontSize: 22,
+  addPhotoText: {
+    fontSize: 24,
+    lineHeight: 24,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  viewerHeader: {
+    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  viewerTabs: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  viewerTab: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  viewerTabActive: {
+    backgroundColor: colors.brand.secondary,
+  },
+  viewerTabText: {
+    ...typography.bodySmall,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+  },
+  viewerTabTextActive: {
+    color: '#FFF',
+  },
+  viewerClose: {
+    width: 34,
+    height: 34,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  viewerImage: {
+    width,
+    height: HERO_HEIGHT + 220,
+  },
+  viewerEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  viewerEmptyText: {
+    ...typography.body,
     color: colors.brand.textSecondary,
+  },
+  viewerIndex: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    alignSelf: 'center',
+    ...typography.caption,
+    color: '#FFF',
   },
 });

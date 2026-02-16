@@ -568,6 +568,11 @@ export default function EventDetailScreen() {
     return `${price.toFixed(2)}€`;
   };
 
+  const hasTicketPrice = useMemo(
+    () => typeof event?.price === 'number' && !Number.isNaN(event.price) && event.price > 0,
+    [event?.price],
+  );
+
   const formatCalendarDate = (date: Date) => {
     const pad = (value: number) => String(value).padStart(2, '0');
     return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
@@ -767,7 +772,7 @@ export default function EventDetailScreen() {
       id: m.id || `${m.url}-${index}`,
       uri: m.url,
       authorId: (m as any).author_id,
-      isUserGenerated: true,
+      isUserGenerated: false,
     }));
 
     const cover = event.cover_url ? [{ id: `cover-${event.id}`, uri: event.cover_url, isUserGenerated: false }] : [];
@@ -779,6 +784,22 @@ export default function EventDetailScreen() {
       return true;
     });
   }, [event]);
+
+  const communityMediaImages = useMemo<MediaImage[]>(() => {
+    const seen = new Set<string>();
+    return (communityPhotos || [])
+      .map((photo, index) => ({
+        id: photo.id || `community-${index}`,
+        uri: photo.url,
+        authorId: photo.author_id,
+        isUserGenerated: true,
+      }))
+      .filter((item) => {
+        if (!item.uri || seen.has(item.uri)) return false;
+        seen.add(item.uri);
+        return true;
+      });
+  }, [communityPhotos]);
 
   const { ratingAvg, ratingCount } = useMemo(() => {
     const commentRatings = comments
@@ -853,7 +874,7 @@ export default function EventDetailScreen() {
         </View>
 
         <View style={styles.heroContainer}>
-          <PlaceMediaGallery images={mediaImages} onAddPhoto={handleAddPhoto}>
+          <PlaceMediaGallery images={mediaImages} communityImages={communityMediaImages} onAddPhoto={handleAddPhoto}>
             <View style={styles.heroBadges}>
               <View style={styles.heroBadge}>
                 <Text style={styles.heroBadgeText}>{getCategoryLabel(event.category || '')}</Text>
@@ -883,7 +904,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View style={styles.priceBlock}>
                   <Text style={styles.priceValue}>{formatPrice(event.price)}</Text>
-                  <Text style={styles.priceHint}>PAR BILLET</Text>
+                  {hasTicketPrice ? <Text style={styles.priceHint}>PAR BILLET</Text> : null}
                 </View>
               </View>
             </Card>
@@ -940,13 +961,11 @@ export default function EventDetailScreen() {
               <Users size={20} color={colors.brand.secondary} style={{ marginBottom: 4 }} />
               <Text style={styles.statBoxValue}>{eventStats.checkins + (event.interests_count || eventStats.interests || 0)}</Text>
             </View>
-            {ratingCount > 0 ? (
-              <View style={styles.statBox}>
-                <Star size={20} color="#FBBF24" fill="#FBBF24" style={{ marginBottom: 4 }} />
-                <Text style={styles.statBoxValue}>{ratingAvg.toFixed(1)}</Text>
-                <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
-              </View>
-            ) : null}
+            <View style={styles.statBox}>
+              <Star size={20} color="#FBBF24" fill="#FBBF24" style={{ marginBottom: 4 }} />
+              <Text style={styles.statBoxValue}>{ratingAvg.toFixed(1)}</Text>
+              <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
+            </View>
           </View>
 
           <LinearGradient
