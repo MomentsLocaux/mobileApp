@@ -26,6 +26,7 @@ import {
   Calendar,
   Users,
   Share2,
+  Flag,
   Edit,
   ChevronLeft,
   Star,
@@ -54,9 +55,12 @@ import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsShe
 import { EventPhotoContributionModal } from '@/components/events/EventPhotoContributionModal';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
 import { CommunityService } from '@/services/community.service';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
+import { ReportService } from '@/services/report.service';
+import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
-import { isEventLive } from '@/utils/event-status';
+import { getEventLiveWindow } from '@/utils/event-status';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
 
@@ -130,6 +134,9 @@ export default function EventDetailScreen() {
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [now, setNow] = useState(() => new Date());
+  const [eventReportVisible, setEventReportVisible] = useState(false);
+  const [eventReported, setEventReported] = useState(false);
   const autoQrAttemptedRef = useRef(new Set<string>());
   const autoQrGuestPromptedRef = useRef(new Set<string>());
   const autoQrLocationPromptedRef = useRef(new Set<string>());
@@ -309,6 +316,11 @@ export default function EventDetailScreen() {
       if (id) trackEventView(id);
     }, [id, loadEventDetails, trackEventView]),
   );
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -515,6 +527,28 @@ export default function EventDetailScreen() {
     }
   };
 
+  const handleOpenEventReport = () => {
+    if (isGuest) {
+      openGuestGate('Signaler cet événement');
+      return;
+    }
+    if (!event?.id) return;
+    setEventReportVisible(true);
+  };
+
+  const handleReportEvent = async (reason: ReportReasonCode) => {
+    if (!event?.id) return;
+    try {
+      await ReportService.event(event.id, { reason });
+      setEventReported(true);
+      Alert.alert('Signalement envoyé', "Merci, notre équipe de modération va examiner cet événement.");
+    } catch (error) {
+      Alert.alert('Erreur', "Impossible d'envoyer le signalement pour le moment.");
+    } finally {
+      setEventReportVisible(false);
+    }
+  };
+
   const handleShareQr = async () => {
     if (isGuest) {
       openGuestGate('Partager le QR code');
@@ -639,6 +673,42 @@ export default function EventDetailScreen() {
         { text: 'Créer', onPress: () => void openCalendar() },
       ],
     );
+  };
+
+  const openExternalUrl = async (value?: string | null) => {
+    const raw = typeof value === 'string' ? value.trim() : '';
+    if (!raw) return;
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Lien invalide', "Impossible d'ouvrir ce lien.");
+      return;
+    }
+    await Linking.openURL(url);
+  };
+
+  const openEmail = async (email?: string | null) => {
+    const raw = typeof email === 'string' ? email.trim() : '';
+    if (!raw) return;
+    const url = `mailto:${raw}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Email indisponible', "Aucune application email n'est disponible.");
+      return;
+    }
+    await Linking.openURL(url);
+  };
+
+  const openPhone = async (phone?: string | null) => {
+    const raw = typeof phone === 'string' ? phone.trim() : '';
+    if (!raw) return;
+    const url = `tel:${raw}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Téléphone indisponible', "Impossible de lancer l'appel sur cet appareil.");
+      return;
+    }
+    await Linking.openURL(url);
   };
 
   const locationLabel = useMemo(() => {
@@ -943,7 +1013,56 @@ export default function EventDetailScreen() {
     };
   }, [comments, event]);
 
-  const isLiveNow = useMemo(() => isEventLive(event), [event?.starts_at, event?.ends_at]);
+  const isLiveNow = useMemo(
+    () => getEventLiveWindow(event, now).isLive,
+    [event?.starts_at, event?.ends_at, event?.operating_hours, now],
+  );
+
+  const practicalInfoRows = useMemo(() => {
+    if (!event) return [] as Array<{ label: string; value: string; action?: () => void }>;
+    const rows: Array<{ label: string; value: string; action?: () => void }> = [];
+    if (event.registration_required !== null && event.registration_required !== undefined) {
+      rows.push({
+        label: 'Inscription',
+        value: event.registration_required ? 'Requise' : 'Non requise',
+      });
+    }
+    if (typeof event.max_participants === 'number' && Number.isFinite(event.max_participants)) {
+      rows.push({
+        label: 'Participants max',
+        value: `${event.max_participants}`,
+      });
+    }
+    if (event.external_url) {
+      rows.push({
+        label: 'Lien externe',
+        value: event.external_url,
+        action: () => void openExternalUrl(event.external_url),
+      });
+    }
+    if (event.contact_email) {
+      rows.push({
+        label: 'Email',
+        value: event.contact_email,
+        action: () => void openEmail(event.contact_email),
+      });
+    }
+    if (event.contact_phone) {
+      rows.push({
+        label: 'Téléphone',
+        value: event.contact_phone,
+        action: () => void openPhone(event.contact_phone),
+      });
+    }
+    return rows;
+  }, [
+    event,
+    event?.contact_email,
+    event?.contact_phone,
+    event?.external_url,
+    event?.max_participants,
+    event?.registration_required,
+  ]);
 
   if (loading) {
     return (
@@ -981,6 +1100,13 @@ export default function EventDetailScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
               <Share2 size={20} color={colors.brand.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton} onPress={handleOpenEventReport}>
+              <Flag
+                size={20}
+                color={eventReported ? colors.error[500] : colors.brand.text}
+                fill={eventReported ? colors.error[500] : 'transparent'}
+              />
             </TouchableOpacity>
             {(isOwner || isAdmin) ? (
               <TouchableOpacity
@@ -1199,6 +1325,31 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
 
+          {practicalInfoRows.length > 0 ? (
+            <Card padding="md" style={styles.practicalCard}>
+              <Text style={styles.practicalTitle}>Infos pratiques</Text>
+              <View style={styles.practicalRows}>
+                {practicalInfoRows.map((row) =>
+                  row.action ? (
+                    <TouchableOpacity key={`${row.label}-${row.value}`} style={styles.practicalRow} onPress={row.action} activeOpacity={0.8}>
+                      <Text style={styles.practicalLabel}>{row.label}</Text>
+                      <Text numberOfLines={1} style={[styles.practicalValue, styles.practicalValueLink]}>
+                        {row.value}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View key={`${row.label}-${row.value}`} style={styles.practicalRow}>
+                      <Text style={styles.practicalLabel}>{row.label}</Text>
+                      <Text numberOfLines={1} style={styles.practicalValue}>
+                        {row.value}
+                      </Text>
+                    </View>
+                  ),
+                )}
+              </View>
+            </Card>
+          ) : null}
+
           <Card padding="md" style={styles.creatorCard}>
             <View style={styles.creatorCardRow}>
               <TouchableOpacity
@@ -1349,6 +1500,12 @@ export default function EventDetailScreen() {
           onSubmitted={() => loadCommunityPhotos(event.id)}
         />
       ) : null}
+
+      <ReportReasonModal
+        visible={eventReportVisible}
+        onClose={() => setEventReportVisible(false)}
+        onSelect={handleReportEvent}
+      />
     </>
   );
 }
@@ -1726,6 +1883,39 @@ const styles = StyleSheet.create({
   tagText: {
     ...typography.bodySmall,
     color: colors.brand.text,
+  },
+  practicalCard: {
+    marginBottom: spacing.lg,
+  },
+  practicalTitle: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  practicalRows: {
+    gap: spacing.sm,
+  },
+  practicalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  practicalLabel: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+  },
+  practicalValue: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  practicalValueLink: {
+    color: colors.brand.secondary,
   },
   creatorCard: {
     marginBottom: spacing.lg,

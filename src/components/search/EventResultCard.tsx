@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable, Dimensions } from 'react-native';
 import { MapPin, Heart, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -80,6 +80,7 @@ export const EventResultCard: React.FC<Props> = ({
   onToggleLike,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const { currentLocation } = useLocationStore();
   const dateLabel = useMemo(() => formatDateRange(event.starts_at), [event.starts_at]);
 
@@ -90,6 +91,11 @@ export const EventResultCard: React.FC<Props> = ({
       longitude: currentLocation.coords.longitude,
     };
   }, [currentLocation]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const distanceLabel = useMemo(() => {
     if (typeof distanceKm === 'number' && Number.isFinite(distanceKm)) {
@@ -112,14 +118,14 @@ export const EventResultCard: React.FC<Props> = ({
   const attendeesCount = Number.isFinite(friendsGoingCount as number) ? Number(friendsGoingCount) : 0;
   const viewCount = Number.isFinite(viewsCount as number) ? Number(viewsCount) : 0;
   const { isLive, liveUntilLabel } = useMemo(() => {
-    const { isLive: liveNow, liveUntil } = getEventLiveWindow(event);
+    const { isLive: liveNow, liveUntil } = getEventLiveWindow(event, now);
     return {
       isLive: liveNow,
       liveUntilLabel: liveUntil
         ? liveUntil.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
         : null,
     };
-  }, [event.starts_at, event.ends_at, event.operating_hours]);
+  }, [event.starts_at, event.ends_at, event.operating_hours, now]);
   const displayTags = useMemo(
     () =>
       (Array.isArray(event.tags) ? event.tags : [])
