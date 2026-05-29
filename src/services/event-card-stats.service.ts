@@ -25,17 +25,28 @@ export const EventCardStatsService = {
 
     const result: Record<string, EventCardStats> = { ...initial };
 
-    const { data: engagementRows, error: engagementError } = await supabase
-      .from('event_engagement_stats')
-      .select('event_id, views_count')
-      .in('event_id', uniqueEventIds);
+    const { data: viewCountRows, error: viewCountRowsError } = await supabase
+      .rpc('get_event_views_counts', { event_ids: uniqueEventIds });
 
-    if (!engagementError && Array.isArray(engagementRows)) {
-      engagementRows.forEach((row: any) => {
+    if (!viewCountRowsError && Array.isArray(viewCountRows)) {
+      viewCountRows.forEach((row: any) => {
         const eventId = row?.event_id;
         if (!eventId || !result[eventId]) return;
         result[eventId].viewsCount = Number(row?.views_count || 0);
       });
+    } else {
+      const { data: fallbackViewRows, error: fallbackViewRowsError } = await supabase
+        .from('event_views')
+        .select('event_id')
+        .in('event_id', uniqueEventIds);
+
+      if (!fallbackViewRowsError && Array.isArray(fallbackViewRows)) {
+        fallbackViewRows.forEach((row: any) => {
+          const eventId = row?.event_id;
+          if (!eventId || !result[eventId]) return;
+          result[eventId].viewsCount += 1;
+        });
+      }
     }
 
     if (!currentUserId) return result;

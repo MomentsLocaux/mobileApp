@@ -1014,7 +1014,10 @@ export default function EventDetailScreen() {
   }, [comments, event]);
 
   const isLiveNow = useMemo(
-    () => getEventLiveWindow(event, now).isLive,
+    () =>
+      getEventLiveWindow(event, now, {
+        requireScheduleDetails: true,
+      }).isLive,
     [event?.starts_at, event?.ends_at, event?.operating_hours, now],
   );
 

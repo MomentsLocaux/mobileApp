@@ -73,8 +73,20 @@ const getSlotsForNow = (operatingHours: unknown, now: Date): TimeSlot[] => {
   return [];
 };
 
-export const getEventLiveWindow = (event: EventLike | null | undefined, now: Date = new Date()) => {
+const hasScheduleDetails = (operatingHours: unknown): boolean => {
+  if (!Array.isArray(operatingHours) || operatingHours.length === 0) return false;
+  return operatingHours.some((row: any) => parseSlots(row?.slots).length > 0);
+};
+
+export const getEventLiveWindow = (
+  event: EventLike | null | undefined,
+  now: Date = new Date(),
+  options?: { requireScheduleDetails?: boolean },
+) => {
   if (!event?.starts_at) return { isLive: false, liveUntil: null as Date | null };
+  if (options?.requireScheduleDetails && !hasScheduleDetails(event.operating_hours)) {
+    return { isLive: false, liveUntil: null as Date | null };
+  }
 
   const startsAt = new Date(event.starts_at);
   if (Number.isNaN(startsAt.getTime())) return { isLive: false, liveUntil: null as Date | null };

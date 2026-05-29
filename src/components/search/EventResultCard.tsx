@@ -118,7 +118,9 @@ export const EventResultCard: React.FC<Props> = ({
   const attendeesCount = Number.isFinite(friendsGoingCount as number) ? Number(friendsGoingCount) : 0;
   const viewCount = Number.isFinite(viewsCount as number) ? Number(viewsCount) : 0;
   const { isLive, liveUntilLabel } = useMemo(() => {
-    const { isLive: liveNow, liveUntil } = getEventLiveWindow(event, now);
+    const { isLive: liveNow, liveUntil } = getEventLiveWindow(event, now, {
+      requireScheduleDetails: true,
+    });
     return {
       isLive: liveNow,
       liveUntilLabel: liveUntil
