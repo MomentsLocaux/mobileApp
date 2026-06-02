@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, BarChart3 } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award } from 'lucide-react-native';
 import { AppBackground, Button, Card } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
@@ -20,7 +20,6 @@ import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
 import { EventsService } from '../../src/services/events.service';
 import type { EventWithCreator } from '../../src/types/database';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
-import { supabase } from '../../src/lib/supabase/client';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -29,8 +28,6 @@ export default function ProfileScreen() {
   const [myEvents, setMyEvents] = useState<EventWithCreator[]>([]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [lumoBalance, setLumoBalance] = useState<number | null>(null);
-  const [loadingLumo, setLoadingLumo] = useState(false);
   const sheetTranslate = useRef(new Animated.Value(300)).current;
 
   const handleSignOut = async () => {
@@ -97,34 +94,6 @@ export default function ProfileScreen() {
       setLoadingEvents(false);
     }
   };
-
-  useEffect(() => {
-    const loadWallet = async () => {
-      if (!profile?.id) return;
-      setLoadingLumo(true);
-      try {
-        const { data, error } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', profile.id)
-          .maybeSingle();
-        if (error) {
-          console.warn('loadWallet error', error);
-          setLumoBalance(null);
-          return;
-        }
-        const wallet = data as { balance?: number } | null;
-        setLumoBalance(typeof wallet?.balance === 'number' ? wallet.balance : null);
-      } catch (err) {
-        console.warn('loadWallet error', err);
-        setLumoBalance(null);
-      } finally {
-        setLoadingLumo(false);
-      }
-    };
-
-    loadWallet();
-  }, [profile?.id]);
 
   if (isGuest) {
     return (
@@ -218,27 +187,13 @@ export default function ProfileScreen() {
                 {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
               </Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Lumo</Text>
-              <Text style={styles.infoValue}>
-                {loadingLumo ? '...' : lumoBalance ?? 0}
-              </Text>
-            </View>
           </Card>
 
           <Card padding="md" style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
-            <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/creator' as any)}>
-              <BarChart3 size={18} color={colors.brand.secondary} />
-              <Text style={styles.linkText}>Espace créateur</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
               <Calendar size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Mes événements</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/onboarding' as any)}>
-              <Award size={18} color={colors.brand.secondary} />
-              <Text style={styles.linkText}>Recommencer l'onboarding</Text>
             </TouchableOpacity>
           </Card>
 

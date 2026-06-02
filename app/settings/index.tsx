@@ -4,16 +4,9 @@ import { useRouter } from 'expo-router';
 import {
   User,
   Bell,
-  ShieldCheck,
   Lock,
   FileText,
-  Mail,
-  Compass,
-  Download,
   Trash2,
-  Key,
-  Laptop,
-  Smartphone,
   Info,
   Cookie,
   BookOpenCheck,
@@ -29,23 +22,13 @@ export default function SettingsScreen() {
       <SettingsSectionCard
         title="Compte"
         icon={User}
-        description="Gérer vos informations personnelles et préférences."
+        description="Gérer les informations visibles sur votre profil."
       >
         <SettingsRow
-          label="Informations personnelles"
+          label="Modifier le profil"
           icon={User}
-          onPress={() => router.push('/settings/account/personal' as any)}
+          onPress={() => router.push('/profile/edit' as any)}
           noBorder
-        />
-        <SettingsRow
-          label="Email & authentification"
-          icon={Mail}
-          onPress={() => router.push('/settings/account/email' as any)}
-        />
-        <SettingsRow
-          label="Préférences utilisateur"
-          icon={Compass}
-          onPress={() => router.push('/settings/account/preferences' as any)}
         />
       </SettingsSectionCard>
 
@@ -66,34 +49,10 @@ export default function SettingsScreen() {
           noBorder
         />
         <SettingsRow
-          label="Exporter mes données"
-          icon={Download}
-          onPress={() => router.push('/settings/privacy/export' as any)}
-        />
-        <SettingsRow
           label="Supprimer mon compte"
           icon={Trash2}
           onPress={() => router.push('/settings/privacy/delete' as any)}
           danger
-        />
-      </SettingsSectionCard>
-
-      <SettingsSectionCard title="Sécurité" icon={ShieldCheck}>
-        <SettingsRow
-          label="Changer le mot de passe"
-          icon={Key}
-          onPress={() => router.push('/settings/security/password' as any)}
-          noBorder
-        />
-        <SettingsRow
-          label="Connexions actives"
-          icon={Laptop}
-          onPress={() => router.push('/settings/security/sessions' as any)}
-        />
-        <SettingsRow
-          label="Sécurité du compte"
-          icon={Smartphone}
-          onPress={() => router.push('/settings/security/account' as any)}
         />
       </SettingsSectionCard>
 

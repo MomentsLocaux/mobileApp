@@ -7,24 +7,12 @@ import {
   User,
   Bell,
   PlusCircle,
-  Send,
-  Compass,
   UserCircle2,
-  Target,
   Heart,
-  ShoppingBag,
   Bug,
   Settings,
-  BarChart3,
-  Wallet,
-  ChevronRight,
   LogOut,
-  Zap,
   Shield,
-  CircleHelp,
-  Store,
-  Star,
-  Sparkles,
   MapPinned,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -293,24 +281,12 @@ export default function TabsLayout() {
                   </View>
                 )}
               </View>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelBadgeText}>LVL 24</Text>
-              </View>
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
               <Text style={styles.drawerEmail}>{profile?.email || 'email@exemple.com'}</Text>
             </View>
           </View>
-
-          {/* Wallet Pill */}
-          <TouchableOpacity style={styles.walletPill} activeOpacity={0.8} onPress={() => router.push('/(tabs)/shop')}>
-            <View style={styles.walletContent}>
-              <Wallet size={20} color={colors.brand.secondary} />
-              <Text style={styles.walletText}>1,250 Lumo Coins</Text>
-            </View>
-            <ChevronRight size={20} color={colors.brand.textSecondary} />
-          </TouchableOpacity>
         </View>
 
         {/* Scrollable Menu Content */}
@@ -336,11 +312,11 @@ export default function TabsLayout() {
               }}
             />
             <DrawerLink
-              icon={Sparkles}
-              label="Espace créateur"
+              icon={Users}
+              label="Communauté"
               onPress={() => {
                 toggleDrawer(false);
-                router.push('/creator' as any);
+                router.push('/(tabs)/community' as any);
               }}
             />
           </View>
@@ -348,14 +324,6 @@ export default function TabsLayout() {
           {/* Section: Compte */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>COMPTE</Text>
-            <DrawerLink
-              icon={Star}
-              label="Offres & abonnements"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/profile/offers' as any);
-              }}
-            />
             <DrawerLink
               icon={Settings}
               label="Paramètres"
@@ -378,30 +346,6 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
-            <DrawerLink
-              icon={Map}
-              label="Mon parcours"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/profile/journey' as any);
-              }}
-            />
-            <DrawerLink
-              icon={Target}
-              label="Missions"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/(tabs)/missions' as any);
-              }}
-            />
-            <DrawerLink
-              icon={Store}
-              label="Boutique"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/(tabs)/shop' as any);
-              }}
-            />
             <DrawerLink
               icon={Heart}
               label="Mes favoris"
@@ -444,14 +388,6 @@ export default function TabsLayout() {
                 }}
               />
             )}
-            <DrawerLink
-              icon={CircleHelp}
-              label="Aide & Support"
-              onPress={() => {
-                toggleDrawer(false);
-                // router.push('/support'); // Placeholder
-              }}
-            />
           </View>
         </ScrollView>
 
@@ -654,47 +590,6 @@ const styles = StyleSheet.create({
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  levelBadge: {
-    position: 'absolute',
-    bottom: -6,
-    right: -6,
-    backgroundColor: '#2bbfe3',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#0f1719',
-  },
-  levelBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#0f1719',
-  },
-  walletPill: {
-    marginTop: 24,
-    backgroundColor: 'rgba(15, 23, 25, 0.6)', // Darker
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#1e293b', // Muted border
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  walletContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  walletText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
   },
   drawerScroll: {
     flex: 1,
