@@ -1,6 +1,6 @@
 # MVP Scope
 
-This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is to keep the public app focused on reliable local-event discovery, creation, interaction, check-in, and moderation.
+This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is to keep the public app focused on reliable local-event discovery, creation, interaction, check-in, user reporting, and creator-facing publication statuses.
 
 ## Visible MVP Features
 
@@ -8,11 +8,12 @@ This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is t
 - Onboarding: profile identity, role, location, avatar/cover, social links, bio.
 - Map discovery: Mapbox map, visible-area event loading, search, filters, event preview, event details.
 - Event browsing: home/list results, detail page, creator profile links, sharing.
-- Event creation: multi-step creation, cover upload, location, date, category, media, draft/edit, moderation status.
+- Event creation: multi-step creation, cover upload, location, date, category, media, draft/edit, publication status.
 - Social basics: favorites, likes/interests, follow creator/member, community profiles.
 - Check-in: QR/location check-in through the Supabase Edge Function.
 - Notifications: inbox, unread badge, notification routing.
-- Moderation: admin/moderator dashboard and review screens.
+- User reporting: report an event, comment, media, or profile.
+- Creator publication status: view created event statuses (`draft`, `pending`, `published`, `refused`, `archived`) and refusal reasons when available.
 - Profile basics: edit profile, my events, settings, bug report.
 
 ## Temporarily Hidden From Public Navigation
@@ -22,10 +23,13 @@ This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is t
 - Offers/subscriptions.
 - Wallet and advanced Lumo display.
 - Creator analytics dashboard and fan tools.
+- Admin moderation dashboard, queues, approve/reject actions, ban/warn/lift restriction actions, media review, and user risk dashboard.
 - Advanced settings placeholders: email/auth management, preferences, sessions, security, password change, data export.
 - Journey/progression screen.
 
 The route files remain in the repository for future work, but they are not exposed from the MVP drawer/settings/profile surfaces.
+
+Admin moderation is explicitly out of the mobile MVP. It will be handled in a separate web admin app, as defined in `project-management/decisions/ADR_001_ADMIN_MODERATION_WEB_APP.md`. The mobile app only keeps user-facing reporting flows and creator-facing publication statuses.
 
 ## Dormant Or Deferred Code
 
@@ -44,15 +48,15 @@ The route files remain in the repository for future work, but they are not expos
 - Open an event detail page.
 - Create an event with a cover image.
 - Upload additional event media.
-- Submit an event for moderation.
-- Approve/publish an event from moderation.
+- Submit an event for publication review.
+- See the submitted event as `pending` in my events.
+- See a `refused` event and its refusal reason when available.
 - See the published event on map/list/detail.
 - Add/remove favorite.
 - Like/mark interest.
 - Follow/unfollow a creator or member.
 - Perform QR/location check-in.
 - Report an event, comment, media, or profile.
-- Review a report from moderation.
 - Receive/open a notification.
 - Open settings and edit profile.
 - Trigger account deletion flow.
@@ -77,4 +81,5 @@ Run the matrix on iOS and Android real devices before store submission.
 - Consolidate the duplicate auth store situation.
 - Finish or remove placeholder settings screens.
 - Reintroduce shop, missions, offers, wallet, and creator analytics only when the data and UX are production-ready.
-- Add automated tests around auth, event creation, map search, moderation, and check-in.
+- Build the admin moderation experience in a separate web app, not in the mobile app.
+- Add automated tests around auth, event creation, map search, reporting, publication statuses, and check-in.
