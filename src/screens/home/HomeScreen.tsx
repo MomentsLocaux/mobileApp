@@ -8,7 +8,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell } from 'lucide-react-native';
@@ -176,7 +175,7 @@ export default function HomeScreen() {
         if (!cancelled) {
           setSearchResults(filtered);
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setSearchResults([]);
         }

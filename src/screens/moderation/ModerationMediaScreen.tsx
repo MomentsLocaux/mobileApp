@@ -29,9 +29,7 @@ export default function ModerationMediaScreen() {
       const session = await supabase.auth.getSession();
       const role = (session.data.session?.user?.app_metadata as any)?.role || null;
       setJwtRole(typeof role === 'string' ? role : null);
-      console.log('[ModerationMedia] session role', role);
       const data = await ModerationService.listMediaSubmissions({ status: 'pending', includeReported: true, limit: 50 });
-      console.log('[ModerationMedia] submissions pending', data.length, data.map((row) => ({ id: row.id, status: row.status })));
       setSubmissions(data);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Erreur inconnue');

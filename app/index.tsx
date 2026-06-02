@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../src/hooks';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';

@@ -1,7 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AppBackground } from '../src/components/ui/AppBackground';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';

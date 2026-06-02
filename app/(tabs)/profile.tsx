@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,6 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  Animated,
-  PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Settings, User as UserIcon, Calendar, Award } from 'lucide-react-native';
@@ -17,18 +15,12 @@ import { AppBackground, Button, Card } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
-import { EventsService } from '../../src/services/events.service';
-import type { EventWithCreator } from '../../src/types/database';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut, session } = useAuth();
   const isGuest = !session;
-  const [myEvents, setMyEvents] = useState<EventWithCreator[]>([]);
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const [loadingEvents, setLoadingEvents] = useState(false);
-  const sheetTranslate = useRef(new Animated.Value(300)).current;
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -50,49 +42,6 @@ export default function ProfileScreen() {
 
   const handleViewMyEvents = () => {
     router.push('/profile/my-events' as any);
-  };
-
-  const closeSheet = () => {
-    Animated.timing(sheetTranslate, {
-      toValue: 300,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => setSheetVisible(false));
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (_evt, gesture) => {
-        if (gesture.dy > 0) {
-          sheetTranslate.setValue(Math.min(gesture.dy, 300));
-        }
-      },
-      onPanResponderRelease: (_evt, gesture) => {
-        if (gesture.dy > 120 || gesture.vy > 0.7) {
-          closeSheet();
-        } else {
-          Animated.timing(sheetTranslate, {
-            toValue: 0,
-            duration: 180,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  const loadMyEvents = async () => {
-    if (!profile?.id) return;
-    setLoadingEvents(true);
-    try {
-      const data = await EventsService.listEventsByCreator(profile.id);
-      setMyEvents(data);
-    } catch (e) {
-      console.warn('loadMyEvents error', e);
-    } finally {
-      setLoadingEvents(false);
-    }
   };
 
   if (isGuest) {
@@ -220,78 +169,6 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {sheetVisible && (
-        <View style={styles.sheetOverlay}>
-          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeSheet} />
-          <Animated.View
-            style={[styles.sheet, { transform: [{ translateY: sheetTranslate }] }]}
-            {...panResponder.panHandlers}
-          >
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Mes événements</Text>
-              <TouchableOpacity onPress={closeSheet}>
-                <Text style={styles.closeText}>Fermer</Text>
-              </TouchableOpacity>
-            </View>
-            {loadingEvents ? (
-              <View style={styles.loadingEvents}>
-                <ActivityIndicator size="small" color={colors.primary[600]} />
-              </View>
-            ) : myEvents.length === 0 ? (
-              <Text style={styles.emptySheetText}>Aucun événement créé</Text>
-            ) : (
-              <ScrollView style={{ maxHeight: 420 }}>
-                {myEvents.map((event) => {
-                  const isDraft = event.status === 'draft';
-                  const now = new Date();
-                  const startDate = event.starts_at ? new Date(event.starts_at) : null;
-                  const endDate = event.ends_at ? new Date(event.ends_at) : null;
-                  let timeLabel: string | null = null;
-                  if (!isDraft && startDate && !isNaN(startDate.getTime())) {
-                    if (endDate && !isNaN(endDate.getTime()) && endDate < now) {
-                      timeLabel = 'Passé';
-                    } else if (startDate > now) {
-                      timeLabel = 'À venir';
-                    } else {
-                      timeLabel = 'En cours';
-                    }
-                  }
-                  return (
-                    <Card key={event.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          router.push(
-                            (isDraft ? `/events/create/step-1?edit=${event.id}` : `/events/${event.id}`) as any
-                          )
-                        }
-                      >
-                        <View style={styles.eventTitleRow}>
-                          <Text style={styles.eventTitle}>{event.title || 'Brouillon sans titre'}</Text>
-                          {isDraft && <Text style={styles.eventDraft}>Brouillon</Text>}
-                          {!isDraft && timeLabel && (
-                            <Text
-                              style={[
-                                styles.eventStatus,
-                                timeLabel === 'Passé' && styles.eventStatusPast,
-                                timeLabel === 'En cours' && styles.eventStatusLive,
-                                timeLabel === 'À venir' && styles.eventStatusUpcoming,
-                              ]}
-                            >
-                              {timeLabel}
-                            </Text>
-                          )}
-                        </View>
-                        <Text style={styles.eventMeta}>{event.city || event.address || ''}</Text>
-                      </TouchableOpacity>
-                    </Card>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </Animated.View>
-        </View>
-      )}
     </View>
   );
 }
@@ -429,96 +306,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.neutral[600],
     marginTop: spacing.md,
-  },
-  sheetOverlay: {
-    position: 'absolute',
-    inset: 0,
-    justifyContent: 'flex-end',
-  },
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  sheet: {
-    backgroundColor: colors.neutral[0],
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  sheetHandle: {
-    width: 48,
-    height: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[300],
-    alignSelf: 'center',
-    marginBottom: spacing.md,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  sheetTitle: {
-    ...typography.h4,
-    color: colors.neutral[900],
-  },
-  closeText: {
-    ...typography.bodySmall,
-    color: colors.primary[600],
-    fontWeight: '600',
-  },
-  loadingEvents: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-  emptySheetText: {
-    ...typography.body,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    paddingVertical: spacing.md,
-  },
-  eventTitle: {
-    ...typography.body,
-    color: colors.neutral[900],
-    fontWeight: '600',
-  },
-  eventTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  eventDraft: {
-    ...typography.caption,
-    color: colors.warning[700],
-    backgroundColor: colors.warning[50],
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  eventStatus: {
-    ...typography.caption,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  eventStatusPast: {
-    color: colors.neutral[600],
-    backgroundColor: colors.neutral[100],
-  },
-  eventStatusLive: {
-    color: colors.success[700],
-    backgroundColor: colors.success[50],
-  },
-  eventStatusUpcoming: {
-    color: colors.primary[700],
-    backgroundColor: colors.primary[50],
-  },
-  eventMeta: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
-    marginTop: 2,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, Share, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Send } from 'lucide-react-native';
 import { AppBackground, Card, Button, ScreenHeader } from '@/components/ui';

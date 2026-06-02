@@ -20,8 +20,6 @@ export const CheckinService = {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
 
-    console.log('[CheckIn] response', { data, error });
-
     if (error) {
       const response = (error as { context?: Response }).context;
       if (response) {
@@ -30,7 +28,7 @@ export const CheckinService = {
           if (payload?.message) {
             return { success: false, message: payload.message };
           }
-        } catch (err) {
+        } catch {
           // Fall back to error message below.
         }
       }

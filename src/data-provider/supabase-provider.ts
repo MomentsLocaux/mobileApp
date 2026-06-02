@@ -350,7 +350,6 @@ export const supabaseProvider: (Pick<
   },
 
   async setEventMedia(eventId: string, medias: { id?: string; url: string; order?: number }[]) {
-    console.log('[setEventMedia] eventId', eventId, 'incomingMedias', medias);
     const { data: existing, error: fetchError } = await supabase
       .from('event_media')
       .select('id, url')
@@ -368,10 +367,8 @@ export const supabaseProvider: (Pick<
     const newIds = new Set(finalMedias.filter((m) => !!m.id).map((m) => m.id as string));
     const existingList = (existing || []) as { id: string; url: string }[];
     const idsToRemove = existingList.filter((e) => !newIds.has(e.id)).map((e) => e.id);
-    console.log('[setEventMedia] existing', existing, 'idsToRemove', idsToRemove);
 
     if (idsToRemove.length > 0) {
-      console.log('[setEventMedia] deleting by id', idsToRemove);
       const { error: delByIdError } = await supabase
         .from('event_media')
         .delete()
@@ -384,10 +381,8 @@ export const supabaseProvider: (Pick<
         }
         throw formatSupabaseError(delByIdError, 'setEventMedia-delete-by-id');
       }
-      console.log('[setEventMedia] delete response OK for ids', idsToRemove);
     } else if (finalMedias.length === 0) {
       // purge tout si aucune media active
-      console.log('[setEventMedia] purge all event_media for event', eventId);
       const { error: purgeError } = await supabase.from('event_media').delete().eq('event_id', eventId);
       if (purgeError) {
         if (isRlsError(purgeError)) {
@@ -397,7 +392,6 @@ export const supabaseProvider: (Pick<
         }
         throw formatSupabaseError(purgeError, 'setEventMedia-purge-all');
       }
-      console.log('[setEventMedia] purge response OK for event', eventId);
     }
 
     if (finalMedias.length === 0) {
@@ -435,11 +429,9 @@ export const supabaseProvider: (Pick<
         }
         throw formatSupabaseError(updateError, 'setEventMedia-upsert-existing');
       }
-      console.log('[setEventMedia] upsert existing response OK', existingToUpdate.map((m) => m.id));
     }
 
     if (newToInsert.length > 0) {
-      console.log('[setEventMedia] inserting', newToInsert);
       const { error: insertError } = await supabase.from('event_media').insert(newToInsert as any);
       if (insertError) {
         if (isRlsError(insertError)) {
@@ -449,7 +441,6 @@ export const supabaseProvider: (Pick<
         }
         throw formatSupabaseError(insertError, 'setEventMedia');
       }
-      console.log('[setEventMedia] insert response OK count', newToInsert.length);
     }
     // Fin : pas de vérification supplémentaire, on s'appuie sur les IDs et l'ordre fournis.
   },
@@ -617,7 +608,6 @@ export const supabaseProvider: (Pick<
 
   async getProfile(userId: string) {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    console.log('getProfile response', { userId, data, error });
     if (error) throw formatSupabaseError(error, 'getProfile');
     return data ? (data as Profile) : null;
   },
