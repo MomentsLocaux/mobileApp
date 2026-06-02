@@ -1,3 +1,5 @@
-import CreatorDashboardScreen from '../../src/screens/creator/CreatorDashboardScreen';
+import { Redirect } from 'expo-router';
 
-export default CreatorDashboardScreen;
+export default function RestrictedAreaRedirect() {
+  return <Redirect href="/(tabs)/map" />;
+}

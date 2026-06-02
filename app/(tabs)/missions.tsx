@@ -1,11 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { Target, Trophy, CheckCircle } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { AppBackground } from '@/components/ui';
 
 export default function MissionsScreen() {
+  return <Redirect href="/(tabs)/map" />;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DeferredMissionsScreen() {
   const router = useRouter();
 
   return (

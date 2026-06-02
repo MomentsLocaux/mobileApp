@@ -1,3 +1,5 @@
-import ModerationScreen from '../../src/screens/moderation/ModerationScreen';
+import { Redirect } from 'expo-router';
 
-export default ModerationScreen;
+export default function RestrictedAreaRedirect() {
+  return <Redirect href="/(tabs)/map" />;
+}

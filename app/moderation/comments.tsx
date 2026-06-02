@@ -1,3 +1,5 @@
-import ModerationCommentsScreen from '../../src/screens/moderation/ModerationCommentsScreen';
+import { Redirect } from 'expo-router';
 
-export default ModerationCommentsScreen;
+export default function RestrictedAreaRedirect() {
+  return <Redirect href="/(tabs)/map" />;
+}

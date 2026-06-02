@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import MapboxGL from '@rnmapbox/maps';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
@@ -21,6 +21,11 @@ import { useAuth } from '@/hooks';
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 export default function CreateEventStep3() {
+  return <Redirect href="/events/create/step-1" />;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DeferredCreateEventStep3() {
   const router = useRouter();
   const { user } = useAuth();
   const {

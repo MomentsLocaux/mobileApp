@@ -114,19 +114,19 @@ const typeLabel: Record<AppNotificationType, string> = {
   event_published: 'Événement',
   event_soon: 'Rappel',
   lumo_reward: 'Récompense',
-  mission_completed: 'Mission',
-  boost_expired: 'Boutique',
+  mission_completed: 'Notification',
+  boost_expired: 'Notification',
   social_follow: 'Communauté',
   social_like: 'Communauté',
   system: 'Système',
-  event_refused: 'Modération',
-  event_request_changes: 'Modération',
-  warning_received: 'Modération',
-  user_banned: 'Modération',
-  media_approved: 'Modération',
-  media_rejected: 'Modération',
-  contest_entry_refused: 'Modération',
-  moderation_escalation: 'Modération',
+  event_refused: 'Statut événement',
+  event_request_changes: 'Statut événement',
+  warning_received: 'Compte',
+  user_banned: 'Compte',
+  media_approved: 'Média',
+  media_rejected: 'Média',
+  contest_entry_refused: 'Statut',
+  moderation_escalation: 'Signalement',
 };
 
 const typeIcon = (type: AppNotificationType) => {
@@ -226,8 +226,8 @@ export default function NotificationsInboxScreen() {
       return;
     }
 
-    if (item.type === 'moderation_escalation' && (profile?.role === 'moderateur' || profile?.role === 'admin')) {
-      router.push('/moderation/reports' as any);
+    if (item.type === 'moderation_escalation') {
+      Alert.alert('Signalement reçu', 'Cette notification est prise en charge depuis l’espace admin web.');
     }
   };
 

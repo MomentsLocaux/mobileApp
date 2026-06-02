@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { colors, spacing, borderRadius, typography } from '../../src/constants/theme';
 import { useOffersStore } from '../../src/store/offersStore';
 import { useAuth } from '../../src/hooks';
@@ -60,6 +60,11 @@ type OfferDetails = {
 };
 
 export default function OffersScreen() {
+  return <Redirect href="/(tabs)/map" />;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DeferredOffersScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const { userPlan } = useOffersStore();

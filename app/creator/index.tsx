@@ -1,3 +1,5 @@
-import CreatorIndexScreen from '../../src/screens/creator/CreatorIndexScreen';
+import { Redirect } from 'expo-router';
 
-export default CreatorIndexScreen;
+export default function RestrictedAreaRedirect() {
+  return <Redirect href="/(tabs)/map" />;
+}

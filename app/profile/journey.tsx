@@ -1,3 +1,5 @@
-import JourneyScreen from '../../src/screens/profile/JourneyScreen';
+import { Redirect } from 'expo-router';
 
-export default JourneyScreen;
+export default function RestrictedAreaRedirect() {
+  return <Redirect href="/(tabs)/map" />;
+}

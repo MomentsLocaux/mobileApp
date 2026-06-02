@@ -12,7 +12,6 @@ import {
   Bug,
   Settings,
   LogOut,
-  Shield,
   MapPinned,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -378,16 +377,6 @@ export default function TabsLayout() {
                 router.push('/bug-report' as any);
               }}
             />
-            {(profile?.role === 'moderateur' || profile?.role === 'admin') && (
-              <DrawerLink
-                icon={Shield}
-                label="Modération"
-                onPress={() => {
-                  toggleDrawer(false);
-                  router.push('/moderation' as any);
-                }}
-              />
-            )}
           </View>
         </ScrollView>
 

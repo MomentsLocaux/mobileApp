@@ -146,19 +146,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </Card>
 
-          {(profile.role === 'moderateur' || profile.role === 'admin') && (
-            <Card padding="md" style={styles.actionCard}>
-              <Text style={styles.sectionTitle}>Modération</Text>
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => router.push('/moderation' as any)}
-              >
-                <Award size={18} color={colors.secondary[600]} />
-                <Text style={styles.linkText}>Accès modération</Text>
-              </TouchableOpacity>
-            </Card>
-          )}
-
           <Button
             title="Se déconnecter"
             onPress={handleSignOut}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
 import { ShoppingBag, Sparkles, Coins } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase/client';
@@ -14,6 +15,11 @@ type ShopItem = {
 };
 
 export default function ShopScreen() {
+  return <Redirect href="/(tabs)/map" />;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DeferredShopScreen() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ShopItem[]>([]);
 

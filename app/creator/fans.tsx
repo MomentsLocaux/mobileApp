@@ -1,3 +1,5 @@
-import CreatorFansScreen from '../../src/screens/creator/CreatorFansScreen';
+import { Redirect } from 'expo-router';
 
-export default CreatorFansScreen;
+export default function RestrictedAreaRedirect() {
+  return <Redirect href="/(tabs)/map" />;
+}
