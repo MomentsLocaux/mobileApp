@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './config';
+import { requireApiBaseUrl } from './config';
 import type { IDataProvider } from './types';
 
 const withAuthHeader = (token?: string): Record<string, string> =>
@@ -18,7 +18,8 @@ const asJson = async (response: Response) => {
 
 export const apiProvider: Pick<IDataProvider, 'checkInEvent' | 'reportEvent' | 'reportComment' | 'purchaseItem'> = {
   async checkInEvent(eventId, lat, lon, token) {
-    const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/checkin`, {
+    const apiBaseUrl = requireApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/api/events/${eventId}/checkin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +42,8 @@ export const apiProvider: Pick<IDataProvider, 'checkInEvent' | 'reportEvent' | '
     payload: { reason: string; severity?: string; details?: string; token?: string },
     token?: string,
   ) {
-    const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/report`, {
+    const apiBaseUrl = requireApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/api/events/${eventId}/report`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +66,8 @@ export const apiProvider: Pick<IDataProvider, 'checkInEvent' | 'reportEvent' | '
     payload: { reason: string; severity?: string; details?: string; token?: string },
     token?: string,
   ) {
-    const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}/report`, {
+    const apiBaseUrl = requireApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/api/comments/${commentId}/report`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,7 +89,8 @@ export const apiProvider: Pick<IDataProvider, 'checkInEvent' | 'reportEvent' | '
     payload: { itemId: string; method: 'lumo' | 'eur'; userId: string; token?: string },
     token?: string,
   ) {
-    const response = await fetch(`${API_BASE_URL}/api/shop/purchase`, {
+    const apiBaseUrl = requireApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/api/shop/purchase`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

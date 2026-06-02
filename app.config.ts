@@ -3,12 +3,12 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'bolt-expo-nativewind',
-  slug: 'bolt-expo-nativewind',
+  name: 'Moments Locaux',
+  slug: 'moments-locaux',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'myapp',
+  scheme: 'momentslocaux',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   extra: {
@@ -21,11 +21,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'com.momentslocs.app',
     infoPlist: {
       NSPhotoLibraryUsageDescription:
-        'Lumo utilise votre photothèque pour sélectionner des images pour vos événements.',
+        'Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.',
       NSPhotoLibraryAddUsageDescription:
-        'Lumo peut enregistrer des images dans votre photothèque si vous le demandez.',
+        'Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.',
       NSCameraUsageDescription:
-        'Lumo a besoin d’accéder à votre caméra pour prendre des photos.',
+        'Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.',
+      NSLocationWhenInUseUsageDescription:
+        'Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.',
+      NSFaceIDUsageDescription:
+        'Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.',
       LSApplicationQueriesSchemes: ['waze', 'comgooglemaps'],
     },
   },
@@ -33,6 +37,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.momentslocs.app',
     softwareKeyboardLayoutMode: 'resize',
     permissions: [
+      'android.permission.ACCESS_COARSE_LOCATION',
+      'android.permission.ACCESS_FINE_LOCATION',
       'android.permission.CAMERA',
       // Android 13+ requires READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE
       'android.permission.READ_MEDIA_IMAGES',

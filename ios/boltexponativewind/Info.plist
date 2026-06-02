@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>bolt-expo-nativewind</string>
+    <string>Moments Locaux</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -27,14 +27,14 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>myapp</string>
+          <string>momentslocaux</string>
           <string>com.momentslocs.app</string>
         </array>
       </dict>
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>exp+bolt-expo-nativewind</string>
+          <string>exp+moments-locaux</string>
         </array>
       </dict>
     </array>
@@ -56,22 +56,16 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
-    <key>NSCameraUsageDescription</key>
-    <string>Lumo a besoin d’accéder à votre caméra pour prendre des photos.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to use Face ID</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
-    <key>NSLocationAlwaysUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.</string>
+  <key>NSFaceIDUsageDescription</key>
+  <string>Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>Lumo peut enregistrer des images dans votre photothèque si vous le demandez.</string>
+  <string>Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Lumo utilise votre photothèque pour sélectionner des images pour vos événements.</string>
+  <string>Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
