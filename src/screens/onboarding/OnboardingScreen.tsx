@@ -176,7 +176,7 @@ export default function OnboardingScreen() {
           <ChevronLeft size={20} color={colors.neutral[700]} />
           <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Bienvenue sur Lumo</Text>
+        <Text style={styles.title}>Bienvenue sur Moments Locaux</Text>
         <Text style={styles.subtitle}>Configurons votre profil en quelques étapes</Text>
         <Text style={styles.progressLabel}>
           Étape {step} / {totalSteps}
