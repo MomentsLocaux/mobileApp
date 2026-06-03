@@ -253,16 +253,12 @@ export const supabaseProvider: (Pick<
       return (data || []) as unknown as EventWithCreator[];
     }
 
-    // Fallback when RPC is missing/misconfigured: query events table directly.
-    // This keeps favorites functional across environments with partial SQL migrations.
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('events')
-      .select(EVENT_FULL_SELECT)
-      .in('id', cleanedIds);
-    if (fallbackError) {
-      throw formatSupabaseError(error, 'getEventsByIds');
+    if (isMissingFunctionError(error)) {
+      console.warn('getEventsByIds RPC unavailable; returning no events to avoid bypassing server visibility rules', error);
+      return [];
     }
-    return (fallbackData || []) as unknown as EventWithCreator[];
+
+    throw formatSupabaseError(error, 'getEventsByIds');
   },
 
   async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number; includePast?: boolean }) {
