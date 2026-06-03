@@ -188,18 +188,15 @@ export default function EventDetailScreen() {
 
   const loadEventStats = useCallback(async (eventId: string) => {
     try {
-      const [likesResp, interestsResp, checkinsResp, viewsResp] = await Promise.all([
-        supabase.from('event_likes').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
-        supabase.from('event_interests').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
-        supabase.from('event_checkins').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
-        supabase.from('event_views').select('event_id', { count: 'exact', head: true }).eq('event_id', eventId),
-      ]);
+      const { data, error } = await supabase.rpc('get_event_public_stats', { event_ids: [eventId] });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : null;
 
       setEventStats({
-        likes: likesResp.count || 0,
-        interests: interestsResp.count || 0,
-        checkins: checkinsResp.count || 0,
-        views: viewsResp.count || 0,
+        likes: Number(row?.likes_count || 0),
+        interests: Number(row?.interests_count || 0),
+        checkins: Number(row?.checkins_count || 0),
+        views: Number(row?.views_count || 0),
       });
     } catch (error) {
       console.warn('load event stats', error);
@@ -209,14 +206,8 @@ export default function EventDetailScreen() {
   const loadAttendeesAndCheckin = useCallback(
     async (eventId: string) => {
       try {
-        const [attendeesResp, countResp, mineResp] = await Promise.all([
-          supabase
-            .from('event_checkins')
-            .select('user_id, profile:profiles!event_checkins_user_id_fkey(avatar_url)')
-            .eq('event_id', eventId)
-            .order('created_at', { ascending: false })
-            .limit(12),
-          supabase.from('event_checkins').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
+        const [previewResp, mineResp] = await Promise.all([
+          supabase.rpc('get_event_checkin_preview', { p_event_id: eventId, p_limit: 12 }),
           profile?.id
             ? supabase
                 .from('event_checkins')
@@ -226,15 +217,20 @@ export default function EventDetailScreen() {
             : Promise.resolve({ count: 0, error: null } as any),
         ]);
 
-        if (!attendeesResp.error && attendeesResp.data) {
-          const formatted = attendeesResp.data.map((row: any) => ({
-            user_id: row.user_id,
-            avatar_url: row.profile?.avatar_url ?? null,
-          }));
+        if (!previewResp.error && previewResp.data) {
+          const formatted = previewResp.data
+            .filter((row: any) => row.attendee_key)
+            .map((row: any) => ({
+              user_id: row.attendee_key,
+              avatar_url: row.avatar_url ?? null,
+            }));
           setAttendees(formatted);
+          setTotalAttendees(Number(previewResp.data[0]?.total_count || 0));
+        } else {
+          setAttendees([]);
+          setTotalAttendees(0);
         }
 
-        setTotalAttendees(countResp.count || 0);
         setHasCheckedIn((mineResp?.count || 0) > 0);
       } catch (err) {
         console.warn('load attendees/checkin', err);
