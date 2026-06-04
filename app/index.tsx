@@ -6,7 +6,7 @@ import { colors } from '../src/constants/theme';
 export default function Index() {
   const { isLoading, isAuthenticated, profile } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && !profile)) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
