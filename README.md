@@ -82,6 +82,10 @@ EXPO_PUBLIC_MAPBOX_TOKEN=your_mapbox_token
 EXPO_PUBLIC_SENTRY_DSN=your_sentry_dsn
 ```
 
+Only `EXPO_PUBLIC_*` values are available in the mobile app bundle. Never prefix service-role, private, or secret values with `EXPO_PUBLIC_`.
+
+Server-only values such as `SUPABASE_SERVICE_ROLE_KEY` are reserved for local admin scripts, CI secrets, or Supabase Edge Function runtime secrets. They are not exposed through `app.config.ts`.
+
 ## Getting Started
 
 1. Install dependencies:

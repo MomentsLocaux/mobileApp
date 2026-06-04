@@ -1,6 +1,16 @@
 import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+const forbiddenPublicSecretKeys = Object.keys(process.env).filter(
+  (key) => key.startsWith('EXPO_PUBLIC_') && /(SERVICE|SECRET|PRIVATE)/i.test(key),
+);
+
+if (forbiddenPublicSecretKeys.length > 0) {
+  throw new Error(
+    `Refusing to build with public secret-like env keys: ${forbiddenPublicSecretKeys.join(', ')}`,
+  );
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Moments Locaux',

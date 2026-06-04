@@ -1,4 +1,3 @@
-import { apiProvider } from './api-provider';
 import { supabaseProvider } from './supabase-provider';
 import { authProvider } from './auth-provider';
 import type { IAuthProvider, IBugsProvider, IDataProvider } from './types';
@@ -17,14 +16,18 @@ export const dataProvider: DataProvider = {
   createComment: (payload) => supabaseProvider.createComment(payload),
   deleteComment: (id) => supabaseProvider.deleteComment(id),
 
-  checkInEvent: (eventId, lat, lon, token) => apiProvider.checkInEvent(eventId, lat, lon, token),
+  checkInEvent: async () => {
+    throw new Error('Legacy check-in API is disabled. Use CheckinService with the event-checkin Edge Function.');
+  },
 
   reportEvent: (eventId, payload) => supabaseProvider.reportEvent(eventId, payload),
   reportComment: (commentId, payload) => supabaseProvider.reportComment(commentId, payload),
   reportProfile: (profileId, payload) => supabaseProvider.reportProfile(profileId, payload),
   reportMedia: (mediaId, payload) => supabaseProvider.reportMedia(mediaId, payload),
 
-  purchaseItem: (payload, token) => apiProvider.purchaseItem(payload, token),
+  purchaseItem: async () => {
+    throw new Error('Shop purchases are disabled for MVP.');
+  },
 
   getProfile: (userId) => supabaseProvider.getProfile(userId),
   updateProfile: (userId, payload) => supabaseProvider.updateProfile(userId, payload),

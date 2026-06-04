@@ -53,6 +53,7 @@ export const authProvider: IAuthProvider = {
         bio: null,
         city: null,
         region: null,
+        status: 'active',
       } as unknown as Database['public']['Tables']['profiles']['Insert'])
       .select()
       .single();

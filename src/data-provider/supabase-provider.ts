@@ -29,6 +29,23 @@ const generateEventQrToken = () => {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`;
 };
 
+const generateUuid = () => {
+  try {
+    const uuid = (globalThis as any)?.crypto?.randomUUID?.();
+    if (typeof uuid === 'string' && uuid.length > 0) {
+      return uuid;
+    }
+  } catch {
+    // fallback below
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const value = Math.floor(Math.random() * 16);
+    const nibble = char === 'x' ? value : (value & 0x3) | 0x8;
+    return nibble.toString(16);
+  });
+};
+
 const EVENT_FULL_SELECT = `
   id,
   creator_id,
@@ -317,20 +334,26 @@ export const supabaseProvider: (Pick<
   },
 
   async createEvent(payload: Partial<Event>) {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user?.id) {
+      throw new Error('[createEvent] Session expirée. Reconnectez-vous avant de créer un événement.');
+    }
+
+    const eventId = payload.id || generateUuid();
     const shouldGenerateQr = payload.status === 'published' && !payload.qr_token;
     const normalizedPayload = {
       ...payload,
+      id: eventId,
+      creator_id: authData.user.id,
       status: payload.status ?? 'pending',
       qr_token: shouldGenerateQr ? generateEventQrToken() : payload.qr_token ?? null,
       qr_generated_at: shouldGenerateQr ? new Date().toISOString() : payload.qr_generated_at ?? null,
     };
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('events')
-      .insert(normalizedPayload as any)
-      .select()
-      .single();
+      .insert(normalizedPayload as any);
     if (error) throw formatSupabaseError(error, 'createEvent');
-    return data as Event;
+    return normalizedPayload as Event;
   },
 
   async updateEvent(id: string, payload: Partial<Event>) {
