@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { useAuth } from '@/hooks';
 
 const PRIMARY_BUCKET = 'event-media';
-const FALLBACK_BUCKET = 'public';
 
 export const CoverImageUploader = () => {
+  const { user } = useAuth();
   const { selectedImage, pickImage, clearImage } = useImagePicker();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const setCoverImage = useCreateEventStore((s) => s.setCoverImage);
@@ -23,43 +24,35 @@ export const CoverImageUploader = () => {
   };
 
   const upload = async (uri: string) => {
+    if (!user?.id) {
+      Alert.alert('Connexion requise', 'Vous devez être connecté pour ajouter une image.');
+      return;
+    }
+
     setUploading(true);
     try {
       const response = await fetch(uri);
       const arrayBuffer = await response.arrayBuffer();
       const ext = uri.split('.').pop() || 'jpg';
       const fileName = `cover-${Date.now()}.${ext}`;
-      const filePath = `covers/${fileName}`;
+      const filePath = `event-covers/${user.id}/${fileName}`;
       const contentType =
         response.headers.get('content-type') ||
         (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
 
-      const tryUpload = async (bucket: string) =>
-        supabase.storage.from(bucket).upload(filePath, arrayBuffer, {
-          contentType,
-          upsert: true,
-        });
-
-      let bucketUsed = PRIMARY_BUCKET;
-      let uploadError: any = null;
-
-      const { error: primaryError } = await tryUpload(bucketUsed);
-      if (primaryError?.message?.includes('Bucket not found')) {
-        bucketUsed = FALLBACK_BUCKET;
-        const { error: fallbackError } = await tryUpload(bucketUsed);
-        uploadError = fallbackError;
-      } else {
-        uploadError = primaryError;
-      }
-
+      const { error: uploadError } = await supabase.storage.from(PRIMARY_BUCKET).upload(filePath, arrayBuffer, {
+        contentType,
+        upsert: true,
+      });
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from(bucketUsed).getPublicUrl(filePath);
+      const { data } = supabase.storage.from(PRIMARY_BUCKET).getPublicUrl(filePath);
       setCoverImage({ storagePath: filePath, publicUrl: data.publicUrl });
     } catch (e) {
       console.warn('upload cover', e);
       clearImage();
       setCoverImage(undefined);
+      Alert.alert('Erreur', "Impossible de téléverser l'image de couverture.");
     } finally {
       setUploading(false);
     }

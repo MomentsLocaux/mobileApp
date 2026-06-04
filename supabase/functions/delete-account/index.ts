@@ -10,7 +10,7 @@ const corsHeaders = {
 };
 
 const storageMarker = '/storage/v1/object/public/';
-const buckets = ['avatars', 'event-media', 'public'];
+const buckets = ['avatar', 'avatars', 'event-media', 'public'];
 
 const pathFromPublicUrl = (url?: string | null, bucket?: string) => {
   if (!url || !bucket) return null;
@@ -70,6 +70,7 @@ serve(async (req) => {
   }
 
   const storagePaths: Record<string, Set<string>> = {
+    avatar: new Set<string>(),
     avatars: new Set<string>(),
     'event-media': new Set<string>(),
     public: new Set<string>(),

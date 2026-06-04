@@ -31,8 +31,8 @@ export const AdditionalImagesUploader = () => {
   const upload = async (uri: string) => {
     setUploading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError || !userData.user?.id) {
         Alert.alert('Connexion requise', 'Vous devez être connecté pour ajouter des images.');
         return;
       }
@@ -41,7 +41,7 @@ export const AdditionalImagesUploader = () => {
       const arrayBuffer = await response.arrayBuffer();
       const ext = uri.split('.').pop() || 'jpg';
       const fileName = `extra-${Date.now()}.${ext}`;
-      const filePath = `gallery/${fileName}`;
+      const filePath = `gallery/${userData.user.id}/${fileName}`;
       const contentType =
         response.headers.get('content-type') ||
         (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
