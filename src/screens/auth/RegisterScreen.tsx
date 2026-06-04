@@ -21,10 +21,12 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
     confirmPassword?: string;
+    legalAccepted?: string;
   }>({});
 
   const validate = () => {
@@ -32,6 +34,7 @@ export default function RegisterScreen() {
       email?: string;
       password?: string;
       confirmPassword?: string;
+      legalAccepted?: string;
     } = {};
 
     if (!email) {
@@ -48,6 +51,10 @@ export default function RegisterScreen() {
 
     if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    }
+
+    if (!legalAccepted) {
+      newErrors.legalAccepted = 'Vous devez accepter les CGU et la politique de confidentialité';
     }
 
     setErrors(newErrors);
@@ -139,6 +146,30 @@ export default function RegisterScreen() {
             error={errors.confirmPassword}
           />
 
+          <TouchableOpacity
+            style={styles.consentRow}
+            activeOpacity={0.85}
+            onPress={() => setLegalAccepted((value) => !value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: legalAccepted }}
+          >
+            <View style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}>
+              {legalAccepted ? <Ionicons name="checkmark" size={14} color={colors.brand.background} /> : null}
+            </View>
+            <Text style={styles.consentText}>
+              J’accepte les{' '}
+              <Text style={styles.inlineLink} onPress={() => router.push('/settings/legal/cgu' as any)}>
+                CGU
+              </Text>{' '}
+              et la{' '}
+              <Text style={styles.inlineLink} onPress={() => router.push('/settings/privacy/policy' as any)}>
+                politique de confidentialité
+              </Text>
+              .
+            </Text>
+          </TouchableOpacity>
+          {errors.legalAccepted ? <Text style={styles.errorText}>{errors.legalAccepted}</Text> : null}
+
           <Button
             title="S'inscrire"
             onPress={handleRegister}
@@ -186,6 +217,41 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     marginTop: spacing.md,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.brand.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
+  },
+  consentText: {
+    ...typography.bodySmall,
+    flex: 1,
+    color: colors.brand.textSecondary,
+    lineHeight: 20,
+  },
+  inlineLink: {
+    color: colors.brand.secondary,
+    fontWeight: '700',
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.error[500],
+    marginTop: spacing.xs,
   },
   footer: {
     flexDirection: 'row',
