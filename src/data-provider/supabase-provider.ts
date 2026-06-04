@@ -317,9 +317,15 @@ export const supabaseProvider: (Pick<
   },
 
   async createEvent(payload: Partial<Event>) {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user?.id) {
+      throw new Error('[createEvent] Session expirée. Reconnectez-vous avant de créer un événement.');
+    }
+
     const shouldGenerateQr = payload.status === 'published' && !payload.qr_token;
     const normalizedPayload = {
       ...payload,
+      creator_id: authData.user.id,
       status: payload.status ?? 'pending',
       qr_token: shouldGenerateQr ? generateEventQrToken() : payload.qr_token ?? null,
       qr_generated_at: shouldGenerateQr ? new Date().toISOString() : payload.qr_generated_at ?? null,
