@@ -22,7 +22,8 @@ export function useAuth() {
 
   const fetchProfile = useCallback(
     async (userId: string, userEmail?: string | null) => {
-      const profile = await UserService.getProfile(userId);
+      const profile =
+        (await UserService.getProfile(userId)) || (await AuthService.ensureProfile(userId, userEmail || ''));
       const enriched = profile ? { ...profile, email: profile.email ?? userEmail ?? null } : null;
       setProfile(enriched);
       return enriched;
@@ -100,6 +101,24 @@ export function useAuth() {
     return true;
   }, [reset, setError, setLoading]);
 
+  const fullSignOut = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await AuthService.fullSignOut();
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur déconnexion complète');
+      }
+    } catch (signOutError: any) {
+      setLoading(false);
+      setError(signOutError?.message || 'Erreur déconnexion complète');
+      return false;
+    }
+    setLoading(false);
+    reset();
+    return true;
+  }, [reset, setError, setLoading]);
+
   const refreshProfile = useCallback(async () => {
     if (!user) return null;
     return fetchProfile(user.id, user.email);
@@ -158,6 +177,7 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    fullSignOut,
     refreshProfile,
   };
 }

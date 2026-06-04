@@ -22,7 +22,8 @@ export default function RootLayout() {
       setLoading(true);
 
       try {
-        const currentSession = await AuthService.getCurrentSession();
+        const blocked = await AuthService.isAutoRestoreBlocked();
+        const currentSession = blocked ? null : await AuthService.getCurrentSession();
         if (!mounted) return;
 
         if (currentSession) {

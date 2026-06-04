@@ -139,7 +139,7 @@ export default function TabsLayout() {
     );
   };
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && !profile)) {
     return (
       <View style={styles.container}>
         <AppBackground />

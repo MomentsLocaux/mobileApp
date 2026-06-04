@@ -19,7 +19,7 @@ import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, signOut, session } = useAuth();
+  const { profile, signOut, fullSignOut, session } = useAuth();
   const isGuest = !session;
 
   const handleSignOut = async () => {
@@ -37,6 +37,24 @@ export default function ProfileScreen() {
           },
         },
       ]
+    );
+  };
+
+  const handleForgetDevice = async () => {
+    Alert.alert(
+      'Oublier cet appareil',
+      'La session sauvegardée sera supprimée et la connexion biométrique ne sera plus proposée sur cet appareil.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Oublier',
+          style: 'destructive',
+          onPress: async () => {
+            await fullSignOut();
+            router.replace('/auth/login');
+          },
+        },
+      ],
     );
   };
 
@@ -153,6 +171,9 @@ export default function ProfileScreen() {
             fullWidth
             style={styles.signOutButton}
           />
+          <TouchableOpacity style={styles.forgetDeviceButton} onPress={handleForgetDevice}>
+            <Text style={styles.forgetDeviceText}>Oublier cet appareil</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -282,6 +303,16 @@ const styles = StyleSheet.create({
   },
   signOutButton: {
     marginTop: spacing.lg,
+  },
+  forgetDeviceButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  forgetDeviceText: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
   },
   fallback: {
     flex: 1,

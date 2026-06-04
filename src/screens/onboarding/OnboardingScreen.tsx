@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -67,6 +67,18 @@ export default function OnboardingScreen() {
     step === 3 ||
     step === 4;
 
+  useEffect(() => {
+    if (!profile && user) {
+      refreshProfile();
+    }
+  }, [profile, refreshProfile, user]);
+
+  useEffect(() => {
+    if (!displayName.trim() && fallbackDisplayName.trim()) {
+      setDisplayName(fallbackDisplayName);
+    }
+  }, [displayName, fallbackDisplayName]);
+
   const searchAddress = useCallback(
     async (q: string) => {
       setError(null);
@@ -128,12 +140,18 @@ export default function OnboardingScreen() {
   );
 
   const handleComplete = async () => {
-    if (!profile || !user) return;
+    if (!user) return;
     setError(null);
 
     setIsLoading(true);
     try {
-      await ProfileService.updateProfile(profile.id, {
+      const activeProfile = profile || (await refreshProfile());
+      if (!activeProfile) {
+        setError('Profil indisponible, réessayez dans quelques secondes.');
+        return;
+      }
+
+      await ProfileService.updateProfile(activeProfile.id, {
         display_name: displayName,
         bio: bio || null,
         role: role as any,

@@ -123,6 +123,7 @@ export class AuthService {
       return { success: false, error: 'Biometric auth cancelled' };
     }
 
+    await this.clearAutoRestoreBlock();
     const { data, error } = await supabase.auth.setSession({
       refresh_token: saved.refresh_token,
       access_token: saved.access_token,
@@ -137,8 +138,8 @@ export class AuthService {
     if (!session || !user) {
       return { success: false, error: 'Session invalide' };
     }
-    const profile = await dataProvider.getProfile(user.id);
-    await this.clearAutoRestoreBlock();
+    const profile =
+      (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, user.email || ''));
     return {
       success: true,
       session,
@@ -203,6 +204,22 @@ export class AuthService {
       // Soft sign-out: on ne révoque pas la session côté Supabase pour conserver
       // le refresh token et permettre une reconnexion biométrique.
       await this.blockAutoRestore();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  static async fullSignOut(): Promise<AuthResponse> {
+    try {
+      await Promise.all([
+        this.clearSavedSession(),
+        this.blockAutoRestore(),
+        supabase.auth.signOut().catch(() => undefined),
+      ]);
       return { success: true };
     } catch (error) {
       return {
@@ -277,7 +294,8 @@ export class AuthService {
       const user = await this.getCurrentUser();
       if (!user) return null;
 
-      const profile = await dataProvider.getProfile(user.id);
+      const profile =
+        (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, user.email || ''));
       return this.attachEmail(profile, user.email);
     } catch {
       return null;
@@ -287,7 +305,15 @@ export class AuthService {
   static onAuthStateChange(callback: (session: Session | null, profile: Profile | null) => void) {
     const sub = dataProvider.onAuthStateChange(async (session) => {
       if (session?.user) {
-        const rawProfile = await dataProvider.getProfile(session.user.id);
+        const blocked = await this.isAutoRestoreBlocked();
+        if (blocked) {
+          callback(null, null);
+          return;
+        }
+
+        const rawProfile =
+          (await dataProvider.getProfile(session.user.id)) ||
+          (await this.ensureProfile(session.user.id, session.user.email || ''));
         const profile = this.attachEmail(rawProfile, session.user.email);
         callback(session, profile);
       } else {
