@@ -35,7 +35,7 @@ Admin moderation is explicitly out of the mobile MVP. It will be handled in a se
 
 - `src/screens/events/EventCreateScreen.tsx` appears unreferenced by the current Expo Router flow. The active event creation flow lives under `app/events/create/*`.
 - `src/store/authStore.ts` is exported from `src/store/index.ts`, but the active auth flow imports `src/state/auth.ts`.
-- `apiProvider`, `ShopService.purchase`, `LumoService`, and `offersStore` are retained for post-MVP work. The local API URL was removed; legacy API calls now require `EXPO_PUBLIC_API_BASE_URL`.
+- `ShopService.purchase`, `LumoService`, and `offersStore` are retained for post-MVP work. Legacy HTTP API calls are disabled in the mobile provider; MVP check-in uses the Supabase `event-checkin` Edge Function.
 
 ## Critical Manual Test Matrix
 
@@ -70,7 +70,7 @@ Run the matrix on iOS and Android real devices before store submission.
 - Validate icons, splash, and store artwork.
 - Verify iOS permission copy in a production build.
 - Verify Android permissions shown in Play Console.
-- Configure production Supabase, Mapbox, and optional `EXPO_PUBLIC_API_BASE_URL` values.
+- Configure production Supabase, Mapbox, and Sentry public values. Do not configure a mobile public API base URL for MVP.
 - Confirm account deletion is functional enough for store review.
 - Run `npm run typecheck` and `npm run lint`.
 - Build and smoke-test release/dev-client builds on iOS and Android.
