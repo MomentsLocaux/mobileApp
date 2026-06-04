@@ -109,6 +109,11 @@ export default function OnboardingScreen() {
 
   const uploadImage = useCallback(
     async (target: 'avatar' | 'cover') => {
+      if (!user?.id) {
+        setError('Connexion requise pour téléverser une image.');
+        return;
+      }
+
       const asset = await pickImage({ allowsEditing: true });
       if (!asset?.uri) return;
       setIsLoading(true);
@@ -117,8 +122,11 @@ export default function OnboardingScreen() {
         const arrayBuffer = await response.arrayBuffer();
         const ext = asset.uri.split('.').pop() || 'jpg';
         const fileName = `${target}-${Date.now()}.${ext}`;
-        const path = target === 'avatar' ? `avatars/${fileName}` : `covers/${fileName}`;
-        const bucket = 'avatar'; // bucket déjà créé pour les avatars/covers
+        const path =
+          target === 'avatar'
+            ? `avatars/${user.id}/${fileName}`
+            : `profile-covers/${user.id}/${fileName}`;
+        const bucket = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatar';
         const contentType =
           response.headers.get('content-type') ||
           (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
@@ -136,7 +144,7 @@ export default function OnboardingScreen() {
         setIsLoading(false);
       }
     },
-    [pickImage],
+    [pickImage, user?.id],
   );
 
   const handleComplete = async () => {

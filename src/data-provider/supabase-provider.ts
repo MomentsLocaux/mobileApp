@@ -14,8 +14,8 @@ const formatSupabaseError = (error: any, context: string) => {
   return new Error(`[${context}] ${message}${details ? ` (${details})` : ''}`);
 };
 
-const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatars';
-const EVENT_COVER_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_EVENT_COVER_BUCKET || 'public';
+const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatar';
+const EVENT_COVER_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_EVENT_COVER_BUCKET || 'event-media';
 
 const generateEventQrToken = () => {
   try {
@@ -27,6 +27,17 @@ const generateEventQrToken = () => {
     // fallback below
   }
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`;
+};
+
+const isMissingBucketError = (error: any) =>
+  String(error?.message || '').toLowerCase().includes('bucket not found') ||
+  String(error?.error || '').toLowerCase().includes('bucket not found');
+
+const formatStorageUploadError = (error: any, context: string) => {
+  if (isMissingBucketError(error)) {
+    return new Error(`[${context}] Bucket Storage non configuré. Vérifiez la configuration Supabase.`);
+  }
+  return formatSupabaseError(error, context);
 };
 
 const generateUuid = () => {
@@ -803,31 +814,18 @@ export const supabaseProvider: (Pick<
     const response = await fetch(uri);
     const arrayBuffer = await response.arrayBuffer();
     const ext = uri.split('.').pop() || 'jpg';
-    const fileName = `${userId}-${Date.now()}.${ext}`;
-    const filePath = `avatars/${fileName}`;
+    const fileName = `avatar-${Date.now()}.${ext}`;
+    const filePath = `avatars/${userId}/${fileName}`;
     const contentType =
       response.headers.get('content-type') ||
       (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
 
-    const tryUpload = async (bucket: string) =>
-      supabase.storage.from(bucket).upload(filePath, arrayBuffer, { contentType, upsert: true });
+    const { error: uploadError } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(filePath, arrayBuffer, { contentType, upsert: true });
+    if (uploadError) throw formatStorageUploadError(uploadError, 'uploadAvatar');
 
-    let bucketUsed = AVATAR_BUCKET;
-    let uploadError: any = null;
-
-    const { error: primaryError } = await tryUpload(bucketUsed);
-    if (primaryError?.message?.includes('Bucket not found')) {
-      // Fallback to a public bucket if avatars is missing in the project.
-      bucketUsed = 'public';
-      const { error: fallbackError } = await tryUpload(bucketUsed);
-      uploadError = fallbackError;
-    } else {
-      uploadError = primaryError;
-    }
-
-    if (uploadError) throw formatSupabaseError(uploadError, 'uploadAvatar');
-
-    const { data } = supabase.storage.from(bucketUsed).getPublicUrl(filePath);
+    const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
     return data.publicUrl;
   },
 
@@ -835,31 +833,18 @@ export const supabaseProvider: (Pick<
     const response = await fetch(uri);
     const arrayBuffer = await response.arrayBuffer();
     const ext = uri.split('.').pop() || 'jpg';
-    const fileName = `${userId}-${Date.now()}.${ext}`;
-    const filePath = `event_covers/${fileName}`;
+    const fileName = `cover-${Date.now()}.${ext}`;
+    const filePath = `event-covers/${userId}/${fileName}`;
     const contentType =
       response.headers.get('content-type') ||
       (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
 
-    const tryUpload = async (bucket: string) =>
-      supabase.storage.from(bucket).upload(filePath, arrayBuffer, { contentType, upsert: true });
+    const { error: uploadError } = await supabase.storage
+      .from(EVENT_COVER_BUCKET)
+      .upload(filePath, arrayBuffer, { contentType, upsert: true });
+    if (uploadError) throw formatStorageUploadError(uploadError, 'uploadEventCover');
 
-    let bucketUsed = EVENT_COVER_BUCKET;
-    let uploadError: any = null;
-
-    const { error: primaryError } = await tryUpload(bucketUsed);
-    if (primaryError?.message?.includes('Bucket not found')) {
-      // Fallback to a public bucket if the configured one is missing.
-      bucketUsed = 'public';
-      const { error: fallbackError } = await tryUpload(bucketUsed);
-      uploadError = fallbackError;
-    } else {
-      uploadError = primaryError;
-    }
-
-    if (uploadError) throw formatSupabaseError(uploadError, 'uploadEventCover');
-
-    const { data } = supabase.storage.from(bucketUsed).getPublicUrl(filePath);
+    const { data } = supabase.storage.from(EVENT_COVER_BUCKET).getPublicUrl(filePath);
     return data.publicUrl;
   },
 };
