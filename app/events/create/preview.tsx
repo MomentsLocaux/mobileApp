@@ -31,6 +31,8 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
+const EDITABLE_EVENT_STATUSES = new Set(['draft', 'refused']);
+
 export default function CreateEventPreview() {
   const router = useRouter();
   const { user } = useAuth();
@@ -173,12 +175,38 @@ export default function CreateEventPreview() {
         }
       }
 
+      let oldCoverPath: string | undefined;
+      if (edit) {
+        try {
+          const currentEvt = await EventsService.getById(edit);
+          const currentStatus = currentEvt?.status;
+          if (!currentStatus || !EDITABLE_EVENT_STATUSES.has(currentStatus)) {
+            Alert.alert(
+              'Édition indisponible',
+              'Seuls les brouillons et les événements refusés peuvent être soumis à nouveau.'
+            );
+            return;
+          }
+          if (currentEvt?.cover_url) {
+            oldCoverPath = derivePath(currentEvt.cover_url);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch original event for lifecycle check', err);
+          Alert.alert('Édition indisponible', "Impossible de vérifier le statut actuel de l'événement.");
+          return;
+        }
+      }
+
       let finalCoverUrl = coverImage?.publicUrl || null;
       if (coverImage?.publicUrl && !isRemoteUrl(coverImage.publicUrl)) {
         const uploaded = await EventsService.uploadEventCover(user.id, coverImage.publicUrl);
         if (uploaded) {
           finalCoverUrl = uploaded;
         }
+      }
+
+      if (edit && oldCoverPath && oldCoverPath === derivePath(finalCoverUrl || undefined)) {
+        oldCoverPath = undefined;
       }
 
       const payload = {
@@ -222,16 +250,6 @@ export default function CreateEventPreview() {
       };
 
       if (edit) {
-        let oldCoverPath: string | undefined;
-        try {
-          const currentEvt = await EventsService.getById(edit);
-          if (currentEvt && currentEvt.cover_url && currentEvt.cover_url !== finalCoverUrl) {
-            oldCoverPath = derivePath(currentEvt.cover_url);
-          }
-        } catch (err) {
-          console.warn('Failed to fetch original event for cleanup check', err);
-        }
-
         await EventsService.update(edit, payload as any);
         if ((EventsService as any).setMedia) {
           await EventsService.setMedia(edit, activeMedias as any);

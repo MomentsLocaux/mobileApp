@@ -30,6 +30,8 @@ import {
   isSameDayRange,
 } from '@/utils/event-schedule';
 
+const EDITABLE_EVENT_STATUSES = new Set(['draft', 'refused']);
+
 export default function CreateEventStep1() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
@@ -100,6 +102,14 @@ export default function CreateEventStep1() {
       try {
         const evt = await EventsService.getById(edit);
         if (!evt) return;
+        if (!EDITABLE_EVENT_STATUSES.has(evt.status || '')) {
+          Alert.alert(
+            'Édition indisponible',
+            'Seuls les brouillons et les événements refusés peuvent être modifiés depuis l’app.',
+            [{ text: 'OK', onPress: () => router.replace(`/events/${edit}` as any) }]
+          );
+          return;
+        }
         resetStore();
         setExistingStatus(evt.status ?? null);
         setTitle(evt.title || '');
@@ -150,6 +160,7 @@ export default function CreateEventStep1() {
   }, [
     edit,
     resetStore,
+    router,
     setCategory,
     setContact,
     setCoverImage,
@@ -190,7 +201,7 @@ export default function CreateEventStep1() {
     }
 
     if (edit && existingStatus && existingStatus !== 'draft') {
-      Alert.alert('Impossible', "Cet événement est déjà publié, impossible de l'enregistrer en brouillon.");
+      Alert.alert('Impossible', 'Seuls les brouillons peuvent être réenregistrés en brouillon.');
       return;
     }
 

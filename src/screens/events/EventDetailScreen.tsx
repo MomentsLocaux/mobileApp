@@ -145,6 +145,7 @@ export default function EventDetailScreen() {
   const isGuest = !session;
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
+  const canEditEvent = isOwner && (event?.status === 'draft' || event?.status === 'refused');
   const isEventLiked = event ? isLiked(event.id) : false;
   const isEventFavorited = event ? isFavorite(event.id) : false;
 
@@ -1107,7 +1108,7 @@ export default function EventDetailScreen() {
                 fill={eventReported ? colors.error[500] : 'transparent'}
               />
             </TouchableOpacity>
-            {(isOwner || isAdmin) ? (
+            {canEditEvent ? (
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => router.push(`/events/create/step-1?edit=${event.id}` as any)}
