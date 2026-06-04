@@ -328,7 +328,7 @@ export default function TabsLayout() {
               label="Paramètres"
               onPress={() => {
                 toggleDrawer(false);
-                router.push('/settings/index' as any);
+                router.push('/settings' as any);
               }}
             />
             <DrawerLink

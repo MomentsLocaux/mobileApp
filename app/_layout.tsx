@@ -88,7 +88,7 @@ export default function RootLayout() {
         <Stack.Screen name="events" />
         <Stack.Screen name="notifications/index" />
         <Stack.Screen name="bug-report" />
-        <Stack.Screen name="settings/index" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />

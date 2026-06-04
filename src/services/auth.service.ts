@@ -212,6 +212,50 @@ export class AuthService {
     }
   }
 
+  static async requestAccountDeletion(): Promise<AuthResponse> {
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        body: {},
+      });
+
+      if (error) {
+        let message = error.message;
+        const context = (error as any)?.context;
+        if (context && typeof context.json === 'function') {
+          try {
+            const body = await context.json();
+            if (body && typeof body.message === 'string') {
+              message = body.message;
+            }
+          } catch {
+            // Keep the Supabase Functions error message.
+          }
+        }
+        return { success: false, error: message };
+      }
+
+      if (data && typeof data === 'object' && data.success === false) {
+        return {
+          success: false,
+          error: typeof data.message === 'string' ? data.message : 'Suppression impossible',
+        };
+      }
+
+      await Promise.all([
+        this.clearSavedSession(),
+        this.blockAutoRestore(),
+        supabase.auth.signOut().catch(() => undefined),
+      ]);
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
   static async getCurrentSession(): Promise<Session | null> {
     try {
       return dataProvider.getSession();

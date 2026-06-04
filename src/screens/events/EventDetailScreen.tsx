@@ -15,6 +15,7 @@ import {
   Modal,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Clipboard from 'expo-clipboard';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -151,6 +152,20 @@ export default function EventDetailScreen() {
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
+
+  const handleShowDebugEventId = useCallback(() => {
+    if (!event?.id) return;
+    Alert.alert('Event ID', event.id, [
+      { text: 'Fermer', style: 'cancel' },
+      {
+        text: 'Copier',
+        onPress: async () => {
+          await Clipboard.setStringAsync(event.id);
+          Toast.show({ type: 'success', text1: 'ID copié' });
+        },
+      },
+    ]);
+  }, [event?.id]);
 
   const trackEventView = useCallback(
     async (eventId: string) => {
@@ -1143,7 +1158,17 @@ export default function EventDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>{event.title}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{event.title}</Text>
+            <TouchableOpacity
+              style={styles.debugIdButton}
+              onPress={handleShowDebugEventId}
+              accessibilityRole="button"
+              accessibilityLabel="Afficher l'identifiant de l'événement"
+            >
+              <Text style={styles.debugIdText}>?</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={styles.cardTouchable}
@@ -1589,10 +1614,32 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   title: {
     ...typography.h2,
+    flex: 1,
     color: colors.brand.text,
-    marginBottom: spacing.md,
+  },
+  debugIdButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    marginTop: 4,
+  },
+  debugIdText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
   },
   cardTouchable: {
     borderRadius: borderRadius.lg,

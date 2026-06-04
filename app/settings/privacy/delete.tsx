@@ -1,19 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { Button } from '@/components/ui/Button';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { AuthService } from '@/services/auth.service';
+import { useAuthStore } from '@/state/auth';
 
 export default function DeleteAccountScreen() {
+  const router = useRouter();
+  const resetAuth = useAuthStore((state) => state.reset);
+  const [deleting, setDeleting] = useState(false);
+
+  const runDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    const result = await AuthService.requestAccountDeletion();
+    setDeleting(false);
+
+    if (!result.success) {
+      Alert.alert(
+        'Suppression impossible',
+        result.error || 'Une erreur est survenue. Réessayez ou contactez le support.'
+      );
+      return;
+    }
+
+    resetAuth();
+    Alert.alert(
+      'Compte supprimé',
+      'Votre compte et vos données personnelles ont été traités. Vous allez être déconnecté.',
+      [{ text: 'OK', onPress: () => router.replace('/auth/login' as any) }]
+    );
+  };
+
   const confirmDelete = () => {
     Alert.alert(
       'Supprimer définitivement',
-      'Cette action est définitive. Vos données personnelles seront supprimées.',
+      'Cette action est définitive. Vos données privées seront supprimées, vos contenus publics seront anonymisés et vous serez déconnecté.',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer définitivement', style: 'destructive' },
+        { text: 'Supprimer définitivement', style: 'destructive', onPress: runDelete },
       ]
     );
   };
@@ -25,12 +54,17 @@ export default function DeleteAccountScreen() {
           <AlertTriangle size={24} color={colors.error[600]} />
           <Text style={styles.dangerTitle}>Action définitive</Text>
           <Text style={styles.dangerText}>
-            Cette action est définitive. Vos données personnelles seront supprimées.
+            Vos données privées seront supprimées. Les contenus publics nécessaires à la continuité du service seront anonymisés.
           </Text>
         </View>
         <View style={styles.actions}>
-          <Button title="Annuler" variant="secondary" onPress={() => {}} />
-          <Button title="Supprimer définitivement" variant="danger" onPress={confirmDelete} />
+          <Button title="Annuler" variant="secondary" onPress={() => router.back()} disabled={deleting} />
+          <Button
+            title="Supprimer définitivement"
+            variant="danger"
+            onPress={confirmDelete}
+            loading={deleting}
+          />
         </View>
       </SettingsSectionCard>
     </SettingsLayout>
