@@ -70,6 +70,30 @@ serve(async (req) => {
     });
   }
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('status, ban_until')
+    .eq('id', userData.user.id)
+    .maybeSingle();
+  const banUntil = profile?.ban_until ? new Date(profile.ban_until).getTime() : null;
+  const isActiveProfile =
+    !profileError &&
+    profile?.status === 'active' &&
+    (banUntil === null || Number.isNaN(banUntil) || banUntil <= Date.now());
+
+  if (!isActiveProfile) {
+    console.log('[event-checkin] inactive profile blocked', {
+      userId: userData.user.id,
+      status: profile?.status,
+      banUntil: profile?.ban_until,
+      profileError,
+    });
+    return new Response(JSON.stringify({ success: false, message: 'Compte non autorisé à valider une présence.' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   let payload: { eventId?: string; lat?: number; lon?: number; qrToken?: string; source?: string };
   try {
     payload = await req.json();
