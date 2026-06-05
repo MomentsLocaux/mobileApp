@@ -16,7 +16,8 @@
 --   Self-assignable roles (non-moderators): particulier, professionnel,
 --   institutionnel, invite. Reserved (admin/service only): admin, moderateur.
 --   status / ban_until are NEVER self-settable.
---   Moderators (is_moderator()) and service_role (auth.uid() is null) bypass the
+--   Moderators (is_moderator()), service_role (auth.uid() is null), and the
+--   account-deletion flow (session flag app.account_deletion='on') bypass the
 --   field-level guard. Enums: role=role_enum, status=profile_status_mod_enum.
 
 -- 1) A user may create ONLY their own profile row.
@@ -41,8 +42,12 @@ as $func$
 declare
   allowed_roles text[] := array['particulier','professionnel','institutionnel','invite'];
 begin
-  -- Moderators and server-side (service_role / no JWT user) bypass the guard.
-  if public.is_moderator() or auth.uid() is null then
+  -- Bypass for: moderators, server-side (service_role / no JWT user), and the
+  -- account-deletion flow (process_account_deletion sets app.account_deletion='on'
+  -- and legitimately sets profiles.status='suspended' during anonymisation).
+  if public.is_moderator()
+     or auth.uid() is null
+     or coalesce(current_setting('app.account_deletion', true) = 'on', false) then
     return new;
   end if;
 
