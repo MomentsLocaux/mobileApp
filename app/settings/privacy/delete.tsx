@@ -51,7 +51,7 @@ export default function DeleteAccountScreen() {
     <SettingsLayout title="Supprimer mon compte">
       <SettingsSectionCard title="Supprimer mon compte" icon={AlertTriangle}>
         <View style={styles.dangerBlock}>
-          <AlertTriangle size={24} color={colors.error[600]} />
+          <AlertTriangle size={24} color={colors.error[500]} />
           <Text style={styles.dangerTitle}>Action définitive</Text>
           <Text style={styles.dangerText}>
             Vos données privées seront supprimées. Les contenus publics nécessaires à la continuité du service seront anonymisés.
@@ -74,18 +74,20 @@ export default function DeleteAccountScreen() {
 const styles = StyleSheet.create({
   dangerBlock: {
     marginTop: spacing.sm,
-    backgroundColor: '#FFD7D7',
+    backgroundColor: 'rgba(239,68,68,0.12)',
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.32)',
     padding: spacing.md,
     gap: spacing.xs,
   },
   dangerTitle: {
     ...typography.h4,
-    color: colors.error[700],
+    color: colors.error[500],
   },
   dangerText: {
     ...typography.body,
-    color: colors.error[700],
+    color: colors.brand.textSecondary,
   },
   actions: {
     marginTop: spacing.md,

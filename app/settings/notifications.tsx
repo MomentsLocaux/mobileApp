@@ -88,6 +88,6 @@ const styles = StyleSheet.create({
   },
   helperText: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
 });

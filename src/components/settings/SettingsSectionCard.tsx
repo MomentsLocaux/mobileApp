@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   rowLabelDanger: {
-    color: colors.error[600],
+    color: colors.error[500],
   },
   rowLabelDisabled: {
     color: colors.brand.textSecondary,

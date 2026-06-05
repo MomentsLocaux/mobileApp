@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.brand.background,
+    backgroundColor: colors.brand.primary,
   },
   tabAvatar: {
     width: 26,

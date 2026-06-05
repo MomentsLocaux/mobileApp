@@ -1490,7 +1490,7 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: colors.brand.background,
+    backgroundColor: colors.brand.primary,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
@@ -1838,7 +1838,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginLeft: -12,
     borderWidth: 2,
-    borderColor: colors.brand.background,
+    borderColor: colors.brand.primary,
   },
   facepileCounter: {
     backgroundColor: colors.brand.surface,

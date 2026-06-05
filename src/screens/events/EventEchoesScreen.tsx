@@ -437,7 +437,7 @@ export default function EventEchoesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.background },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.primary },
   tabRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   tab: {
     paddingHorizontal: spacing.md,

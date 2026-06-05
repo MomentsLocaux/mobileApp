@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.error[500],
     marginTop: spacing.sm,
   },
   roleOptions: {

@@ -396,7 +396,7 @@ export function FilterTray({
 
           {activeFiltersCount > 0 && (
             <TouchableOpacity style={styles.resetButton} onPress={onReset}>
-              <X size={16} color={colors.error[600]} />
+              <X size={16} color={colors.error[500]} />
               <Text style={styles.resetText}>Réinitialiser les filtres</Text>
             </TouchableOpacity>
           )}
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     ...typography.caption,
-    color: colors.warning[600],
+    color: colors.warning[500],
     marginTop: spacing.xs,
     fontStyle: 'italic',
   },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   },
   resetText: {
     ...typography.body,
-    color: colors.error[600],
+    color: colors.error[500],
     fontWeight: '600',
   },
 });

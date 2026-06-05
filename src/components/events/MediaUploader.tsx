@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error[600],
+    backgroundColor: colors.error[500],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.error[500],
     marginTop: spacing.xs,
   },
   galleryScroll: {
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error[600],
+    backgroundColor: colors.error[500],
     justifyContent: 'center',
     alignItems: 'center',
   },

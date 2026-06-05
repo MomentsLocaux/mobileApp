@@ -155,7 +155,7 @@ export default function RegisterScreen() {
             accessibilityState={{ checked: legalAccepted }}
           >
             <View style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}>
-              {legalAccepted ? <Ionicons name="checkmark" size={14} color={colors.brand.background} /> : null}
+              {legalAccepted ? <Ionicons name="checkmark" size={14} color={colors.brand.primary} /> : null}
             </View>
             <Text style={styles.consentText}>
               J’accepte les{' '}
