@@ -130,7 +130,7 @@ serve(async (req) => {
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('id, latitude, longitude, qr_token')
+    .select('id, latitude, longitude, qr_token, status, starts_at, ends_at')
     .eq('id', eventId)
     .maybeSingle();
 
@@ -140,6 +140,36 @@ serve(async (req) => {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+
+  // Gate every check-in (QR or manual) to the live window: the event must be published,
+  // already started and not finished. starts_at/ends_at are absolute timestamps, so this
+  // comparison is timezone-safe. (Fine-grained operating_hours slots stay a client-side UX
+  // refinement and are intentionally not enforced here.)
+  const eventStatus = String((event as any).status ?? '');
+  const startsAtMs = event.starts_at ? new Date(event.starts_at).getTime() : NaN;
+  const endsAtMs = event.ends_at ? new Date(event.ends_at).getTime() : null;
+  const nowMs = Date.now();
+  const isPublished = eventStatus === 'published';
+  const hasStarted = Number.isFinite(startsAtMs) && nowMs >= startsAtMs;
+  const hasEnded = endsAtMs !== null && !Number.isNaN(endsAtMs) && nowMs > endsAtMs;
+
+  if (!isPublished || !hasStarted || hasEnded) {
+    console.log('[event-checkin] outside live window', {
+      eventId,
+      userId: userData.user.id,
+      eventStatus,
+      startsAtMs,
+      endsAtMs,
+      nowMs,
+    });
+    return new Response(
+      JSON.stringify({ success: false, message: "Le check-in n'est possible que pendant l'événement." }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   const eventLat = Number(event.latitude);

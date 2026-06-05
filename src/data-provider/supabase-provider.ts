@@ -305,7 +305,10 @@ export const supabaseProvider: (Pick<
       .gte('latitude', minLat)
       .lte('latitude', maxLat)
       .eq('status', 'published')
-      .eq('visibility', 'public');
+      .eq('visibility', 'public')
+      // Exclude the (0,0) "unknown location" sentinel: such events stay visible in the
+      // admin console for correction/rejection but must not surface on the map.
+      .or('latitude.neq.0,longitude.neq.0');
 
     if (!includePast) {
       query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
@@ -322,7 +325,12 @@ export const supabaseProvider: (Pick<
     })) as { id: string; latitude: number; longitude: number; icon?: string }[];
     const features =
       events
-        .filter((e) => typeof e.longitude === 'number' && typeof e.latitude === 'number')
+        .filter(
+          (e) =>
+            typeof e.longitude === 'number' &&
+            typeof e.latitude === 'number' &&
+            !(e.latitude === 0 && e.longitude === 0),
+        )
         .map((e) => {
           const icon = typeof e.icon === 'string' && e.icon.trim().length > 0 ? e.icon : 'marker-15';
           return {
