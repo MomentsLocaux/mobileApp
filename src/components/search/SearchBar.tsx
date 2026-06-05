@@ -499,7 +499,7 @@ export const SearchBar: React.FC<Props> = ({
                 )}
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={closeExpanded}>
-                <X size={20} color={colors.neutral[700]} />
+                <X size={20} color={colors.brand.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -516,7 +516,7 @@ export const SearchBar: React.FC<Props> = ({
                   <TextInput
                     ref={memberInputRef}
                     placeholder="Rechercher un membre"
-                    placeholderTextColor={colors.neutral[400]}
+                    placeholderTextColor={colors.brand.textSecondary}
                     value={memberQuery}
                     onChangeText={setMemberQuery}
                     style={styles.input}
@@ -524,7 +524,7 @@ export const SearchBar: React.FC<Props> = ({
                   <Text style={styles.memberLabel}>Ville</Text>
                   <TextInput
                     placeholder="Ville"
-                    placeholderTextColor={colors.neutral[400]}
+                    placeholderTextColor={colors.brand.textSecondary}
                     value={memberCity}
                     onChangeText={setMemberCity}
                     style={styles.input}
@@ -563,13 +563,13 @@ export const SearchBar: React.FC<Props> = ({
                       title="Où"
                       summary={sectionSummary.whereLabel}
                       active={activeSection === 'where'}
-                      icon={<MapPin size={18} color={colors.neutral[700]} />}
+                      icon={<MapPin size={18} color={colors.brand.textSecondary} />}
                       onPress={() => setActiveSection('where')}
                     >
                       <TextInput
                         ref={whereInputRef}
                         placeholder="Ville, adresse ou lieu"
-                        placeholderTextColor={colors.neutral[400]}
+                        placeholderTextColor={colors.brand.textSecondary}
                         value={query}
                         onChangeText={setQuery}
                         style={styles.input}
@@ -616,7 +616,7 @@ export const SearchBar: React.FC<Props> = ({
                           style={styles.result}
                           onPress={() => handleSelectLocation(item)}
                         >
-                          <MapPin size={16} color={colors.primary[600]} />
+                          <MapPin size={16} color={colors.brand.secondary} />
                           <Text style={styles.resultText}>{item.label}</Text>
                         </TouchableOpacity>
                       ))}
@@ -628,7 +628,7 @@ export const SearchBar: React.FC<Props> = ({
                       title="Quand"
                       summary={sectionSummary.whenLabel}
                       active={activeSection === 'when'}
-                      icon={<Calendar size={18} color={colors.neutral[700]} />}
+                      icon={<Calendar size={18} color={colors.brand.textSecondary} />}
                       onPress={() => setActiveSection('when')}
                     >
                       <View style={styles.row}>
@@ -686,7 +686,7 @@ export const SearchBar: React.FC<Props> = ({
                       title="Qui"
                       summary={sectionSummary.whoLabel}
                       active={activeSection === 'who'}
-                      icon={<Users size={18} color={colors.neutral[700]} />}
+                      icon={<Users size={18} color={colors.brand.textSecondary} />}
                       onPress={() => setActiveSection('who')}
                     >
                       <CounterRow
@@ -725,13 +725,13 @@ export const SearchBar: React.FC<Props> = ({
                       title="Catégorie"
                       summary={sectionSummary.whatLabel}
                       active={activeSection === 'what'}
-                      icon={<Tag size={18} color={colors.neutral[700]} />}
+                      icon={<Tag size={18} color={colors.brand.textSecondary} />}
                       onPress={() => setActiveSection('what')}
                     >
                       <Text style={styles.sectionLabel}>Nom de l&apos;événement</Text>
                       <TextInput
                         placeholder="Ex: marché, concert, expo"
-                        placeholderTextColor={colors.neutral[400]}
+                        placeholderTextColor={colors.brand.textSecondary}
                         value={what.query || ''}
                         onChangeText={(value) => setWhat({ query: value })}
                         style={styles.input}
@@ -788,7 +788,7 @@ export const SearchBar: React.FC<Props> = ({
                   }}
                 >
                   <Text style={styles.primaryText}>{countLabel}</Text>
-                  <ChevronRight size={16} color={colors.neutral[0]} />
+                  <ChevronRight size={16} color={colors.brand.primary} />
                 </TouchableOpacity>
               </View>
             ) : (
@@ -804,7 +804,7 @@ export const SearchBar: React.FC<Props> = ({
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.primaryBtn} onPress={closeExpanded}>
                   <Text style={styles.primaryText}>Fermer</Text>
-                  <ChevronRight size={16} color={colors.neutral[0]} />
+                  <ChevronRight size={16} color={colors.brand.primary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -1013,18 +1013,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   modePillActive: {
-    backgroundColor: colors.neutral[900],
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
   },
   modeText: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   modeTextActive: {
-    color: colors.neutral[0],
+    color: colors.brand.primary,
   },
   content: {
     paddingHorizontal: spacing.lg,
@@ -1038,11 +1041,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.surface,
     marginBottom: spacing.md,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   cardActive: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(43,191,227,0.42)',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1067,12 +1072,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   input: {
-    backgroundColor: colors.brand.surface,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.brand.textSecondary,
+    borderColor: 'rgba(255,255,255,0.16)',
+    color: colors.brand.text,
+    ...typography.body,
   },
   row: {
     flexDirection: 'row',
@@ -1089,26 +1096,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.brand.secondary,
     borderWidth: 1,
-    borderColor: colors.primary[500],
+    borderColor: colors.brand.secondary,
   },
   chipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.primary,
+    fontWeight: '700',
   },
   sliderRow: {
     width: '100%',
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   result: {
     flexDirection: 'row',
@@ -1118,7 +1128,7 @@ const styles = StyleSheet.create({
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     flex: 1,
   },
   memberPanel: {
@@ -1126,7 +1136,7 @@ const styles = StyleSheet.create({
   },
   memberLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   memberResult: {
     flexDirection: 'row',
@@ -1146,7 +1156,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   memberMeta: {
     flex: 1,
@@ -1168,19 +1178,19 @@ const styles = StyleSheet.create({
   },
   counterLabel: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   dateBoxFull: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.14)',
     borderRadius: borderRadius.md,
     padding: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     gap: spacing.xs,
   },
   dateValue: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   counterControls: {
@@ -1193,16 +1203,18 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   counterBtnText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.text,
   },
   counterValue: {
     ...typography.body,
+    color: colors.brand.text,
     minWidth: 20,
     textAlign: 'center',
   },
@@ -1217,27 +1229,27 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: colors.neutral[400],
+    borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: 'rgba(43,191,227,0.16)',
+    borderColor: colors.brand.secondary,
   },
   checkboxMark: {
     width: 10,
     height: 10,
     borderRadius: 2,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
   },
   checkboxLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.text,
   },
   sectionLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   footer: {
     flexDirection: 'row',
@@ -1251,11 +1263,11 @@ const styles = StyleSheet.create({
   },
   resetText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     textDecorationLine: 'underline',
   },
   primaryBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
@@ -1265,6 +1277,6 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     ...typography.bodyBold,
-    color: colors.neutral[0],
+    color: colors.brand.primary,
   },
 });

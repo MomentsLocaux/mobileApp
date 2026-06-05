@@ -273,7 +273,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Rechercher un évènement</Text>
             <TouchableOpacity onPress={onClose}>
-              <X size={22} color={colors.neutral[700]} />
+              <X size={22} color={colors.brand.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -282,12 +282,12 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Où"
               summary={summary.whereLabel}
               active={activeSection === 'where'}
-              icon={<MapPin size={18} color={colors.neutral[700]} />}
+              icon={<MapPin size={18} color={colors.brand.textSecondary} />}
               onPress={() => setActiveSection('where')}
             >
               <TextInput
                 placeholder="Ville, adresse ou lieu"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.brand.textSecondary}
                 value={query}
                 onChangeText={setQuery}
                 style={styles.input}
@@ -339,7 +339,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               {loading && <Text style={styles.meta}>Recherche...</Text>}
               {results.map((item) => (
                 <TouchableOpacity key={`${item.latitude}-${item.longitude}-${item.label}`} style={styles.result} onPress={() => handleSelectLocation(item)}>
-                  <MapPin size={16} color={colors.primary[600]} />
+                  <MapPin size={16} color={colors.brand.secondary} />
                   <Text style={styles.resultText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -369,7 +369,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Quand"
               summary={summary.whenLabel}
               active={activeSection === 'when'}
-              icon={<Calendar size={18} color={colors.neutral[700]} />}
+              icon={<Calendar size={18} color={colors.brand.textSecondary} />}
               onPress={() => setActiveSection('when')}
             >
               <View style={styles.row}>
@@ -433,7 +433,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Qui"
               summary={summary.whoLabel}
               active={activeSection === 'who'}
-              icon={<Users size={18} color={colors.neutral[700]} />}
+              icon={<Users size={18} color={colors.brand.textSecondary} />}
               onPress={() => setActiveSection('who')}
             >
               <CounterRow
@@ -460,7 +460,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               title="Quoi"
               summary={summary.whatLabel}
               active={activeSection === 'what'}
-              icon={<Tag size={18} color={colors.neutral[700]} />}
+              icon={<Tag size={18} color={colors.brand.textSecondary} />}
               onPress={() => setActiveSection('what')}
             >
               <Text style={styles.sectionLabel}>Catégories</Text>
@@ -620,7 +620,7 @@ export const SearchOverlayModal: React.FC<Props> = ({ visible, onClose, onApply 
               }}
             >
               <Text style={styles.primaryText}>{footerLabel}</Text>
-              <ChevronRight size={16} color={colors.neutral[0]} />
+              <ChevronRight size={16} color={colors.brand.primary} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   modal: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.primary,
     borderRadius: borderRadius.xl,
     maxHeight: '88%',
     shadowColor: '#000',
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignSelf: 'center',
     marginTop: spacing.sm,
   },
@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.subtitle,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   content: {
     paddingHorizontal: spacing.lg,
@@ -783,14 +783,16 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.brand.surface,
     marginBottom: spacing.md,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   cardActive: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(43,191,227,0.42)',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -804,23 +806,25 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   cardSummary: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   cardContent: {
     marginTop: spacing.sm,
     gap: spacing.sm,
   },
   input: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.16)',
+    color: colors.brand.text,
+    ...typography.body,
   },
   row: {
     flexDirection: 'row',
@@ -837,26 +841,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   chipActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.brand.secondary,
     borderWidth: 1,
-    borderColor: colors.primary[500],
+    borderColor: colors.brand.secondary,
   },
   chipText: {
     ...typography.caption,
-    color: colors.neutral[700],
+    color: colors.brand.textSecondary,
   },
   chipTextActive: {
-    color: colors.primary[700],
+    color: colors.brand.primary,
+    fontWeight: '700',
   },
   sliderRow: {
     width: '100%',
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   result: {
     flexDirection: 'row',
@@ -866,7 +873,7 @@ const styles = StyleSheet.create({
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     flex: 1,
   },
   history: {
@@ -876,21 +883,21 @@ const styles = StyleSheet.create({
   dateBox: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.14)',
     borderRadius: borderRadius.md,
     padding: spacing.sm,
   },
   dateBoxFull: {
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: 'rgba(255,255,255,0.14)',
     borderRadius: borderRadius.md,
     padding: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     gap: spacing.xs,
   },
   dateValue: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   counterRow: {
@@ -901,7 +908,7 @@ const styles = StyleSheet.create({
   },
   counterLabel: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   counterControls: {
     flexDirection: 'row',
@@ -913,16 +920,18 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
+    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   counterBtnText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.brand.text,
   },
   counterValue: {
     ...typography.body,
+    color: colors.brand.text,
     minWidth: 20,
     textAlign: 'center',
   },
@@ -937,27 +946,27 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: colors.neutral[400],
+    borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[600],
+    backgroundColor: 'rgba(43,191,227,0.16)',
+    borderColor: colors.brand.secondary,
   },
   checkboxMark: {
     width: 10,
     height: 10,
     borderRadius: 2,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
   },
   checkboxLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.text,
   },
   sectionLabel: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   footer: {
     flexDirection: 'row',
@@ -966,16 +975,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderColor: colors.neutral[100],
-    backgroundColor: colors.neutral[0],
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.primary,
   },
   resetText: {
     ...typography.body,
-    color: colors.primary[600],
+    color: colors.brand.secondary,
     textDecorationLine: 'underline',
   },
   primaryBtn: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
@@ -985,6 +994,6 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     ...typography.bodyBold,
-    color: colors.neutral[0],
+    color: colors.brand.primary,
   },
 });
