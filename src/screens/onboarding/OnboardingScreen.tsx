@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, ChevronLeft } from 'lucide-react-native';
-import { Button } from '../../components/ui';
+import { AppBackground, Button } from '../../components/ui';
 import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
@@ -189,6 +189,7 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.top}
     >
+      <AppBackground />
       <ScrollView
         ref={scrollViewRef}
         style={styles.container}
@@ -199,7 +200,7 @@ export default function OnboardingScreen() {
       >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.neutral[700]} />
+          <ChevronLeft size={20} color={colors.brand.text} />
           <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Bienvenue sur Moments Locaux</Text>
@@ -224,6 +225,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.input}
               placeholder="Comment voulez-vous être appelé ?"
+              placeholderTextColor={colors.brand.textSecondary}
               value={displayName}
               onChangeText={setDisplayName}
               maxLength={50}
@@ -242,7 +244,7 @@ export default function OnboardingScreen() {
                 <View style={styles.roleIcon}>
                   <User
                     size={32}
-                    color={role === option.value ? colors.primary[600] : colors.neutral[400]}
+                    color={role === option.value ? colors.brand.secondary : colors.brand.textSecondary}
                   />
                 </View>
                 <Text style={styles.roleLabel}>{option.label}</Text>
@@ -262,6 +264,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.input}
               placeholder="Ex. 10 rue de Rivoli, Paris"
+              placeholderTextColor={colors.brand.textSecondary}
               value={addressSearch}
               onChangeText={searchAddress}
               autoCapitalize="none"
@@ -325,6 +328,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.input}
               placeholder="@moncompte ou lien"
+              placeholderTextColor={colors.brand.textSecondary}
               value={instagram}
               onChangeText={setInstagram}
               autoCapitalize="none"
@@ -338,6 +342,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.input}
               placeholder="@moncompte ou lien"
+              placeholderTextColor={colors.brand.textSecondary}
               value={tiktok}
               onChangeText={setTiktok}
               autoCapitalize="none"
@@ -351,6 +356,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.input}
               placeholder="URL ou page"
+              placeholderTextColor={colors.brand.textSecondary}
               value={facebook}
               onChangeText={setFacebook}
               autoCapitalize="none"
@@ -366,6 +372,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Parlez de vous ou de vos événements..."
+              placeholderTextColor={colors.brand.textSecondary}
               value={bio}
               onChangeText={setBio}
               multiline
@@ -423,10 +430,11 @@ const ImagePreview = ({ uri, label }: { uri: string; label: string }) => (
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
+    backgroundColor: colors.brand.primary,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: 'transparent',
   },
   content: {
     padding: spacing.lg,
@@ -443,23 +451,23 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.bodySmall,
-    color: colors.neutral[700],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   title: {
     ...typography.h1,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
   progressLabel: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
   },
@@ -471,11 +479,11 @@ const styles = StyleSheet.create({
   progressStep: {
     flex: 1,
     height: 4,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: 2,
   },
   progressStepActive: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
   },
   stepContainer: {
     gap: spacing.lg,
@@ -483,7 +491,7 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     ...typography.h2,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.md,
   },
   inputGroup: {
@@ -491,16 +499,16 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.label,
-    color: colors.neutral[700],
+    color: colors.brand.text,
   },
   input: {
     ...typography.body,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    borderRadius: 8,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 16,
     padding: spacing.md,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   textArea: {
     height: 100,
@@ -515,28 +523,28 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   roleCard: {
-    backgroundColor: colors.neutral[0],
-    borderWidth: 2,
-    borderColor: colors.neutral[200],
-    borderRadius: 12,
+    backgroundColor: 'rgba(26,36,38,0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 16,
     padding: spacing.lg,
     alignItems: 'center',
   },
   roleCardSelected: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43,191,227,0.12)',
   },
   roleIcon: {
     marginBottom: spacing.sm,
   },
   roleLabel: {
     ...typography.h3,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     marginBottom: spacing.xs,
   },
   roleDescription: {
     ...typography.small,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
   buttonGroup: {
@@ -549,25 +557,27 @@ const styles = StyleSheet.create({
   },
   helper: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.brand.textSecondary,
   },
   info: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   resultRow: {
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 12,
   },
   resultRowActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(43,191,227,0.12)',
   },
   resultText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   resultsContainer: {
     maxHeight: 200,
@@ -582,16 +592,16 @@ const styles = StyleSheet.create({
   uploadCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 12,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 16,
     padding: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   uploadText: {
     ...typography.body,
-    color: colors.neutral[800],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   previewContainer: {
@@ -601,7 +611,7 @@ const styles = StyleSheet.create({
   previewImage: {
     width: 96,
     height: 96,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[100],
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
 });

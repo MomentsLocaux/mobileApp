@@ -11,7 +11,7 @@ export default function PrivacyPolicyScreen() {
       <SettingsSectionCard title="Politique de confidentialité" icon={FileText}>
         <View style={styles.block}>
           <Text style={styles.text}>
-            Version MVP soumise à validation juridique avant publication publique. Contact privacy : contact@momentslocaux.app
+            Cette politique explique comment Moments Locaux collecte, utilise et protège vos données. Contact privacy : contact@momentslocaux.app
           </Text>
           <Text style={styles.heading}>1. Données collectées</Text>
           <Text style={styles.text}>
@@ -50,12 +50,12 @@ const styles = StyleSheet.create({
   },
   heading: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   text: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     lineHeight: 20,
   },
 });

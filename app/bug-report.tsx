@@ -13,7 +13,7 @@ import {
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { Button, Card } from '@/components/ui';
+import { AppBackground, Button } from '@/components/ui';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { BugsService } from '@/services/bugs.service';
 import { useAuth } from '@/hooks';
@@ -128,6 +128,7 @@ export default function BugReportScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.top}
     >
+      <AppBackground />
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
@@ -145,57 +146,57 @@ export default function BugReportScreen() {
           Merci de décrire le problème rencontré. Les champs marqués sont obligatoires.
         </Text>
 
-      <Card style={styles.card}>
-        <View style={styles.field}>
-          <Text style={styles.label}>Catégorie *</Text>
-          {renderChips(CATEGORIES, category, CATEGORY_LABELS, (val) => setCategory(val))}
-        </View>
+        <View style={styles.formPanel}>
+          <View style={styles.field}>
+            <Text style={styles.label}>Catégorie *</Text>
+            {renderChips(CATEGORIES, category, CATEGORY_LABELS, (val) => setCategory(val))}
+          </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Sévérité *</Text>
-          {renderChips(SEVERITIES, severity, SEVERITY_LABELS, (val) => setSeverity(val))}
-        </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Sévérité *</Text>
+            {renderChips(SEVERITIES, severity, SEVERITY_LABELS, (val) => setSeverity(val))}
+          </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Page/écran</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: /home ou event-detail/123"
-            placeholderTextColor={colors.brand.textSecondary}
-            value={page}
-            onChangeText={setPage}
-            autoCapitalize="none"
-            ref={registerFieldRef('page')}
-            onFocus={() => handleInputFocus('page')}
+          <View style={styles.field}>
+            <Text style={styles.label}>Page/écran</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: /home ou event-detail/123"
+              placeholderTextColor={colors.brand.textSecondary}
+              value={page}
+              onChangeText={setPage}
+              autoCapitalize="none"
+              ref={registerFieldRef('page')}
+              onFocus={() => handleInputFocus('page')}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Description *</Text>
+            <TextInput
+              style={[styles.input, styles.textarea]}
+              placeholder="Décrivez le bug, les étapes pour le reproduire, l'attendu…"
+              placeholderTextColor={colors.brand.textSecondary}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+              ref={registerFieldRef('description')}
+              onFocus={() => handleInputFocus('description')}
+            />
+          </View>
+
+          {error && <Text style={styles.error}>{error}</Text>}
+
+          <Button
+            title="Envoyer"
+            onPress={handleSubmit}
+            loading={submitting}
+            fullWidth
+            disabled={submitting}
           />
         </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Description *</Text>
-          <TextInput
-            style={[styles.input, styles.textarea]}
-            placeholder="Décrivez le bug, les étapes pour le reproduire, l'attendu…"
-            placeholderTextColor={colors.brand.textSecondary}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-            ref={registerFieldRef('description')}
-            onFocus={() => handleInputFocus('description')}
-          />
-        </View>
-
-        {error && <Text style={styles.error}>{error}</Text>}
-
-        <Button
-          title="Envoyer"
-          onPress={handleSubmit}
-          loading={submitting}
-          fullWidth
-          disabled={submitting}
-        />
-      </Card>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   header: {
     flexDirection: 'row',
@@ -234,11 +235,13 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     marginBottom: spacing.md,
   },
-  card: {
+  formPanel: {
     padding: spacing.lg,
     gap: spacing.md,
-    backgroundColor: colors.brand.surface,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(26,36,38,0.92)',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   field: {
     gap: spacing.xs,
@@ -250,10 +253,10 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     ...typography.body,
     color: colors.brand.text,
   },
@@ -270,8 +273,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     minWidth: 90,
     alignItems: 'center',
   },
