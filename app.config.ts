@@ -5,6 +5,10 @@ const forbiddenPublicSecretKeys = Object.keys(process.env).filter(
   (key) => key.startsWith('EXPO_PUBLIC_') && /(SERVICE|SECRET|PRIVATE)/i.test(key),
 );
 
+const APP_VERSION = '1.0.0';
+const IOS_BUILD_NUMBER = '1';
+const ANDROID_VERSION_CODE = 1;
+
 if (forbiddenPublicSecretKeys.length > 0) {
   throw new Error(
     `Refusing to build with public secret-like env keys: ${forbiddenPublicSecretKeys.join(', ')}`,
@@ -15,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Moments Locaux',
   slug: 'moments-locaux',
-  version: '1.0.0',
+  version: APP_VERSION,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'momentslocaux',
@@ -29,6 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.momentslocs.app',
+    buildNumber: IOS_BUILD_NUMBER,
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.',
@@ -45,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.momentslocs.app',
+    versionCode: ANDROID_VERSION_CODE,
     softwareKeyboardLayoutMode: 'resize',
     permissions: [
       'android.permission.ACCESS_COARSE_LOCATION',

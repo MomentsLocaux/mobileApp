@@ -1,4 +1,5 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { AppBackground } from '@/components/ui';
 import {
   Map,
@@ -25,6 +26,7 @@ import { EventsService } from '@/services/events.service';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
+  const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
@@ -393,7 +395,7 @@ export default function TabsLayout() {
             <LogOut size={20} color={colors.neutral[400]} />
             <Text style={styles.logoutText}>Déconnexion</Text>
           </TouchableOpacity>
-          <Text style={styles.versionText}>Version 2.4.0 • Moments Locaux</Text>
+          <Text style={styles.versionText}>Version {appVersion} • Moments Locaux</Text>
         </View>
       </Animated.View>
 

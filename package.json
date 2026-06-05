@@ -1,5 +1,5 @@
 {
-  "name": "bolt-expo-starter",
+  "name": "moments-locaux-mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
@@ -8,6 +8,7 @@
     "build:web": "expo export --platform web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "expo:config": "expo config",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },

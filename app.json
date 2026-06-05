@@ -11,10 +11,12 @@
     "extra": {},
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.momentslocs.app"
+      "bundleIdentifier": "com.momentslocs.app",
+      "buildNumber": "1"
     },
     "android": {
-      "package": "com.momentslocs.app"
+      "package": "com.momentslocs.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
