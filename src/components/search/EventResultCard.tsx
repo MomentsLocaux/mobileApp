@@ -12,6 +12,7 @@ import { getEventLiveWindow } from '@/utils/event-status';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_HEIGHT = 420;
+const DEFAULT_EVENT_IMAGE = require('../../../assets/images/icon.png');
 
 interface Props {
   event: EventWithCreator;
@@ -162,7 +163,7 @@ export const EventResultCard: React.FC<Props> = ({
           />
         ) : (
           <Image
-            source={{ uri: images[0] || 'https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?q=80&w=1000&auto=format&fit=crop' }}
+            source={images[0] ? { uri: images[0] } : DEFAULT_EVENT_IMAGE}
             style={styles.image}
           />
         )}

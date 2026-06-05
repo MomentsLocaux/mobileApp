@@ -34,8 +34,7 @@ import {
   Bookmark,
   QrCode,
   Eye,
-  Award,
-  Zap,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Card, AppBackground, screenHeaderStyles } from '../../components/ui';
@@ -67,7 +66,6 @@ import MapboxGL from '@rnmapbox/maps';
 
 const { width } = Dimensions.get('window');
 const BOTTOM_BAR_HEIGHT = 104;
-const XP_REWARD_FALLBACK = 50;
 const EVENT_QR_BASE_URL = process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL || 'https://momentslocaux.app/events';
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
@@ -130,7 +128,6 @@ export default function EventDetailScreen() {
     checkins: 0,
     views: 0,
   });
-  const [checkinXpReward, setCheckinXpReward] = useState(XP_REWARD_FALLBACK);
   const [qrScannerVisible, setQrScannerVisible] = useState(false);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
@@ -255,51 +252,6 @@ export default function EventDetailScreen() {
     [profile?.id],
   );
 
-  const loadCheckinXpReward = useCallback(async () => {
-    try {
-      let resolvedXp: number | null = null;
-
-      const { data: missions, error: missionError } = await supabase
-        .from('missions')
-        .select('type, requirement, reward_xp, is_active')
-        .eq('is_active', true)
-        .limit(100);
-
-      if (!missionError && Array.isArray(missions)) {
-        const checkinMission = missions.find((mission: any) => {
-          const typeStr = String(mission?.type || '').toLowerCase();
-          const requirementStr = JSON.stringify(mission?.requirement || {}).toLowerCase();
-          return (
-            typeStr.includes('checkin') ||
-            typeStr.includes('check-in') ||
-            requirementStr.includes('checkin') ||
-            requirementStr.includes('check-in')
-          );
-        });
-        if (typeof checkinMission?.reward_xp === 'number' && checkinMission.reward_xp > 0) {
-          resolvedXp = Number(checkinMission.reward_xp);
-        }
-      }
-
-      if (resolvedXp === null) {
-        const { data: lumoRule, error: lumoRuleError } = await supabase
-          .from('lumo_rules')
-          .select('amount')
-          .eq('trigger_event', 'checkin')
-          .eq('active', true)
-          .maybeSingle();
-        if (!lumoRuleError && typeof lumoRule?.amount === 'number' && lumoRule.amount > 0) {
-          resolvedXp = Number(lumoRule.amount);
-        }
-      }
-
-      setCheckinXpReward(resolvedXp ?? XP_REWARD_FALLBACK);
-    } catch (error) {
-      console.warn('load checkin xp reward', error);
-      setCheckinXpReward(XP_REWARD_FALLBACK);
-    }
-  }, []);
-
   const loadEventDetails = useCallback(async () => {
     if (!id) return;
     try {
@@ -311,7 +263,6 @@ export default function EventDetailScreen() {
           loadEventStats(enriched.id),
           loadCommunityPhotos(enriched.id),
           loadAttendeesAndCheckin(enriched.id),
-          loadCheckinXpReward(),
         ]);
       }
     } catch (error) {
@@ -320,7 +271,7 @@ export default function EventDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, isFavorite, isLiked, loadAttendeesAndCheckin, loadCheckinXpReward, loadCommunityPhotos, loadEventStats]);
+  }, [id, isFavorite, isLiked, loadAttendeesAndCheckin, loadCommunityPhotos, loadEventStats]);
 
   useFocusEffect(
     useCallback(() => {
@@ -446,10 +397,9 @@ export default function EventDetailScreen() {
         },
       );
       if (res.success) {
-        const message = res.rewards?.lumo ? `+${res.rewards.lumo} Lumo` : 'Check-in validé';
         setHasCheckedIn(true);
         await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
-        Alert.alert(options?.successTitle || 'Check-in réussi', message);
+        Alert.alert(options?.successTitle || 'Check-in réussi', 'Présence validée.');
       } else {
         Alert.alert(options?.successTitle || 'Check-in', res.message || 'Check-in non valide');
       }
@@ -939,10 +889,9 @@ export default function EventDetailScreen() {
           },
         );
         if (res.success) {
-          const message = res.rewards?.lumo ? `+${res.rewards.lumo} Lumo` : 'Check-in validé';
           setHasCheckedIn(true);
           await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
-          Alert.alert('Check-in QR réussi', message);
+          Alert.alert('Check-in QR réussi', 'Présence validée.');
         } else {
           Alert.alert('Check-in QR', res.message || 'Check-in non valide');
         }
@@ -1300,14 +1249,13 @@ export default function EventDetailScreen() {
             style={styles.xpCard}
           >
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.xpTitle}>Gagnez une récompense XP</Text>
+              <Text style={styles.xpTitle}>Validez votre présence</Text>
               <Text style={styles.xpSubtitle}>
-                Participez à cet événement pour gagner <Text style={{ fontWeight: '800' }}>+{checkinXpReward} XP</Text>{' '}
-                <Award size={13} color="#FFF" />
+                Confirmez votre participation lorsque vous êtes sur place.
               </Text>
             </View>
             <View style={styles.xpIcon}>
-              <Zap size={30} color="#FFF" fill="#FFF" />
+              <CheckCircle2 size={30} color="#FFF" />
             </View>
           </LinearGradient>
 

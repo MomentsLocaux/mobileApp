@@ -113,7 +113,7 @@ const formatRelative = (value: string) => {
 const typeLabel: Record<AppNotificationType, string> = {
   event_published: 'Événement',
   event_soon: 'Rappel',
-  lumo_reward: 'Récompense',
+  lumo_reward: 'Notification',
   mission_completed: 'Notification',
   boost_expired: 'Notification',
   social_follow: 'Communauté',
@@ -291,7 +291,7 @@ export default function NotificationsInboxScreen() {
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
+          <ActivityIndicator size="small" color={colors.brand.secondary} />
           <Text style={styles.stateText}>Chargement des notifications...</Text>
         </View>
       ) : (
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.secondary,
   },
   itemBody: {
     ...typography.bodySmall,
