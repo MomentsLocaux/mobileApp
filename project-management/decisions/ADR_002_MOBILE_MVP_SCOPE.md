@@ -17,6 +17,7 @@ The mobile MVP is limited to user-facing local event discovery and creation flow
 ## Visible In Mobile MVP
 
 - Register, login, logout.
+- Social login (OAuth, e.g. Facebook). [Amendment 2026-06-08]
 - Onboarding.
 - Map discovery.
 - Search and basic filters.
@@ -29,7 +30,7 @@ The mobile MVP is limited to user-facing local event discovery and creation flow
 - Follow creator/member.
 - Community profile basics.
 - QR/location check-in.
-- Notifications inbox.
+- Notifications: inbox + push delivery + preferences center (per-type, geolocated radius/frequency) + triggers for new nearby events and followed-creator publications. [Amendment 2026-06-08]
 - Report event.
 - Report comment.
 - Report profile/user.
@@ -66,7 +67,7 @@ The mobile MVP is limited to user-facing local event discovery and creation flow
 - Wallet/Lumo advanced.
 - Advanced gamification.
 - Creator analytics.
-- Advanced notifications/push.
+- Advanced notification analytics / segmentation (basic push + preferences are now MVP — see Amendment 2026-06-08).
 - Advanced analytics.
 - Advanced offline mode.
 
@@ -84,6 +85,15 @@ The mobile MVP is limited to user-facing local event discovery and creation flow
 - Keeping admin surfaces in mobile because they already exist.
 - Treating gamification as MVP instead of post-MVP.
 - Adding analytics/push/offline before security, GDPR and lifecycle are stable.
+
+## Amendment 2026-06-08
+
+Product decision to bring two areas into the mobile MVP:
+
+1. **Social login (OAuth)** — add provider-based sign-in (e.g. Facebook) alongside email/password.
+2. **Notification system (basic)** — beyond the inbox: device push delivery, a preferences center (per-type toggles + geolocated radius/frequency, GDPR-consented), and new triggers for "new nearby event" and "followed creator published". Advanced notification analytics/segmentation stays post-MVP.
+
+Rationale: these directly serve user retention and the core local-event loop, and the backend foundations (notifications table + trigger framework, PostGIS for geo) already exist in Supabase.
 
 ## Related Audits
 
