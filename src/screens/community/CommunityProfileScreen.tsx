@@ -173,7 +173,7 @@ export default function CommunityProfileScreen() {
         <Stat label="Événements" value={member.events_created_count} />
         <Stat label="Followers" value={member.followers_count} />
         <Stat label="Suivis" value={member.following_count || 0} />
-        <Stat label="Lumo" value={member.lumo_total} />
+        <Stat label="Engagement" value={member.lumo_total} />
       </View>
 
       <View style={styles.eventsSection}>

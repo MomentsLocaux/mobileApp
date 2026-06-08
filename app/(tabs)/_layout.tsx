@@ -285,7 +285,7 @@ export default function TabsLayout() {
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-              <Text style={styles.drawerEmail}>{profile?.email || 'email@exemple.com'}</Text>
+              <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
             </View>
           </View>
         </View>
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.brand.background,
+    backgroundColor: colors.brand.primary,
   },
   tabAvatar: {
     width: 26,

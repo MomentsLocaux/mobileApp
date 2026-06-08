@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, Input, ScreenHeader } from '../../components/ui';
+import { AppBackground, Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import type { SocialProvider } from '@/services/oauth.service';
@@ -123,6 +123,7 @@ export default function RegisterScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AppBackground />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -173,7 +174,7 @@ export default function RegisterScreen() {
             accessibilityState={{ checked: legalAccepted }}
           >
             <View style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}>
-              {legalAccepted ? <Ionicons name="checkmark" size={14} color={colors.brand.background} /> : null}
+              {legalAccepted ? <Ionicons name="checkmark" size={14} color={colors.brand.primary} /> : null}
             </View>
             <Text style={styles.consentText}>
               J’accepte les{' '}
@@ -214,7 +215,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: colors.neutral[50], // Removed for global background
+    backgroundColor: colors.brand.primary,
   },
   scrollContent: {
     flexGrow: 1,

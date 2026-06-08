@@ -34,7 +34,7 @@ export default function InviteFriendsScreen() {
 
       <Card style={styles.card}>
         <View style={styles.iconWrap}>
-          <Send size={20} color={colors.primary[600]} />
+          <Send size={20} color={colors.brand.secondary} />
         </View>
         <Text style={styles.cardTitle}>Partagez l’application</Text>
         <Text style={styles.cardBody}>
@@ -62,15 +62,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(43,191,227,0.12)',
   },
   cardTitle: {
     ...typography.h5,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   cardBody: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
 });

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CalendarDays, Star, Heart } from 'lucide-react-native';
 import { AppBackground, Card, ScreenHeader } from '@/components/ui';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 
@@ -72,20 +72,20 @@ export default function JourneyScreen() {
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <ActivityIndicator size="large" color={colors.brand.secondary} />
         </View>
       ) : (
         <View style={styles.cards}>
           <Card style={styles.card}>
             <View style={styles.cardRow}>
-              <CalendarDays size={18} color={colors.primary[600]} />
+              <CalendarDays size={18} color={colors.brand.secondary} />
               <Text style={styles.cardLabel}>Événements créés</Text>
             </View>
             <Text style={styles.cardValue}>{stats.eventsCreated}</Text>
           </Card>
           <Card style={styles.card}>
             <View style={styles.cardRow}>
-              <Star size={18} color={colors.warning[600]} />
+              <Star size={18} color={colors.warning[500]} />
               <Text style={styles.cardLabel}>Favoris enregistrés</Text>
             </View>
             <Text style={styles.cardValue}>{stats.favoritesSaved}</Text>

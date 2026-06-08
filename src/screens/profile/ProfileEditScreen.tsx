@@ -14,7 +14,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Upload, User as UserIcon } from 'lucide-react-native';
-import { Button, Input, ScreenHeader } from '../../components/ui';
+import { AppBackground, Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
@@ -178,7 +178,8 @@ export default function ProfileEditScreen() {
   if (!profile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <AppBackground />
+        <ActivityIndicator size="large" color={colors.brand.secondary} />
       </View>
     );
   }
@@ -189,6 +190,7 @@ export default function ProfileEditScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.top}
     >
+      <AppBackground />
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={{ paddingBottom: spacing.xl + insets.bottom }}
@@ -216,7 +218,7 @@ export default function ProfileEditScreen() {
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <UserIcon size={48} color={colors.neutral[400]} />
+              <UserIcon size={48} color={colors.brand.textSecondary} />
             </View>
           )}
           <TouchableOpacity
@@ -225,9 +227,9 @@ export default function ProfileEditScreen() {
             disabled={uploadingAvatar}
           >
             {uploadingAvatar ? (
-              <ActivityIndicator size="small" color={colors.neutral[0]} />
+              <ActivityIndicator size="small" color={colors.brand.primary} />
             ) : (
-              <Upload size={20} color={colors.neutral[0]} />
+              <Upload size={20} color={colors.brand.primary} />
             )}
           </TouchableOpacity>
         </View>
@@ -290,29 +292,30 @@ export default function ProfileEditScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.brand.primary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.brand.primary,
   },
   header: {
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'transparent',
     paddingBottom: spacing.lg,
   },
   coverWrapper: {
     width: '100%',
     height: 180,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   cover: {
     width: '100%',
     height: '100%',
   },
   coverPlaceholder: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(43,191,227,0.08)',
   },
   coverOverlay: {
     position: 'absolute',
@@ -338,9 +341,11 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: borderRadius.full,
+    borderWidth: 4,
+    borderColor: colors.brand.primary,
   },
   avatarPlaceholder: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -348,18 +353,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
     width: 40,
     height: 40,
     borderRadius: borderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: colors.neutral[0],
+    borderColor: colors.brand.primary,
   },
   uploadHint: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
   form: {
@@ -367,18 +372,20 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     padding: spacing.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
     marginBottom: spacing.md,
   },
   infoLabel: {
     ...typography.bodySmall,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
   },
   infoValue: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '600',
   },
   saveButton: {

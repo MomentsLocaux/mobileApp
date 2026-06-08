@@ -23,7 +23,7 @@ type TabKey = 'leaderboard' | 'members';
 const SORT_OPTIONS: { key: 'followers' | 'events' | 'lumo'; label: string }[] = [
   { key: 'followers', label: 'Followers' },
   { key: 'events', label: 'Événements' },
-  { key: 'lumo', label: 'Lumo' },
+  { key: 'lumo', label: 'Engagement' },
 ];
 
 export default function CommunityScreen() {
@@ -151,14 +151,14 @@ export default function CommunityScreen() {
         {item.cover_url ? (
           <Image source={{ uri: item.cover_url }} style={styles.cover} />
         ) : (
-          <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
+          <View style={[styles.cover, styles.coverPlaceholder]} />
         )}
         <View style={styles.gridFooter}>
           <View style={styles.gridInfo}>
             {item.avatar_url ? (
               <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
             ) : (
-              <View style={[styles.avatar, { backgroundColor: colors.neutral[300] }]} />
+              <View style={[styles.avatar, styles.avatarPlaceholder]} />
             )}
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>
@@ -198,14 +198,14 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </View>
           {loadingBoard ? (
-            <ActivityIndicator color={colors.primary[600]} />
+            <ActivityIndicator color={colors.brand.secondary} />
           ) : (
             <FlatList
               data={leaderboard}
               keyExtractor={(item) => `${item.period}-${item.user_id}-${item.rank}`}
               renderItem={renderLeaderboardItem}
               contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />}
               ListFooterComponent={
                 myEntry && myEntry.rank > 10 ? (
                   <View style={styles.cardRow}>
@@ -257,7 +257,7 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </View>
           {loadingMembers ? (
-            <ActivityIndicator color={colors.primary[600]} />
+            <ActivityIndicator color={colors.brand.secondary} />
           ) : (
             <FlatList
               data={members}
@@ -266,7 +266,7 @@ export default function CommunityScreen() {
               numColumns={2}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />}
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Text style={styles.meta}>Aucun membre</Text>
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
+    backgroundColor: 'rgba(43, 191, 227, 0.14)',
   },
   rankBadgeMuted: {
     width: 32,
@@ -429,24 +429,26 @@ const styles = StyleSheet.create({
   score: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.primary[700],
+    color: colors.brand.secondary,
   },
   followBtn: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.brand.secondary,
   },
   followingBtn: {
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   followText: {
     ...typography.bodySmall,
-    color: colors.neutral[0],
+    color: colors.brand.primary,
     fontWeight: '700',
   },
   followingText: {
-    color: colors.neutral[800],
+    color: colors.brand.text,
   },
   empty: {
     padding: spacing.lg,
@@ -473,6 +475,9 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
   },
+  coverPlaceholder: {
+    backgroundColor: 'rgba(43, 191, 227, 0.08)',
+  },
   gridFooter: {
     padding: spacing.sm,
     gap: spacing.xs,
@@ -486,6 +491,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  avatarPlaceholder: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   filterButton: {
     paddingHorizontal: spacing.md,
@@ -510,7 +518,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   modalCard: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.brand.surface,
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
@@ -518,13 +526,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.h4,
-    color: colors.neutral[900],
+    color: colors.brand.text,
   },
   optionRow: {
     paddingVertical: spacing.sm,
   },
   optionRowActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(43, 191, 227, 0.12)',
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm,
   },

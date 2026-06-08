@@ -25,6 +25,6 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
 });

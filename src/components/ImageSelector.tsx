@@ -37,7 +37,7 @@ export const ImageSelector: React.FC<Props> = ({ label = 'Image', value, onChang
         <Text style={styles.label}>{label}{required ? ' *' : ''}</Text>
         {currentUri && (
           <TouchableOpacity onPress={handleClear} style={styles.clearButton} accessibilityLabel="Supprimer l'image">
-            <Trash2 size={16} color={colors.error[600]} />
+            <Trash2 size={16} color={colors.error[500]} />
             <Text style={styles.clearText}>Supprimer</Text>
           </TouchableOpacity>
         )}
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.error[500],
     fontWeight: '600',
   },
   preview: {

@@ -9,7 +9,6 @@ const CGU_TEXT = [
   'CONDITIONS GÉNÉRALES D’UTILISATION',
   'Application : Moments Locaux',
   'Date de mise à jour : 4 juin 2026',
-  'Version MVP soumise à validation juridique avant publication publique.',
   '',
   '1. ÉDITEUR',
   'L’application Moments Locaux est éditée par l’équipe Moments Locaux.',
@@ -95,12 +94,12 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.body,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
     lineHeight: 20,
   },
   heading: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
     marginTop: spacing.sm,
   },

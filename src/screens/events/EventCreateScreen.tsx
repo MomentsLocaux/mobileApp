@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.error[500],
     marginTop: spacing.xs,
   },
   footer: {

@@ -14,7 +14,7 @@ export default function EventsLayout() {
           fontWeight: '700',
         },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: colors.brand.background },
+        contentStyle: { backgroundColor: colors.brand.primary },
       }}
     >
       <Stack.Screen

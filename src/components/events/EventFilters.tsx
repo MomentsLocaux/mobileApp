@@ -341,7 +341,7 @@ export function EventFilters({
 
           {activeFiltersCount > 0 && (
             <TouchableOpacity style={styles.resetButton} onPress={onReset}>
-              <X size={16} color={colors.error[600]} />
+              <X size={16} color={colors.error[500]} />
               <Text style={styles.resetText}>Réinitialiser</Text>
             </TouchableOpacity>
           )}
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   },
   resetText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.error[500],
     fontWeight: '600',
   },
 });

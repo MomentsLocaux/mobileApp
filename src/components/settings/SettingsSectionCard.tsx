@@ -49,7 +49,7 @@ export const SettingsRow: React.FC<RowProps> = ({
   const content = (
     <>
       <View style={styles.rowLeft}>
-        <Icon size={20} color={danger ? colors.error[600] : colors.brand.secondary} />
+        <Icon size={20} color={danger ? colors.error[500] : colors.brand.secondary} />
         <Text style={[styles.rowLabel, danger && styles.rowLabelDanger, disabled && styles.rowLabelDisabled]}>
           {label}
         </Text>
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   rowLabelDanger: {
-    color: colors.error[600],
+    color: colors.error[500],
   },
   rowLabelDisabled: {
     color: colors.brand.textSecondary,
