@@ -6,11 +6,15 @@ import { AppBackground } from '../src/components/ui/AppBackground';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
+import { usePushNotifications } from '../src/hooks/usePushNotifications';
 
 export default function RootLayout() {
   useFrameworkReady();
 
   const { setUser, setSession, setProfile, setLoading, initialized, setInitialized } = useAuthStore();
+  const userId = useAuthStore((state) => state.user?.id);
+
+  usePushNotifications(userId);
 
   useEffect(() => {
     let mounted = true;
