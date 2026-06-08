@@ -4,17 +4,26 @@ This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is t
 
 ## Visible MVP Features
 
-- Authentication: register, login, logout, persisted session.
+- Authentication: register, login, logout, persisted session, and social login (OAuth, e.g. Facebook) — see scope amendment 2026-06-08.
 - Onboarding: profile identity, role, location, avatar/cover, social links, bio.
 - Map discovery: Mapbox map, visible-area event loading, search, filters, event preview, event details.
 - Event browsing: home/list results, detail page, creator profile links, sharing.
 - Event creation: multi-step creation, cover upload, location, date, category, media, draft/edit, publication status.
 - Social basics: favorites, likes/interests, follow creator/member, community profiles.
 - Check-in: QR/location check-in through the Supabase Edge Function.
-- Notifications: inbox, unread badge, notification routing.
+- Notifications: inbox, unread badge, notification routing, push delivery (device notifications), and a notification preferences center (per-type granularity, plus geolocated radius/frequency) — see scope amendment 2026-06-08.
 - User reporting: report an event, comment, media, or profile.
 - Creator publication status: view created event statuses (`draft`, `pending`, `published`, `refused`, `archived`) and refusal reasons when available.
 - Profile basics: edit profile, my events, settings, bug report.
+
+## Scope Amendment 2026-06-08
+
+Following a product decision, the following items move INTO the mobile MVP (previously deferred / post-MVP):
+
+- **Social login (OAuth)** on the auth screen (e.g. Facebook), in addition to email/password.
+- **Notifications system** beyond the inbox: device push delivery, triggers for new nearby events and followed-creator publications, and a notification preferences center (per-type toggles + geolocated radius/frequency). This supersedes the "Advanced notifications/push" post-MVP line in ADR_002 for the basic push + preferences scope (advanced analytics/segmentation remains post-MVP).
+
+See `project-management/decisions/ADR_002_MOBILE_MVP_SCOPE.md` (Amendment 2026-06-08).
 
 ## Temporarily Hidden From Public Navigation
 
