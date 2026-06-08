@@ -1,6 +1,6 @@
 import type { EventWithCreator } from '../types/database';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../types/filters';
-import { isEventLive } from './event-status';
+import { isEventLive, isEventPast } from './event-status';
 
 const POPULARITY_THRESHOLDS = {
   trending: 10,
@@ -79,8 +79,7 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): num
 }
 
 function isPastEvent(event: EventWithCreator, now: Date): boolean {
-  const endsAt = new Date(event.ends_at);
-  return !isNaN(endsAt.getTime()) && endsAt < now;
+  return isEventPast(event, now);
 }
 
 export function filterEvents(
@@ -89,8 +88,6 @@ export function filterEvents(
   focusedIds: string[] | null = null
 ): EventWithCreator[] {
   const now = new Date();
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
 
   return events.filter((event) => {
     if (focusedIds && focusedIds.length > 0) {
@@ -106,8 +103,7 @@ export function filterEvents(
 
       // Par défaut (pas de filtre temps explicite), on exclut seulement les événements totalement passés
       if (!filters.startDate && !filters.endDate && !filters.time) {
-        const endsAt = new Date(event.ends_at);
-        if (!isNaN(endsAt.getTime()) && endsAt < startOfToday) {
+        if (isEventPast(event, now)) {
           return false;
         }
       }
@@ -236,14 +232,13 @@ export function filterEventsByMetaStatus(
     const endsAt = new Date(event.ends_at);
     if (Number.isNaN(startsAt.getTime())) return false;
     if (metaFilter === 'live') {
-      if (Number.isNaN(endsAt.getTime())) return false;
-      return now >= startsAt && now <= endsAt;
+      return isEventLive(event, now);
     }
     if (metaFilter === 'upcoming') {
       return startsAt > now;
     }
     if (metaFilter === 'past') {
-      return !Number.isNaN(endsAt.getTime()) && endsAt < now;
+      return isEventPast(event, now);
     }
     return true;
   });

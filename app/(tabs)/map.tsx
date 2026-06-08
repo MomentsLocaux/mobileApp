@@ -19,6 +19,14 @@ import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '..
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius, typography } from '../../src/constants/theme';
 import { SearchBar } from '../../src/components/search/SearchBar';
+import { TriageControl } from '../../src/components/search/TriageControl';
+import {
+  getBoundsFromRadiusKm,
+  hasSearchCriteria as checkSearchCriteria,
+  resolveEffectiveRadiusKm,
+  SEARCH_FETCH_LIMIT,
+} from '../../src/utils/search-helpers';
+import { resolveEventTimeScope } from '../../src/utils/event-time-scope';
 import { SearchResultsBottomSheet, type SearchResultsBottomSheetHandle } from '../../src/components/search/SearchResultsBottomSheet';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
@@ -70,10 +78,11 @@ export default function MapScreen() {
   const viewportRequestIdRef = useRef(0);
   const markerRequestIdRef = useRef(0);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
-  const [searchApplied, setSearchApplied] = useState(false);
+  const searchApplied = searchState.searchApplied;
+  const setSearchApplied = searchState.setSearchApplied;
+  const commitSearch = searchState.commitSearch;
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
-  const useSearchRadiusBoundsRef = useRef(false);
   const initialViewportBootstrapDoneRef = useRef(false);
 
   const getPaddingFromIndex = useCallback((idx: number) => {
@@ -114,27 +123,10 @@ export default function MapScreen() {
     return Math.min(40, base);
   }, [mapPadding]);
 
-  const hasSearchCriteria = useMemo(() => {
-    const hasWhere = !!searchState.where.location || !!searchState.where.radiusKm;
-    const hasWhen =
-      !!searchState.when.preset ||
-      !!searchState.when.startDate ||
-      !!searchState.when.endDate ||
-      !!searchState.when.includePast;
-    const hasWhat =
-      searchState.what.categories.length > 0 ||
-      searchState.what.subcategories.length > 0 ||
-      searchState.what.tags.length > 0 ||
-      !!searchState.what.query?.trim();
-    return hasWhere || hasWhen || hasWhat;
-  }, [searchState]);
+  const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchState), [searchState]);
 
   const searchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
-  const searchFiltersWithoutRadius = useMemo(() => {
-    const { radiusKm, centerLat, centerLon, ...rest } = searchFilters;
-    return rest;
-  }, [searchFilters]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
   const sortCenter = useMemo(
@@ -145,15 +137,6 @@ export default function MapScreen() {
     [searchState.where.location, userLocation]
   );
 
-  // À chaque retour sur l’onglet carte, on repart en mode peek.
-  useFocusEffect(
-    useCallback(() => {
-      setBottomSheetIndex(0);
-      hideBottomBar();
-      setStatus('browsing');
-    }, [hideBottomBar, setBottomSheetIndex, setStatus])
-  );
-
   const handleBoundsChange = useCallback(
     (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
       if (isProgrammaticMoveRef.current && !options?.forceSearchRadius) return;
@@ -161,32 +144,35 @@ export default function MapScreen() {
       const requestId = ++viewportRequestIdRef.current;
 
       setStatus('browsing');
-      if (searchActive && !options?.forceSearchRadius) {
-        useSearchRadiusBoundsRef.current = false;
-      }
 
       bboxTimeoutRef.current = setTimeout(async () => {
         if (requestId !== viewportRequestIdRef.current) return;
         setStatus('loading');
         try {
           const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
-          const includePastForFetch = metaFilter === 'past' ? true : effectiveSearchActive ? includePast : false;
-          const useRadiusBounds = effectiveSearchActive && useSearchRadiusBoundsRef.current;
-          const effectiveFilters = useRadiusBounds ? searchFilters : searchFiltersWithoutRadius;
+          const bboxTimeScope = resolveEventTimeScope({
+            metaFilter,
+            searchActive: effectiveSearchActive,
+            includePast,
+          });
+          const effectiveFilters = effectiveSearchActive ? searchFilters : {};
 
           const featureCollection = await EventsService.listEventsByBBox({
             ne: bounds.ne,
             sw: bounds.sw,
-            limit: 300,
-            includePast: includePastForFetch,
+            limit: SEARCH_FETCH_LIMIT,
+            timeScope: bboxTimeScope,
           });
 
           const ids = featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
           const uniqueIds = Array.from(new Set(ids)) as string[];
-          const limitedIds = uniqueIds.slice(0, 120);
-          const events = limitedIds.length ? await EventsService.getEventsByIds(limitedIds) : [];
+          const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
 
-          const filteredEvents = effectiveSearchActive ? filterEvents(events, effectiveFilters, null) : events;
+          const filteredEvents = effectiveSearchActive
+            ? filterEvents(events, effectiveFilters, null)
+            : metaFilter === 'past' || metaFilter === 'upcoming'
+              ? events
+              : filterEvents(events, {}, null);
           const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
           const sortedEvents = effectiveSearchActive
             ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
@@ -216,7 +202,6 @@ export default function MapScreen() {
       hasSearchCriteria,
       includePast,
       searchFilters,
-      searchFiltersWithoutRadius,
       sortBy,
       sortOrder,
       sortCenter,
@@ -233,6 +218,19 @@ export default function MapScreen() {
       handleBoundsChange(bounds);
     }
   }, [handleBoundsChange]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!searchApplied || !hasSearchCriteria) {
+        setBottomSheetIndex(0);
+        hideBottomBar();
+        setStatus('browsing');
+      }
+      if (searchApplied && hasSearchCriteria) {
+        refreshBounds();
+      }
+    }, [hasSearchCriteria, hideBottomBar, refreshBounds, searchApplied, setBottomSheetIndex, setStatus])
+  );
 
   useEffect(() => {
     if (locationLoading || initialViewportBootstrapDoneRef.current) return;
@@ -276,18 +274,9 @@ export default function MapScreen() {
     }, duration);
   }, []);
 
-  const getBoundsFromRadius = useCallback((latitude: number, longitude: number, radiusKm: number) => {
-    const latDelta = radiusKm / 111;
-    const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1));
-    return {
-      ne: [longitude + lonDelta, latitude + latDelta] as [number, number],
-      sw: [longitude - lonDelta, latitude - latDelta] as [number, number],
-    };
-  }, []);
-
   const fitToRadius = useCallback(
     (latitude: number, longitude: number, radiusKm: number) => {
-      const bounds = getBoundsFromRadius(latitude, longitude, radiusKm);
+      const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
       const coords = [
         { latitude: bounds.sw[1], longitude: bounds.sw[0] },
         { latitude: bounds.ne[1], longitude: bounds.ne[0] },
@@ -296,27 +285,23 @@ export default function MapScreen() {
       withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, fitPadding));
       return bounds;
     },
-    [getBoundsFromRadius, getFitPadding, withProgrammaticMove]
+    [getFitPadding, withProgrammaticMove]
   );
 
   const applySearch = useCallback(() => {
     setMetaFilter('all');
-    setSearchApplied(true);
+    commitSearch();
     setStatus('loading');
     const location = searchState.where.location;
-    const selectedRadius = searchState.where.radiusKm;
-    const effectiveRadius = selectedRadius && selectedRadius > 0 ? selectedRadius : 10;
+    const effectiveRadius = resolveEffectiveRadiusKm(searchState.where, userLocation) ?? 10;
 
     const moveAction = () => {
       if (location) {
-        useSearchRadiusBoundsRef.current = true;
         return fitToRadius(location.latitude, location.longitude, effectiveRadius);
       }
-      if (searchState.where.radiusKm && userLocation) {
-        useSearchRadiusBoundsRef.current = true;
+      if (searchState.where.radiusKm !== undefined && userLocation) {
         return fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
       }
-      useSearchRadiusBoundsRef.current = false;
       return null;
     };
 
@@ -332,7 +317,7 @@ export default function MapScreen() {
       }, 650); // After map move settles
     }, 600);
 
-  }, [fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove, handleBoundsChange]);
+  }, [commitSearch, fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove, handleBoundsChange]);
 
   const handleFeaturePress = useCallback(
     async (id: string) => {
@@ -428,10 +413,9 @@ export default function MapScreen() {
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
       setSearchApplied(false);
-      useSearchRadiusBoundsRef.current = false;
       refreshBounds();
     }
-  }, [hasSearchCriteria, searchApplied, refreshBounds]);
+  }, [hasSearchCriteria, searchApplied, refreshBounds, setSearchApplied]);
 
   useEffect(() => {
     tabTranslate.value = withTiming(bottomBarVisible ? 0 : 80, { duration: 220 });
@@ -525,7 +509,6 @@ export default function MapScreen() {
                   setMetaFilter(item.key);
                   if (item.key !== 'all') {
                     setSearchApplied(false);
-                    useSearchRadiusBoundsRef.current = false;
                   }
                   refreshBounds();
                 }}
@@ -537,6 +520,18 @@ export default function MapScreen() {
             );
           })}
         </View>
+        {searchActive ? (
+          <View style={styles.sortRow}>
+            <TriageControl
+              value={sortBy}
+              onChange={(value) => searchState.setSortBy(value)}
+              sortOrder={sortOrder}
+              onSortOrderChange={(order) => searchState.setSortOrder(order)}
+              hasLocation={!!userLocation}
+              showLabel={false}
+            />
+          </View>
+        ) : null}
         <View style={styles.layerSwitcher}>
           {(['standard', 'satellite'] as const).map((mode) => (
             <TouchableOpacity
@@ -655,6 +650,9 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     zIndex: 10,
     gap: spacing.sm,
+  },
+  sortRow: {
+    alignSelf: 'flex-end',
   },
   metaFilterRow: {
     flexDirection: 'row',

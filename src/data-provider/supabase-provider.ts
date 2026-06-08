@@ -3,6 +3,7 @@ import type { IBugsProvider, IDataProvider } from './types';
 import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/types/database';
 import type { FeatureCollection } from 'geojson';
 import { resolveEventMarkerIcon as resolveMarkerIconFromSlug } from '@/constants/category-visuals';
+import type { EventTimeScope } from '@/utils/event-time-scope';
 
 const formatSupabaseError = (error: any, context: string) => {
   const rawMessage =
@@ -16,6 +17,18 @@ const formatSupabaseError = (error: any, context: string) => {
 
 const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatar';
 const EVENT_COVER_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_EVENT_COVER_BUCKET || 'event-media';
+
+const applyPublicTimeScope = <T extends { lte: Function; gt: Function; or: Function }>(
+  query: T,
+  timeScope: EventTimeScope,
+  nowIso: string,
+): T => {
+  if (timeScope === 'all') return query;
+  if (timeScope === 'upcoming') {
+    return query.gt('starts_at', nowIso) as T;
+  }
+  return query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`) as T;
+};
 
 const generateEventQrToken = () => {
   try {
@@ -217,9 +230,15 @@ export const supabaseProvider: (Pick<
 > &
   IBugsProvider) = {
   async listEvents(filters: Record<string, unknown> = {}) {
-    const { limit, creatorId, includePast } = filters as { limit?: number; creatorId?: string; includePast?: boolean };
+    const { limit, creatorId, includePast, timeScope } = filters as {
+      limit?: number;
+      creatorId?: string;
+      includePast?: boolean;
+      timeScope?: EventTimeScope;
+    };
     const appliedLimit = typeof limit === 'number' ? limit : 200;
     const nowIso = new Date().toISOString();
+    const resolvedScope: EventTimeScope = timeScope ?? (includePast ? 'all' : 'ongoing');
 
     let query = supabase
       .from('events')
@@ -231,11 +250,7 @@ export const supabaseProvider: (Pick<
       query = query.eq('creator_id', creatorId);
     } else {
       query = query.eq('status', 'published').eq('visibility', 'public');
-    }
-    // Par défaut, ne retourner que les événements en cours (starts_at <= now <= ends_at ou ends_at null)
-    // Pour un créateur ou si includePast est true, on retourne tout l'historique sans filtre temporel.
-    if (!creatorId && !includePast) {
-      query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
+      query = applyPublicTimeScope(query, resolvedScope, nowIso);
     }
 
     const { data, error } = await query;
@@ -275,8 +290,15 @@ export const supabaseProvider: (Pick<
     throw formatSupabaseError(error, 'getEventsByIds');
   },
 
-  async listEventsByBBox(params: { ne: [number, number]; sw: [number, number]; limit?: number; includePast?: boolean }) {
-    const { ne, sw, limit = 300, includePast = false } = params || {};
+  async listEventsByBBox(params: {
+    ne: [number, number];
+    sw: [number, number];
+    limit?: number;
+    includePast?: boolean;
+    timeScope?: EventTimeScope;
+  }) {
+    const { ne, sw, limit = 300, includePast = false, timeScope } = params || {};
+    const resolvedScope: EventTimeScope = timeScope ?? (includePast ? 'all' : 'ongoing');
     const nowIso = new Date().toISOString();
     const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
@@ -296,9 +318,7 @@ export const supabaseProvider: (Pick<
       // admin console for correction/rejection but must not surface on the map.
       .or('latitude.neq.0,longitude.neq.0');
 
-    if (!includePast) {
-      query = query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`);
-    }
+    query = applyPublicTimeScope(query, resolvedScope, nowIso);
 
     const { data, error } = await query.limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');

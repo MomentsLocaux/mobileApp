@@ -281,7 +281,7 @@ export default function EventDetailScreen() {
   );
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
+    const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -976,9 +976,7 @@ export default function EventDetailScreen() {
 
   const isLiveNow = useMemo(
     () =>
-      getEventLiveWindow(event, now, {
-        requireScheduleDetails: true,
-      }).isLive,
+      getEventLiveWindow(event, now).isLive,
     [event?.starts_at, event?.ends_at, event?.operating_hours, now],
   );
 

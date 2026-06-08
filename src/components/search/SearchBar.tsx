@@ -20,7 +20,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { X, MapPin, Calendar, Users, Tag, ChevronRight, Search } from 'lucide-react-native';
+import { X, MapPin, Calendar, Tag, ChevronRight, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
@@ -36,11 +36,18 @@ import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { filterEvents } from '@/utils/filter-events';
 import type { SearchState } from '@/store/searchStore';
 import { buildSearchSummary } from '@/utils/search-summary';
+import {
+  hasSearchCriteria as checkSearchCriteria,
+  PROXIMITY_RADIUS_KM,
+  resolveEffectiveRadiusKm,
+  resolveSearchCenter,
+  SEARCH_FETCH_LIMIT,
+} from '@/utils/search-helpers';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
 import type { CommunityMember } from '@/types/community';
 
-type SectionKey = 'where' | 'when' | 'who' | 'what';
+type SectionKey = 'where' | 'when' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
 
 type ChipTone = {
@@ -98,14 +105,16 @@ export const SearchBar: React.FC<Props> = ({
   const {
     where,
     when,
-    who,
     what,
     setWhere,
     setWhen,
-    setWho,
     setWhat,
     sortBy,
+    sortOrder,
+    setSortBy,
+    setSortOrder,
     addHistory,
+    commitSearch,
   } = useSearchStore();
 
   const progress = useSharedValue(0);
@@ -160,39 +169,19 @@ export const SearchBar: React.FC<Props> = ({
     };
   }, [currentLocation]);
 
-  const hasSearchCriteria = useMemo(() => {
-    const hasWhere = !!where.location || !!where.radiusKm;
-    const hasWhen = !!when.preset || !!when.startDate || !!when.endDate || includePast;
-    const hasWhat =
-      what.categories.length > 0 ||
-      what.subcategories.length > 0 ||
-      what.tags.length > 0 ||
-      !!what.query?.trim();
-    return hasWhere || hasWhen || hasWhat;
-  }, [where.location, where.radiusKm, when.preset, when.startDate, when.endDate, includePast, what]);
-
-  const effectiveRadiusKm = useMemo(() => {
-    if (where.radiusKm !== undefined) {
-      return Math.max(0, where.radiusKm);
-    }
-    if (where.location) return 10;
-    return undefined;
-  }, [where.location, where.radiusKm]);
-
-  const searchCenter = useMemo(() => {
-    if (where.location) {
-      return { latitude: where.location.latitude, longitude: where.location.longitude };
-    }
-    if (where.radiusKm !== undefined && userCoords) {
-      return userCoords;
-    }
-    return null;
-  }, [where.location, where.radiusKm, userCoords]);
+  const searchSlice = useMemo(() => ({ where, when, what }), [where, when, what]);
+  const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchSlice), [searchSlice]);
+  const effectiveRadiusKm = useMemo(
+    () => resolveEffectiveRadiusKm(where, userCoords),
+    [where, userCoords]
+  );
+  const searchCenter = useMemo(() => resolveSearchCenter(where, userCoords), [where, userCoords]);
+  const displayedRadiusKm = where.radiusKm ?? effectiveRadiusKm ?? PROXIMITY_RADIUS_KM;
 
   const summaryText = useMemo(() => {
     if (!applied || !hasSearchCriteria) return undefined;
-    return buildSearchSummary({ where, when, who, what, sortBy } as SearchState, categories, subcategories, tags);
-  }, [applied, categories, hasSearchCriteria, sortBy, subcategories, tags, what, when, where, who]);
+    return buildSearchSummary({ where, when, who: { adults: 1, children: 0, babies: 0 }, what, sortBy } as SearchState, categories, subcategories, tags);
+  }, [applied, categories, hasSearchCriteria, sortBy, subcategories, tags, what, when, where]);
 
   const sectionSummary = useMemo(() => {
     const whereLabel = where.location?.label || (where.radiusKm ? 'À proximité' : 'Choisir un lieu');
@@ -205,8 +194,6 @@ export const SearchBar: React.FC<Props> = ({
           : when.preset
             ? presetLabel(when.preset)
             : 'Flexible';
-    const whoLabel = `${who.adults} adulte${who.adults > 1 ? 's' : ''}${who.children ? ` · ${who.children} enfant${who.children > 1 ? 's' : ''}` : ''
-      }${who.babies ? ` · ${who.babies} bébé${who.babies > 1 ? 's' : ''}` : ''}`;
     const categoryLabel = what.categories.length
       ? categories.find((c) => c.id === what.categories[0])?.label
       : undefined;
@@ -216,9 +203,14 @@ export const SearchBar: React.FC<Props> = ({
     const tagLabel = !categoryLabel && !subcategoryLabel && what.tags.length
       ? tags.find((t) => t.slug === what.tags[0])?.label || what.tags[0]
       : undefined;
-    const whatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Toutes catégories';
-    return { whereLabel, whenLabel, whoLabel, whatLabel };
-  }, [categories, includePast, subcategories, tags, what, when, where, who]);
+    const extras: string[] = [];
+    if (what.categories.length > 1) extras.push(`+${what.categories.length - 1} cat.`);
+    if (what.subcategories.length) extras.push(`${what.subcategories.length} sous-cat.`);
+    if (what.tags.length) extras.push(`${what.tags.length} tag${what.tags.length > 1 ? 's' : ''}`);
+    const baseWhatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Toutes catégories';
+    const whatLabel = extras.length ? `${baseWhatLabel} · ${extras.join(', ')}` : baseWhatLabel;
+    return { whereLabel, whenLabel, whatLabel };
+  }, [categories, includePast, subcategories, tags, what, when, where]);
 
   const rangeValue: DateRangeValue = {
     startDate: when.startDate || null,
@@ -261,7 +253,7 @@ export const SearchBar: React.FC<Props> = ({
           const featureCollection = await EventsService.listEventsByBBox({
             ne,
             sw,
-            limit: 300,
+            limit: SEARCH_FETCH_LIMIT,
             includePast,
           });
 
@@ -272,9 +264,9 @@ export const SearchBar: React.FC<Props> = ({
           const uniqueIds = Array.from(new Set(ids)) as string[];
           events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
         } else {
-          events = await EventsService.listEvents({ limit: 300, includePast });
+          events = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, includePast });
         }
-        const filters = buildFiltersFromSearch({ where, when, who, what } as SearchState, userCoords);
+        const filters = buildFiltersFromSearch({ where, when, who: { adults: 1, children: 0, babies: 0 }, what } as SearchState, userCoords);
         const filteredEvents = filterEvents(events, filters, null);
         if (!cancelled) {
           setSearchCount(filteredEvents.length);
@@ -294,7 +286,7 @@ export const SearchBar: React.FC<Props> = ({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [effectiveRadiusKm, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords, where, when, who, what]);
+  }, [effectiveRadiusKm, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords, where, when, what]);
 
   useEffect(() => {
     let cancelled = false;
@@ -442,16 +434,6 @@ export const SearchBar: React.FC<Props> = ({
     };
   });
 
-  const sectionStyle3 = useAnimatedStyle(() => {
-    const start = 0.39;
-    const opacity = interpolate(contentProgress.value, [start, 1], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(contentProgress.value, [start, 1], [8, 0], Extrapolate.CLAMP);
-    return {
-      opacity,
-      transform: [{ translateY }],
-    };
-  });
-
   const collapsedLabel =
     summaryText ||
     (enableCommunitySearch && searchMode === 'members' ? 'Rechercher un membre' : placeholder);
@@ -575,6 +557,18 @@ export const SearchBar: React.FC<Props> = ({
                         style={styles.input}
                       />
                       <View style={styles.row}>
+                        <Chip
+                          label="À proximité"
+                          active={where.radiusKm !== undefined && !where.location}
+                          onPress={() => {
+                            if (!hasLocation) return;
+                            const isActive = where.radiusKm !== undefined && !where.location;
+                            setWhere({
+                              location: undefined,
+                              radiusKm: isActive ? undefined : PROXIMITY_RADIUS_KM,
+                            });
+                          }}
+                        />
                         {where.location?.label && (
                           <Chip
                             label={`${where.location.label} ✕`}
@@ -583,33 +577,41 @@ export const SearchBar: React.FC<Props> = ({
                           />
                         )}
                       </View>
-                      <View style={styles.sliderRow}>
-                        <Text style={styles.meta}>Dans un rayon de {where.radiusKm ?? 0} km</Text>
-                        <View style={styles.counterControls}>
-                          <TouchableOpacity
-                            style={styles.counterBtn}
-                            onPress={() =>
-                              setWhere({
-                                radiusKm: Math.max(0, (where.radiusKm ?? 0) - 5),
-                              })
-                            }
-                          >
-                            <Text style={styles.counterBtnText}>-</Text>
-                          </TouchableOpacity>
-                          <Text style={styles.counterValue}>{where.radiusKm ?? 0}</Text>
-                          <TouchableOpacity
-                            style={styles.counterBtn}
-                            onPress={() =>
-                              setWhere({
-                                radiusKm: Math.min(50, (where.radiusKm ?? 0) + 5),
-                              })
-                            }
-                          >
-                            <Text style={styles.counterBtnText}>+</Text>
-                          </TouchableOpacity>
+                      {!hasLocation ? (
+                        <Text style={styles.meta}>Activez la localisation pour rechercher à proximité.</Text>
+                      ) : null}
+                      {(where.location || where.radiusKm !== undefined) && (
+                        <View style={styles.sliderRow}>
+                          <Text style={styles.meta}>Dans un rayon de {displayedRadiusKm} km</Text>
+                          <View style={styles.counterControls}>
+                            <TouchableOpacity
+                              style={styles.counterBtn}
+                              onPress={() =>
+                                setWhere({
+                                  radiusKm: Math.max(5, (where.radiusKm ?? displayedRadiusKm) - 5),
+                                })
+                              }
+                            >
+                              <Text style={styles.counterBtnText}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.counterValue}>{displayedRadiusKm}</Text>
+                            <TouchableOpacity
+                              style={styles.counterBtn}
+                              onPress={() =>
+                                setWhere({
+                                  radiusKm: Math.min(50, (where.radiusKm ?? displayedRadiusKm) + 5),
+                                })
+                              }
+                            >
+                              <Text style={styles.counterBtnText}>+</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                      </View>
+                      )}
                       {loading && <Text style={styles.meta}>Recherche...</Text>}
+                      {!loading && query.trim() && results.length === 0 ? (
+                        <Text style={styles.meta}>Aucun lieu trouvé — vérifiez l&apos;orthographe.</Text>
+                      ) : null}
                       {results.map((item) => (
                         <TouchableOpacity
                           key={`${item.latitude}-${item.longitude}-${item.label}`}
@@ -620,6 +622,23 @@ export const SearchBar: React.FC<Props> = ({
                           <Text style={styles.resultText}>{item.label}</Text>
                         </TouchableOpacity>
                       ))}
+                      {where.history.length > 0 && (
+                        <View style={styles.history}>
+                          <Text style={styles.meta}>Recherches récentes</Text>
+                          {where.history.map((h) => (
+                            <TouchableOpacity
+                              key={h}
+                              style={styles.result}
+                              onPress={() => {
+                                setWhere({ location: undefined });
+                                setQuery(h);
+                              }}
+                            >
+                              <Text style={styles.resultText}>{h}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
                     </SectionCard>
                   </Animated.View>
 
@@ -683,46 +702,7 @@ export const SearchBar: React.FC<Props> = ({
 
                   <Animated.View style={sectionStyle2}>
                     <SectionCard
-                      title="Qui"
-                      summary={sectionSummary.whoLabel}
-                      active={activeSection === 'who'}
-                      icon={<Users size={18} color={colors.brand.textSecondary} />}
-                      onPress={() => setActiveSection('who')}
-                    >
-                      <CounterRow
-                        label="Adultes"
-                        subtitle="13 ans et plus"
-                        value={who.adults}
-                        onChange={(v) => setWho({ adults: Math.max(1, v) })}
-                      />
-                      <CounterRow
-                        label="Enfants"
-                        subtitle="2 à 12 ans"
-                        value={who.children}
-                        onChange={(v) =>
-                          setWho({
-                            children: Math.max(0, v),
-                            adults: Math.max(1, who.adults, v > 0 ? 1 : 0),
-                          })
-                        }
-                      />
-                      <CounterRow
-                        label="Bébés"
-                        subtitle="- de 2 ans"
-                        value={who.babies}
-                        onChange={(v) =>
-                          setWho({
-                            babies: Math.max(0, v),
-                            adults: Math.max(1, who.adults, v > 0 ? 1 : 0),
-                          })
-                        }
-                      />
-                    </SectionCard>
-                  </Animated.View>
-
-                  <Animated.View style={sectionStyle3}>
-                    <SectionCard
-                      title="Catégorie"
+                      title="Quoi"
                       summary={sectionSummary.whatLabel}
                       active={activeSection === 'what'}
                       icon={<Tag size={18} color={colors.brand.textSecondary} />}
@@ -769,6 +749,90 @@ export const SearchBar: React.FC<Props> = ({
                           );
                         })}
                       </View>
+                      {what.categories.length > 0 && (
+                        <>
+                          <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Sous-catégories</Text>
+                          <View style={styles.rowWrap}>
+                            {subcategories
+                              .filter((sub) => what.categories.includes(sub.category_id))
+                              .map((sub) => {
+                                const categoryColor = getCategoryColor(sub.category_id);
+                                const categoryTextColor = getCategoryTextColor(sub.category_id);
+                                return (
+                                  <Chip
+                                    key={sub.id}
+                                    label={sub.label}
+                                    active={what.subcategories.includes(sub.id)}
+                                    tone={{
+                                      inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                                      inactiveBorderColor: withAlpha(categoryColor, '33'),
+                                      inactiveTextColor: categoryColor,
+                                      activeBackgroundColor: categoryColor,
+                                      activeBorderColor: categoryColor,
+                                      activeTextColor: categoryTextColor,
+                                    }}
+                                    onPress={() => {
+                                      const exists = what.subcategories.includes(sub.id);
+                                      const next = exists
+                                        ? what.subcategories.filter((s) => s !== sub.id)
+                                        : [...what.subcategories, sub.id];
+                                      setWhat({ subcategories: next });
+                                    }}
+                                  />
+                                );
+                              })}
+                          </View>
+                        </>
+                      )}
+                      <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tags</Text>
+                      <View style={styles.rowWrap}>
+                        {tags.map((tag) => (
+                          <Chip
+                            key={tag.id}
+                            label={tag.label}
+                            active={what.tags.includes(tag.slug)}
+                            onPress={() => {
+                              const exists = what.tags.includes(tag.slug);
+                              const next = exists
+                                ? what.tags.filter((t) => t !== tag.slug)
+                                : [...what.tags, tag.slug];
+                              setWhat({ tags: next });
+                            }}
+                          />
+                        ))}
+                      </View>
+                      <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tri</Text>
+                      <View style={styles.rowWrap}>
+                        <Chip
+                          label="Pertinence"
+                          active={sortBy === 'triage' || !sortBy}
+                          onPress={() => setSortBy('triage')}
+                        />
+                        <Chip label="Date début" active={sortBy === 'date'} onPress={() => { setSortBy('date'); if (!sortOrder) setSortOrder('asc'); }} />
+                        <Chip label="Date fin" active={sortBy === 'endDate'} onPress={() => { setSortBy('endDate'); if (!sortOrder) setSortOrder('asc'); }} />
+                        <Chip label="Date création" active={sortBy === 'created'} onPress={() => { setSortBy('created'); if (!sortOrder) setSortOrder('desc'); }} />
+                        <Chip
+                          label="Distance"
+                          active={sortBy === 'distance'}
+                          onPress={() => {
+                            if (!hasLocation) return;
+                            setSortBy('distance');
+                          }}
+                        />
+                        <Chip label="Popularité" active={sortBy === 'popularity'} onPress={() => setSortBy('popularity')} />
+                      </View>
+                      {!hasLocation && sortBy === 'distance' ? (
+                        <Text style={styles.meta}>Le tri par distance nécessite la localisation.</Text>
+                      ) : null}
+                      {(sortBy === 'date' || sortBy === 'endDate' || sortBy === 'created') && (
+                        <>
+                          <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Ordre</Text>
+                          <View style={styles.rowWrap}>
+                            <Chip label="Ascendant" active={sortOrder === 'asc'} onPress={() => setSortOrder('asc')} />
+                            <Chip label="Descendant" active={sortOrder === 'desc'} onPress={() => setSortOrder('desc')} />
+                          </View>
+                        </>
+                      )}
                     </SectionCard>
                   </Animated.View>
                 </>
@@ -776,20 +840,28 @@ export const SearchBar: React.FC<Props> = ({
             </ScrollView>
 
             {searchMode === 'events' ? (
-              <View style={[styles.footer, { marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }]}>
-                <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
-                  <Text style={styles.resetText}>Tout effacer</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.primaryBtn}
-                  onPress={() => {
-                    onApply();
-                    closeExpanded();
-                  }}
-                >
-                  <Text style={styles.primaryText}>{countLabel}</Text>
-                  <ChevronRight size={16} color={colors.brand.primary} />
-                </TouchableOpacity>
+              <View style={{ marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }}>
+                {searchCount === 0 && !countLoading && hasSearchCriteria ? (
+                  <Text style={styles.zeroHint}>
+                    Aucun résultat — élargissez le rayon, incluez les passés ou retirez des filtres.
+                  </Text>
+                ) : null}
+                <View style={styles.footer}>
+                  <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
+                    <Text style={styles.resetText}>Tout effacer</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={() => {
+                      commitSearch();
+                      onApply();
+                      closeExpanded();
+                    }}
+                  >
+                    <Text style={styles.primaryText}>{countLabel}</Text>
+                    <ChevronRight size={16} color={colors.brand.primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               <View style={[styles.footer, { marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }]}>
@@ -1250,6 +1322,19 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+  },
+  history: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  zeroHint: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    marginBottom: spacing.sm,
+    marginHorizontal: spacing.lg,
+    textAlign: 'center',
+    backgroundColor: colors.brand.primary,
+    paddingTop: spacing.sm,
   },
   footer: {
     flexDirection: 'row',

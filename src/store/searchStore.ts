@@ -41,23 +41,41 @@ export interface SearchState {
   what: SearchWhatState;
   sortBy?: SortOption;
   sortOrder?: SortOrder;
+  searchApplied: boolean;
+  searchRevision: number;
   setWhere: (payload: Partial<SearchWhereState>) => void;
   setWhen: (payload: Partial<SearchWhenState>) => void;
   setWho: (updater: Partial<SearchWhoState>) => void;
   setWhat: (payload: Partial<SearchWhatState>) => void;
   setSortBy: (sortBy?: SortOption) => void;
   setSortOrder: (order?: SortOrder) => void;
+  setSearchApplied: (applied: boolean) => void;
+  commitSearch: () => void;
   addHistory: (label: string) => void;
   resetSearch: () => void;
 }
 
-const initialState: Omit<SearchState, 'setWhere' | 'setWhen' | 'setWho' | 'setWhat' | 'setSortBy' | 'setSortOrder' | 'addHistory' | 'resetSearch'> = {
+const initialState: Omit<
+  SearchState,
+  | 'setWhere'
+  | 'setWhen'
+  | 'setWho'
+  | 'setWhat'
+  | 'setSortBy'
+  | 'setSortOrder'
+  | 'setSearchApplied'
+  | 'commitSearch'
+  | 'addHistory'
+  | 'resetSearch'
+> = {
   where: { history: [] },
   when: { includePast: false },
   who: { adults: 1, children: 0, babies: 0 },
   what: { categories: [], subcategories: [], tags: [], query: '' },
   sortBy: 'triage',
   sortOrder: undefined,
+  searchApplied: false,
+  searchRevision: 0,
 };
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -97,6 +115,14 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   setSortBy: (sortBy) => set({ sortBy }),
   setSortOrder: (order) => set({ sortOrder: order }),
 
+  setSearchApplied: (applied) => set({ searchApplied: applied }),
+
+  commitSearch: () =>
+    set((state) => ({
+      searchApplied: true,
+      searchRevision: state.searchRevision + 1,
+    })),
+
   addHistory: (label: string) =>
     set((state) => {
       if (!label.trim()) return state;
@@ -105,5 +131,5 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       return { where: { ...state.where, history: updated } };
     }),
 
-  resetSearch: () => set({ ...initialState }),
+  resetSearch: () => set({ ...initialState, searchApplied: false, searchRevision: 0 }),
 }));

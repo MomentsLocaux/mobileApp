@@ -29,6 +29,13 @@ import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { TriageControl } from '@/components/search/TriageControl';
+import {
+  hasSearchCriteria as checkSearchCriteria,
+  resolveEffectiveRadiusKm,
+  resolveSearchCenter,
+  SEARCH_FETCH_LIMIT,
+} from '@/utils/search-helpers';
+import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { AppBackground } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -51,10 +58,13 @@ export default function HomeScreen() {
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
   const [refreshing, setRefreshing] = useState(false);
   const [stories, setStories] = useState<StoryItem[]>([]);
-  const [searchApplied, setSearchApplied] = useState(false);
+  const searchApplied = searchState.searchApplied;
+  const setSearchApplied = searchState.setSearchApplied;
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
+  const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>([]);
+  const [metaFeedLoading, setMetaFeedLoading] = useState(false);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const insets = useSafeAreaInsets();
@@ -70,36 +80,14 @@ export default function HomeScreen() {
   const filters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
-  const hasSearchCriteria = useMemo(() => {
-    const hasWhere = !!searchState.where.location || !!searchState.where.radiusKm;
-    const hasWhen =
-      !!searchState.when.preset ||
-      !!searchState.when.startDate ||
-      !!searchState.when.endDate ||
-      !!searchState.when.includePast;
-    const hasWhat =
-      searchState.what.categories.length > 0 ||
-      searchState.what.subcategories.length > 0 ||
-      searchState.what.tags.length > 0 ||
-      !!searchState.what.query?.trim();
-    return hasWhere || hasWhen || hasWhat;
-  }, [
-    searchState.where.location,
-    searchState.where.radiusKm,
-    searchState.when.preset,
-    searchState.when.startDate,
-    searchState.when.endDate,
-    searchState.when.includePast,
-    searchState.what.categories,
-    searchState.what.subcategories,
-    searchState.what.tags,
-    searchState.what.query,
-  ]);
+  const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchState), [searchState]);
+  const showSearchResults = searchApplied && metaFilter === 'all';
+
   const filteredAndSortedEvents = useMemo(() => {
-    const base = searchApplied ? searchResults : fetchedEvents || [];
+    const base = showSearchResults ? searchResults : metaFeedEvents;
     const metaFiltered = filterEventsByMetaStatus(base, metaFilter);
     return sortEvents(metaFiltered, sortBy, userLocation, sortOrder);
-  }, [fetchedEvents, metaFilter, searchApplied, searchResults, sortBy, sortOrder, userLocation]);
+  }, [metaFeedEvents, metaFilter, searchResults, showSearchResults, sortBy, sortOrder, userLocation]);
   const filteredEventIds = useMemo(
     () => filteredAndSortedEvents.map((event) => event.id).filter(Boolean),
     [filteredAndSortedEvents],
@@ -112,38 +100,53 @@ export default function HomeScreen() {
     }
   }, [hasSearchCriteria, searchApplied]);
 
-  const effectiveRadiusKm = useMemo(() => {
-    if (searchState.where.radiusKm !== undefined) {
-      return searchState.where.radiusKm > 0 ? searchState.where.radiusKm : 10;
-    }
-    if (searchState.where.location) return 10;
-    return undefined;
-  }, [searchState.where.location, searchState.where.radiusKm]);
+  const effectiveRadiusKm = useMemo(
+    () => resolveEffectiveRadiusKm(searchState.where, userLocation),
+    [searchState.where, userLocation]
+  );
 
-  const searchCenter = useMemo(() => {
-    if (searchState.where.location) {
-      return { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude };
+  const searchCenter = useMemo(
+    () => resolveSearchCenter(searchState.where, userLocation),
+    [searchState.where, userLocation]
+  );
+
+  const loadMetaFeed = useCallback(async () => {
+    setMetaFeedLoading(true);
+    try {
+      const timeScope = resolveEventTimeScope({ metaFilter });
+      const data = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
+      setMetaFeedEvents(data || []);
+    } catch {
+      setMetaFeedEvents([]);
+    } finally {
+      setMetaFeedLoading(false);
     }
-    if (searchState.where.radiusKm && userLocation) {
-      return userLocation;
-    }
-    return null;
-  }, [searchState.where.location, searchState.where.radiusKm, userLocation]);
+  }, [metaFilter]);
+
+  useEffect(() => {
+    if (showSearchResults) return;
+    loadMetaFeed();
+  }, [loadMetaFeed, showSearchResults]);
 
   useEffect(() => {
     let cancelled = false;
-    if (metaFilter !== 'all') {
+    if (!showSearchResults) {
       setSearchResults([]);
       setSearchLoading(false);
       return;
     }
-    if (!searchApplied || !hasSearchCriteria) {
+    if (!hasSearchCriteria) {
       setSearchResults([]);
       setSearchLoading(false);
       return;
     }
 
     setSearchLoading(true);
+    const searchTimeScope = resolveEventTimeScope({
+      metaFilter: 'all',
+      searchActive: true,
+      includePast: !!searchState.when.includePast,
+    });
     const run = async () => {
       try {
         let baseEvents: EventWithCreator[] = [];
@@ -158,8 +161,8 @@ export default function HomeScreen() {
           const featureCollection = await EventsService.listEventsByBBox({
             ne,
             sw,
-            limit: 300,
-            includePast: !!searchState.when.includePast,
+            limit: SEARCH_FETCH_LIMIT,
+            timeScope: searchTimeScope,
           });
           const ids =
             featureCollection?.features
@@ -168,7 +171,10 @@ export default function HomeScreen() {
           const uniqueIds = Array.from(new Set(ids)) as string[];
           baseEvents = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
         } else {
-          baseEvents = await EventsService.listEvents({ limit: 300, includePast: !!searchState.when.includePast });
+          baseEvents = await EventsService.listEvents({
+            limit: SEARCH_FETCH_LIMIT,
+            timeScope: searchTimeScope,
+          });
         }
 
         const filtered = filterEvents(baseEvents, filters, null);
@@ -190,7 +196,15 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveRadiusKm, filters, hasSearchCriteria, metaFilter, searchApplied, searchCenter, searchState.when.includePast]);
+  }, [
+    effectiveRadiusKm,
+    filters,
+    hasSearchCriteria,
+    showSearchResults,
+    searchCenter,
+    searchState.searchRevision,
+    searchState.when.includePast,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,11 +232,14 @@ export default function HomeScreen() {
     };
   }, [filteredEventIds, filteredEventIdsKey, profile?.id]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    reload();
-    setRefreshing(false);
-  };
+    try {
+      await Promise.all([reload(), showSearchResults ? Promise.resolve() : loadMetaFeed()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadMetaFeed, reload, showSearchResults]);
 
   const buildStories = useCallback(
     async (events: EventWithCreator[]) => {
@@ -347,10 +364,7 @@ export default function HomeScreen() {
 
         <View style={styles.searchContainer}>
           <SearchBar
-            onApply={() => {
-              setMetaFilter('all');
-              setSearchApplied(true);
-            }}
+            onApply={() => setMetaFilter('all')}
             hasLocation={!!userLocation}
             applied={searchApplied}
             enableCommunitySearch
@@ -485,7 +499,17 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-              {searchLoading ? 'Recherche en cours...' : 'Aucun événement trouvé'}
+              {searchLoading || metaFeedLoading
+                ? 'Chargement...'
+                : showSearchResults
+                  ? 'Aucun événement pour ces critères. Élargissez le rayon ou incluez les événements passés.'
+                  : metaFilter === 'upcoming'
+                    ? 'Aucun événement à venir pour le moment.'
+                    : metaFilter === 'past'
+                      ? 'Aucun événement passé trouvé.'
+                      : metaFilter === 'live'
+                        ? 'Aucun événement en cours pour le moment.'
+                        : 'Aucun événement trouvé'}
             </Text>
           </View>
         }

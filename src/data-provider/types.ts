@@ -85,6 +85,7 @@ export interface IDataProvider {
     sw: [number, number];
     limit?: number;
     includePast?: boolean;
+    timeScope?: 'ongoing' | 'upcoming' | 'all';
   }): Promise<FeatureCollection>;
   getEventsByIds?(ids: string[]): Promise<EventWithCreator[]>;
 }
