@@ -4,6 +4,11 @@ import { dataProvider } from '@/data-provider';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { supabase } from '@/lib/supabase/client';
+import {
+  signInWithApple,
+  signInWithOAuthProvider,
+  type SocialProvider,
+} from '@/services/oauth.service';
 
 export interface AuthResponse {
   success: boolean;
@@ -178,6 +183,36 @@ export class AuthService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /** Persists session tokens + ensures profile after any successful OAuth sign-in. */
+  static async finalizeOAuthSession(session: Session): Promise<AuthResponse> {
+    const user = session.user;
+    if (!user) return { success: false, error: 'No user returned' };
+
+    const rawProfile =
+      (await dataProvider.getProfile(user.id)) ||
+      (await this.ensureProfile(user.id, user.email || ''));
+    const profile = this.attachEmail(rawProfile, user.email);
+    await this.clearAutoRestoreBlock();
+    await this.saveSession(session);
+    return { success: true, session, user, profile };
+  }
+
+  static async signInWithProvider(provider: SocialProvider): Promise<AuthResponse> {
+    try {
+      const session =
+        provider === 'apple'
+          ? await signInWithApple()
+          : await signInWithOAuthProvider(provider);
+
+      return await this.finalizeOAuthSession(session);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Connexion impossible',
       };
     }
   }

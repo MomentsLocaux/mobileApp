@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/state/auth';
 import { AuthService } from '@/services/auth.service';
+import type { SocialProvider } from '@/services/oauth.service';
 import { UserService } from '@/services/user.service';
 
 export function useAuth() {
@@ -40,6 +41,31 @@ export function useAuth() {
 
       if (!response.success) {
         setError(response.error || 'Erreur connexion');
+        return response;
+      }
+
+      setSession(response.session || null);
+      setUser(response.user || null);
+
+      if (response.user) {
+        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
+        setProfile(profile);
+      }
+
+      return response;
+    },
+    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+  );
+
+  const signInWithProvider = useCallback(
+    async (provider: SocialProvider) => {
+      setLoading(true);
+      setError(null);
+      const response = await AuthService.signInWithProvider(provider);
+      setLoading(false);
+
+      if (!response.success) {
+        setError(response.error || 'Connexion impossible');
         return response;
       }
 
@@ -175,6 +201,7 @@ export function useAuth() {
     error,
     isAuthenticated: !!session,
     signIn,
+    signInWithProvider,
     signUp,
     signOut,
     fullSignOut,
