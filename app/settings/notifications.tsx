@@ -1,93 +1,323 @@
+import { Bell, CalendarClock, Gift, Heart, Info, MapPin, Users } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Switch } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { Bell, MapPin, Star } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
-import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
-import { colors, spacing, typography } from '@/constants/theme';
-import { useLocationStore } from '@/store';
+import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
+import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import {
+  DEFAULT_PREFERENCES,
+  type NotifyFrequency,
+  PreferencesService,
+  type UserPreferences,
+} from '@/services/preferences.service';
+import { clearHomeLocation, syncHomeLocation } from '@/services/push.service';
+import { useAuthStore } from '@/state/auth';
+
+const RADIUS_CHOICES = [10, 25, 50, 100];
+const FREQUENCY_CHOICES: { value: NotifyFrequency; label: string }[] = [
+  { value: 'instant', label: 'Instantané' },
+  { value: 'daily', label: 'Quotidien' },
+  { value: 'weekly', label: 'Hebdo' },
+];
 
 export default function NotificationsSettingsScreen() {
-  const { permissionGranted } = useLocationStore();
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [localEnabled, setLocalEnabled] = useState(true);
-  const [recommendEnabled, setRecommendEnabled] = useState(true);
+  const userId = useAuthStore((state) => state.user?.id);
+  const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!permissionGranted) {
-      setLocalEnabled(false);
+    let mounted = true;
+    if (!userId) {
+      setLoading(false);
+      return;
     }
-  }, [permissionGranted]);
+    (async () => {
+      try {
+        const data = await PreferencesService.getMine(userId);
+        if (mounted) setPrefs(data);
+      } catch {
+        if (mounted) {
+          setPrefs({ user_id: userId, ...DEFAULT_PREFERENCES });
+          Toast.show({ type: 'error', text1: 'Impossible de charger les préférences' });
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
 
-  const showToast = () => {
-    Toast.show({ type: 'success', text1: 'Notifications mises à jour' });
+  const persist = async (patch: Partial<Omit<UserPreferences, 'user_id'>>) => {
+    if (!prefs || !userId) return;
+    const previous = prefs;
+    setPrefs({ ...prefs, ...patch });
+    try {
+      await PreferencesService.updateMine(userId, patch);
+    } catch {
+      setPrefs(previous);
+      Toast.show({ type: 'error', text1: 'Échec de la mise à jour' });
+    }
   };
+
+  const handleNearbyToggle = async (value: boolean) => {
+    await persist({ notify_event_nearby: value });
+    if (value) {
+      const ok = await syncHomeLocation({ prompt: true });
+      if (!ok) {
+        Toast.show({
+          type: 'info',
+          text1: 'Localisation requise',
+          text2: 'Autorisez la localisation pour recevoir les alertes de proximité.',
+        });
+      }
+    } else {
+      clearHomeLocation();
+    }
+  };
+
+  if (loading) {
+    return (
+      <SettingsLayout title="Notifications">
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.brand.secondary} />
+        </View>
+      </SettingsLayout>
+    );
+  }
+
+  if (!prefs) {
+    return (
+      <SettingsLayout title="Notifications">
+        <View style={styles.helper}>
+          <Text style={styles.helperText}>Connectez-vous pour gérer vos notifications.</Text>
+        </View>
+      </SettingsLayout>
+    );
+  }
 
   return (
     <SettingsLayout title="Notifications">
-      <SettingsSectionCard title="Notifications" icon={Bell}>
+      <SettingsSectionCard
+        title="Notifications push"
+        description="Recevez les alertes directement sur votre téléphone."
+        icon={Bell}
+      >
         <SettingsRow
-          label="Notifications push"
+          label="Activer les notifications push"
           icon={Bell}
-          right={
-            <Switch
-              value={pushEnabled}
-              onValueChange={(value) => {
-                setPushEnabled(value);
-                showToast();
-              }}
-            />
-          }
           noBorder
-        />
-        <SettingsRow
-          label="Notifications locales"
-          icon={MapPin}
           right={
             <Switch
-              value={localEnabled}
-              onValueChange={(value) => {
-                if (!permissionGranted) return;
-                setLocalEnabled(value);
-                showToast();
-              }}
-              disabled={!permissionGranted}
-            />
-          }
-          disabled={!permissionGranted}
-        />
-        <SettingsRow
-          label="Recommandations personnalisées"
-          icon={Star}
-          right={
-            <Switch
-              value={recommendEnabled}
-              onValueChange={(value) => {
-                setRecommendEnabled(value);
-                showToast();
-              }}
+              value={prefs.push_enabled}
+              onValueChange={(value) => persist({ push_enabled: value })}
             />
           }
         />
       </SettingsSectionCard>
 
-      {!permissionGranted && (
-        <View style={styles.helper}>
-          <Text style={styles.helperText}>
-            Activez la localisation pour gérer les notifications locales.
-          </Text>
-        </View>
-      )}
+      <SettingsSectionCard
+        title="Types d'alertes"
+        description="Choisissez les événements qui déclenchent une notification."
+        icon={Bell}
+      >
+        <SettingsRow
+          label="Événements près de chez moi"
+          icon={MapPin}
+          noBorder
+          right={
+            <Switch value={prefs.notify_event_nearby} onValueChange={handleNearbyToggle} />
+          }
+        />
+
+        {prefs.notify_event_nearby && (
+          <>
+            <View style={styles.infoBox}>
+              <Info size={16} color={colors.brand.secondary} />
+              <Text style={styles.infoText}>
+                Autorisez la localisation « Pendant l'utilisation ». Nous mémorisons votre dernière
+                position à l'ouverture de l'app pour vous alerter — la localisation en arrière-plan
+                n'est pas nécessaire.
+              </Text>
+            </View>
+            <ChoiceGroup label="Rayon">
+              {RADIUS_CHOICES.map((km) => (
+                <Chip
+                  key={km}
+                  label={`${km} km`}
+                  active={prefs.notify_radius_km === km}
+                  onPress={() => persist({ notify_radius_km: km })}
+                />
+              ))}
+            </ChoiceGroup>
+          </>
+        )}
+
+        <SettingsRow
+          label="Créateurs suivis"
+          icon={Users}
+          right={
+            <Switch
+              value={prefs.notify_followed_creator}
+              onValueChange={(value) => persist({ notify_followed_creator: value })}
+            />
+          }
+        />
+        <SettingsRow
+          label="Rappels d'événements"
+          icon={CalendarClock}
+          right={
+            <Switch
+              value={prefs.notify_event_reminders}
+              onValueChange={(value) => persist({ notify_event_reminders: value })}
+            />
+          }
+        />
+        <SettingsRow
+          label="Activité sociale"
+          icon={Heart}
+          right={
+            <Switch
+              value={prefs.notify_social}
+              onValueChange={(value) => persist({ notify_social: value })}
+            />
+          }
+        />
+        <SettingsRow
+          label="Récompenses"
+          icon={Gift}
+          right={
+            <Switch
+              value={prefs.notify_rewards}
+              onValueChange={(value) => persist({ notify_rewards: value })}
+            />
+          }
+        />
+      </SettingsSectionCard>
+
+      <SettingsSectionCard
+        title="Fréquence"
+        description="À quelle cadence souhaitez-vous être notifié ?"
+        icon={CalendarClock}
+      >
+        <ChoiceGroup label="Cadence" noBorder>
+          {FREQUENCY_CHOICES.map((option) => (
+            <Chip
+              key={option.value}
+              label={option.label}
+              active={prefs.notify_frequency === option.value}
+              onPress={() => persist({ notify_frequency: option.value })}
+            />
+          ))}
+        </ChoiceGroup>
+      </SettingsSectionCard>
     </SettingsLayout>
   );
 }
 
+function ChoiceGroup({
+  label,
+  children,
+  noBorder,
+}: {
+  label: string;
+  children: React.ReactNode;
+  noBorder?: boolean;
+}) {
+  return (
+    <View style={[styles.choiceGroup, noBorder && styles.choiceGroupNoBorder]}>
+      <Text style={styles.choiceLabel}>{label}</Text>
+      <View style={styles.chipRow}>{children}</View>
+    </View>
+  );
+}
+
+function Chip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={[styles.chip, active && styles.chipActive]}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
+  center: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+  },
   helper: {
     paddingHorizontal: spacing.md,
   },
   helperText: {
     ...typography.caption,
     color: colors.neutral[500],
+  },
+  infoBox: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(43,191,227,0.08)',
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  infoText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    flex: 1,
+    lineHeight: 18,
+  },
+  choiceGroup: {
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    gap: spacing.sm,
+  },
+  choiceGroupNoBorder: {
+    borderTopWidth: 0,
+  },
+  choiceLabel: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'transparent',
+  },
+  chipActive: {
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
+  },
+  chipText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: colors.brand.primary,
   },
 });
