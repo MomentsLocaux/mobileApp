@@ -170,7 +170,7 @@ export default function MapScreen() {
 
           const filteredEvents = effectiveSearchActive
             ? filterEvents(events, effectiveFilters, null)
-            : metaFilter === 'past' || metaFilter === 'upcoming'
+            : metaFilter === 'all' || metaFilter === 'past' || metaFilter === 'upcoming'
               ? events
               : filterEvents(events, {}, null);
           const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
@@ -228,12 +228,44 @@ export default function MapScreen() {
       }
       if (searchApplied && hasSearchCriteria) {
         refreshBounds();
+        return;
       }
-    }, [hasSearchCriteria, hideBottomBar, refreshBounds, searchApplied, setBottomSheetIndex, setStatus])
+      const { visibleEventCount: count, sheetStatus } = useMapResultsUIStore.getState();
+      if (count === 0 && sheetStatus !== 'singleEvent') {
+        isProgrammaticMoveRef.current = false;
+        void (async () => {
+          const bounds = await mapRef.current?.getVisibleBounds?.();
+          if (bounds) {
+            handleBoundsChange(bounds, { forceSearchRadius: true });
+          }
+        })();
+      }
+    }, [
+      hasSearchCriteria,
+      hideBottomBar,
+      handleBoundsChange,
+      refreshBounds,
+      searchApplied,
+      setBottomSheetIndex,
+      setStatus,
+    ])
   );
 
+  const loadViewportAfterCameraSettles = useCallback(
+    async (delayMs = 750) => {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      isProgrammaticMoveRef.current = false;
+      const bounds = await mapRef.current?.getVisibleBounds?.();
+      if (!bounds || initialViewportBootstrapDoneRef.current) return;
+      initialViewportBootstrapDoneRef.current = true;
+      handleBoundsChange(bounds, { forceSearchRadius: true });
+    },
+    [handleBoundsChange]
+  );
+
+  // Fallback zone (Fontoy) when no user GPS — load once map is ready.
   useEffect(() => {
-    if (locationLoading || initialViewportBootstrapDoneRef.current) return;
+    if (locationLoading || userLocation || initialViewportBootstrapDoneRef.current) return;
 
     let cancelled = false;
     let attempts = 0;
@@ -258,7 +290,7 @@ export default function MapScreen() {
       }
     };
 
-    timer = setTimeout(run, userLocation ? 700 : 250);
+    timer = setTimeout(run, 400);
 
     return () => {
       cancelled = true;
@@ -404,11 +436,11 @@ export default function MapScreen() {
   }, [fitToRadius, userLocation]);
 
   useEffect(() => {
-    if (userLocation && !hasCenteredOnUserRef.current) {
-      recenterToUser();
-      hasCenteredOnUserRef.current = true;
-    }
-  }, [recenterToUser, userLocation]);
+    if (!userLocation || hasCenteredOnUserRef.current) return;
+    hasCenteredOnUserRef.current = true;
+    recenterToUser();
+    void loadViewportAfterCameraSettles(800);
+  }, [loadViewportAfterCameraSettles, recenterToUser, userLocation]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -596,6 +628,7 @@ export default function MapScreen() {
         }}
         mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
         peekCount={sheetStatus === 'singleEvent' ? 0 : visibleEventCount}
+        metaFilter={metaFilter}
         index={bottomSheetIndex}
         isLoading={sheetStatus === 'loading'}
       />

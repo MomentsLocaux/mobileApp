@@ -14,6 +14,7 @@ export const resolveEventTimeScope = (params: {
 
   if (metaFilter === 'past') return 'all';
   if (metaFilter === 'upcoming') return 'upcoming';
+  if (metaFilter === 'live') return 'ongoing';
   if (metaFilter === 'all') return 'all';
   if (searchActive && includePast) return 'all';
   if (legacyIncludePast) return 'all';

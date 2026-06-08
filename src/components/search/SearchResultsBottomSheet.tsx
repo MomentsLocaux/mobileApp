@@ -2,6 +2,7 @@ import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
+import type { EventMetaFilter } from '../../utils/filter-events';
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -26,9 +27,17 @@ interface Props {
   onIndexChange?: (index: number) => void;
   mode: 'single' | 'viewport';
   peekCount: number;
+  metaFilter?: EventMetaFilter;
   index?: number;
   isLoading?: boolean;
 }
+
+const META_SCOPE_LABELS: Record<EventMetaFilter, string> = {
+  all: 'dans cette zone',
+  live: 'en cours',
+  upcoming: 'à venir',
+  past: 'passés',
+};
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -47,6 +56,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onIndexChange,
       mode,
       peekCount,
+      metaFilter = 'all',
       index = 0,
       isLoading = false,
     },
@@ -105,16 +115,22 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       close: () => sheetRef.current?.close(),
     }));
 
+    const scopeLabel = META_SCOPE_LABELS[metaFilter];
+
     const headerTitle = useMemo(() => {
       if (mode === 'single' && hasEvents) return events[0].title;
-      if (!hasEvents) return 'Aucun résultat dans cette zone';
+      if (!hasEvents) {
+        return metaFilter === 'all'
+          ? 'Aucun résultat dans cette zone'
+          : `Aucun moment ${scopeLabel}`;
+      }
       if (clampedIndex === 0) {
-        return `${peekCount} moment${peekCount > 1 ? 's' : ''} dans cette zone`;
+        return `${peekCount} moment${peekCount > 1 ? 's' : ''} ${scopeLabel}`;
       }
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
-      return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
-    }, [activeEventId, events, hasEvents, mode, peekCount, clampedIndex]);
+      return `${events.length} moment${events.length > 1 ? 's' : ''} ${scopeLabel}`;
+    }, [activeEventId, events, hasEvents, metaFilter, mode, peekCount, clampedIndex, scopeLabel]);
 
     return (
       <BottomSheet
@@ -170,15 +186,20 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {!showList && !isLoading && (
+        {!showList && (peekCount > 0 || isLoading) && (
           <TouchableOpacity
             style={styles.peekContainer}
             activeOpacity={0.8}
+            disabled={isLoading}
             onPress={() => {
               sheetRef.current?.snapToIndex(1);
             }}
           >
-            <Text style={styles.peekText}>Voir {peekCount} moment{peekCount > 1 ? 's' : ''}</Text>
+            <Text style={styles.peekText}>
+              {isLoading
+                ? 'Chargement des moments...'
+                : `Voir ${peekCount} moment${peekCount > 1 ? 's' : ''}`}
+            </Text>
           </TouchableOpacity>
         )}
 
