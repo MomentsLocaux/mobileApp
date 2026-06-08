@@ -1,4 +1,5 @@
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { getCategoryFallbackColor, getCategoryVisual, isCategoryVisualSlug } from './category-visuals';
 import { colors } from './theme';
 import type { EventCategory } from '../types/database';
 
@@ -39,18 +40,27 @@ export const getCategoryLabel = (category: EventCategory): string => {
   return categoriesMap[category]?.label || String(category);
 };
 
+/**
+ * Legacy string icon from DB. Prefer `getCategoryLucideIcon(slug)` from category-visuals for UI.
+ * The `event_category.icon` column is deprecated for map rendering (slug drives Lucide icons).
+ */
 export const getCategoryIcon = (category: EventCategory): string => {
   const { categoriesMap } = useTaxonomyStore.getState();
   if (!category) return 'circle';
+  const slug = categoriesMap[category]?.slug;
+  if (isCategoryVisualSlug(slug)) return slug;
   return categoriesMap[category]?.icon || 'circle';
 };
+
+export { getCategoryLucideIcon } from './category-visuals';
 
 export const getCategoryColor = (category: EventCategory): string => {
   const { categoriesMap } = useTaxonomyStore.getState();
   if (!category) return DEFAULT_CATEGORY_COLOR;
-  const rawColor = categoriesMap[category]?.color;
+  const slug = categoriesMap[category]?.slug;
+  const rawColor = categoriesMap[category]?.color ?? getCategoryFallbackColor(slug);
   if (typeof rawColor !== 'string') return DEFAULT_CATEGORY_COLOR;
-  return normalizeHexColor(rawColor) || DEFAULT_CATEGORY_COLOR;
+  return normalizeHexColor(rawColor) || getCategoryVisual(slug)?.fallbackColor || DEFAULT_CATEGORY_COLOR;
 };
 
 export const getCategoryTextColor = (category: EventCategory): string => {

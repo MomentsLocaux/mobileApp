@@ -1,20 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, type LayoutChangeEvent } from 'react-native';
-import {
-  Calendar,
-  Camera,
-  Car,
-  Coffee,
-  Dumbbell,
-  Landmark,
-  Leaf,
-  LucideIcon,
-  Music2,
-  Palette,
-  Ticket,
-  Utensils,
-} from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { getCategoryLucideIcon } from '@/constants/category-visuals';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 
@@ -24,27 +11,6 @@ type Props = {
   subcategory?: string;
   onSelectSubcategory?: (value: string | undefined) => void;
   onSubcategoryLayout?: (event: LayoutChangeEvent) => void;
-};
-
-const iconBySlug: Record<string, LucideIcon> = {
-  musique: Music2,
-  concert: Music2,
-  food: Utensils,
-  restauration: Utensils,
-  culture: Landmark,
-  art: Palette,
-  sport: Dumbbell,
-  bien_etre: Leaf,
-  loisirs: Ticket,
-  photo: Camera,
-  auto: Car,
-  cafe: Coffee,
-  autre: Calendar,
-};
-
-const getCategoryIcon = (slug?: string | null) => {
-  if (!slug) return Calendar;
-  return iconBySlug[slug] || Calendar;
 };
 
 export const CategorySelector = ({
@@ -69,7 +35,7 @@ export const CategorySelector = ({
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
         {categories.map((cat) => {
           const active = selected === cat.id;
-          const Icon = getCategoryIcon(cat.slug || cat.icon);
+          const Icon = getCategoryLucideIcon(cat.slug);
           const catColor = cat.color || colors.brand.secondary;
           return (
             <TouchableOpacity

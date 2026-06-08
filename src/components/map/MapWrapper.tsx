@@ -1,24 +1,17 @@
 import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
-import {
-  Baby,
-  BookOpen,
-  Dumbbell,
-  Leaf,
-  MapPin,
-  Music,
-  ShoppingBag,
-  Sparkles,
-  Theater,
-  Users,
-  UtensilsCrossed,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { MapPin, type LucideIcon } from 'lucide-react-native';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
 import type { FeatureCollection, Feature } from 'geojson';
-import { CATEGORY_MARKER_SLUGS, categoryMarkerImageKey, type CategoryMarkerSlug } from '../../constants/category-markers';
+import {
+  CATEGORY_VISUAL_SLUGS,
+  CATEGORY_VISUALS,
+  categoryMarkerImageKey,
+  DEFAULT_MAP_MARKER,
+  type CategoryVisualSlug,
+} from '../../constants/category-visuals';
 import { CategoryEventMarker } from './CategoryEventMarker';
 import { useTaxonomyStore } from '../../store/taxonomyStore';
 
@@ -31,33 +24,13 @@ type CategoryMarkerVisual = {
   Icon: LucideIcon;
 };
 
-type CategoryMarkerBaseVisual = {
-  fallbackColor: string;
-  iconColor?: string;
-  Icon: LucideIcon;
-};
-
-const CATEGORY_MARKER_BASE_VISUALS: Record<CategoryMarkerSlug, CategoryMarkerBaseVisual> = {
-  'arts-culture': { fallbackColor: '#7c3aed', Icon: Theater },
-  'marches-artisanat': { fallbackColor: '#0ea5e9', Icon: ShoppingBag },
-  'fetes-animations': { fallbackColor: '#f97316', Icon: Music },
-  'famille-enfants': { fallbackColor: '#16a34a', Icon: Baby },
-  'gastronomie-saveurs': { fallbackColor: '#facc15', Icon: UtensilsCrossed, iconColor: '#3f2d00' },
-  'nature-bienetre': { fallbackColor: '#22c55e', Icon: Leaf },
-  'ateliers-apprentissage': { fallbackColor: '#6366f1', Icon: BookOpen },
-  'sport-loisirs': { fallbackColor: '#f43f5e', Icon: Dumbbell },
-  'vie-locale': { fallbackColor: '#0ea5e9', Icon: Users },
-  'insolite-ephemere': { fallbackColor: '#a855f7', Icon: Sparkles },
-};
-
-const DEFAULT_EVENT_ICON_KEY = 'marker-15';
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
 
 const normalizeEventIconKey = (feature: Feature): string => {
   const rawIcon = (feature.properties as Record<string, unknown> | null)?.icon;
-  if (typeof rawIcon !== 'string') return DEFAULT_EVENT_ICON_KEY;
+  if (typeof rawIcon !== 'string') return DEFAULT_MAP_MARKER;
   const icon = rawIcon.trim();
-  if (!icon) return DEFAULT_EVENT_ICON_KEY;
+  if (!icon) return DEFAULT_MAP_MARKER;
   return icon;
 };
 
@@ -66,11 +39,11 @@ const toSourceId = (iconKey: string) => `events-source-${iconKey.replace(/[^a-zA
 const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
   visuals,
 }: {
-  visuals: Record<CategoryMarkerSlug, CategoryMarkerVisual>;
+  visuals: Record<CategoryVisualSlug, CategoryMarkerVisual>;
 }) {
   return (
     <Mapbox.Images>
-      {CATEGORY_MARKER_SLUGS.map((slug) => {
+      {CATEGORY_VISUAL_SLUGS.map((slug) => {
         const visual = visuals[slug];
         return (
           <Mapbox.Image key={slug} name={categoryMarkerImageKey(slug)}>
@@ -167,9 +140,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   }, [onVisibleBoundsChange]);
 
   const categoryMarkerVisuals = useMemo(() => {
-    const visuals = {} as Record<CategoryMarkerSlug, CategoryMarkerVisual>;
-    CATEGORY_MARKER_SLUGS.forEach((slug) => {
-      const base = CATEGORY_MARKER_BASE_VISUALS[slug];
+    const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;
+    CATEGORY_VISUAL_SLUGS.forEach((slug) => {
+      const base = CATEGORY_VISUALS[slug as CategoryVisualSlug];
       const categoryColor = categoriesMap[slug]?.color;
       const color =
         typeof categoryColor === 'string' && categoryColor.trim().length > 0 ? categoryColor : base.fallbackColor;
@@ -395,7 +368,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
               id={`${sourceId}-cluster-icon`}
               filter={['has', 'point_count']}
               style={{
-                iconImage: iconKey || DEFAULT_EVENT_ICON_KEY,
+                iconImage: iconKey || DEFAULT_MAP_MARKER,
                 iconSize: ['step', ['get', 'point_count'], 0.95, 8, 1.05, 24, 1.15],
                 iconAllowOverlap: true,
                 iconIgnorePlacement: true,
@@ -419,7 +392,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
               id={`${sourceId}-event-markers`}
               filter={['!', ['has', 'point_count']]}
               style={{
-                iconImage: iconKey || DEFAULT_EVENT_ICON_KEY,
+                iconImage: iconKey || DEFAULT_MAP_MARKER,
                 iconSize: 1,
                 iconAllowOverlap: true,
                 iconIgnorePlacement: true,
