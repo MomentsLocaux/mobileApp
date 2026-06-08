@@ -1,11 +1,51 @@
 import Constants from 'expo-constants';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase/client';
 
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationsModule: NotificationsModule | null | undefined;
 let handlerConfigured = false;
+let unavailableLogged = false;
+
+function isPushNativeModuleAvailable(): boolean {
+  if (Platform.OS === 'web') return false;
+  return requireOptionalNativeModule('ExpoPushTokenManager') != null;
+}
+
+function logPushUnavailable() {
+  if (unavailableLogged) return;
+  unavailableLogged = true;
+  console.warn('[push] Push notifications disabled — rebuild the dev client to enable them.');
+}
+
+/** Lazy-load so older dev builds without the native module can still run. */
+async function getNotifications(): Promise<NotificationsModule | null> {
+  if (notificationsModule !== undefined) return notificationsModule;
+  if (!isPushNativeModuleAvailable()) {
+    logPushUnavailable();
+    notificationsModule = null;
+    return null;
+  }
+  try {
+    const mod = await import('expo-notifications');
+    if (typeof mod.setNotificationHandler !== 'function') {
+      logPushUnavailable();
+      notificationsModule = null;
+      return null;
+    }
+    notificationsModule = mod;
+    return mod;
+  } catch (e) {
+    logPushUnavailable();
+    console.warn('[push] Failed to load expo-notifications:', e);
+    notificationsModule = null;
+    return null;
+  }
+}
 
 /**
  * Foreground presentation of incoming push notifications.
@@ -14,17 +54,21 @@ let handlerConfigured = false;
 export function configureNotificationHandler() {
   if (handlerConfigured) return;
   handlerConfigured = true;
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
+  void (async () => {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  })();
 }
 
-async function ensureAndroidChannel() {
+async function ensureAndroidChannel(Notifications: NotificationsModule) {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('default', {
     name: 'Général',
@@ -47,13 +91,16 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
   if (Platform.OS === 'web') return null;
 
   try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return null;
+
     let status = (await Notifications.getPermissionsAsync()).status;
     if (status !== 'granted') {
       status = (await Notifications.requestPermissionsAsync()).status;
     }
     if (status !== 'granted') return null;
 
-    await ensureAndroidChannel();
+    await ensureAndroidChannel(Notifications);
 
     const projectId = getProjectId();
     if (!projectId) {
@@ -93,6 +140,9 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
 export async function unregisterCurrentDevice(): Promise<void> {
   if (Platform.OS === 'web') return;
   try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
+
     const projectId = getProjectId();
     if (!projectId) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -147,6 +197,31 @@ export async function clearHomeLocation(): Promise<void> {
   } catch (e) {
     console.warn('[push] clearHomeLocation error:', e);
   }
+}
+
+/** Subscribes to notification taps; no-op when the native module is missing. */
+export function subscribeToNotificationResponses(onResponse: (data: unknown) => void): () => void {
+  let sub: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  void (async () => {
+    const Notifications = await getNotifications();
+    if (!Notifications || cancelled) return;
+
+    const last = await Notifications.getLastNotificationResponseAsync();
+    if (last && !cancelled) {
+      onResponse(last.notification.request.content.data);
+    }
+
+    sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      onResponse(response.notification.request.content.data);
+    });
+  })();
+
+  return () => {
+    cancelled = true;
+    sub?.remove();
+  };
 }
 
 /** Deep-links a notification tap to the relevant in-app screen. */

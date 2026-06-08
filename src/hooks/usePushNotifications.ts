@@ -1,9 +1,9 @@
-import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
 import {
   configureNotificationHandler,
   registerForPushNotificationsAsync,
   routeFromNotificationData,
+  subscribeToNotificationResponses,
   syncHomeLocation,
   unregisterCurrentDevice,
 } from '@/services/push.service';
@@ -37,17 +37,6 @@ export function usePushNotifications(userId?: string | null) {
   }, [userId]);
 
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      routeFromNotificationData(response.notification.request.content.data);
-    });
-
-    // Handle the case where the app was launched by tapping a notification.
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        routeFromNotificationData(response.notification.request.content.data);
-      }
-    });
-
-    return () => sub.remove();
+    return subscribeToNotificationResponses(routeFromNotificationData);
   }, []);
 }
