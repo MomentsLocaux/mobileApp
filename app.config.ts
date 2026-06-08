@@ -29,6 +29,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN,
+    // Required to obtain Expo push tokens. Populated by `eas init`; until then,
+    // set EAS_PROJECT_ID in the environment.
+    eas: {
+      projectId: process.env.EAS_PROJECT_ID,
+    },
   },
   ios: {
     supportsTablet: true,
@@ -72,6 +77,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-font',
     'expo-web-browser',
     '@rnmapbox/maps',
+    'expo-notifications',
   ],
   experiments: {
     typedRoutes: true,
