@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
@@ -499,6 +500,7 @@ export default function MapScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
+      <BottomSheetModalProvider>
       <AppBackground />
       <MapWrapper
         ref={mapRef}
@@ -581,41 +583,40 @@ export default function MapScreen() {
         </TouchableOpacity>
       )}
 
-      <View style={styles.sheetOverlay} pointerEvents="box-none">
-        <SearchResultsBottomSheet
-          ref={resultsSheetRef}
-          events={sheetEvents}
-          currentUserId={profile?.id}
-          activeEventId={activeEventId}
-          onSelectEvent={(event) => enterSingleEvent(event, 1)}
-          onNavigate={(event) => setNavEvent(event)}
-          onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
-          onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
-          onToggleLike={handleToggleLike}
-          isLiked={(id) => likesSet.has(id)}
-          onToggleFavorite={handleToggleFavorite}
-          isFavorite={(id) => favoritesSet.has(id)}
-          onIndexChange={(idx) => {
-            if (idx < 0) return;
-            setBottomSheetIndex(idx);
-            if (idx === 0 && sheetMode === 'singleEvent') {
-              exitSingleEvent();
-            }
-          }}
-          mode={sheetMode === 'singleEvent' ? 'single' : 'viewport'}
-          peekCount={sheetMode === 'singleEvent' ? 0 : visibleEventCount}
-          metaFilter={metaFilter}
-          index={bottomSheetIndex}
-          isRefreshing={isViewportFetching}
-          bottomInset={sheetBottomInset}
-        />
-      </View>
+      <SearchResultsBottomSheet
+        ref={resultsSheetRef}
+        events={sheetEvents}
+        currentUserId={profile?.id}
+        activeEventId={activeEventId}
+        onSelectEvent={(event) => enterSingleEvent(event, 1)}
+        onNavigate={(event) => setNavEvent(event)}
+        onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
+        onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+        onToggleLike={handleToggleLike}
+        isLiked={(id) => likesSet.has(id)}
+        onToggleFavorite={handleToggleFavorite}
+        isFavorite={(id) => favoritesSet.has(id)}
+        onIndexChange={(idx) => {
+          if (idx < 0) return;
+          setBottomSheetIndex(idx);
+          if (idx === 0 && sheetMode === 'singleEvent') {
+            exitSingleEvent();
+          }
+        }}
+        mode={sheetMode === 'singleEvent' ? 'single' : 'viewport'}
+        peekCount={sheetMode === 'singleEvent' ? 0 : visibleEventCount}
+        metaFilter={metaFilter}
+        index={bottomSheetIndex}
+        isRefreshing={isViewportFetching}
+        bottomInset={sheetBottomInset}
+      />
 
       <NavigationOptionsSheet
         visible={!!navEvent}
         event={navEvent}
         onClose={() => setNavEvent(null)}
       />
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }
@@ -675,11 +676,6 @@ const styles = StyleSheet.create({
   },
   metaFilterTextActive: {
     color: colors.brand.secondary,
-  },
-  sheetOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 50,
-    elevation: 50,
   },
   recenterTopButton: {
     position: 'absolute',

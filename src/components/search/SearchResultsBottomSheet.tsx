@@ -1,6 +1,10 @@
-import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetFlatList,
+  type BottomSheetBackdropProps,
+} from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -40,6 +44,8 @@ const META_FILTER_LABELS: Record<EventMetaFilter, string> = {
   past: 'passés',
 };
 
+const NoBackdrop = (_props: BottomSheetBackdropProps) => null;
+
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
     {
@@ -64,7 +70,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     },
     ref
   ) => {
-    const sheetRef = useRef<BottomSheet>(null);
+    const sheetRef = useRef<BottomSheetModal>(null);
+    const isPresentedRef = useRef(false);
     const snapPoints = useMemo(
       () => (mode === 'single' ? ['22%', '50%'] : ['22%', '50%', '68%']),
       [mode]
@@ -83,6 +90,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       [events],
     );
     const eventIdsKey = React.useMemo(() => eventIds.join(','), [eventIds]);
+
+    const snapToSafeIndex = useCallback(
+      (nextIndex: number) => {
+        const safeIndex = Math.min(Math.max(0, nextIndex), maxIndex);
+        sheetRef.current?.snapToIndex(safeIndex);
+      },
+      [maxIndex]
+    );
 
     React.useEffect(() => {
       let cancelled = false;
@@ -112,21 +127,41 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
     useImperativeHandle(ref, () => ({
       open: (nextIndex = 1) => {
-        const safeIndex = Math.min(Math.max(0, nextIndex), maxIndex);
-        sheetRef.current?.snapToIndex(safeIndex);
+        if (!isPresentedRef.current) {
+          sheetRef.current?.present();
+          isPresentedRef.current = true;
+        }
+        snapToSafeIndex(nextIndex);
       },
-      close: () => sheetRef.current?.snapToIndex(0),
+      close: () => snapToSafeIndex(0),
     }));
 
     React.useEffect(() => {
-      const frame = requestAnimationFrame(() => {
-        sheetRef.current?.snapToIndex(clampedIndex);
-      });
-      return () => cancelAnimationFrame(frame);
-    }, [clampedIndex, mode, snapPoints]);
+      const timer = setTimeout(() => {
+        if (!isPresentedRef.current) {
+          sheetRef.current?.present();
+          isPresentedRef.current = true;
+        }
+        snapToSafeIndex(clampedIndex);
+      }, 0);
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }, [clampedIndex, mode, snapPoints, snapToSafeIndex]);
+
+    React.useEffect(() => {
+      return () => {
+        isPresentedRef.current = false;
+        sheetRef.current?.dismiss();
+      };
+    }, []);
 
     const headerTitle = useMemo(() => {
       if (mode === 'single' && hasEvents) return events[0].title;
+      if (peekCount > 0 && clampedIndex === 0) {
+        return `${peekCount} moment${peekCount > 1 ? 's' : ''} ${scopeLabel}`;
+      }
       if (!hasEvents) {
         return metaFilter === 'all'
           ? 'Aucun résultat dans cette zone'
@@ -141,21 +176,21 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [activeEventId, events, hasEvents, metaFilter, mode, peekCount, clampedIndex, scopeLabel]);
 
     return (
-      <BottomSheet
+      <BottomSheetModal
         ref={sheetRef}
-        index={clampedIndex}
         snapPoints={snapPoints}
+        index={clampedIndex}
         bottomInset={bottomInset}
         enablePanDownToClose={false}
+        enableDismissOnClose={false}
         enableOverDrag={mode !== 'single'}
-        style={styles.sheetContainer}
-        containerStyle={styles.sheetContainer}
+        backdropComponent={NoBackdrop}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
         onChange={(idx) => {
           const nextIndex = Math.min(Math.max(0, idx), maxIndex);
           if (nextIndex !== idx) {
-            sheetRef.current?.snapToIndex(nextIndex);
+            snapToSafeIndex(nextIndex);
           }
           onIndexChange?.(nextIndex);
         }}
@@ -196,9 +231,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           <TouchableOpacity
             style={styles.peekContainer}
             activeOpacity={0.8}
-            onPress={() => {
-              sheetRef.current?.snapToIndex(1);
-            }}
+            onPress={() => snapToSafeIndex(1)}
           >
             <Text style={styles.peekText}>
               Voir {peekCount} moment{peekCount > 1 ? 's' : ''}
@@ -247,17 +280,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             )}
           />
         )}
-      </BottomSheet>
+      </BottomSheetModal>
     );
   }
 );
 SearchResultsBottomSheet.displayName = 'SearchResultsBottomSheet';
 
 const styles = StyleSheet.create({
-  sheetContainer: {
-    zIndex: 50,
-    elevation: 50,
-  },
   sheetBackground: {
     backgroundColor: colors.brand.surface,
   },
