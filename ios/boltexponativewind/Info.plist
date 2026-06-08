@@ -4,6 +4,8 @@
   <dict>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
@@ -40,15 +42,15 @@
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
     <key>LSApplicationQueriesSchemes</key>
     <array>
       <string>waze</string>
       <string>comgooglemaps</string>
     </array>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
       <key>NSAllowsArbitraryLoads</key>
@@ -56,16 +58,22 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
-  <key>NSCameraUsageDescription</key>
-  <string>Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.</string>
-  <key>NSFaceIDUsageDescription</key>
-  <string>Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.</string>
-  <key>NSLocationWhenInUseUsageDescription</key>
-  <string>Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-  <string>Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.</string>
+    <string>Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-  <string>Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.</string>
+    <string>Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
