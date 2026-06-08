@@ -58,8 +58,10 @@ export default function MapScreen() {
     isViewportFetching,
     setViewportFetching,
     setViewportResults,
+    setViewportPeekCount,
     enterSingleEvent,
     exitSingleEvent,
+    resetMapSheet,
   } = useMapResultsUIStore();
   const insets = useSafeAreaInsets();
 
@@ -76,7 +78,8 @@ export default function MapScreen() {
   const markerRequestIdRef = useRef(0);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const lastFocusedEventIdRef = useRef<string | undefined>(undefined);
-  const initialViewportBootstrapDoneRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  const initialLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchApplied = searchState.searchApplied;
   const setSearchApplied = searchState.setSearchApplied;
   const commitSearch = searchState.commitSearch;
@@ -164,13 +167,29 @@ export default function MapScreen() {
         filteredIds.has(f?.properties?.id)
       );
 
-      mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
-      cacheEvents(dedupedEvents);
+      if (dedupedEvents.length > 0) {
+        mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
+        cacheEvents(dedupedEvents);
+      } else if ((featureCollection?.features || []).length > 0) {
+        mapRef.current?.setShape(featureCollection as any);
+      } else {
+        mapRef.current?.setShape({ type: 'FeatureCollection', features: [] } as any);
+      }
 
       const currentState = useMapResultsUIStore.getState();
       if (currentState.sheetMode === 'singleEvent') return;
 
-      setViewportResults(dedupedEvents);
+      if (dedupedEvents.length > 0) {
+        setViewportResults(dedupedEvents);
+        return;
+      }
+
+      if (uniqueIds.length > 0) {
+        setViewportPeekCount(uniqueIds.length);
+        return;
+      }
+
+      setViewportResults([]);
     },
     [
       metaFilter,
@@ -183,6 +202,7 @@ export default function MapScreen() {
       sortCenter,
       cacheEvents,
       setViewportResults,
+      setViewportPeekCount,
     ]
   );
 
@@ -209,22 +229,61 @@ export default function MapScreen() {
         } catch (e) {
           if (requestId !== viewportRequestIdRef.current) return;
           console.warn('bbox fetch error', e);
-          setViewportFetching(false);
+        } finally {
+          if (requestId === viewportRequestIdRef.current) {
+            setViewportFetching(false);
+          }
         }
       }, BBOX_DEBOUNCE_MS);
     },
     [exitSingleEvent, fetchViewportForBounds, setViewportFetching]
   );
 
+  const ensureViewportLoaded = useCallback(
+    async (options?: { force?: boolean }) => {
+      const bounds = await mapRef.current?.getVisibleBounds?.();
+      if (!bounds) return false;
+
+      const requestId = ++viewportRequestIdRef.current;
+      setViewportFetching(true);
+      try {
+        await fetchViewportForBounds(bounds, requestId);
+        if (requestId === viewportRequestIdRef.current) {
+          initialLoadDoneRef.current = true;
+          return true;
+        }
+      } catch (e) {
+        console.warn('initial viewport load error', e);
+      } finally {
+        if (requestId === viewportRequestIdRef.current) {
+          setViewportFetching(false);
+        }
+      }
+      return false;
+    },
+    [fetchViewportForBounds, setViewportFetching]
+  );
+
   const refreshBounds = useCallback(
     async (options?: { force?: boolean }) => {
       const bounds = await mapRef.current?.getVisibleBounds?.();
       if (bounds) {
-        handleBoundsChange(bounds, { source: 'programmatic' }, { force: true });
+        handleBoundsChange(bounds, { source: 'programmatic' }, { force: options?.force ?? true });
       }
     },
     [handleBoundsChange]
   );
+
+  const scheduleInitialViewportLoad = useCallback(() => {
+    if (initialLoadDoneRef.current) return;
+    if (initialLoadTimerRef.current) {
+      clearTimeout(initialLoadTimerRef.current);
+    }
+    initialLoadTimerRef.current = setTimeout(() => {
+      initialLoadTimerRef.current = null;
+      void ensureViewportLoaded({ force: true });
+    }, 700);
+  }, [ensureViewportLoaded]);
 
   useFocusEffect(
     useCallback(() => {
@@ -235,37 +294,18 @@ export default function MapScreen() {
   );
 
   useEffect(() => {
-    if (locationLoading || initialViewportBootstrapDoneRef.current) return;
-
-    let cancelled = false;
-    let attempts = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const run = async () => {
-      if (cancelled || initialViewportBootstrapDoneRef.current) return;
-
-      const bounds = await mapRef.current?.getVisibleBounds?.();
-      if (cancelled || initialViewportBootstrapDoneRef.current) return;
-
-      if (bounds) {
-        initialViewportBootstrapDoneRef.current = true;
-        handleBoundsChange(bounds, { source: 'programmatic' }, { force: true });
-        return;
-      }
-
-      attempts += 1;
-      if (attempts < 8) {
-        timer = setTimeout(run, 350);
-      }
-    };
-
-    timer = setTimeout(run, userLocation ? 700 : 250);
-
+    resetMapSheet();
     return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
+      if (initialLoadTimerRef.current) {
+        clearTimeout(initialLoadTimerRef.current);
+      }
     };
-  }, [handleBoundsChange, locationLoading, userLocation]);
+  }, [resetMapSheet]);
+
+  useEffect(() => {
+    if (locationLoading) return;
+    scheduleInitialViewportLoad();
+  }, [locationLoading, scheduleInitialViewportLoad]);
 
   const fitToRadius = useCallback((latitude: number, longitude: number, radiusKm: number) => {
     const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
@@ -361,10 +401,8 @@ export default function MapScreen() {
     lastFocusedEventIdRef.current = activeEventId;
 
     const event = sheetEvents[0];
-    const targetIndex = bottomSheetIndex > 0 ? bottomSheetIndex : 1;
-    if (bottomSheetIndex === 0) {
-      setBottomSheetIndex(targetIndex);
-    }
+    const targetIndex = 1;
+    setBottomSheetIndex(targetIndex);
 
     if (typeof event.longitude === 'number' && typeof event.latitude === 'number') {
       mapRef.current?.focusOnCoordinate({
@@ -375,8 +413,10 @@ export default function MapScreen() {
       });
     }
 
-    resultsSheetRef.current?.open?.(targetIndex);
-  }, [sheetMode, activeEventId, bottomSheetIndex, sheetEvents, setBottomSheetIndex, zoom]);
+    requestAnimationFrame(() => {
+      resultsSheetRef.current?.open?.(targetIndex);
+    });
+  }, [sheetMode, activeEventId, sheetEvents, setBottomSheetIndex, zoom]);
 
   useEffect(() => {
     if (focus && !focusHandledRef.current) {
@@ -394,8 +434,9 @@ export default function MapScreen() {
     if (userLocation && !hasCenteredOnUserRef.current) {
       recenterToUser();
       hasCenteredOnUserRef.current = true;
+      scheduleInitialViewportLoad();
     }
-  }, [recenterToUser, userLocation]);
+  }, [recenterToUser, scheduleInitialViewportLoad, userLocation]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -405,7 +446,7 @@ export default function MapScreen() {
   }, [hasSearchCriteria, searchApplied, refreshBounds, setSearchApplied]);
 
   useEffect(() => {
-    if (!initialViewportBootstrapDoneRef.current) return;
+    if (!initialLoadDoneRef.current) return;
     refreshBounds({ force: true });
   }, [metaFilter, sortBy, sortOrder, refreshBounds]);
 
@@ -468,6 +509,7 @@ export default function MapScreen() {
         styleURL={mapStyle}
         mapPadding={MAP_CAMERA_PADDING}
         onVisibleBoundsChange={handleBoundsChange}
+        onProgrammaticMoveEnd={scheduleInitialViewportLoad}
       />
 
       <View style={[styles.topOverlay, { top: insets.top + spacing.xs }]}>
@@ -539,33 +581,35 @@ export default function MapScreen() {
         </TouchableOpacity>
       )}
 
-      <SearchResultsBottomSheet
-        ref={resultsSheetRef}
-        events={sheetEvents}
-        currentUserId={profile?.id}
-        activeEventId={activeEventId}
-        onSelectEvent={(event) => enterSingleEvent(event, bottomSheetIndex > 0 ? bottomSheetIndex : 1)}
-        onNavigate={(event) => setNavEvent(event)}
-        onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
-        onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
-        onToggleLike={handleToggleLike}
-        isLiked={(id) => likesSet.has(id)}
-        onToggleFavorite={handleToggleFavorite}
-        isFavorite={(id) => favoritesSet.has(id)}
-        onIndexChange={(idx) => {
-          if (idx < 0) return;
-          setBottomSheetIndex(idx);
-          if (idx === 0 && sheetMode === 'singleEvent') {
-            exitSingleEvent();
-          }
-        }}
-        mode={sheetMode === 'singleEvent' ? 'single' : 'viewport'}
-        peekCount={sheetMode === 'singleEvent' ? 0 : visibleEventCount}
-        metaFilter={metaFilter}
-        index={bottomSheetIndex}
-        isRefreshing={isViewportFetching}
-        bottomInset={sheetBottomInset}
-      />
+      <View style={styles.sheetOverlay} pointerEvents="box-none">
+        <SearchResultsBottomSheet
+          ref={resultsSheetRef}
+          events={sheetEvents}
+          currentUserId={profile?.id}
+          activeEventId={activeEventId}
+          onSelectEvent={(event) => enterSingleEvent(event, 1)}
+          onNavigate={(event) => setNavEvent(event)}
+          onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
+          onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+          onToggleLike={handleToggleLike}
+          isLiked={(id) => likesSet.has(id)}
+          onToggleFavorite={handleToggleFavorite}
+          isFavorite={(id) => favoritesSet.has(id)}
+          onIndexChange={(idx) => {
+            if (idx < 0) return;
+            setBottomSheetIndex(idx);
+            if (idx === 0 && sheetMode === 'singleEvent') {
+              exitSingleEvent();
+            }
+          }}
+          mode={sheetMode === 'singleEvent' ? 'single' : 'viewport'}
+          peekCount={sheetMode === 'singleEvent' ? 0 : visibleEventCount}
+          metaFilter={metaFilter}
+          index={bottomSheetIndex}
+          isRefreshing={isViewportFetching}
+          bottomInset={sheetBottomInset}
+        />
+      </View>
 
       <NavigationOptionsSheet
         visible={!!navEvent}
@@ -632,8 +676,15 @@ const styles = StyleSheet.create({
   metaFilterTextActive: {
     color: colors.brand.secondary,
   },
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 50,
+    elevation: 50,
+  },
   recenterTopButton: {
     position: 'absolute',
+    zIndex: 60,
+    elevation: 60,
     right: spacing.md,
     width: 44,
     height: 44,
@@ -645,7 +696,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
-    elevation: 4,
   },
   layerSwitcher: {
     flexDirection: 'row',

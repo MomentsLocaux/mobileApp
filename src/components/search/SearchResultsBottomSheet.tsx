@@ -66,7 +66,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
     const snapPoints = useMemo(
-      () => (mode === 'single' ? ['16%', '47%'] : ['16%', '47%', '60%']),
+      () => (mode === 'single' ? ['22%', '50%'] : ['22%', '50%', '68%']),
       [mode]
     );
     const hasEvents = events.length > 0;
@@ -118,6 +118,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       close: () => sheetRef.current?.snapToIndex(0),
     }));
 
+    React.useEffect(() => {
+      const frame = requestAnimationFrame(() => {
+        sheetRef.current?.snapToIndex(clampedIndex);
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [clampedIndex, mode, snapPoints]);
+
     const headerTitle = useMemo(() => {
       if (mode === 'single' && hasEvents) return events[0].title;
       if (!hasEvents) {
@@ -141,6 +148,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         bottomInset={bottomInset}
         enablePanDownToClose={false}
         enableOverDrag={mode !== 'single'}
+        style={styles.sheetContainer}
+        containerStyle={styles.sheetContainer}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
         onChange={(idx) => {
@@ -245,6 +254,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 SearchResultsBottomSheet.displayName = 'SearchResultsBottomSheet';
 
 const styles = StyleSheet.create({
+  sheetContainer: {
+    zIndex: 50,
+    elevation: 50,
+  },
   sheetBackground: {
     backgroundColor: colors.brand.surface,
   },

@@ -73,6 +73,7 @@ interface MapWrapperProps {
     bounds: { ne: [number, number]; sw: [number, number] },
     meta: MapBoundsMeta
   ) => void;
+  onProgrammaticMoveEnd?: () => void;
   children?: React.ReactNode;
   styleURL?: string;
   mapPadding?: { top: number; right: number; bottom: number; left: number };
@@ -99,6 +100,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onFeaturePress,
       onZoomChange,
       onVisibleBoundsChange,
+      onProgrammaticMoveEnd,
       children,
       styleURL,
       mapPadding,
@@ -120,16 +122,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     if (programmaticMoveTimerRef.current) {
       clearTimeout(programmaticMoveTimerRef.current);
     }
-  }, []);
-
-  const endProgrammaticMove = useCallback((duration = PROGRAMMATIC_MOVE_MS) => {
-    if (programmaticMoveTimerRef.current) {
-      clearTimeout(programmaticMoveTimerRef.current);
-    }
-    programmaticMoveTimerRef.current = setTimeout(() => {
-      programmaticMoveDepthRef.current = Math.max(0, programmaticMoveDepthRef.current - 1);
-      programmaticMoveTimerRef.current = null;
-    }, duration);
   }, []);
 
   const toCameraPadding = (padding?: { top: number; right: number; bottom: number; left: number }) => {
@@ -167,6 +159,23 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       console.warn('getVisibleBounds failed', e);
     }
   }, [onVisibleBoundsChange]);
+
+  const endProgrammaticMove = useCallback(
+    (duration = PROGRAMMATIC_MOVE_MS) => {
+      if (programmaticMoveTimerRef.current) {
+        clearTimeout(programmaticMoveTimerRef.current);
+      }
+      programmaticMoveTimerRef.current = setTimeout(async () => {
+        programmaticMoveDepthRef.current = Math.max(0, programmaticMoveDepthRef.current - 1);
+        programmaticMoveTimerRef.current = null;
+        if (programmaticMoveDepthRef.current === 0) {
+          onProgrammaticMoveEnd?.();
+          await emitVisibleBounds();
+        }
+      }, duration);
+    },
+    [emitVisibleBounds, onProgrammaticMoveEnd]
+  );
 
   const categoryMarkerVisuals = useMemo(() => {
     const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;

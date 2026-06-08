@@ -15,8 +15,10 @@ interface MapResultsUIState {
   setBottomSheetIndex: (index: number) => void;
   setViewportFetching: (fetching: boolean) => void;
   setViewportResults: (events: EventWithCreator[]) => void;
+  setViewportPeekCount: (count: number) => void;
   enterSingleEvent: (event: EventWithCreator, snapIndex?: number) => void;
   exitSingleEvent: () => void;
+  resetMapSheet: () => void;
 }
 
 export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
@@ -38,6 +40,25 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
       sheetEvents: events,
       viewportEvents: events,
       visibleEventCount: events.length,
+      activeEventId: undefined,
+      isViewportFetching: false,
+    });
+  },
+
+  setViewportPeekCount: (count) => {
+    set({
+      visibleEventCount: count,
+      isViewportFetching: false,
+    });
+  },
+
+  resetMapSheet: () => {
+    set({
+      bottomSheetIndex: 0,
+      sheetMode: 'viewport',
+      sheetEvents: [],
+      viewportEvents: [],
+      visibleEventCount: 0,
       activeEventId: undefined,
       isViewportFetching: false,
     });
