@@ -2,6 +2,7 @@ import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import type { EventWithCreator } from '../../types/database';
+import type { EventMetaFilter } from '../../utils/filter-events';
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -26,9 +27,18 @@ interface Props {
   onIndexChange?: (index: number) => void;
   mode: 'single' | 'viewport';
   peekCount: number;
+  metaFilter?: EventMetaFilter;
   index?: number;
-  isLoading?: boolean;
+  isRefreshing?: boolean;
+  bottomInset?: number;
 }
+
+const META_FILTER_LABELS: Record<EventMetaFilter, string> = {
+  all: 'dans cette zone',
+  live: 'en cours',
+  upcoming: 'à venir',
+  past: 'passés',
+};
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -47,8 +57,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onIndexChange,
       mode,
       peekCount,
+      metaFilter = 'all',
       index = 0,
-      isLoading = false,
+      isRefreshing = false,
+      bottomInset = 0,
     },
     ref
   ) => {
@@ -62,7 +74,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const maxIndex = snapPoints.length - 1;
     const clampedIndex = Math.min(Math.max(0, effectiveIndex), maxIndex);
     const showList = mode === 'single' || clampedIndex > 0;
-    const showEmpty = clampedIndex > 0 && mode !== 'single' && !hasEvents && !isLoading;
+    const showEmpty = clampedIndex > 0 && mode !== 'single' && !hasEvents && !isRefreshing;
+    const scopeLabel = META_FILTER_LABELS[metaFilter];
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 
     const eventIds = React.useMemo(
@@ -98,29 +111,34 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [eventIds, eventIdsKey, currentUserId]);
 
     useImperativeHandle(ref, () => ({
-      open: (index = 1) => {
-        const nextIndex = Math.min(Math.max(0, index), maxIndex);
-        sheetRef.current?.snapToIndex(nextIndex);
+      open: (nextIndex = 1) => {
+        const safeIndex = Math.min(Math.max(0, nextIndex), maxIndex);
+        sheetRef.current?.snapToIndex(safeIndex);
       },
-      close: () => sheetRef.current?.close(),
+      close: () => sheetRef.current?.snapToIndex(0),
     }));
 
     const headerTitle = useMemo(() => {
       if (mode === 'single' && hasEvents) return events[0].title;
-      if (!hasEvents) return 'Aucun résultat dans cette zone';
+      if (!hasEvents) {
+        return metaFilter === 'all'
+          ? 'Aucun résultat dans cette zone'
+          : `Aucun moment ${scopeLabel}`;
+      }
       if (clampedIndex === 0) {
-        return `${peekCount} moment${peekCount > 1 ? 's' : ''} dans cette zone`;
+        return `${peekCount} moment${peekCount > 1 ? 's' : ''} ${scopeLabel}`;
       }
       const active = events.find((e) => e.id === activeEventId);
       if (active) return active.title;
-      return `${events.length} moment${events.length > 1 ? 's' : ''} trouvés`;
-    }, [activeEventId, events, hasEvents, mode, peekCount, clampedIndex]);
+      return `${events.length} moment${events.length > 1 ? 's' : ''} ${scopeLabel}`;
+    }, [activeEventId, events, hasEvents, metaFilter, mode, peekCount, clampedIndex, scopeLabel]);
 
     return (
       <BottomSheet
         ref={sheetRef}
         index={clampedIndex}
         snapPoints={snapPoints}
+        bottomInset={bottomInset}
         enablePanDownToClose={false}
         enableOverDrag={mode !== 'single'}
         backgroundStyle={styles.sheetBackground}
@@ -134,24 +152,20 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         }}
       >
         <View style={styles.header}>
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color={colors.brand.secondary} />
-              <Text style={styles.loadingText}>Chargement...</Text>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
+          {isRefreshing ? (
+            <View style={styles.refreshRow}>
+              <ActivityIndicator size="small" color={colors.brand.secondary} />
+              <Text style={styles.refreshText}>Mise à jour...</Text>
             </View>
-          ) : (
-            <>
-              <Text style={styles.headerTitle}>{headerTitle}</Text>
-              {events.length > 0 && (
-                <Text style={styles.headerSubtitle}>
-                  {events.length} résultat{events.length > 1 ? 's' : ''}
-                </Text>
-              )}
-            </>
-          )}
+          ) : events.length > 0 && clampedIndex > 0 ? (
+            <Text style={styles.headerSubtitle}>
+              {events.length} résultat{events.length > 1 ? 's' : ''}
+            </Text>
+          ) : null}
         </View>
 
-        {showList && mode === 'single' && hasEvents && !isLoading && (
+        {showList && mode === 'single' && hasEvents && (
           <View style={styles.singleContainer}>
             <EventResultCard
               event={events[0]}
@@ -159,7 +173,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               friendsGoingCount={statsByEventId[events[0].id]?.friendsGoingCount ?? 0}
               active
               onPress={() => onOpenDetails(events[0])}
-              onSelect={() => onSelectEvent(events[0])}
               onNavigate={() => onNavigate(events[0])}
               onOpenCreator={onOpenCreator}
               onToggleLike={onToggleLike}
@@ -170,7 +183,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {!showList && !isLoading && (
+        {!showList && peekCount > 0 && (
           <TouchableOpacity
             style={styles.peekContainer}
             activeOpacity={0.8}
@@ -178,18 +191,32 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               sheetRef.current?.snapToIndex(1);
             }}
           >
-            <Text style={styles.peekText}>Voir {peekCount} moment{peekCount > 1 ? 's' : ''}</Text>
+            <Text style={styles.peekText}>
+              Voir {peekCount} moment{peekCount > 1 ? 's' : ''}
+            </Text>
           </TouchableOpacity>
+        )}
+
+        {!showList && peekCount === 0 && !isRefreshing && (
+          <View style={styles.peekEmptyContainer}>
+            <Text style={styles.peekEmptyText}>
+              {metaFilter === 'all'
+                ? 'Aucun moment dans cette zone'
+                : `Aucun moment ${scopeLabel}`}
+            </Text>
+          </View>
         )}
 
         {showEmpty && (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>Aucun résultat</Text>
-            <Text style={styles.emptySubtitle}>Zoomez ou déplacez la carte pour voir d&apos;autres moments</Text>
+            <Text style={styles.emptySubtitle}>
+              Zoomez ou déplacez la carte pour voir d&apos;autres moments
+            </Text>
           </View>
         )}
 
-        {showList && mode !== 'single' && hasEvents && !isLoading && (
+        {showList && mode !== 'single' && hasEvents && (
           <BottomSheetFlatList<EventWithCreator>
             data={events}
             keyExtractor={(item: EventWithCreator) => item.id}
@@ -200,8 +227,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
                 friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
                 active={item.id === activeEventId}
-                onPress={() => onOpenDetails(item)}
-                onSelect={() => onSelectEvent(item)}
+                onPress={() => onSelectEvent(item)}
                 onNavigate={() => onNavigate(item)}
                 onOpenCreator={onOpenCreator}
                 onToggleLike={onToggleLike}
@@ -228,7 +254,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    minHeight: 60, // Ensure header height is consistent
+    minHeight: 60,
     justifyContent: 'center',
   },
   headerTitle: {
@@ -240,16 +266,16 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
-  loadingContainer: {
+  refreshRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
-  loadingText: {
-    ...typography.body,
+  refreshText: {
+    ...typography.caption,
     color: colors.brand.textSecondary,
   },
-
   listContent: {
     paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xl,
@@ -263,6 +289,16 @@ const styles = StyleSheet.create({
   peekText: {
     ...typography.body,
     color: colors.brand.text,
+  },
+  peekEmptyContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  peekEmptyText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
   },
   singleContainer: {
     paddingHorizontal: spacing.xs,

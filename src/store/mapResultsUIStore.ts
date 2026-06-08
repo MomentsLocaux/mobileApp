@@ -1,81 +1,72 @@
 import { create } from 'zustand';
 import type { EventWithCreator } from '@/types/database';
 
-type PaddingLevel = 'low' | 'medium' | 'high';
-type SheetStatus = 'browsing' | 'loading' | 'viewportResults' | 'singleEvent';
+export type MapSheetMode = 'viewport' | 'singleEvent';
 
 interface MapResultsUIState {
-  // Maintained state
   bottomSheetIndex: number;
-  bottomBarVisible: boolean;
-  mapPaddingLevel: PaddingLevel;
-
-  // New state machine
-  sheetStatus: SheetStatus;
+  sheetMode: MapSheetMode;
   sheetEvents: EventWithCreator[];
+  viewportEvents: EventWithCreator[];
   visibleEventCount: number;
   activeEventId?: string;
+  isViewportFetching: boolean;
 
-  // Actions
   setBottomSheetIndex: (index: number) => void;
-  showBottomBar: () => void;
-  hideBottomBar: () => void;
-  updateMapPadding: (level: PaddingLevel) => void;
-
-  // New state machine actions
-  setStatus: (status: SheetStatus) => void;
-  displayViewportResults: (events: EventWithCreator[]) => void;
-  selectSingleEvent: (event: EventWithCreator, snapIndex?: number) => void;
-  closeSheet: () => void;
+  setViewportFetching: (fetching: boolean) => void;
+  setViewportResults: (events: EventWithCreator[]) => void;
+  enterSingleEvent: (event: EventWithCreator, snapIndex?: number) => void;
+  exitSingleEvent: () => void;
 }
 
 export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
-  // Maintained state
   bottomSheetIndex: 0,
-  bottomBarVisible: false,
-  mapPaddingLevel: 'low',
-
-  // New state machine
-  sheetStatus: 'browsing',
+  sheetMode: 'viewport',
   sheetEvents: [],
+  viewportEvents: [],
   visibleEventCount: 0,
   activeEventId: undefined,
+  isViewportFetching: false,
 
-  // Actions
   setBottomSheetIndex: (index) => set({ bottomSheetIndex: index }),
-  showBottomBar: () => set({ bottomBarVisible: true }),
-  hideBottomBar: () => set({ bottomBarVisible: false }),
-  updateMapPadding: (level) => set({ mapPaddingLevel: level }),
 
-  // New state machine actions
-  setStatus: (status) => set({ sheetStatus: status }),
-  displayViewportResults: (events) => {
+  setViewportFetching: (fetching) => set({ isViewportFetching: fetching }),
+
+  setViewportResults: (events) => {
     set({
-      sheetStatus: 'viewportResults',
+      sheetMode: 'viewport',
       sheetEvents: events,
+      viewportEvents: events,
       visibleEventCount: events.length,
       activeEventId: undefined,
+      isViewportFetching: false,
     });
   },
-  selectSingleEvent: (event, snapIndex = 1) => {
+
+  enterSingleEvent: (event, snapIndex = 1) => {
+    const { sheetMode, viewportEvents, sheetEvents } = get();
+    const preservedViewport =
+      sheetMode === 'viewport' && sheetEvents.length > 0 ? sheetEvents : viewportEvents;
+
     set({
-      sheetStatus: 'singleEvent',
+      sheetMode: 'singleEvent',
+      viewportEvents: preservedViewport,
       sheetEvents: [event],
       activeEventId: event.id,
       bottomSheetIndex: snapIndex,
-      mapPaddingLevel: snapIndex === 2 ? 'high' : 'medium',
-      bottomBarVisible: true,
     });
   },
-  closeSheet: () => {
-    const { sheetStatus } = get();
-    // Only reset if we are not already browsing.
-    // This prevents wiping the event list if the user just peeks.
-    if (sheetStatus === 'singleEvent') {
-      set({
-        sheetStatus: 'viewportResults', // Go back to viewport, don't clear results
-        activeEventId: undefined,
-      });
-    }
+
+  exitSingleEvent: () => {
+    const { sheetMode, viewportEvents } = get();
+    if (sheetMode !== 'singleEvent') return;
+
+    set({
+      sheetMode: 'viewport',
+      sheetEvents: viewportEvents,
+      visibleEventCount: viewportEvents.length,
+      activeEventId: undefined,
+      bottomSheetIndex: 0,
+    });
   },
 }));

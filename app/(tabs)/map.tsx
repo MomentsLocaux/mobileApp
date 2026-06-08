@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Navigation } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
+import type { MapBoundsMeta } from '../../src/components/map/MapWrapper';
 import { EventsService } from '../../src/services/events.service';
 import { SocialService } from '../../src/services/social.service';
 import { useAuth, useLocation } from '@/hooks';
@@ -34,6 +34,10 @@ import { AppBackground } from '../../src/components/ui';
 
 const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
 const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
+const TAB_BAR_HEIGHT = 76;
+const MAP_CAMERA_PADDING = { top: 20, right: 20, bottom: 120, left: 20 };
+const SINGLE_EVENT_CAMERA_PADDING_BOTTOM = 280;
+const BBOX_DEBOUNCE_MS = 400;
 
 export default function MapScreen() {
   const router = useRouter();
@@ -47,30 +51,23 @@ export default function MapScreen() {
   const {
     bottomSheetIndex,
     setBottomSheetIndex,
-    bottomBarVisible,
-    showBottomBar,
-    hideBottomBar,
-    updateMapPadding,
-    mapPaddingLevel,
-    // New state machine from store
-    sheetStatus,
+    sheetMode,
     sheetEvents,
     visibleEventCount,
     activeEventId,
-    setStatus,
-    displayViewportResults,
-    selectSingleEvent,
-    closeSheet,
+    isViewportFetching,
+    setViewportFetching,
+    setViewportResults,
+    enterSingleEvent,
+    exitSingleEvent,
   } = useMapResultsUIStore();
   const insets = useSafeAreaInsets();
 
   const [navEvent, setNavEvent] = useState<any | null>(null);
   const [zoom, setZoom] = useState(12);
-  const isProgrammaticMoveRef = useRef(false);
   const hasCenteredOnUserRef = useRef(false);
   const mapRef = useRef<MapWrapperHandle>(null);
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
-  const tabTranslate = useSharedValue(0);
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
   const includePast = !!searchState.when.includePast;
   const focusHandledRef = useRef(false);
@@ -78,17 +75,15 @@ export default function MapScreen() {
   const viewportRequestIdRef = useRef(0);
   const markerRequestIdRef = useRef(0);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
+  const lastFocusedEventIdRef = useRef<string | undefined>(undefined);
+  const initialViewportBootstrapDoneRef = useRef(false);
   const searchApplied = searchState.searchApplied;
   const setSearchApplied = searchState.setSearchApplied;
   const commitSearch = searchState.commitSearch;
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
-  const initialViewportBootstrapDoneRef = useRef(false);
 
-  const getPaddingFromIndex = useCallback((idx: number) => {
-    // Keep camera focus above the bottom sheet: previous values were too low for peek mode.
-    return idx === 2 ? 420 : idx === 1 ? 280 : 200;
-  }, []);
+  const sheetBottomInset = TAB_BAR_HEIGHT + insets.bottom;
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -106,25 +101,7 @@ export default function MapScreen() {
     zoom: 12,
   };
 
-  const mapPadding = useMemo(() => {
-    switch (mapPaddingLevel) {
-      case 'high':
-        return { top: 20, right: 20, bottom: 420, left: 20 };
-      case 'medium':
-        return { top: 20, right: 20, bottom: 280, left: 20 };
-      default:
-        return { top: 20, right: 20, bottom: 200, left: 20 };
-    }
-  }, [mapPaddingLevel]);
-
-  const getFitPadding = useCallback(() => {
-    const base = mapPadding?.bottom ?? 0;
-    if (base <= 0) return 20;
-    return Math.min(40, base);
-  }, [mapPadding]);
-
   const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchState), [searchState]);
-
   const searchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
@@ -137,64 +114,63 @@ export default function MapScreen() {
     [searchState.where.location, userLocation]
   );
 
-  const handleBoundsChange = useCallback(
-    (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
-      if (isProgrammaticMoveRef.current && !options?.forceSearchRadius) return;
-      if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
-      const requestId = ++viewportRequestIdRef.current;
+  const cacheEvents = useCallback((events: EventWithCreator[]) => {
+    events.forEach((event) => {
+      eventCacheRef.current.set(event.id, event);
+    });
+  }, []);
 
-      setStatus('browsing');
+  const fetchViewportForBounds = useCallback(
+    async (
+      bounds: { ne: [number, number]; sw: [number, number] },
+      requestId: number
+    ) => {
+      const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
+      const bboxTimeScope = resolveEventTimeScope({
+        metaFilter,
+        searchActive: effectiveSearchActive,
+        includePast,
+      });
+      const effectiveFilters = effectiveSearchActive ? searchFilters : {};
 
-      bboxTimeoutRef.current = setTimeout(async () => {
-        if (requestId !== viewportRequestIdRef.current) return;
-        setStatus('loading');
-        try {
-          const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
-          const bboxTimeScope = resolveEventTimeScope({
-            metaFilter,
-            searchActive: effectiveSearchActive,
-            includePast,
-          });
-          const effectiveFilters = effectiveSearchActive ? searchFilters : {};
+      const featureCollection = await EventsService.listEventsByBBox({
+        ne: bounds.ne,
+        sw: bounds.sw,
+        limit: SEARCH_FETCH_LIMIT,
+        timeScope: bboxTimeScope,
+      });
 
-          const featureCollection = await EventsService.listEventsByBBox({
-            ne: bounds.ne,
-            sw: bounds.sw,
-            limit: SEARCH_FETCH_LIMIT,
-            timeScope: bboxTimeScope,
-          });
+      if (requestId !== viewportRequestIdRef.current) return;
 
-          const ids = featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
-          const uniqueIds = Array.from(new Set(ids)) as string[];
-          const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+      const ids = featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
+      const uniqueIds = Array.from(new Set(ids)) as string[];
+      const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
 
-          const filteredEvents = effectiveSearchActive
-            ? filterEvents(events, effectiveFilters, null)
-            : metaFilter === 'past' || metaFilter === 'upcoming'
-              ? events
-              : filterEvents(events, {}, null);
-          const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
-          const sortedEvents = effectiveSearchActive
-            ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
-            : metaFilteredEvents;
-          const dedupedEvents = Array.from(new Map(sortedEvents.map((event) => [event.id, event])).values());
+      if (requestId !== viewportRequestIdRef.current) return;
 
-          const filteredIds = new Set(dedupedEvents.map((e) => e.id));
-          const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
-            filteredIds.has(f?.properties?.id)
-          );
+      const filteredEvents = effectiveSearchActive
+        ? filterEvents(events, effectiveFilters, null)
+        : metaFilter === 'past' || metaFilter === 'upcoming'
+          ? events
+          : filterEvents(events, {}, null);
+      const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
+      const sortedEvents = effectiveSearchActive
+        ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
+        : metaFilteredEvents;
+      const dedupedEvents = Array.from(new Map(sortedEvents.map((event) => [event.id, event])).values());
 
-          if (requestId !== viewportRequestIdRef.current) return;
-          mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
-          const currentUiState = useMapResultsUIStore.getState();
-          if (currentUiState.sheetStatus === 'singleEvent') return;
-          displayViewportResults(dedupedEvents);
-        } catch (e) {
-          if (requestId !== viewportRequestIdRef.current) return;
-          console.warn('bbox fetch error', e);
-          setStatus('browsing'); // Reset status on error
-        }
-      }, 400); // Increased debounce
+      const filteredIds = new Set(dedupedEvents.map((e) => e.id));
+      const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
+        filteredIds.has(f?.properties?.id)
+      );
+
+      mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
+      cacheEvents(dedupedEvents);
+
+      const currentState = useMapResultsUIStore.getState();
+      if (currentState.sheetMode === 'singleEvent') return;
+
+      setViewportResults(dedupedEvents);
     },
     [
       metaFilter,
@@ -205,31 +181,57 @@ export default function MapScreen() {
       sortBy,
       sortOrder,
       sortCenter,
-      setStatus,
-      displayViewportResults,
-      searchActive,
+      cacheEvents,
+      setViewportResults,
     ]
   );
 
-  const refreshBounds = useCallback(async () => {
-    const bounds = await mapRef.current?.getVisibleBounds?.();
-    if (bounds) {
-      isProgrammaticMoveRef.current = false; // Ensure we can refresh
-      handleBoundsChange(bounds);
-    }
-  }, [handleBoundsChange]);
+  const handleBoundsChange = useCallback(
+    (
+      bounds: { ne: [number, number]; sw: [number, number] },
+      meta: MapBoundsMeta,
+      options?: { force?: boolean }
+    ) => {
+      if (meta.source === 'programmatic' && !options?.force) return;
+
+      if (meta.source === 'user') {
+        exitSingleEvent();
+      }
+
+      if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
+      const requestId = ++viewportRequestIdRef.current;
+      setViewportFetching(true);
+
+      bboxTimeoutRef.current = setTimeout(async () => {
+        if (requestId !== viewportRequestIdRef.current) return;
+        try {
+          await fetchViewportForBounds(bounds, requestId);
+        } catch (e) {
+          if (requestId !== viewportRequestIdRef.current) return;
+          console.warn('bbox fetch error', e);
+          setViewportFetching(false);
+        }
+      }, BBOX_DEBOUNCE_MS);
+    },
+    [exitSingleEvent, fetchViewportForBounds, setViewportFetching]
+  );
+
+  const refreshBounds = useCallback(
+    async (options?: { force?: boolean }) => {
+      const bounds = await mapRef.current?.getVisibleBounds?.();
+      if (bounds) {
+        handleBoundsChange(bounds, { source: 'programmatic' }, { force: true });
+      }
+    },
+    [handleBoundsChange]
+  );
 
   useFocusEffect(
     useCallback(() => {
-      if (!searchApplied || !hasSearchCriteria) {
-        setBottomSheetIndex(0);
-        hideBottomBar();
-        setStatus('browsing');
-      }
       if (searchApplied && hasSearchCriteria) {
-        refreshBounds();
+        refreshBounds({ force: true });
       }
-    }, [hasSearchCriteria, hideBottomBar, refreshBounds, searchApplied, setBottomSheetIndex, setStatus])
+    }, [hasSearchCriteria, refreshBounds, searchApplied])
   );
 
   useEffect(() => {
@@ -247,8 +249,7 @@ export default function MapScreen() {
 
       if (bounds) {
         initialViewportBootstrapDoneRef.current = true;
-        isProgrammaticMoveRef.current = false;
-        handleBoundsChange(bounds, { forceSearchRadius: true });
+        handleBoundsChange(bounds, { source: 'programmatic' }, { force: true });
         return;
       }
 
@@ -266,36 +267,25 @@ export default function MapScreen() {
     };
   }, [handleBoundsChange, locationLoading, userLocation]);
 
-  const withProgrammaticMove = useCallback((moveFn: () => void, duration = 450) => {
-    isProgrammaticMoveRef.current = true;
-    moveFn();
-    setTimeout(() => {
-      isProgrammaticMoveRef.current = false;
-    }, duration);
+  const fitToRadius = useCallback((latitude: number, longitude: number, radiusKm: number) => {
+    const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
+    const coords = [
+      { latitude: bounds.sw[1], longitude: bounds.sw[0] },
+      { latitude: bounds.ne[1], longitude: bounds.ne[0] },
+    ];
+    mapRef.current?.fitToCoordinates(coords, 40);
+    return bounds;
   }, []);
-
-  const fitToRadius = useCallback(
-    (latitude: number, longitude: number, radiusKm: number) => {
-      const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
-      const coords = [
-        { latitude: bounds.sw[1], longitude: bounds.sw[0] },
-        { latitude: bounds.ne[1], longitude: bounds.ne[0] },
-      ];
-      const fitPadding = getFitPadding();
-      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, fitPadding));
-      return bounds;
-    },
-    [getFitPadding, withProgrammaticMove]
-  );
 
   const applySearch = useCallback(() => {
     setMetaFilter('all');
     commitSearch();
-    setStatus('loading');
+    setViewportFetching(true);
+
     const location = searchState.where.location;
     const effectiveRadius = resolveEffectiveRadiusKm(searchState.where, userLocation) ?? 10;
 
-    const moveAction = () => {
+    const bounds = (() => {
       if (location) {
         return fitToRadius(location.latitude, location.longitude, effectiveRadius);
       }
@@ -303,21 +293,24 @@ export default function MapScreen() {
         return fitToRadius(userLocation.latitude, userLocation.longitude, effectiveRadius);
       }
       return null;
-    };
+    })();
 
-    withProgrammaticMove(() => {
-      const bounds = moveAction();
-      setTimeout(() => {
-        if (bounds) {
-          isProgrammaticMoveRef.current = false;
-          handleBoundsChange(bounds, { forceSearchRadius: true });
-        } else {
-          refreshBounds();
-        }
-      }, 650); // After map move settles
-    }, 600);
-
-  }, [commitSearch, fitToRadius, refreshBounds, searchState.where, userLocation, setStatus, withProgrammaticMove, handleBoundsChange]);
+    setTimeout(() => {
+      if (bounds) {
+        handleBoundsChange(bounds, { source: 'programmatic' }, { force: true });
+      } else {
+        refreshBounds({ force: true });
+      }
+    }, 500);
+  }, [
+    commitSearch,
+    fitToRadius,
+    handleBoundsChange,
+    refreshBounds,
+    searchState.where,
+    setViewportFetching,
+    userLocation,
+  ]);
 
   const handleFeaturePress = useCallback(
     async (id: string) => {
@@ -327,28 +320,24 @@ export default function MapScreen() {
         clearTimeout(bboxTimeoutRef.current);
         bboxTimeoutRef.current = null;
       }
-      setStatus('loading');
+      setViewportFetching(false);
+
       try {
         const evt = eventCacheRef.current.has(id)
           ? eventCacheRef.current.get(id)!
           : await EventsService.getEventById(id);
 
         if (requestId !== markerRequestIdRef.current) return;
-        if (evt) {
-          if (!eventCacheRef.current.has(id)) {
-            eventCacheRef.current.set(id, evt);
-          }
-          selectSingleEvent(evt, 1);
-        } else {
-          setStatus('browsing');
-        }
+        if (!evt) return;
+
+        eventCacheRef.current.set(id, evt);
+        enterSingleEvent(evt, 1);
       } catch (e) {
         if (requestId !== markerRequestIdRef.current) return;
         console.warn('getEventById error', e);
-        setStatus('browsing');
       }
     },
-    [selectSingleEvent, setStatus]
+    [enterSingleEvent, setViewportFetching]
   );
 
   useEffect(() => {
@@ -361,36 +350,34 @@ export default function MapScreen() {
     };
   }, []);
 
-  const focusOnEvent = useCallback(
-    (event: EventWithCreator, snapIndex: number) => {
-      if (!event || typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
-      const paddingBottom = getPaddingFromIndex(snapIndex);
-      const targetZoom = Math.max(zoom, 14); // Zoom in closer
-      withProgrammaticMove(() => {
-        mapRef.current?.focusOnCoordinate({
-          longitude: event.longitude,
-          latitude: event.latitude,
-          zoom: targetZoom,
-          paddingBottom,
-        });
-      });
-    },
-    [getPaddingFromIndex, zoom, withProgrammaticMove]
-  );
-
-  // Effect to handle side-effects of state changes
   useEffect(() => {
-    if (sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
-      const targetIndex = bottomSheetIndex > 0 ? bottomSheetIndex : 1;
-      if (bottomSheetIndex === 0) {
-        setBottomSheetIndex(targetIndex);
+    if (sheetMode !== 'singleEvent' || !activeEventId || sheetEvents.length === 0) {
+      if (sheetMode !== 'singleEvent') {
+        lastFocusedEventIdRef.current = undefined;
       }
-      focusOnEvent(sheetEvents[0], targetIndex);
-      resultsSheetRef.current?.open?.(targetIndex);
+      return;
     }
-  }, [sheetStatus, activeEventId, focusOnEvent, bottomSheetIndex, sheetEvents, setBottomSheetIndex]); // Re-run when activeEventId changes
+    if (lastFocusedEventIdRef.current === activeEventId) return;
+    lastFocusedEventIdRef.current = activeEventId;
 
-  // Handle deep-linked event focus
+    const event = sheetEvents[0];
+    const targetIndex = bottomSheetIndex > 0 ? bottomSheetIndex : 1;
+    if (bottomSheetIndex === 0) {
+      setBottomSheetIndex(targetIndex);
+    }
+
+    if (typeof event.longitude === 'number' && typeof event.latitude === 'number') {
+      mapRef.current?.focusOnCoordinate({
+        longitude: event.longitude,
+        latitude: event.latitude,
+        zoom: Math.max(zoom, 14),
+        paddingBottom: SINGLE_EVENT_CAMERA_PADDING_BOTTOM,
+      });
+    }
+
+    resultsSheetRef.current?.open?.(targetIndex);
+  }, [sheetMode, activeEventId, bottomSheetIndex, sheetEvents, setBottomSheetIndex, zoom]);
+
   useEffect(() => {
     if (focus && !focusHandledRef.current) {
       focusHandledRef.current = true;
@@ -413,17 +400,14 @@ export default function MapScreen() {
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
       setSearchApplied(false);
-      refreshBounds();
+      refreshBounds({ force: true });
     }
   }, [hasSearchCriteria, searchApplied, refreshBounds, setSearchApplied]);
 
   useEffect(() => {
-    tabTranslate.value = withTiming(bottomBarVisible ? 0 : 80, { duration: 220 });
-  }, [bottomBarVisible, tabTranslate]);
-
-  const tabAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: tabTranslate.value }],
-  }));
+    if (!initialViewportBootstrapDoneRef.current) return;
+    refreshBounds({ force: true });
+  }, [metaFilter, sortBy, sortOrder, refreshBounds]);
 
   const mapStyle = useMemo(() => {
     return mapMode === 'satellite' ? Mapbox.StyleURL.SatelliteStreet : Mapbox.StyleURL.Street;
@@ -482,7 +466,7 @@ export default function MapScreen() {
         onFeaturePress={handleFeaturePress}
         onZoomChange={setZoom}
         styleURL={mapStyle}
-        mapPadding={mapPadding}
+        mapPadding={MAP_CAMERA_PADDING}
         onVisibleBoundsChange={handleBoundsChange}
       />
 
@@ -510,7 +494,6 @@ export default function MapScreen() {
                   if (item.key !== 'all') {
                     setSearchApplied(false);
                   }
-                  refreshBounds();
                 }}
               >
                 <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
@@ -549,7 +532,7 @@ export default function MapScreen() {
 
       {userLocation && !searchExpanded && (
         <TouchableOpacity
-          style={[styles.recenterTopButton, { bottom: insets.bottom + 16 }]}
+          style={[styles.recenterTopButton, { bottom: sheetBottomInset + spacing.md }]}
           onPress={recenterToUser}
         >
           <Navigation size={18} color={colors.neutral[0]} />
@@ -561,7 +544,7 @@ export default function MapScreen() {
         events={sheetEvents}
         currentUserId={profile?.id}
         activeEventId={activeEventId}
-        onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
+        onSelectEvent={(event) => enterSingleEvent(event, bottomSheetIndex > 0 ? bottomSheetIndex : 1)}
         onNavigate={(event) => setNavEvent(event)}
         onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
         onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
@@ -572,32 +555,16 @@ export default function MapScreen() {
         onIndexChange={(idx) => {
           if (idx < 0) return;
           setBottomSheetIndex(idx);
-          // UX: opening/expanding viewport sheet must not shift map/bbox.
-          // Keep map padding stable in viewport mode; only adapt in single-event focus mode.
-          if (idx <= 0) {
-            updateMapPadding('low');
-          } else if (sheetStatus === 'singleEvent') {
-            const paddingLevel = idx === 2 ? 'high' : 'medium';
-            updateMapPadding(paddingLevel);
-          } else {
-            updateMapPadding('low');
-          }
-
-          if (idx <= 0) {
-            hideBottomBar();
-            closeSheet();
-          } else {
-            showBottomBar();
-          }
-
-          if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
-            focusOnEvent(sheetEvents[0], idx);
+          if (idx === 0 && sheetMode === 'singleEvent') {
+            exitSingleEvent();
           }
         }}
-        mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
-        peekCount={sheetStatus === 'singleEvent' ? 0 : visibleEventCount}
+        mode={sheetMode === 'singleEvent' ? 'single' : 'viewport'}
+        peekCount={sheetMode === 'singleEvent' ? 0 : visibleEventCount}
+        metaFilter={metaFilter}
         index={bottomSheetIndex}
-        isLoading={sheetStatus === 'loading'}
+        isRefreshing={isViewportFetching}
+        bottomInset={sheetBottomInset}
       />
 
       <NavigationOptionsSheet
@@ -605,8 +572,6 @@ export default function MapScreen() {
         event={navEvent}
         onClose={() => setNavEvent(null)}
       />
-
-      <Animated.View style={[styles.tabSpacer, tabAnimatedStyle]} />
     </GestureHandlerRootView>
   );
 }
@@ -623,24 +588,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     gap: spacing.sm,
   },
-  fallback: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
   fallbackText: {
     marginTop: spacing.md,
     textAlign: 'center',
     color: colors.brand.textSecondary,
     fontSize: 16,
     fontWeight: '600',
-  },
-  fallbackSubtext: {
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    color: colors.brand.textSecondary,
-    fontSize: 14,
   },
   topOverlay: {
     position: 'absolute',
@@ -693,9 +646,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
     elevation: 4,
-  },
-  tabSpacer: {
-    height: spacing.lg,
   },
   layerSwitcher: {
     flexDirection: 'row',
