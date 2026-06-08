@@ -65,6 +65,7 @@ interface MapWrapperProps {
   onFeaturePress: (featureId: string) => void;
   onZoomChange?: (zoom: number) => void;
   onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
+  onMapReady?: () => void;
   children?: React.ReactNode;
   styleURL?: string;
   mapPadding?: { top: number; right: number; bottom: number; left: number };
@@ -81,6 +82,7 @@ export type MapWrapperHandle = {
     zoom?: number;
     paddingBottom?: number;
   }) => void;
+  clearBoundsCache: () => void;
 };
 
 export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
@@ -91,6 +93,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onFeaturePress,
       onZoomChange,
       onVisibleBoundsChange,
+      onMapReady,
       children,
       styleURL,
       mapPadding,
@@ -245,6 +248,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           animationDuration: 300,
         });
       },
+      clearBoundsCache: () => {
+        lastBoundsRef.current = null;
+      },
     }),
     [initialRegion.zoom]
   );
@@ -305,7 +311,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         ref={mapViewRef}
         style={styles.map}
         styleURL={styleURL || Mapbox.StyleURL.Street}
-        onCameraChanged={emitVisibleBounds}
+        onDidFinishLoadingMap={() => {
+          onMapReady?.();
+        }}
         onMapIdle={async (event) => {
           const zoomLevel = (event.properties as any)?.zoomLevel ?? (event.properties as any)?.zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {

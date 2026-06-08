@@ -186,11 +186,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {!showList && (peekCount > 0 || isLoading) && (
+        {!showList && (
           <TouchableOpacity
             style={styles.peekContainer}
             activeOpacity={0.8}
-            disabled={isLoading}
+            disabled={isLoading || peekCount === 0}
             onPress={() => {
               sheetRef.current?.snapToIndex(1);
             }}
@@ -198,7 +198,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             <Text style={styles.peekText}>
               {isLoading
                 ? 'Chargement des moments...'
-                : `Voir ${peekCount} moment${peekCount > 1 ? 's' : ''}`}
+                : peekCount > 0
+                  ? `Voir ${peekCount} moment${peekCount > 1 ? 's' : ''}`
+                  : 'Aucun moment dans cette zone'}
             </Text>
           </TouchableOpacity>
         )}

@@ -83,7 +83,10 @@ export default function MapScreen() {
   const commitSearch = searchState.commitSearch;
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
-  const initialViewportBootstrapDoneRef = useRef(false);
+  const initialViewportLoadInFlightRef = useRef(false);
+  const singleEventFocusIdRef = useRef<string | null>(null);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   const getPaddingFromIndex = useCallback((idx: number) => {
     // Keep camera focus above the bottom sheet: previous values were too low for peek mode.
@@ -137,64 +140,60 @@ export default function MapScreen() {
     [searchState.where.location, userLocation]
   );
 
-  const handleBoundsChange = useCallback(
-    (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
-      if (isProgrammaticMoveRef.current && !options?.forceSearchRadius) return;
-      if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
-      const requestId = ++viewportRequestIdRef.current;
+  const runViewportFetch = useCallback(
+    async (bounds: { ne: [number, number]; sw: [number, number] }, requestId: number) => {
+      if (requestId !== viewportRequestIdRef.current) return;
+      setStatus('loading');
+      try {
+        const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
+        const bboxTimeScope = resolveEventTimeScope({
+          metaFilter,
+          searchActive: effectiveSearchActive,
+          includePast,
+        });
+        const effectiveFilters = effectiveSearchActive ? searchFilters : {};
 
-      setStatus('browsing');
+        const featureCollection = await EventsService.listEventsByBBox({
+          ne: bounds.ne,
+          sw: bounds.sw,
+          limit: SEARCH_FETCH_LIMIT,
+          timeScope: bboxTimeScope,
+        });
 
-      bboxTimeoutRef.current = setTimeout(async () => {
         if (requestId !== viewportRequestIdRef.current) return;
-        setStatus('loading');
-        try {
-          const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
-          const bboxTimeScope = resolveEventTimeScope({
-            metaFilter,
-            searchActive: effectiveSearchActive,
-            includePast,
-          });
-          const effectiveFilters = effectiveSearchActive ? searchFilters : {};
 
-          const featureCollection = await EventsService.listEventsByBBox({
-            ne: bounds.ne,
-            sw: bounds.sw,
-            limit: SEARCH_FETCH_LIMIT,
-            timeScope: bboxTimeScope,
-          });
+        const ids = featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
+        const uniqueIds = Array.from(new Set(ids)) as string[];
+        const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
 
-          const ids = featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
-          const uniqueIds = Array.from(new Set(ids)) as string[];
-          const events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+        if (requestId !== viewportRequestIdRef.current) return;
 
-          const filteredEvents = effectiveSearchActive
-            ? filterEvents(events, effectiveFilters, null)
-            : metaFilter === 'all' || metaFilter === 'past' || metaFilter === 'upcoming'
-              ? events
-              : filterEvents(events, {}, null);
-          const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
-          const sortedEvents = effectiveSearchActive
-            ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
-            : metaFilteredEvents;
-          const dedupedEvents = Array.from(new Map(sortedEvents.map((event) => [event.id, event])).values());
+        const filteredEvents = effectiveSearchActive
+          ? filterEvents(events, effectiveFilters, null)
+          : metaFilter === 'all' || metaFilter === 'past' || metaFilter === 'upcoming'
+            ? events
+            : filterEvents(events, {}, null);
+        const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
+        const sortedEvents = effectiveSearchActive
+          ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
+          : metaFilteredEvents;
+        const dedupedEvents = Array.from(new Map(sortedEvents.map((event) => [event.id, event])).values());
 
-          const filteredIds = new Set(dedupedEvents.map((e) => e.id));
-          const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
-            filteredIds.has(f?.properties?.id)
-          );
+        const filteredIds = new Set(dedupedEvents.map((e) => e.id));
+        const filteredFeatures = (featureCollection?.features || []).filter((f: any) =>
+          filteredIds.has(f?.properties?.id)
+        );
 
-          if (requestId !== viewportRequestIdRef.current) return;
-          mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
-          const currentUiState = useMapResultsUIStore.getState();
-          if (currentUiState.sheetStatus === 'singleEvent') return;
-          displayViewportResults(dedupedEvents);
-        } catch (e) {
-          if (requestId !== viewportRequestIdRef.current) return;
-          console.warn('bbox fetch error', e);
-          setStatus('browsing'); // Reset status on error
-        }
-      }, 400); // Increased debounce
+        if (requestId !== viewportRequestIdRef.current) return;
+        mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
+        const currentUiState = useMapResultsUIStore.getState();
+        if (currentUiState.sheetStatus === 'singleEvent') return;
+        displayViewportResults(dedupedEvents);
+      } catch (e) {
+        if (requestId !== viewportRequestIdRef.current) return;
+        console.warn('bbox fetch error', e);
+        setStatus('browsing');
+      }
     },
     [
       metaFilter,
@@ -207,17 +206,67 @@ export default function MapScreen() {
       sortCenter,
       setStatus,
       displayViewportResults,
-      searchActive,
     ]
   );
+
+  const queueViewportFetch = useCallback(
+    (
+      bounds: { ne: [number, number]; sw: [number, number] },
+      options?: { immediate?: boolean; force?: boolean }
+    ) => {
+      if (isProgrammaticMoveRef.current && !options?.force) return;
+      if (bboxTimeoutRef.current) clearTimeout(bboxTimeoutRef.current);
+      const requestId = ++viewportRequestIdRef.current;
+      setStatus('browsing');
+
+      const execute = () => {
+        void runViewportFetch(bounds, requestId);
+      };
+
+      if (options?.immediate) {
+        execute();
+        return;
+      }
+
+      bboxTimeoutRef.current = setTimeout(execute, 300);
+    },
+    [runViewportFetch, setStatus]
+  );
+
+  const handleBoundsChange = useCallback(
+    (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
+      queueViewportFetch(bounds, { force: options?.forceSearchRadius });
+    },
+    [queueViewportFetch]
+  );
+
+  const ensureInitialViewportLoad = useCallback(async () => {
+    if (initialViewportLoadInFlightRef.current) return;
+    initialViewportLoadInFlightRef.current = true;
+
+    try {
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 500 : 350));
+        isProgrammaticMoveRef.current = false;
+        mapRef.current?.clearBoundsCache?.();
+        const bounds = await mapRef.current?.getVisibleBounds?.();
+        if (!bounds) continue;
+        queueViewportFetch(bounds, { immediate: true, force: true });
+        return;
+      }
+    } finally {
+      initialViewportLoadInFlightRef.current = false;
+    }
+  }, [queueViewportFetch]);
 
   const refreshBounds = useCallback(async () => {
     const bounds = await mapRef.current?.getVisibleBounds?.();
     if (bounds) {
-      isProgrammaticMoveRef.current = false; // Ensure we can refresh
-      handleBoundsChange(bounds);
+      isProgrammaticMoveRef.current = false;
+      mapRef.current?.clearBoundsCache?.();
+      queueViewportFetch(bounds, { immediate: true, force: true });
     }
-  }, [handleBoundsChange]);
+  }, [queueViewportFetch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -232,18 +281,12 @@ export default function MapScreen() {
       }
       const { visibleEventCount: count, sheetStatus } = useMapResultsUIStore.getState();
       if (count === 0 && sheetStatus !== 'singleEvent') {
-        isProgrammaticMoveRef.current = false;
-        void (async () => {
-          const bounds = await mapRef.current?.getVisibleBounds?.();
-          if (bounds) {
-            handleBoundsChange(bounds, { forceSearchRadius: true });
-          }
-        })();
+        void ensureInitialViewportLoad();
       }
     }, [
+      ensureInitialViewportLoad,
       hasSearchCriteria,
       hideBottomBar,
-      handleBoundsChange,
       refreshBounds,
       searchApplied,
       setBottomSheetIndex,
@@ -251,60 +294,25 @@ export default function MapScreen() {
     ])
   );
 
-  const loadViewportAfterCameraSettles = useCallback(
-    async (delayMs = 750) => {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      isProgrammaticMoveRef.current = false;
-      const bounds = await mapRef.current?.getVisibleBounds?.();
-      if (!bounds || initialViewportBootstrapDoneRef.current) return;
-      initialViewportBootstrapDoneRef.current = true;
-      handleBoundsChange(bounds, { forceSearchRadius: true });
-    },
-    [handleBoundsChange]
-  );
-
-  // Fallback zone (Fontoy) when no user GPS — load once map is ready.
-  useEffect(() => {
-    if (locationLoading || userLocation || initialViewportBootstrapDoneRef.current) return;
-
-    let cancelled = false;
-    let attempts = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const run = async () => {
-      if (cancelled || initialViewportBootstrapDoneRef.current) return;
-
-      const bounds = await mapRef.current?.getVisibleBounds?.();
-      if (cancelled || initialViewportBootstrapDoneRef.current) return;
-
-      if (bounds) {
-        initialViewportBootstrapDoneRef.current = true;
+  const withProgrammaticMove = useCallback(
+    (moveFn: () => void, duration = 650, options?: { refreshAfter?: boolean }) => {
+      isProgrammaticMoveRef.current = true;
+      moveFn();
+      setTimeout(() => {
         isProgrammaticMoveRef.current = false;
-        handleBoundsChange(bounds, { forceSearchRadius: true });
-        return;
-      }
-
-      attempts += 1;
-      if (attempts < 8) {
-        timer = setTimeout(run, 350);
-      }
-    };
-
-    timer = setTimeout(run, 400);
-
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [handleBoundsChange, locationLoading, userLocation]);
-
-  const withProgrammaticMove = useCallback((moveFn: () => void, duration = 450) => {
-    isProgrammaticMoveRef.current = true;
-    moveFn();
-    setTimeout(() => {
-      isProgrammaticMoveRef.current = false;
-    }, duration);
-  }, []);
+        mapRef.current?.clearBoundsCache?.();
+        if (options?.refreshAfter !== false) {
+          void (async () => {
+            const bounds = await mapRef.current?.getVisibleBounds?.();
+            if (bounds) {
+              queueViewportFetch(bounds, { immediate: true, force: true });
+            }
+          })();
+        }
+      }, duration);
+    },
+    [queueViewportFetch]
+  );
 
   const fitToRadius = useCallback(
     (latitude: number, longitude: number, radiusKm: number) => {
@@ -394,33 +402,42 @@ export default function MapScreen() {
   }, []);
 
   const focusOnEvent = useCallback(
-    (event: EventWithCreator, snapIndex: number) => {
+    (event: EventWithCreator, snapIndex: number, options?: { bumpZoom?: boolean }) => {
       if (!event || typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
       const paddingBottom = getPaddingFromIndex(snapIndex);
-      const targetZoom = Math.max(zoom, 14); // Zoom in closer
-      withProgrammaticMove(() => {
-        mapRef.current?.focusOnCoordinate({
-          longitude: event.longitude,
-          latitude: event.latitude,
-          zoom: targetZoom,
-          paddingBottom,
-        });
-      });
+      const targetZoom = options?.bumpZoom === false ? zoomRef.current : Math.max(zoomRef.current, 14);
+      withProgrammaticMove(
+        () => {
+          mapRef.current?.focusOnCoordinate({
+            longitude: event.longitude,
+            latitude: event.latitude,
+            zoom: targetZoom,
+            paddingBottom,
+          });
+        },
+        400,
+        { refreshAfter: false }
+      );
     },
-    [getPaddingFromIndex, zoom, withProgrammaticMove]
+    [getPaddingFromIndex, withProgrammaticMove]
   );
 
-  // Effect to handle side-effects of state changes
   useEffect(() => {
-    if (sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
-      const targetIndex = bottomSheetIndex > 0 ? bottomSheetIndex : 1;
-      if (bottomSheetIndex === 0) {
-        setBottomSheetIndex(targetIndex);
+    if (sheetStatus !== 'singleEvent' || !activeEventId || sheetEvents.length === 0) {
+      if (sheetStatus !== 'singleEvent') {
+        singleEventFocusIdRef.current = null;
       }
-      focusOnEvent(sheetEvents[0], targetIndex);
-      resultsSheetRef.current?.open?.(targetIndex);
+      return;
     }
-  }, [sheetStatus, activeEventId, focusOnEvent, bottomSheetIndex, sheetEvents, setBottomSheetIndex]); // Re-run when activeEventId changes
+
+    if (singleEventFocusIdRef.current === activeEventId) return;
+    singleEventFocusIdRef.current = activeEventId;
+
+    const targetIndex = 1;
+    setBottomSheetIndex(targetIndex);
+    focusOnEvent(sheetEvents[0], targetIndex, { bumpZoom: true });
+    resultsSheetRef.current?.open?.(targetIndex);
+  }, [sheetStatus, activeEventId, sheetEvents, focusOnEvent, setBottomSheetIndex]);
 
   // Handle deep-linked event focus
   useEffect(() => {
@@ -436,11 +453,17 @@ export default function MapScreen() {
   }, [fitToRadius, userLocation]);
 
   useEffect(() => {
-    if (!userLocation || hasCenteredOnUserRef.current) return;
-    hasCenteredOnUserRef.current = true;
-    recenterToUser();
-    void loadViewportAfterCameraSettles(800);
-  }, [loadViewportAfterCameraSettles, recenterToUser, userLocation]);
+    if (locationLoading) return;
+    if (userLocation && !hasCenteredOnUserRef.current) {
+      hasCenteredOnUserRef.current = true;
+      recenterToUser();
+    }
+    void ensureInitialViewportLoad();
+  }, [ensureInitialViewportLoad, locationLoading, recenterToUser, userLocation]);
+
+  const handleMapReady = useCallback(() => {
+    void ensureInitialViewportLoad();
+  }, [ensureInitialViewportLoad]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -516,6 +539,7 @@ export default function MapScreen() {
         styleURL={mapStyle}
         mapPadding={mapPadding}
         onVisibleBoundsChange={handleBoundsChange}
+        onMapReady={handleMapReady}
       />
 
       <View style={[styles.topOverlay, { top: insets.top + spacing.xs }]}>
@@ -623,7 +647,7 @@ export default function MapScreen() {
           }
 
           if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
-            focusOnEvent(sheetEvents[0], idx);
+            focusOnEvent(sheetEvents[0], idx, { bumpZoom: false });
           }
         }}
         mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
