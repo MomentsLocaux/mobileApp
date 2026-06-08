@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
   ImageBackground,
   Dimensions,
 } from 'react-native';
@@ -16,7 +17,6 @@ import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
 import { AuthService } from '@/services/auth.service';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Input, Button } from '../../components/ui';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
@@ -118,11 +118,13 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <ImageBackground
-        source={{ uri: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2940&auto=format&fit=crop' }}
+        source={require('../../../assets/images/welcome-background.png')}
         style={styles.backgroundImage}
+        resizeMode="cover"
       >
         <LinearGradient
-          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+          colors={['rgba(15,23,25,0.25)', 'rgba(15,23,25,0.55)', 'rgba(15,23,25,0.92)']}
+          locations={[0, 0.45, 1]}
           style={styles.gradient}
         >
           <KeyboardAvoidingView
@@ -136,9 +138,11 @@ export default function LoginScreen() {
             >
               <View style={styles.contentContainer}>
                 <View style={styles.logoContainer}>
-                  <View style={styles.iconCircle}>
-                    <Ionicons name="flash" size={32} color="#fff" />
-                  </View>
+                  <Image
+                    source={require('../../../assets/images/icon.png')}
+                    style={styles.appIcon}
+                    accessibilityLabel="Logo Moments Locaux"
+                  />
                   <Text style={styles.appName}>Moments Locaux</Text>
                   <Text style={styles.tagline}>Vivez l'instant présent</Text>
                 </View>
@@ -259,16 +263,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xl * 2,
   },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  appIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 18,
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    shadowColor: '#2bbfe3',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 6,
   },
   appName: {
     ...typography.h1,
