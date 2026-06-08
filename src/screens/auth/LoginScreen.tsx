@@ -19,12 +19,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Input, Button } from '../../components/ui';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
+import type { SocialProvider } from '@/services/oauth.service';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, isLoading, session } = useAuth();
+  const { signIn, signInWithProvider, isLoading, session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -62,6 +64,15 @@ export default function LoginScreen() {
     setShowForm(false);
     router.replace('/(tabs)/map');
     return true;
+  };
+
+  const handleSocialLogin = async (provider: SocialProvider) => {
+    const response = await signInWithProvider(provider);
+    if (!response?.success) {
+      Alert.alert('Erreur', response?.error || 'Connexion impossible');
+      return;
+    }
+    router.replace('/(tabs)/map');
   };
 
   const handleLogin = async () => {
@@ -188,6 +199,11 @@ export default function LoginScreen() {
                       <Text style={styles.secondaryButtonText}>Utiliser un mot de passe</Text>
                     </TouchableOpacity>
                   )}
+
+                  <SocialLoginButtons
+                    onProviderPress={handleSocialLogin}
+                    disabled={isLoading || biometricLoading}
+                  />
 
                   <TouchableOpacity
                     onPress={() => router.replace('/(tabs)/map')}

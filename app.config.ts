@@ -39,6 +39,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: 'com.momentslocs.app',
     buildNumber: IOS_BUILD_NUMBER,
+    usesAppleSignIn: true,
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.',
@@ -78,6 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-web-browser',
     '@rnmapbox/maps',
     'expo-notifications',
+    'expo-apple-authentication',
   ],
   experiments: {
     typedRoutes: true,

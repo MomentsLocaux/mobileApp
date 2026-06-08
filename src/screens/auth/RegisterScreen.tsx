@@ -12,12 +12,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
+import type { SocialProvider } from '@/services/oauth.service';
 import { colors, spacing, typography } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { signUp, isLoading } = useAuth();
+  const { signUp, signInWithProvider, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -59,6 +61,23 @@ export default function RegisterScreen() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSocialRegister = async (provider: SocialProvider) => {
+    if (!legalAccepted) {
+      Alert.alert(
+        'Consentement requis',
+        'Veuillez accepter les CGU et la politique de confidentialité avant de continuer.',
+      );
+      return;
+    }
+
+    const response = await signInWithProvider(provider);
+    if (!response?.success) {
+      Alert.alert('Erreur', response?.error || 'Connexion impossible');
+      return;
+    }
+    router.replace('/(tabs)/map');
   };
 
   const handleRegister = async () => {
@@ -177,6 +196,8 @@ export default function RegisterScreen() {
             fullWidth
             style={styles.registerButton}
           />
+
+          <SocialLoginButtons onProviderPress={handleSocialRegister} disabled={isLoading} />
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Déjà un compte ? </Text>
