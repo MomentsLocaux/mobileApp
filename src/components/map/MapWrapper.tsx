@@ -24,12 +24,7 @@ type CategoryMarkerVisual = {
   Icon: LucideIcon;
 };
 
-export type MapBoundsMeta = {
-  source: 'user' | 'programmatic';
-};
-
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
-const PROGRAMMATIC_MOVE_MS = 400;
 
 const normalizeEventIconKey = (feature: Feature): string => {
   const rawIcon = (feature.properties as Record<string, unknown> | null)?.icon;
@@ -69,11 +64,7 @@ interface MapWrapperProps {
   userLocation?: { latitude: number; longitude: number } | null;
   onFeaturePress: (featureId: string) => void;
   onZoomChange?: (zoom: number) => void;
-  onVisibleBoundsChange?: (
-    bounds: { ne: [number, number]; sw: [number, number] },
-    meta: MapBoundsMeta
-  ) => void;
-  onProgrammaticMoveEnd?: () => void;
+  onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   children?: React.ReactNode;
   styleURL?: string;
   mapPadding?: { top: number; right: number; bottom: number; left: number };
@@ -100,7 +91,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onFeaturePress,
       onZoomChange,
       onVisibleBoundsChange,
-      onProgrammaticMoveEnd,
       children,
       styleURL,
       mapPadding,
@@ -113,16 +103,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const shapeSourceRefs = useRef<Record<string, any>>({});
   const cameraRef = useRef<Mapbox.Camera>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
-  const programmaticMoveDepthRef = useRef(0);
-  const programmaticMoveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
-
-  const beginProgrammaticMove = useCallback(() => {
-    programmaticMoveDepthRef.current += 1;
-    if (programmaticMoveTimerRef.current) {
-      clearTimeout(programmaticMoveTimerRef.current);
-    }
-  }, []);
 
   const toCameraPadding = (padding?: { top: number; right: number; bottom: number; left: number }) => {
     if (!padding) return undefined;
@@ -150,32 +131,13 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         const next = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
         if (hasBoundsChanged(next)) {
           lastBoundsRef.current = next;
-          onVisibleBoundsChange?.(next, {
-            source: programmaticMoveDepthRef.current > 0 ? 'programmatic' : 'user',
-          });
+          onVisibleBoundsChange?.(next);
         }
       }
     } catch (e) {
       console.warn('getVisibleBounds failed', e);
     }
   }, [onVisibleBoundsChange]);
-
-  const endProgrammaticMove = useCallback(
-    (duration = PROGRAMMATIC_MOVE_MS) => {
-      if (programmaticMoveTimerRef.current) {
-        clearTimeout(programmaticMoveTimerRef.current);
-      }
-      programmaticMoveTimerRef.current = setTimeout(async () => {
-        programmaticMoveDepthRef.current = Math.max(0, programmaticMoveDepthRef.current - 1);
-        programmaticMoveTimerRef.current = null;
-        if (programmaticMoveDepthRef.current === 0) {
-          onProgrammaticMoveEnd?.();
-          await emitVisibleBounds();
-        }
-      }, duration);
-    },
-    [emitVisibleBounds, onProgrammaticMoveEnd]
-  );
 
   const categoryMarkerVisuals = useMemo(() => {
     const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;
@@ -225,13 +187,11 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     ref,
     () => ({
       recenter: ({ longitude, latitude, zoom: zoomLevel }) => {
-        beginProgrammaticMove();
         cameraRef.current?.setCamera({
           centerCoordinate: [longitude, latitude],
           zoomLevel: zoomLevel ?? initialRegion.zoom,
           animationDuration: 300,
         });
-        endProgrammaticMove(350);
       },
       setShape: (fc: FeatureCollection) => {
         const nextShape = fc?.type === 'FeatureCollection' ? fc : EMPTY_FEATURE_COLLECTION;
@@ -239,7 +199,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       },
       fitToCoordinates: (coords, padding = 40) => {
         if (!coords || coords.length === 0) return;
-        beginProgrammaticMove();
         if (coords.length === 1) {
           const c = coords[0];
           cameraRef.current?.setCamera({
@@ -247,7 +206,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             zoomLevel: 12,
             animationDuration: 300,
           });
-          endProgrammaticMove(350);
           return;
         }
         let minLat = 90,
@@ -261,7 +219,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           if (c.longitude > maxLon) maxLon = c.longitude;
         });
         cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, 300);
-        endProgrammaticMove(350);
       },
       getVisibleBounds: async () => {
         if (!mapViewRef.current) return null;
@@ -276,7 +233,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         return null;
       },
       focusOnCoordinate: ({ longitude, latitude, zoom: zoomLevel, paddingBottom }) => {
-        beginProgrammaticMove();
         cameraRef.current?.setCamera({
           centerCoordinate: [longitude, latitude],
           zoomLevel: zoomLevel ?? initialRegion.zoom,
@@ -288,10 +244,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           },
           animationDuration: 300,
         });
-        endProgrammaticMove(350);
       },
     }),
-    [beginProgrammaticMove, endProgrammaticMove, initialRegion.zoom]
+    [initialRegion.zoom]
   );
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
@@ -330,13 +285,11 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         }
       }
 
-      beginProgrammaticMove();
       cameraRef.current?.setCamera({
         centerCoordinate: [Number(longitude), Number(latitude)],
         zoomLevel: expansionZoom ?? initialRegion.zoom + 2,
         animationDuration: 280,
       });
-      endProgrammaticMove(320);
       return;
     }
 
@@ -352,6 +305,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         ref={mapViewRef}
         style={styles.map}
         styleURL={styleURL || Mapbox.StyleURL.Street}
+        onCameraChanged={emitVisibleBounds}
         onMapIdle={async (event) => {
           const zoomLevel = (event.properties as any)?.zoomLevel ?? (event.properties as any)?.zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
