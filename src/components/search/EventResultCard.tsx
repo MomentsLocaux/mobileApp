@@ -19,6 +19,8 @@ import { getDistanceText } from '@/utils/sort-events';
 import { getEventLiveWindow } from '@/utils/event-status';
 
 export const EVENT_RESULT_CARD_HEIGHT = 420;
+/** Compact height for cards inside the map bottom sheet list. */
+export const EVENT_RESULT_LIST_CARD_HEIGHT = 280;
 const COMPACT_THRESHOLD = 340;
 const DEFAULT_EVENT_IMAGE = require('../../../assets/images/icon.png');
 

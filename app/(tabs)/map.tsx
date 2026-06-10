@@ -76,6 +76,8 @@ export default function MapScreen() {
     freezeViewportResults,
     clearFrozenViewport,
     closeSheet,
+    syncViewportEvents,
+    restoreViewportFromFrozen,
   } = useMapResultsUIStore();
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
@@ -200,7 +202,7 @@ export default function MapScreen() {
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
-  const filtersActive = hasMapActiveFilters(metaFilter, mapMode, searchActive, sortBy);
+  const filtersActive = hasMapActiveFilters(metaFilter, mapMode, sortBy);
   const sortCenter = useMemo(
     () =>
       searchState.where.location
@@ -239,13 +241,12 @@ export default function MapScreen() {
 
         const filteredEvents = effectiveSearchActive
           ? filterEvents(events, effectiveFilters, null)
-          : metaFilter === 'all' || metaFilter === 'past' || metaFilter === 'upcoming'
-            ? events
-            : filterEvents(events, {}, null);
+          : events;
         const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, metaFilter);
-        const sortedEvents = effectiveSearchActive
-          ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
-          : metaFilteredEvents;
+        const sortedEvents =
+          sortBy !== 'triage'
+            ? sortEvents(metaFilteredEvents, sortBy, sortCenter, sortOrder)
+            : metaFilteredEvents;
         const dedupedEvents = Array.from(new Map(sortedEvents.map((event) => [event.id, event])).values());
 
         const filteredIds = new Set(dedupedEvents.map((e) => e.id));
@@ -490,6 +491,11 @@ export default function MapScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      const uiState = useMapResultsUIStore.getState();
+      if (uiState.sheetStatus === 'singleEvent' && uiState.frozenViewport) {
+        restoreViewportFromFrozen({ keepHighlight: true });
+      }
+
       if (!searchApplied || !hasSearchCriteria) {
         setStatus('browsing');
         resultsSheetRef.current?.collapseToPeek();
@@ -502,7 +508,14 @@ export default function MapScreen() {
       if (count === 0 && sheetStatus !== 'singleEvent') {
         void ensureInitialViewportLoad();
       }
-    }, [ensureInitialViewportLoad, hasSearchCriteria, refreshBounds, searchApplied, setStatus])
+    }, [
+      ensureInitialViewportLoad,
+      hasSearchCriteria,
+      refreshBounds,
+      restoreViewportFromFrozen,
+      searchApplied,
+      setStatus,
+    ])
   );
 
   const fitToRadius = useCallback(
@@ -680,6 +693,35 @@ export default function MapScreen() {
       refreshBounds();
     },
     [refreshBounds, setSearchApplied]
+  );
+
+  const reapplyViewportOrdering = useCallback(
+    (nextSortBy: typeof sortBy, nextSortOrder?: typeof sortOrder) => {
+      const source = frozenViewport?.events ?? sheetEvents;
+      if (!source.length || sheetStatus === 'loading' || sheetStatus === 'singleEvent') return;
+      const ordered =
+        nextSortBy !== 'triage'
+          ? sortEvents(source, nextSortBy, sortCenter, nextSortOrder)
+          : source;
+      syncViewportEvents(ordered);
+    },
+    [frozenViewport?.events, sheetEvents, sheetStatus, sortCenter, syncViewportEvents]
+  );
+
+  const handleSortByChange = useCallback(
+    (value: typeof sortBy) => {
+      searchState.setSortBy(value);
+      reapplyViewportOrdering(value, sortOrder);
+    },
+    [reapplyViewportOrdering, searchState, sortOrder]
+  );
+
+  const handleSortOrderChange = useCallback(
+    (order: NonNullable<typeof sortOrder>) => {
+      searchState.setSortOrder(order);
+      reapplyViewportOrdering(sortBy, order);
+    },
+    [reapplyViewportOrdering, searchState, sortBy]
   );
 
   useEffect(() => {
@@ -914,9 +956,11 @@ export default function MapScreen() {
         searchActive={searchActive}
         sortBy={sortBy}
         sortOrder={sortOrder}
-        onSortByChange={(value) => searchState.setSortBy(value)}
-        onSortOrderChange={(order) => searchState.setSortOrder(order)}
+        onSortByChange={handleSortByChange}
+        onSortOrderChange={handleSortOrderChange}
         hasLocation={!!userLocation}
+        resultCount={displaySheetEvents.length}
+        isLoadingResults={sheetStatus === 'loading'}
       />
 
       <NavigationOptionsSheet

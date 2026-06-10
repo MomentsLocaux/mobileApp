@@ -24,6 +24,8 @@ interface MapResultsUIState {
   freezeViewportResults: () => void;
   clearFrozenViewport: () => void;
   closeSheet: () => void;
+  syncViewportEvents: (events: EventWithCreator[]) => void;
+  restoreViewportFromFrozen: (options?: { keepHighlight?: boolean }) => boolean;
 }
 
 export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
@@ -71,15 +73,31 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
     });
   },
   clearFrozenViewport: () => set({ frozenViewport: null }),
+  restoreViewportFromFrozen: (options) => {
+    const { frozenViewport, activeEventId } = get();
+    if (!frozenViewport) return false;
+    set({
+      sheetStatus: 'viewportResults',
+      sheetEvents: frozenViewport.events,
+      visibleEventCount: frozenViewport.eventCount,
+      activeEventId: options?.keepHighlight ? activeEventId : undefined,
+    });
+    return true;
+  },
   closeSheet: () => {
     const { sheetStatus } = get();
     if (sheetStatus === 'singleEvent') {
-      set({
-        sheetStatus: 'viewportResults',
-        activeEventId: undefined,
-      });
+      get().restoreViewportFromFrozen();
       return;
     }
     set({ activeEventId: undefined });
   },
+  syncViewportEvents: (events) =>
+    set((state) => ({
+      sheetEvents: events,
+      visibleEventCount: events.length,
+      frozenViewport: state.frozenViewport
+        ? { events, eventCount: events.length }
+        : state.frozenViewport,
+    })),
 }));

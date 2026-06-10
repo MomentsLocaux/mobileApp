@@ -24,7 +24,7 @@ import {
   getSheetMaxSnapIndex,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
-import { EventResultCard } from './EventResultCard';
+import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 export {
@@ -433,6 +433,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               renderItem={({ item, index }: { item: EventWithCreator; index: number }) => (
                 <EventResultCard
                   event={item}
+                  cardHeight={EVENT_RESULT_LIST_CARD_HEIGHT}
                   listEntranceDelay={
                     isExpanded && index < 4 ? index * Motion.stagger.listItem : 0
                   }
@@ -442,7 +443,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                   onPress={() => onOpenDetails(item)}
                   onSelect={() => {
                     onHighlightEvent(item, { focusMap: false });
-                    onSelectEvent(item);
                   }}
                   onNavigate={() => onNavigate(item)}
                   onOpenCreator={onOpenCreator}

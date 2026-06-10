@@ -13,9 +13,9 @@ export const SHEET_JUNCTION_RADIUS = 16;
 export const VIEWPORT_PEEK_HEIGHT = 72;
 export const VIEWPORT_PEEK_SNAP = String(VIEWPORT_PEEK_HEIGHT);
 
-/** Half snap: list revealed over ~50% of the layout column. */
-export const VIEWPORT_HALF_SNAP = '50%';
-export const VIEWPORT_HALF_RATIO = 0.5;
+/** Half snap: list revealed over ~55% of the layout column. */
+export const VIEWPORT_HALF_SNAP = '55%';
+export const VIEWPORT_HALF_RATIO = 0.55;
 
 /** Expanded snap: full list. */
 export const VIEWPORT_FULL_SNAP = '92%';

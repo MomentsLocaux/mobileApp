@@ -61,6 +61,15 @@ interface Props {
   onSortByChange: (value: SortOption) => void;
   onSortOrderChange: (order: SortOrder) => void;
   hasLocation: boolean;
+  resultCount: number;
+  isLoadingResults?: boolean;
+}
+
+function formatResultsButtonLabel(count: number, isLoading = false): string {
+  if (isLoading) return 'Chargement…';
+  if (count <= 0) return 'Afficher les 0 événements';
+  if (count === 1) return "Afficher l'événement";
+  return `Afficher les ${count} événements`;
 }
 
 function FilterChip({
@@ -97,6 +106,8 @@ export function MapFiltersSheet({
   onSortByChange,
   onSortOrderChange,
   hasLocation,
+  resultCount,
+  isLoadingResults = false,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [overlayMounted, setOverlayMounted] = useState(false);
@@ -110,14 +121,19 @@ export function MapFiltersSheet({
 
   const showSortOrder = sortBy === 'date' || sortBy === 'endDate' || sortBy === 'created';
 
+  const resultsButtonLabel = useMemo(
+    () => formatResultsButtonLabel(resultCount, isLoadingResults),
+    [isLoadingResults, resultCount]
+  );
+
   const summary = useMemo(() => {
     const parts: string[] = [];
     const metaLabel = META_FILTERS.find((item) => item.key === metaFilter)?.label;
     if (metaLabel && metaFilter !== 'all') parts.push(metaLabel);
     if (mapMode === 'satellite') parts.push('Satellite');
-    if (searchActive && sortBy !== 'triage') parts.push(SORT_LABELS[sortBy]);
+    if (sortBy !== 'triage') parts.push(SORT_LABELS[sortBy]);
     return parts.length ? parts.join(' · ') : 'Aucun filtre actif';
-  }, [mapMode, metaFilter, searchActive, sortBy]);
+  }, [mapMode, metaFilter, sortBy]);
 
   useEffect(() => {
     if (visible) {
@@ -261,10 +277,15 @@ export function MapFiltersSheet({
                 ))}
               </View>
 
-              {searchActive ? (
-                <>
-                  <Text style={styles.sectionTitle}>Tri</Text>
-                  <View style={styles.sortList}>
+              <Text style={styles.sectionTitle}>Tri</Text>
+              {!searchActive ? (
+                <Text style={styles.sectionHint}>
+                  {metaFilter !== 'all'
+                    ? 'Les critères de recherche (barre du haut) sont désactivés tant qu’un statut est sélectionné.'
+                    : 'Lancez une recherche via la barre du haut pour filtrer par lieu, date, catégorie, etc.'}
+                </Text>
+              ) : null}
+              <View style={styles.sortList}>
                     {SORT_OPTIONS.map((option) => {
                       const disabled = option === 'distance' && !hasLocation;
                       return (
@@ -307,12 +328,10 @@ export function MapFiltersSheet({
                       ))}
                     </View>
                   ) : null}
-                </>
-              ) : null}
             </ScrollView>
 
             <TouchableOpacity style={styles.doneButton} onPress={onClose} activeOpacity={0.9}>
-              <Text style={styles.doneButtonText}>Afficher les résultats</Text>
+              <Text style={styles.doneButtonText}>{resultsButtonLabel}</Text>
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
@@ -324,12 +343,11 @@ export function MapFiltersSheet({
 export function hasMapActiveFilters(
   metaFilter: EventMetaFilter,
   mapMode: 'standard' | 'satellite',
-  searchActive: boolean,
   sortBy: SortOption
 ) {
   if (metaFilter !== 'all') return true;
   if (mapMode !== 'standard') return true;
-  if (searchActive && sortBy !== 'triage') return true;
+  if (sortBy !== 'triage') return true;
   return false;
 }
 
@@ -400,6 +418,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  sectionHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginBottom: spacing.sm,
+    lineHeight: 18,
   },
   chipRow: {
     flexDirection: 'row',
