@@ -38,8 +38,8 @@ export function useMapMarkerPress({
 
   const handleFeaturePress = useCallback(
     async (id: string) => {
-      const requestId = nextMarkerRequestId();
       cancelAllMapRequests();
+      const requestId = nextMarkerRequestId();
 
       try {
         const cached = eventCacheRef.current.get(id) ?? sheetEvents.find((event) => event.id === id);
@@ -49,9 +49,9 @@ export function useMapMarkerPress({
         if (!event) return;
 
         eventCacheRef.current.set(id, event);
-        collapseSheetToPeek?.();
         highlightViewportEvent(event);
         setUnitCardEvent(event);
+        collapseSheetToPeek?.();
 
         if (!viewportFrozenRef.current) {
           if (!frozenViewportBoundsRef.current) {

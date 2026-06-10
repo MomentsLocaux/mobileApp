@@ -103,6 +103,7 @@ export default function MapScreen() {
   const hasCenteredOnUserRef = useRef(false);
   const focusHandledRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
+  const markerSelectionGuardRef = useRef(false);
   const zoomRef = useRef(12);
 
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
@@ -241,10 +242,6 @@ export default function MapScreen() {
     opacity: interpolate(sheetProgress.value, [0, 1], [1, 0.92], Extrapolation.CLAMP),
   }));
 
-  const unitOverlayFadeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(sheetProgress.value, [0, 0.35], [1, 0], Extrapolation.CLAMP),
-  }));
-
   const handleHighlightEvent = useCallback(
     (event: EventWithCreator, options?: { focusMap?: boolean }) => {
       highlightViewportEvent(event);
@@ -279,6 +276,7 @@ export default function MapScreen() {
   );
 
   const handleMapBackgroundPress = useCallback(() => {
+    if (markerSelectionGuardRef.current) return;
     setUnitCardEvent(null);
     closeSheet();
     resultsSheetRef.current?.collapseToPeek();
@@ -325,7 +323,7 @@ export default function MapScreen() {
     }
   }, [bottomSheetIndex, handleSheetIndexChange]);
 
-  const { handleFeaturePress } = useMapMarkerPress({
+  const { handleFeaturePress: handleMarkerFeaturePress } = useMapMarkerPress({
     mapRef,
     sheetEvents,
     viewportFrozenRef,
@@ -339,6 +337,18 @@ export default function MapScreen() {
     setUnitCardEvent,
     collapseSheetToPeek,
   });
+
+  const handleFeaturePress = useCallback(
+    (id: string) => {
+      markerSelectionGuardRef.current = true;
+      void handleMarkerFeaturePress(id).finally(() => {
+        setTimeout(() => {
+          markerSelectionGuardRef.current = false;
+        }, 400);
+      });
+    },
+    [handleMarkerFeaturePress]
+  );
 
   const handleSheetDragEnd = useCallback(
     (dy: number, velocityY: number) => {
@@ -573,7 +583,7 @@ export default function MapScreen() {
             ) : null}
 
             {unitCardEvent ? (
-              <Animated.View style={unitOverlayFadeStyle} pointerEvents="box-none">
+              <View style={styles.unitOverlaySlot} pointerEvents="box-none">
                 <MapEventUnitOverlay
                   event={unitCardEvent}
                   visible={!!unitCardEvent}
@@ -588,7 +598,7 @@ export default function MapScreen() {
                   }}
                   bottomInset={spacing.sm}
                 />
-              </Animated.View>
+              </View>
             ) : null}
           </Animated.View>
 
@@ -739,6 +749,10 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     fontSize: 16,
     fontWeight: '600',
+  },
+  unitOverlaySlot: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
   },
   recenterTopButton: {
     position: 'absolute',

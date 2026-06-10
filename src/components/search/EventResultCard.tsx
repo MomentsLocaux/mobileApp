@@ -235,95 +235,104 @@ export const EventResultCard: React.FC<Props> = ({
     </View>
   );
 
-  const footerSection = (
-    <View style={[styles.footer, isCompact && styles.footerCompact]}>
-        <View style={styles.attendeesContainer}>
-          <View style={styles.avatarPile}>
-            {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
-              <View key={i} style={[styles.attendeeAvatar, { transform: [{ translateX: -i * 10 }] }]}>
-                <View style={[styles.attendeeDot, useStackedLayout && styles.attendeeDotStacked]} />
-              </View>
-            ))}
-            {attendeesCount > 3 && (
-              <View style={[styles.attendeeAvatar, styles.attendeeMore, { transform: [{ translateX: -30 }] }]}>
-                <Text style={styles.moreText}>+</Text>
-              </View>
-            )}
+  const attendeesSection = (
+    <View style={styles.attendeesContainer}>
+      <View style={styles.avatarPile}>
+        {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
+          <View key={i} style={[styles.attendeeAvatar, { transform: [{ translateX: -i * 10 }] }]}>
+            <View style={[styles.attendeeDot, useStackedLayout && styles.attendeeDotStacked]} />
           </View>
-          <Text
-            style={[
-              styles.attendeeText,
-              { marginLeft: -20 },
-              useStackedLayout && styles.attendeeTextStacked,
-            ]}
-          >
-            {attendeesCount} ami{attendeesCount > 1 ? 's' : ''} y vont
-          </Text>
-        </View>
-
-        <View style={styles.statsContainer}>
-          <Eye size={14} color={useStackedLayout ? colors.brand.textSecondary : 'rgba(255,255,255,0.6)'} />
-          <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{viewCount} vues</Text>
-        </View>
-
-        {distanceLabel && (
-          <TouchableOpacity
-            style={[styles.locationBadge, useStackedLayout && styles.locationBadgeStacked]}
-            onPress={(e) => {
-              e.stopPropagation();
-              onNavigate();
-            }}
-            activeOpacity={0.8}
-          >
-            <MapPin size={12} color={colors.brand.textSecondary} />
-            <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{distanceLabel}</Text>
-          </TouchableOpacity>
+        ))}
+        {attendeesCount > 3 && (
+          <View style={[styles.attendeeAvatar, styles.attendeeMore, { transform: [{ translateX: -30 }] }]}>
+            <Text style={styles.moreText}>+</Text>
+          </View>
         )}
+      </View>
+      <Text
+        style={[
+          styles.attendeeText,
+          { marginLeft: -20 },
+          useStackedLayout && styles.attendeeTextStacked,
+        ]}
+      >
+        {attendeesCount} ami{attendeesCount > 1 ? 's' : ''} y vont
+      </Text>
+    </View>
+  );
+
+  const statsChipsSection = (
+    <View style={[styles.statsChipsRow, useStackedLayout && styles.statsChipsRowStacked]}>
+      <View style={[styles.statsContainer, useStackedLayout && styles.statsContainerStacked]}>
+        <Eye size={14} color={useStackedLayout ? colors.brand.textSecondary : 'rgba(255,255,255,0.6)'} />
+        <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{viewCount} vues</Text>
+      </View>
+      {distanceLabel ? (
+        <TouchableOpacity
+          style={[styles.locationBadge, useStackedLayout && styles.locationBadgeStacked]}
+          onPress={(e) => {
+            e.stopPropagation();
+            onNavigate();
+          }}
+          activeOpacity={0.8}
+        >
+          <MapPin size={12} color={colors.brand.textSecondary} />
+          <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{distanceLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+
+  const footerSection = useStackedLayout ? (
+    <View style={styles.stackedFooter}>
+      {attendeesSection}
+      {statsChipsSection}
+    </View>
+  ) : (
+    <View style={[styles.footer, isCompact && styles.footerCompact]}>
+      {attendeesSection}
+      {statsChipsSection}
     </View>
   );
 
   const contentSection = useStackedLayout ? (
-    <View style={styles.stackedContentBody}>
-      <View style={styles.stackedMainCol}>
-        <Text
-          style={[styles.title, styles.titleCompact, styles.titleStacked]}
-          numberOfLines={2}
-        >
-          {event.title}
-        </Text>
-        <View style={styles.stackedCityRow}>
-          <MapPin size={12} color={colors.brand.textSecondary} />
-          <Text style={styles.stackedCityText} numberOfLines={1}>
-            {cityLabel}
+    <View style={styles.stackedContentWrap}>
+      <View style={styles.stackedContentBody}>
+        <View style={styles.stackedMainCol}>
+          <Text
+            style={[styles.title, styles.titleCompact, styles.titleStacked]}
+            numberOfLines={2}
+          >
+            {event.title}
           </Text>
         </View>
-        {footerSection}
+        <View style={styles.stackedScheduleCol}>
+          <EventCardMetaRows
+            event={event}
+            tone="surface"
+            isLive={isLive}
+            liveUntilLabel={liveUntilLabel}
+            showCity={false}
+            align="right"
+            compactSpacing
+          />
+        </View>
       </View>
-      <View style={styles.stackedScheduleCol}>
-        <EventCardMetaRows
-          event={event}
-          tone="surface"
-          isLive={isLive}
-          liveUntilLabel={liveUntilLabel}
-          showCity={false}
-          align="right"
-          compactSpacing
-        />
+      <View style={styles.stackedCityRow}>
+        <MapPin size={12} color={colors.brand.textSecondary} />
+        <Text style={styles.stackedCityText} numberOfLines={1}>
+          {cityLabel}
+        </Text>
       </View>
+      {footerSection}
     </View>
   ) : (
-    <>
+    <View style={styles.overlayContentWrap}>
       <View style={styles.overlayContentHeader}>
         <View style={styles.overlayMainCol}>
           <Text style={[styles.title, isCompact && styles.titleCompact]} numberOfLines={2}>
             {event.title}
           </Text>
-          <View style={styles.overlayCityRow}>
-            <MapPin size={12} color={colors.brand.textSecondary} />
-            <Text style={styles.overlayCityText} numberOfLines={1}>
-              {cityLabel}
-            </Text>
-          </View>
         </View>
         <View style={styles.overlayScheduleCol}>
           <EventCardMetaRows
@@ -337,8 +346,14 @@ export const EventResultCard: React.FC<Props> = ({
           />
         </View>
       </View>
+      <View style={styles.overlayCityRow}>
+        <MapPin size={12} color={colors.brand.textSecondary} />
+        <Text style={styles.overlayCityText} numberOfLines={1}>
+          {cityLabel}
+        </Text>
+      </View>
       {footerSection}
-    </>
+    </View>
   );
 
   const mediaSection =
@@ -452,8 +467,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     backgroundColor: colors.brand.surface,
   },
-  stackedContentBody: {
+  stackedContentWrap: {
     flex: 1,
+    gap: spacing.xs,
+  },
+  stackedContentBody: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
@@ -461,7 +479,10 @@ const styles = StyleSheet.create({
   stackedMainCol: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'space-between',
+  },
+  stackedFooter: {
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
   stackedScheduleCol: {
     maxWidth: '46%',
@@ -481,11 +502,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  overlayContentWrap: {
+    gap: spacing.xs,
+  },
   overlayContentHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    marginBottom: spacing.xs,
+  },
+  statsChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 0,
+  },
+  statsChipsRowStacked: {
+    flexWrap: 'wrap',
+  },
+  statsContainerStacked: {
+    backgroundColor: colors.brand.primary,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   overlayMainCol: {
     flex: 1,
@@ -645,8 +682,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: spacing.xs,
     marginTop: spacing.xs,
   },
   footerCompact: {
@@ -655,7 +691,6 @@ const styles = StyleSheet.create({
   attendeesContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   avatarPile: {
     flexDirection: 'row',
@@ -703,7 +738,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginLeft: 8,
     backgroundColor: 'rgba(0,0,0,0.4)',
     paddingHorizontal: 8,
     paddingVertical: 6,

@@ -140,6 +140,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const pendingUserInteractionRef = useRef(false);
   const userTouchDragRef = useRef(false);
   const touchStartPosRef = useRef({ x: 0, y: 0 });
+  const lastMarkerPressAtRef = useRef(0);
   const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
   const [selectedIconSize, setSelectedIconSize] = useState(1.45);
   const selectedIconScale = useSharedValue(1.45);
@@ -410,6 +411,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
     const eventId = feature.properties?.id;
     if (eventId) {
+      lastMarkerPressAtRef.current = Date.now();
       onFeaturePress(String(eventId));
     }
   };
@@ -446,6 +448,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           onMapReady?.();
         }}
         onPress={(feature) => {
+          if (Date.now() - lastMarkerPressAtRef.current < 500) {
+            return;
+          }
           const properties = feature.properties as Record<string, unknown> | undefined;
           const hitEventMarker = Boolean(
             properties?.id || properties?.cluster || properties?.point_count != null
