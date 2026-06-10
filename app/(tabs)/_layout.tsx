@@ -187,6 +187,16 @@ export default function TabsLayout() {
           options={{
             title: 'Carte',
             tabBarIcon: ({ size, color }) => <Map size={size} color={color} />,
+            tabBarStyle: {
+              backgroundColor: colors.brand.primary,
+              borderTopWidth: 0,
+              borderTopColor: 'transparent',
+              elevation: 0,
+              shadowOpacity: 0,
+              height: 76,
+              paddingBottom: 8,
+              paddingTop: 8,
+            },
           }}
         />
         <Tabs.Screen

@@ -79,9 +79,13 @@ interface MapWrapperProps {
   userLocation?: { latitude: number; longitude: number } | null;
   onFeaturePress: (featureId: string) => void;
   onZoomChange?: (zoom: number) => void;
-  onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
+  onVisibleBoundsChange?: (
+    bounds: { ne: [number, number]; sw: [number, number] },
+    meta?: { isUserInteraction: boolean }
+  ) => void;
   onMapReady?: () => void;
   onMapBackgroundPress?: () => void;
+  onUserMapGestureStart?: () => void;
   activeEventId?: string;
   children?: React.ReactNode;
   styleURL?: string;
@@ -92,6 +96,11 @@ export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
   setShape: (fc: FeatureCollection) => void;
   fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number) => void;
+  fitToBounds: (
+    bounds: { ne: [number, number]; sw: [number, number] },
+    padding?: number,
+    animationDuration?: number
+  ) => void;
   getVisibleBounds: () => Promise<{ ne: [number, number]; sw: [number, number] } | null>;
   focusOnCoordinate: (options: {
     longitude: number;
@@ -112,6 +121,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onVisibleBoundsChange,
       onMapReady,
       onMapBackgroundPress,
+      onUserMapGestureStart,
       activeEventId,
       children,
       styleURL,
@@ -125,7 +135,26 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const shapeSourceRefs = useRef<Record<string, any>>({});
   const cameraRef = useRef<Mapbox.Camera>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const pendingUserInteractionRef = useRef(false);
+  const userTouchDragRef = useRef(false);
+  const touchStartPosRef = useRef({ x: 0, y: 0 });
   const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
+
+  const TOUCH_DRAG_THRESHOLD_PX = 8;
+
+  const markUserMapGesture = useCallback(() => {
+    pendingUserInteractionRef.current = true;
+    onUserMapGestureStart?.();
+  }, [onUserMapGestureStart]);
+
+  const resolveUserInteraction = useCallback((event?: { properties?: unknown }) => {
+    const props = event?.properties as Record<string, unknown> | undefined;
+    return (
+      pendingUserInteractionRef.current ||
+      userTouchDragRef.current ||
+      props?.isUserInteraction === true
+    );
+  }, []);
 
   const toCameraPadding = (padding?: { top: number; right: number; bottom: number; left: number }) => {
     if (!padding) return undefined;
@@ -145,21 +174,26 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     return !eq(prev.sw, next.sw) || !eq(prev.ne, next.ne);
   };
 
-  const emitVisibleBounds = useCallback(async () => {
-    if (!mapViewRef.current) return;
-    try {
-      const bounds = await mapViewRef.current.getVisibleBounds();
-      if (Array.isArray(bounds) && bounds.length === 2) {
-        const next = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
-        if (hasBoundsChanged(next)) {
-          lastBoundsRef.current = next;
-          onVisibleBoundsChange?.(next);
+  const emitVisibleBounds = useCallback(
+    async (meta?: { isUserInteraction: boolean }) => {
+      if (!mapViewRef.current) return;
+      try {
+        const bounds = await mapViewRef.current.getVisibleBounds();
+        if (Array.isArray(bounds) && bounds.length === 2) {
+          const next = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+          if (hasBoundsChanged(next)) {
+            lastBoundsRef.current = next;
+            onVisibleBoundsChange?.(next, meta);
+          } else if (meta?.isUserInteraction) {
+            onVisibleBoundsChange?.(next, meta);
+          }
         }
+      } catch (e) {
+        console.warn('getVisibleBounds failed', e);
       }
-    } catch (e) {
-      console.warn('getVisibleBounds failed', e);
-    }
-  }, [onVisibleBoundsChange]);
+    },
+    [onVisibleBoundsChange]
+  );
 
   const categoryMarkerVisuals = useMemo(() => {
     const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;
@@ -266,6 +300,14 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         });
         cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, MAP_CAMERA_ANIMATION_MS);
       },
+      fitToBounds: (bounds, padding = 40, animationDuration = MAP_CAMERA_ANIMATION_MS) => {
+        cameraRef.current?.fitBounds(
+          [bounds.sw[0], bounds.sw[1]],
+          [bounds.ne[0], bounds.ne[1]],
+          padding,
+          animationDuration
+        );
+      },
       getVisibleBounds: async () => {
         if (!mapViewRef.current) return null;
         try {
@@ -349,7 +391,29 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onTouchStart={(event) => {
+        const { pageX, pageY } = event.nativeEvent;
+        touchStartPosRef.current = { x: pageX, y: pageY };
+        userTouchDragRef.current = false;
+        onUserMapGestureStart?.();
+      }}
+      onTouchMove={(event) => {
+        const { pageX, pageY } = event.nativeEvent;
+        const dx = pageX - touchStartPosRef.current.x;
+        const dy = pageY - touchStartPosRef.current.y;
+        if (Math.hypot(dx, dy) < TOUCH_DRAG_THRESHOLD_PX) return;
+        userTouchDragRef.current = true;
+        pendingUserInteractionRef.current = true;
+      }}
+      onTouchEnd={() => {
+        userTouchDragRef.current = false;
+      }}
+      onTouchCancel={() => {
+        userTouchDragRef.current = false;
+      }}
+    >
       <Mapbox.MapView
         ref={mapViewRef}
         style={styles.map}
@@ -366,12 +430,20 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             onMapBackgroundPress?.();
           }
         }}
+        onRegionWillChange={(feature) => {
+          if (feature.properties?.isUserInteraction) {
+            markUserMapGesture();
+          }
+        }}
         onMapIdle={async (event) => {
           const zoomLevel = (event.properties as any)?.zoomLevel ?? (event.properties as any)?.zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
             onZoomChange(zoomLevel);
           }
-          await emitVisibleBounds();
+          const isUserInteraction = resolveUserInteraction(event);
+          pendingUserInteractionRef.current = false;
+          userTouchDragRef.current = false;
+          await emitVisibleBounds({ isUserInteraction });
         }}
       >
         <CategoryMarkerImages visuals={categoryMarkerVisuals} />

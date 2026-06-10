@@ -12,10 +12,7 @@ export const SHEET_JUNCTION_RADIUS = 16;
 export const VIEWPORT_PEEK_HEIGHT = 72;
 export const VIEWPORT_PEEK_SNAP = String(VIEWPORT_PEEK_HEIGHT);
 
-/** Mid snap: ~half screen with event bubble. */
-export const VIEWPORT_MID_SNAP = '50%';
-
-/** Full list snap. */
+/** Expanded snap: full list (peek → list, no intermediate state). */
 export const VIEWPORT_FULL_SNAP = '92%';
 export const VIEWPORT_PEEK_RATIO = VIEWPORT_PEEK_HEIGHT / SCREEN_HEIGHT;
 
@@ -39,19 +36,12 @@ export const getTabContentHeight = () => SCREEN_HEIGHT - TAB_BAR_HEIGHT;
 /** Absolute sheet body heights for a measured layout column. */
 export const getSheetSnapHeights = (layoutHeight: number, mode: MapSheetMode): number[] => {
   if (layoutHeight <= 0) {
-    return mode === 'single'
-      ? [VIEWPORT_PEEK_HEIGHT, VIEWPORT_PEEK_HEIGHT]
-      : [VIEWPORT_PEEK_HEIGHT, VIEWPORT_PEEK_HEIGHT, VIEWPORT_PEEK_HEIGHT];
+    return [VIEWPORT_PEEK_HEIGHT, VIEWPORT_PEEK_HEIGHT];
   }
   if (mode === 'single') {
     return [Math.round(layoutHeight * 0.16), Math.round(layoutHeight * 0.47)];
   }
-  const mid = Math.round(layoutHeight * 0.5);
-  return [
-    VIEWPORT_PEEK_HEIGHT,
-    mid,
-    Math.round(layoutHeight * 0.92),
-  ];
+  return [VIEWPORT_PEEK_HEIGHT, Math.round(layoutHeight * 0.92)];
 };
 
 export const getMapSlotHeight = (layoutHeight: number, sheetHeight: number) => {

@@ -17,7 +17,6 @@ import { EventCardStatsService, type EventCardStats } from '@/services/event-car
 
 export {
   VIEWPORT_PEEK_SNAP,
-  VIEWPORT_MID_SNAP,
   VIEWPORT_FULL_SNAP,
   VIEWPORT_PEEK_HEIGHT,
   VIEWPORT_PEEK_RATIO,
@@ -35,7 +34,6 @@ interface Props {
   currentUserId?: string | null;
   activeEventId?: string;
   snapIndex: number;
-  snapHeights: number[];
   isSheetDragging?: boolean;
   onSheetDragStart: (snapIndex: number) => void;
   onSheetDragMove: (dy: number) => void;
@@ -65,7 +63,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       currentUserId,
       activeEventId,
       snapIndex,
-      snapHeights,
       isSheetDragging = false,
       onSheetDragStart,
       onSheetDragMove,
@@ -90,7 +87,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const listRef = useRef<FlatList<EventWithCreator>>(null);
     const dragActiveRef = useRef(false);
 
-    const maxIndex = mode === 'single' ? 1 : 2;
+    const maxIndex = 1;
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
@@ -99,12 +96,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const isSheetExpandable =
       !isLoading && hasEvents && (mode === 'single' || peekCount > 0);
     const isPeek = clampedIndex === 0;
-    const isMid = mode !== 'single' && clampedIndex === 1;
-    const isFull = mode === 'single' ? clampedIndex > 0 : clampedIndex >= 2;
+    const isExpanded = clampedIndex >= 1;
     const showViewportList =
-      mode !== 'single' && hasEvents && !isLoading && (clampedIndex >= 1 || isSheetDragging);
-    const showSingleDetail = mode === 'single' && isFull && hasEvents && !isLoading;
-    const showEmpty = isFull && mode !== 'single' && !hasEvents && !isLoading;
+      mode !== 'single' && hasEvents && !isLoading && (isExpanded || isSheetDragging);
+    const showSingleDetail = mode === 'single' && isExpanded && hasEvents && !isLoading;
+    const showEmpty = isExpanded && mode !== 'single' && !hasEvents && !isLoading;
 
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 
@@ -116,7 +112,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
     const requestSnapIndex = useCallback(
       (nextIndex: number) => {
-        onSnapIndexChange(Math.min(Math.max(0, nextIndex), maxIndex));
+        const clamped = Math.min(Math.max(0, nextIndex), maxIndex);
+        if (clamped === snapIndexRef.current) return;
+        onSnapIndexChange(clamped);
       },
       [maxIndex, onSnapIndexChange]
     );
@@ -151,14 +149,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [eventIds, eventIdsKey, currentUserId]);
 
     React.useEffect(() => {
-      if (!showViewportList) return;
-      if (isMid) {
-        listRef.current?.scrollToOffset({ offset: 0, animated: false });
-        return;
-      }
-      if (!activeEventId || !isFull) return;
+      if (!showViewportList || !activeEventId || !isExpanded) return;
       scrollToEvent(activeEventId);
-    }, [activeEventId, isFull, isMid, showViewportList, scrollToEvent]);
+    }, [activeEventId, isExpanded, showViewportList, scrollToEvent]);
 
     useImperativeHandle(ref, () => ({
       open: (nextIndex = 1) => {
@@ -173,6 +166,21 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const peekTitle = useMemo(
       () => formatViewportPeekLabel(peekCount, metaFilter, isLoading),
       [isLoading, metaFilter, peekCount]
+    );
+
+    const beginSheetDrag = useCallback(() => {
+      if (!isSheetExpandableRef.current || dragActiveRef.current) return;
+      dragActiveRef.current = true;
+      onSheetDragStart(snapIndexRef.current);
+    }, [onSheetDragStart]);
+
+    const finishSheetDrag = useCallback(
+      (dy: number, velocityY: number) => {
+        if (!dragActiveRef.current) return;
+        onSheetDragEnd(dy, velocityY);
+        dragActiveRef.current = false;
+      },
+      [onSheetDragEnd]
     );
 
     const openFromPeekRef = useRef<() => void>(() => {});
@@ -205,8 +213,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             if (!isSheetExpandableRef.current) return;
             if (!dragActiveRef.current) {
               if (Math.abs(gesture.dy) <= 4) return;
-              dragActiveRef.current = true;
-              onSheetDragStart(snapIndexRef.current);
+              beginSheetDrag();
             }
             onSheetDragMove(gesture.dy);
           },
@@ -218,12 +225,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               }
               return;
             }
-            onSheetDragEnd(gesture.dy, gesture.vy);
-            dragActiveRef.current = false;
+            finishSheetDrag(gesture.dy, gesture.vy);
           },
           onPanResponderTerminationRequest: () => false,
         }),
-      [onSheetDragEnd, onSheetDragMove, onSheetDragStart]
+      [beginSheetDrag, finishSheetDrag, onSheetDragMove]
     );
 
     const sheetChromeHandlers = isSheetExpandable ? sheetChromePanResponder.panHandlers : {};
@@ -235,7 +241,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             {isSheetExpandable ? <View style={styles.handleIndicator} /> : null}
           </View>
 
-          {isPeek || isMid ? (
+          {isPeek ? (
             <View style={styles.peekHeader}>
               {isLoading ? (
                 <View style={styles.loadingRow}>
@@ -248,7 +254,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             </View>
           ) : null}
 
-          {isFull && mode !== 'single' ? (
+          {isExpanded && mode !== 'single' ? (
             <View style={styles.header}>
               <Text style={styles.headerTitle}>{peekTitle}</Text>
               {events.length > 0 ? (
@@ -286,43 +292,47 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         )}
 
         {showViewportList && (
-          <FlatList
-            ref={listRef}
-            data={events}
-            style={styles.fullList}
-            keyExtractor={(item: EventWithCreator) => item.id}
-            contentContainerStyle={styles.listContent}
-            scrollEnabled={isFull && !isSheetDragging}
-            bounces={isFull}
-            onScrollToIndexFailed={(info: { index: number }) => {
-              requestAnimationFrame(() => {
-                listRef.current?.scrollToIndex({
-                  index: info.index,
-                  animated: true,
-                  viewPosition: 0.25,
+          <View style={styles.listSlot}>
+            <FlatList
+              ref={listRef}
+              data={events}
+              style={styles.fullList}
+              keyExtractor={(item: EventWithCreator) => item.id}
+              contentContainerStyle={styles.listContent}
+              scrollEnabled={isExpanded && !isSheetDragging}
+              bounces={isExpanded}
+              scrollEventThrottle={16}
+              nestedScrollEnabled
+              onScrollToIndexFailed={(info: { index: number }) => {
+                requestAnimationFrame(() => {
+                  listRef.current?.scrollToIndex({
+                    index: info.index,
+                    animated: true,
+                    viewPosition: 0.25,
+                  });
                 });
-              });
-            }}
-            renderItem={({ item }: { item: EventWithCreator }) => (
-              <EventResultCard
-                event={item}
-                viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
-                friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
-                active={item.id === activeEventId}
-                onPress={() => onOpenDetails(item)}
-                onSelect={() => {
-                  onHighlightEvent(item, { focusMap: false });
-                  onSelectEvent(item);
-                }}
-                onNavigate={() => onNavigate(item)}
-                onOpenCreator={onOpenCreator}
-                onToggleLike={onToggleLike}
-                isLiked={isLiked ? isLiked(item.id) : undefined}
-                onToggleFavorite={onToggleFavorite}
-                isFavorite={isFavorite ? isFavorite(item.id) : undefined}
-              />
-            )}
-          />
+              }}
+              renderItem={({ item }: { item: EventWithCreator }) => (
+                <EventResultCard
+                  event={item}
+                  viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
+                  friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
+                  active={item.id === activeEventId}
+                  onPress={() => onOpenDetails(item)}
+                  onSelect={() => {
+                    onHighlightEvent(item, { focusMap: false });
+                    onSelectEvent(item);
+                  }}
+                  onNavigate={() => onNavigate(item)}
+                  onOpenCreator={onOpenCreator}
+                  onToggleLike={onToggleLike}
+                  isLiked={isLiked ? isLiked(item.id) : undefined}
+                  onToggleFavorite={onToggleFavorite}
+                  isFavorite={isFavorite ? isFavorite(item.id) : undefined}
+                />
+              )}
+            />
+          </View>
         )}
       </View>
     );
@@ -388,6 +398,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  listSlot: {
+    flex: 1,
+    overflow: 'hidden',
   },
   fullList: {
     flex: 1,

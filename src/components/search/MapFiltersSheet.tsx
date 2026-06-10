@@ -188,16 +188,9 @@ export function MapFiltersSheet({
     opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolate.CLAMP),
   }));
 
-  const overlayBoundsStyle = useAnimatedStyle(() => ({
-    left: -fromX.value,
-    top: -fromY.value,
-    width: screenWidth,
-    height: screenHeight,
-  }));
-
   const sheetStyle = useAnimatedStyle(() => {
-    const left = interpolate(progress.value, [0, 1], [0, -fromX.value], Extrapolate.CLAMP);
-    const top = interpolate(progress.value, [0, 1], [0, -fromY.value], Extrapolate.CLAMP);
+    const left = interpolate(progress.value, [0, 1], [fromX.value, 0], Extrapolate.CLAMP);
+    const top = interpolate(progress.value, [0, 1], [fromY.value, 0], Extrapolate.CLAMP);
     const width = interpolate(progress.value, [0, 1], [fromW.value, screenWidth], Extrapolate.CLAMP);
     const height = interpolate(progress.value, [0, 1], [fromH.value, screenHeight], Extrapolate.CLAMP);
     const radius = interpolate(progress.value, [0, 1], [22, 0], Extrapolate.CLAMP);
@@ -222,10 +215,17 @@ export function MapFiltersSheet({
   if (!overlayMounted) return null;
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+    >
       <View style={styles.overlayRoot}>
-        <Animated.View style={[styles.backdrop, backdropStyle, overlayBoundsStyle]} />
-        <Pressable style={[styles.backdropPressable, overlayBoundsStyle]} onPress={onClose} />
+        <Animated.View style={[styles.backdrop, backdropStyle]} />
+        <Pressable style={styles.backdropPressable} onPress={onClose} />
         <Animated.View style={[styles.sheet, sheetStyle]}>
           <Animated.View style={[styles.sheetInner, contentStyle]}>
             <View style={styles.header}>

@@ -3,18 +3,26 @@ import type { EventWithCreator } from '@/types/database';
 
 type SheetStatus = 'browsing' | 'loading' | 'viewportResults' | 'singleEvent';
 
+interface FrozenViewportSnapshot {
+  events: EventWithCreator[];
+  eventCount: number;
+}
+
 interface MapResultsUIState {
   bottomSheetIndex: number;
   sheetStatus: SheetStatus;
   sheetEvents: EventWithCreator[];
   visibleEventCount: number;
   activeEventId?: string;
+  frozenViewport: FrozenViewportSnapshot | null;
 
   setBottomSheetIndex: (index: number) => void;
   setStatus: (status: SheetStatus) => void;
   displayViewportResults: (events: EventWithCreator[]) => void;
   highlightViewportEvent: (event: EventWithCreator) => void;
   selectSingleEvent: (event: EventWithCreator, snapIndex?: number) => void;
+  freezeViewportResults: () => void;
+  clearFrozenViewport: () => void;
   closeSheet: () => void;
 }
 
@@ -24,6 +32,7 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
   sheetEvents: [],
   visibleEventCount: 0,
   activeEventId: undefined,
+  frozenViewport: null,
 
   setBottomSheetIndex: (index) => set({ bottomSheetIndex: index }),
   setStatus: (status) => set({ sheetStatus: status }),
@@ -52,6 +61,16 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
       bottomSheetIndex: snapIndex,
     });
   },
+  freezeViewportResults: () => {
+    const { sheetEvents, visibleEventCount } = get();
+    set({
+      frozenViewport: {
+        events: sheetEvents,
+        eventCount: visibleEventCount,
+      },
+    });
+  },
+  clearFrozenViewport: () => set({ frozenViewport: null }),
   closeSheet: () => {
     const { sheetStatus } = get();
     if (sheetStatus === 'singleEvent') {

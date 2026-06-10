@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
 import { MapPin, Heart, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { EventWithCreator } from '../../types/database';
@@ -10,8 +10,8 @@ import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
 import { getEventLiveWindow } from '@/utils/event-status';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_HEIGHT = 420;
+export const EVENT_RESULT_CARD_HEIGHT = 420;
+const COMPACT_THRESHOLD = 340;
 const DEFAULT_EVENT_IMAGE = require('../../../assets/images/icon.png');
 
 interface Props {
@@ -21,6 +21,8 @@ interface Props {
   friendsGoingCount?: number;
   active?: boolean;
   showCarousel?: boolean;
+  cardHeight?: number;
+  noBottomMargin?: boolean;
   onPress: () => void;
   onNavigate: () => void;
   onSelect?: () => void;
@@ -73,6 +75,8 @@ export const EventResultCard: React.FC<Props> = ({
   friendsGoingCount,
   active = false,
   showCarousel = true,
+  cardHeight = EVENT_RESULT_CARD_HEIGHT,
+  noBottomMargin = false,
   onPress,
   onNavigate,
   onSelect,
@@ -140,10 +144,16 @@ export const EventResultCard: React.FC<Props> = ({
     [event.venue_name, event.city, event.address],
   );
   const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
+  const isCompact = cardHeight < COMPACT_THRESHOLD;
 
   return (
     <Pressable
-      style={[styles.card, active && styles.cardActive]}
+      style={[
+        styles.card,
+        { height: cardHeight },
+        active && styles.cardActive,
+        noBottomMargin && styles.cardNoBottomMargin,
+      ]}
       onPress={() => {
         if (isSwiping) return;
         onSelect?.();
@@ -154,7 +164,7 @@ export const EventResultCard: React.FC<Props> = ({
         {showCarousel && images.length > 0 ? (
           <EventImageCarousel
             images={images}
-            height={CARD_HEIGHT}
+            height={cardHeight}
             borderRadius={borderRadius.xl}
             onSwipeStart={() => setIsSwiping(true)}
             onSwipeEnd={() => setIsSwiping(false)}
@@ -210,20 +220,20 @@ export const EventResultCard: React.FC<Props> = ({
         </View>
 
         {/* Content Overlay */}
-        <View style={styles.contentContainer}>
+        <View style={[styles.contentContainer, isCompact && styles.contentContainerCompact]}>
           {/* Date & Location */}
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
             {isLive && liveUntilLabel ? `En direct jusqu'à ${liveUntilLabel}` : dateLabel} •{' '}
             <Text style={styles.venueName}>{locationLabel}</Text>
           </Text>
 
           {/* Title */}
-          <Text style={styles.title} numberOfLines={2}>
+          <Text style={[styles.title, isCompact && styles.titleCompact]} numberOfLines={2}>
             {event.title}
           </Text>
 
           {/* Footer: Attendees & Stats */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, isCompact && styles.footerCompact]}>
             <View style={styles.attendeesContainer}>
               <View style={styles.avatarPile}>
                 {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
@@ -269,7 +279,6 @@ export const EventResultCard: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   card: {
-    height: CARD_HEIGHT,
     width: '100%',
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
@@ -278,6 +287,9 @@ const styles = StyleSheet.create({
   },
   cardActive: {
     transform: [{ scale: 0.98 }],
+  },
+  cardNoBottomMargin: {
+    marginBottom: 0,
   },
   imageContainer: {
     flex: 1,
@@ -375,6 +387,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
+  contentContainerCompact: {
+    padding: spacing.md,
+    paddingBottom: spacing.lg,
+  },
   subtitle: {
     ...typography.bodySmall,
     color: colors.brand.secondary,
@@ -382,6 +398,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  subtitleCompact: {
+    fontSize: 11,
+    marginBottom: 2,
   },
   venueName: {
     color: colors.brand.text,
@@ -397,10 +417,18 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
+  titleCompact: {
+    fontSize: 20,
+    lineHeight: 24,
+    marginBottom: spacing.sm,
+  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: spacing.xs,
+  },
+  footerCompact: {
+    marginTop: 0,
   },
   attendeesContainer: {
     flexDirection: 'row',

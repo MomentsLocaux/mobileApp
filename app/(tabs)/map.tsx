@@ -2,11 +2,14 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { SHEET_JUNCTION_RADIUS, VIEWPORT_PEEK_HEIGHT } from '../../src/utils/map-sheet-layout';
+import {
+  MAP_CAMERA_ANIMATION_MS,
+  SHEET_JUNCTION_RADIUS,
+  VIEWPORT_PEEK_HEIGHT,
+} from '../../src/utils/map-sheet-layout';
 import { useMapSheetSplitLayout } from '@/hooks/useMapSheetSplitLayout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Navigation, PlusCircle, SlidersHorizontal } from 'lucide-react-native';
-import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { Navigation, SlidersHorizontal } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,7 +51,7 @@ export default function MapScreen() {
   useLocation();
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
   const searchState = useSearchStore();
-  const { profile, isAuthenticated } = useAuth();
+  const { profile } = useAuth();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
   const {
@@ -58,16 +61,18 @@ export default function MapScreen() {
     sheetEvents,
     visibleEventCount,
     activeEventId,
+    frozenViewport,
     setStatus,
     displayViewportResults,
     highlightViewportEvent,
     selectSingleEvent,
+    freezeViewportResults,
+    clearFrozenViewport,
     closeSheet,
   } = useMapResultsUIStore();
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
   const {
-    snapHeights,
     isSheetDragging,
     mapSlotHeight,
     handleColumnLayout,
@@ -98,19 +103,42 @@ export default function MapScreen() {
   const viewportRequestIdRef = useRef(0);
   const markerRequestIdRef = useRef(0);
   const viewportFrozenRef = useRef(false);
+  const frozenViewportBoundsRef = useRef<{ ne: [number, number]; sw: [number, number] } | null>(null);
+  const suppressBoundsRecalcUntilRef = useRef(0);
+  const sheetDragRefitRafRef = useRef<number | null>(null);
+  const isSheetDraggingRef = useRef(false);
   const pendingProgrammaticRefreshRef = useRef(false);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const searchApplied = searchState.searchApplied;
   const setSearchApplied = searchState.setSearchApplied;
   const commitSearch = searchState.commitSearch;
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [guestGateVisible, setGuestGateVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const initialViewportLoadInFlightRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+
+  useEffect(() => {
+    isSheetDraggingRef.current = isSheetDragging;
+  }, [isSheetDragging]);
+
+  const suppressBoundsRecalc = useCallback((durationMs: number) => {
+    const until = Date.now() + durationMs;
+    suppressBoundsRecalcUntilRef.current = Math.max(suppressBoundsRecalcUntilRef.current, until);
+  }, []);
+
+  const isBoundsRecalcSuppressed = useCallback(() => {
+    return Date.now() < suppressBoundsRecalcUntilRef.current;
+  }, []);
+
+  const clearDebouncedViewportFetch = useCallback(() => {
+    if (bboxTimeoutRef.current) {
+      clearTimeout(bboxTimeoutRef.current);
+      bboxTimeoutRef.current = null;
+    }
+  }, []);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -195,9 +223,13 @@ export default function MapScreen() {
         );
 
         if (requestId !== viewportRequestIdRef.current) return;
+        if (!viewportFrozenRef.current) {
+          frozenViewportBoundsRef.current = bounds;
+        }
         mapRef.current?.setShape({ type: 'FeatureCollection', features: filteredFeatures } as any);
         const currentUiState = useMapResultsUIStore.getState();
         if (currentUiState.sheetStatus === 'singleEvent') return;
+        if (viewportFrozenRef.current) return;
         displayViewportResults(dedupedEvents);
       } catch (e) {
         if (requestId !== viewportRequestIdRef.current) return;
@@ -244,8 +276,56 @@ export default function MapScreen() {
     [runViewportFetch, setStatus]
   );
 
+  const clearProgrammaticMoveState = useCallback(() => {
+    isProgrammaticMoveRef.current = false;
+    pendingProgrammaticRefreshRef.current = false;
+  }, []);
+
+  const cancelSheetDragRefit = useCallback(() => {
+    if (sheetDragRefitRafRef.current != null) {
+      cancelAnimationFrame(sheetDragRefitRafRef.current);
+      sheetDragRefitRafRef.current = null;
+    }
+  }, []);
+
+  const handleUserMapGestureStart = useCallback(() => {
+    clearProgrammaticMoveState();
+    suppressBoundsRecalcUntilRef.current = 0;
+    cancelSheetDragRefit();
+  }, [cancelSheetDragRefit, clearProgrammaticMoveState]);
+
+  const unlockViewportFromUserPan = useCallback(
+    (bounds: { ne: [number, number]; sw: [number, number] }) => {
+      viewportFrozenRef.current = false;
+      clearFrozenViewport();
+      setUnitCardEvent(null);
+      frozenViewportBoundsRef.current = bounds;
+      queueViewportFetch(bounds, { immediate: true, force: true });
+    },
+    [clearFrozenViewport, queueViewportFetch]
+  );
+
   const handleBoundsChange = useCallback(
-    (bounds: { ne: [number, number]; sw: [number, number] }, options?: { forceSearchRadius?: boolean }) => {
+    (
+      bounds: { ne: [number, number]; sw: [number, number] },
+      meta?: { isUserInteraction?: boolean }
+    ) => {
+      const isUserInteraction = meta?.isUserInteraction === true;
+
+      // User pan/zoom always wins — exploring a new area should refetch immediately.
+      if (isUserInteraction) {
+        clearProgrammaticMoveState();
+        suppressBoundsRecalcUntilRef.current = 0;
+        if (viewportFrozenRef.current) {
+          unlockViewportFromUserPan(bounds);
+          return;
+        }
+        frozenViewportBoundsRef.current = bounds;
+        queueViewportFetch(bounds, { immediate: true, force: true });
+        return;
+      }
+
+      // Programmatic recoil (sheet refit, focus) — never unlock or refetch.
       if (isProgrammaticMoveRef.current) {
         isProgrammaticMoveRef.current = false;
         mapRef.current?.clearBoundsCache?.();
@@ -259,9 +339,20 @@ export default function MapScreen() {
       if (viewportFrozenRef.current) {
         return;
       }
-      queueViewportFetch(bounds, { force: options?.forceSearchRadius });
+
+      if (isSheetDraggingRef.current || isBoundsRecalcSuppressed()) {
+        return;
+      }
+
+      frozenViewportBoundsRef.current = bounds;
+      queueViewportFetch(bounds);
     },
-    [queueViewportFetch]
+    [
+      clearProgrammaticMoveState,
+      isBoundsRecalcSuppressed,
+      queueViewportFetch,
+      unlockViewportFromUserPan,
+    ]
   );
 
   const ensureInitialViewportLoad = useCallback(async () => {
@@ -283,14 +374,88 @@ export default function MapScreen() {
     }
   }, [queueViewportFetch]);
 
+  const withProgrammaticMove = useCallback(
+    (moveFn: () => void, options?: { refreshAfter?: boolean }) => {
+      isProgrammaticMoveRef.current = true;
+      pendingProgrammaticRefreshRef.current = options?.refreshAfter !== false;
+      moveFn();
+    },
+    []
+  );
+
   const refreshBounds = useCallback(async () => {
     const bounds = await mapRef.current?.getVisibleBounds?.();
     if (bounds) {
+      viewportFrozenRef.current = false;
+      clearFrozenViewport();
       isProgrammaticMoveRef.current = false;
       mapRef.current?.clearBoundsCache?.();
+      frozenViewportBoundsRef.current = bounds;
       queueViewportFetch(bounds, { immediate: true, force: true });
     }
-  }, [queueViewportFetch]);
+  }, [clearFrozenViewport, queueViewportFetch]);
+
+  const refitMapToFrozenViewport = useCallback(
+    (animationDuration = MAP_CAMERA_ANIMATION_MS) => {
+      const bounds = frozenViewportBoundsRef.current;
+      if (!bounds) return;
+      suppressBoundsRecalc(animationDuration + 250);
+      withProgrammaticMove(
+        () => {
+          mapRef.current?.fitToBounds(bounds, getFitPadding(), animationDuration);
+        },
+        { refreshAfter: false }
+      );
+    },
+    [getFitPadding, suppressBoundsRecalc, withProgrammaticMove]
+  );
+
+  const lockViewportForSheet = useCallback(async () => {
+    viewportFrozenRef.current = true;
+    freezeViewportResults();
+    if (!frozenViewportBoundsRef.current) {
+      const bounds = await mapRef.current?.getVisibleBounds?.();
+      if (bounds) {
+        frozenViewportBoundsRef.current = bounds;
+      }
+    }
+    refitMapToFrozenViewport();
+  }, [freezeViewportResults, refitMapToFrozenViewport]);
+
+  const handleSheetDragStart = useCallback(
+    async (snapIndex: number) => {
+      clearDebouncedViewportFetch();
+      suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 800);
+
+      if (!frozenViewportBoundsRef.current) {
+        const bounds = await mapRef.current?.getVisibleBounds?.();
+        if (bounds) {
+          frozenViewportBoundsRef.current = bounds;
+        }
+      }
+
+      beginSheetDrag(snapIndex);
+    },
+    [beginSheetDrag, clearDebouncedViewportFetch, suppressBoundsRecalc]
+  );
+
+  const handleSheetDragMove = useCallback(
+    (dy: number) => {
+      updateSheetDrag(dy);
+
+      if (!viewportFrozenRef.current || !frozenViewportBoundsRef.current) return;
+      if (sheetDragRefitRafRef.current != null) return;
+
+      sheetDragRefitRafRef.current = requestAnimationFrame(() => {
+        sheetDragRefitRafRef.current = null;
+        const bounds = frozenViewportBoundsRef.current;
+        if (!bounds) return;
+        suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 300);
+        refitMapToFrozenViewport(0);
+      });
+    },
+    [refitMapToFrozenViewport, suppressBoundsRecalc, updateSheetDrag]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -307,15 +472,6 @@ export default function MapScreen() {
         void ensureInitialViewportLoad();
       }
     }, [ensureInitialViewportLoad, hasSearchCriteria, refreshBounds, searchApplied, setStatus])
-  );
-
-  const withProgrammaticMove = useCallback(
-    (moveFn: () => void, options?: { refreshAfter?: boolean }) => {
-      isProgrammaticMoveRef.current = true;
-      pendingProgrammaticRefreshRef.current = options?.refreshAfter !== false;
-      moveFn();
-    },
-    []
   );
 
   const fitToRadius = useCallback(
@@ -404,55 +560,73 @@ export default function MapScreen() {
 
         highlightViewportEvent(evt);
         setUnitCardEvent(evt);
-        viewportFrozenRef.current = true;
+        if (!viewportFrozenRef.current) {
+          if (!frozenViewportBoundsRef.current) {
+            const bounds = await mapRef.current?.getVisibleBounds?.();
+            if (bounds) {
+              frozenViewportBoundsRef.current = bounds;
+            }
+          }
+          viewportFrozenRef.current = true;
+          freezeViewportResults();
+        }
         focusOnEvent(evt, 0, { bumpZoom: false });
       } catch (e) {
         if (requestId !== markerRequestIdRef.current) return;
         console.warn('getEventById error', e);
       }
     },
-    [focusOnEvent, highlightViewportEvent, sheetEvents]
+    [focusOnEvent, freezeViewportResults, highlightViewportEvent, sheetEvents]
   );
 
   const handleMapBackgroundPress = useCallback(() => {
     setUnitCardEvent(null);
-    viewportFrozenRef.current = false;
     closeSheet();
     resultsSheetRef.current?.collapseToPeek();
-  }, [closeSheet]);
+    refitMapToFrozenViewport();
+  }, [closeSheet, refitMapToFrozenViewport]);
 
   const handleSheetIndexChange = useCallback(
     (idx: number, options?: { animate?: boolean }) => {
       if (idx < 0) return;
+      if (idx === bottomSheetIndex) return;
+
+      clearDebouncedViewportFetch();
+      suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 600);
       setBottomSheetIndex(idx);
       if (options?.animate !== false) {
         setSheetSnapIndex(idx);
       }
 
       if (idx === 0) {
-        viewportFrozenRef.current = false;
         closeSheet();
+        refitMapToFrozenViewport();
       } else {
         setUnitCardEvent(null);
-        viewportFrozenRef.current = true;
+        void lockViewportForSheet();
       }
 
       if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
         focusOnEvent(sheetEvents[0], idx, { bumpZoom: false });
       }
 
-      if (idx >= 2 && activeEventId) {
+      if (idx >= 1 && activeEventId) {
         resultsSheetRef.current?.scrollToEvent(activeEventId);
       }
     },
     [
       activeEventId,
+      bottomSheetIndex,
+      clearDebouncedViewportFetch,
       closeSheet,
       focusOnEvent,
+      lockViewportForSheet,
+      refitMapToFrozenViewport,
       setBottomSheetIndex,
       sheetEvents,
       sheetStatus,
       setSheetSnapIndex,
+      suppressBoundsRecalc,
     ]
   );
 
@@ -463,10 +637,6 @@ export default function MapScreen() {
     },
     [finishSheetDrag, handleSheetIndexChange]
   );
-
-  const handleBackToList = useCallback(() => {
-    router.push('/(tabs)/' as any);
-  }, [router]);
 
   const handleMetaFilterChange = useCallback(
     (next: EventMetaFilter) => {
@@ -479,23 +649,16 @@ export default function MapScreen() {
     [refreshBounds, setSearchApplied]
   );
 
-  const handleCreateEvent = useCallback(() => {
-    if (!isAuthenticated) {
-      setGuestGateVisible(true);
-      return;
-    }
-    router.push('/events/create/step-1' as any);
-  }, [isAuthenticated, router]);
-
   useEffect(() => {
     return () => {
-      if (bboxTimeoutRef.current) {
-        clearTimeout(bboxTimeoutRef.current);
-      }
-      viewportRequestIdRef.current += 1;
+      clearDebouncedViewportFetch();
       markerRequestIdRef.current += 1;
+      if (sheetDragRefitRafRef.current != null) {
+        cancelAnimationFrame(sheetDragRefitRafRef.current);
+        sheetDragRefitRafRef.current = null;
+      }
     };
-  }, []);
+  }, [clearDebouncedViewportFetch]);
 
   useEffect(() => {
     if (sheetStatus !== 'singleEvent' || !activeEventId || sheetEvents.length === 0) {
@@ -552,6 +715,8 @@ export default function MapScreen() {
 
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
+  const displaySheetEvents = frozenViewport?.events ?? sheetEvents;
+  const displayPeekCount = frozenViewport?.eventCount ?? visibleEventCount;
 
   const handleToggleLike = useCallback(
     async (event: EventWithCreator) => {
@@ -599,14 +764,6 @@ export default function MapScreen() {
       <View style={styles.screenRoot}>
         <View style={[styles.searchSlot, { paddingTop: insets.top + spacing.xs }]}>
           <View style={styles.searchHeaderRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBackToList}
-              accessibilityRole="button"
-              accessibilityLabel="Retour à la liste"
-            >
-              <ArrowLeft size={22} color={colors.brand.text} />
-            </TouchableOpacity>
             <View style={styles.searchBarWrap}>
               <SearchBar
                 onApply={applySearch}
@@ -643,6 +800,7 @@ export default function MapScreen() {
               styleURL={mapStyle}
               mapPadding={mapPadding}
               onVisibleBoundsChange={handleBoundsChange}
+              onUserMapGestureStart={handleUserMapGestureStart}
               onMapReady={handleMapReady}
               onMapBackgroundPress={handleMapBackgroundPress}
               activeEventId={activeEventId}
@@ -657,25 +815,17 @@ export default function MapScreen() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={[styles.createFab, { bottom: spacing.md + 56 }]}
-              onPress={handleCreateEvent}
-              accessibilityRole="button"
-              accessibilityLabel="Créer un événement"
-            >
-              <PlusCircle size={28} color="#0f1719" />
-            </TouchableOpacity>
-
             {unitCardEvent ? (
               <MapEventUnitOverlay
                 event={unitCardEvent}
                 visible={!!unitCardEvent}
-                isFavorite={favoritesSet.has(unitCardEvent.id)}
-                onToggleFavorite={() => handleToggleFavorite(unitCardEvent)}
+                currentUserId={profile?.id}
+                isLiked={likesSet.has(unitCardEvent.id)}
+                onToggleLike={handleToggleLike}
                 onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
+                onNavigate={() => setNavEvent(unitCardEvent)}
                 onClose={() => {
                   setUnitCardEvent(null);
-                  viewportFrozenRef.current = false;
                   closeSheet();
                 }}
                 bottomInset={spacing.sm}
@@ -686,13 +836,12 @@ export default function MapScreen() {
           <View style={styles.sheetSlot}>
             <SearchResultsBottomSheet
               ref={resultsSheetRef}
-              events={sheetEvents}
+              events={displaySheetEvents}
               currentUserId={profile?.id}
               activeEventId={activeEventId}
-              snapHeights={snapHeights}
               isSheetDragging={isSheetDragging}
-              onSheetDragStart={beginSheetDrag}
-              onSheetDragMove={updateSheetDrag}
+              onSheetDragStart={handleSheetDragStart}
+              onSheetDragMove={handleSheetDragMove}
               onSheetDragEnd={handleSheetDragEnd}
               onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
               onHighlightEvent={handleHighlightEvent}
@@ -706,7 +855,7 @@ export default function MapScreen() {
               snapIndex={bottomSheetIndex}
               onSnapIndexChange={handleSheetIndexChange}
               mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
-              peekCount={sheetStatus === 'singleEvent' ? 0 : visibleEventCount}
+              peekCount={sheetStatus === 'singleEvent' ? 0 : displayPeekCount}
               metaFilter={metaFilter}
               isLoading={sheetStatus === 'loading'}
             />
@@ -736,19 +885,6 @@ export default function MapScreen() {
         onClose={() => setNavEvent(null)}
       />
 
-      <GuestGateModal
-        visible={guestGateVisible}
-        title="Créer un événement"
-        onClose={() => setGuestGateVisible(false)}
-        onSignUp={() => {
-          setGuestGateVisible(false);
-          router.push('/auth/register' as any);
-        }}
-        onSignIn={() => {
-          setGuestGateVisible(false);
-          router.push('/auth/login' as any);
-        }}
-      />
     </GestureHandlerRootView>
   );
 }
@@ -823,32 +959,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: SHEET_JUNCTION_RADIUS,
     marginTop: -SHEET_JUNCTION_RADIUS,
     paddingTop: SHEET_JUNCTION_RADIUS,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  createFab: {
-    position: 'absolute',
-    right: spacing.md,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.brand.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 11,
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 6,
+    marginBottom: -StyleSheet.hairlineWidth,
   },
   loadingContainer: {
     flex: 1,
