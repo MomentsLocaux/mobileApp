@@ -7,14 +7,33 @@ type Props = {
   Icon: LucideIcon;
   iconColor?: string;
   size?: number;
+  variant?: 'pin' | 'cluster';
 };
 
 export const CategoryEventMarker: React.FC<Props> = React.memo(
-  ({ color, Icon, iconColor = '#ffffff', size = 36 }) => {
-    const headSize = Math.round(size * 0.72);
+  ({ color, Icon, iconColor = '#ffffff', size = 36, variant = 'pin' }) => {
+    const headSize = Math.round(size * (variant === 'cluster' ? 0.92 : 0.72));
     const iconSize = Math.max(12, Math.round(size * 0.34));
     const pointerWidth = Math.round(headSize * 0.26);
     const pointerHeight = Math.round(headSize * 0.32);
+
+    if (variant === 'cluster') {
+      return (
+        <View collapsable={false} style={styles.clusterContainer}>
+          <View
+            style={[
+              styles.head,
+              {
+                width: headSize,
+                height: headSize,
+                borderRadius: headSize / 2,
+                backgroundColor: color,
+              },
+            ]}
+          />
+        </View>
+      );
+    }
 
     return (
       <View collapsable={false} style={styles.container}>
@@ -43,6 +62,12 @@ export const CategoryEventMarker: React.FC<Props> = React.memo(
 CategoryEventMarker.displayName = 'CategoryEventMarker';
 
 const styles = StyleSheet.create({
+  clusterContainer: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     width: 44,
     height: 44,

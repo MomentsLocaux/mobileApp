@@ -47,8 +47,9 @@ export const CATEGORY_VISUALS: Record<CategoryVisualSlug, CategoryVisual> = {
   'insolite-ephemere': { fallbackColor: '#a855f7', Icon: Sparkles },
 };
 
-/** Generic Mapbox sprite used when no category slug is available. */
-export const DEFAULT_MAP_MARKER = 'marker-15';
+/** Custom fallback marker image (must not collide with Mapbox style sprites). */
+export const DEFAULT_MAP_MARKER = 'category-marker-default';
+export const DEFAULT_CLUSTER_MAP_MARKER = 'category-cluster-marker-default';
 
 const CATEGORY_VISUAL_SET = new Set<string>(CATEGORY_VISUAL_SLUGS);
 
@@ -72,6 +73,16 @@ export const getCategoryFallbackColor = (slug?: string | null): string | null =>
 
 export const categoryMarkerImageKey = (slug: CategoryVisualSlug) => `category-marker-${slug}`;
 
+export const categoryClusterMarkerImageKey = (slug: CategoryVisualSlug) => `category-cluster-marker-${slug}`;
+
+export const toClusterMarkerImageKey = (markerImageKey: string): string => {
+  if (markerImageKey === DEFAULT_MAP_MARKER) return DEFAULT_CLUSTER_MAP_MARKER;
+  if (markerImageKey.startsWith('category-marker-')) {
+    return markerImageKey.replace('category-marker-', 'category-cluster-marker-');
+  }
+  return DEFAULT_CLUSTER_MAP_MARKER;
+};
+
 /** Mapbox image key for a known category slug, or null. */
 export const resolveCategoryMarkerImageKey = (slug?: string | null): string | null => {
   if (!isCategoryVisualSlug(slug)) return null;
@@ -81,4 +92,27 @@ export const resolveCategoryMarkerImageKey = (slug?: string | null): string | nu
 /** Resolves the map marker image key for an event from its category slug. */
 export const resolveEventMarkerIcon = (slug?: string | null): string => {
   return resolveCategoryMarkerImageKey(slug) ?? DEFAULT_MAP_MARKER;
+};
+
+export const pickCategoryMetaSlug = (categoryMetaValue: unknown): string | null => {
+  if (Array.isArray(categoryMetaValue)) {
+    const slug = (categoryMetaValue[0] as { slug?: string } | undefined)?.slug;
+    return typeof slug === 'string' ? slug : null;
+  }
+  if (categoryMetaValue && typeof categoryMetaValue === 'object') {
+    const slug = (categoryMetaValue as { slug?: string }).slug;
+    return typeof slug === 'string' ? slug : null;
+  }
+  return null;
+};
+
+export const resolveEventMarkerIconFromEvent = (event: {
+  category?: string | null;
+  category_meta?: unknown;
+}): string => {
+  const slugFromMeta = pickCategoryMetaSlug(event.category_meta);
+  if (slugFromMeta) {
+    return resolveEventMarkerIcon(slugFromMeta);
+  }
+  return resolveEventMarkerIcon(event.category);
 };

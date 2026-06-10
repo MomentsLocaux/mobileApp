@@ -1,4 +1,4 @@
-import { Tabs, Redirect, useRouter } from 'expo-router';
+import { Tabs, Redirect, useRouter, useSegments } from 'expo-router';
 import Constants from 'expo-constants';
 import { AppBackground } from '@/components/ui';
 import {
@@ -23,7 +23,6 @@ import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
-
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const appVersion = Constants.expoConfig?.version || '1.0.0';
@@ -33,6 +32,8 @@ export default function TabsLayout() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [hasMyEventsShortcut, setHasMyEventsShortcut] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const segments = useSegments();
+  const isMapTab = segments[segments.length - 1] === 'map';
   useTaxonomy();
   const isGuest = !isAuthenticated;
 
@@ -164,13 +165,15 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: colors.brand.textSecondary,
           tabBarShowLabel: false,
           sceneStyle: { backgroundColor: 'transparent' },
-          tabBarStyle: {
-            backgroundColor: colors.brand.primary,
-            borderTopColor: 'rgba(255,255,255,0.05)',
-            height: 76,
-            paddingBottom: 8,
-            paddingTop: 8,
-          },
+          tabBarStyle: isMapTab
+            ? { display: 'none' }
+            : {
+                backgroundColor: colors.brand.primary,
+                borderTopColor: 'rgba(255,255,255,0.05)',
+                height: 76,
+                paddingBottom: 8,
+                paddingTop: 8,
+              },
         }}
       >
         <Tabs.Screen

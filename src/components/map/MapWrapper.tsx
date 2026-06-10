@@ -1,19 +1,23 @@
-import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
-import { MapPin, type LucideIcon } from 'lucide-react-native';
+import { MapPin, Users, type LucideIcon } from 'lucide-react-native';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
 import type { FeatureCollection, Feature } from 'geojson';
 import {
   CATEGORY_VISUAL_SLUGS,
   CATEGORY_VISUALS,
+  categoryClusterMarkerImageKey,
   categoryMarkerImageKey,
+  DEFAULT_CLUSTER_MAP_MARKER,
   DEFAULT_MAP_MARKER,
+  toClusterMarkerImageKey,
   type CategoryVisualSlug,
 } from '../../constants/category-visuals';
 import { CategoryEventMarker } from './CategoryEventMarker';
 import { useTaxonomyStore } from '../../store/taxonomyStore';
+import { MAP_CAMERA_ANIMATION_MS } from '../../utils/map-sheet-layout';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
@@ -46,11 +50,22 @@ const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
       {CATEGORY_VISUAL_SLUGS.map((slug) => {
         const visual = visuals[slug];
         return (
-          <Mapbox.Image key={slug} name={categoryMarkerImageKey(slug)}>
-            <CategoryEventMarker color={visual.color} Icon={visual.Icon} iconColor={visual.iconColor} />
-          </Mapbox.Image>
+          <React.Fragment key={slug}>
+            <Mapbox.Image name={categoryMarkerImageKey(slug)}>
+              <CategoryEventMarker color={visual.color} Icon={visual.Icon} iconColor={visual.iconColor} />
+            </Mapbox.Image>
+            <Mapbox.Image name={categoryClusterMarkerImageKey(slug)}>
+              <CategoryEventMarker color={visual.color} Icon={visual.Icon} variant="cluster" />
+            </Mapbox.Image>
+          </React.Fragment>
         );
       })}
+      <Mapbox.Image name={DEFAULT_MAP_MARKER}>
+        <CategoryEventMarker color={colors.primary[500]} Icon={Users} />
+      </Mapbox.Image>
+      <Mapbox.Image name={DEFAULT_CLUSTER_MAP_MARKER}>
+        <CategoryEventMarker color={colors.primary[500]} Icon={Users} variant="cluster" />
+      </Mapbox.Image>
     </Mapbox.Images>
   );
 });
@@ -66,6 +81,8 @@ interface MapWrapperProps {
   onZoomChange?: (zoom: number) => void;
   onVisibleBoundsChange?: (bounds: { ne: [number, number]; sw: [number, number] }) => void;
   onMapReady?: () => void;
+  onMapBackgroundPress?: () => void;
+  activeEventId?: string;
   children?: React.ReactNode;
   styleURL?: string;
   mapPadding?: { top: number; right: number; bottom: number; left: number };
@@ -94,6 +111,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       onZoomChange,
       onVisibleBoundsChange,
       onMapReady,
+      onMapBackgroundPress,
+      activeEventId,
       children,
       styleURL,
       mapPadding,
@@ -158,6 +177,29 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     return visuals;
   }, [categoriesMap]);
 
+  const selectedEventShape = useMemo((): FeatureCollection => {
+    if (!activeEventId) return EMPTY_FEATURE_COLLECTION;
+    const feature = (eventsShape.features || []).find(
+      (item) => String((item.properties as Record<string, unknown> | null)?.id) === activeEventId
+    );
+    if (!feature) return EMPTY_FEATURE_COLLECTION;
+    return { type: 'FeatureCollection', features: [feature] };
+  }, [activeEventId, eventsShape]);
+
+  const selectedMarkerIconKey = useMemo(() => {
+    const feature = selectedEventShape.features[0];
+    if (!feature) return DEFAULT_MAP_MARKER;
+    return normalizeEventIconKey(feature);
+  }, [selectedEventShape]);
+
+  useEffect(() => {
+    if (!mapPadding) return;
+    cameraRef.current?.setCamera({
+      padding: toCameraPadding(mapPadding),
+      animationDuration: MAP_CAMERA_ANIMATION_MS,
+    });
+  }, [mapPadding]);
+
   const groupedEventSources = useMemo(() => {
     const featuresByIcon: Record<string, Feature[]> = {};
     (eventsShape.features || []).forEach((feature) => {
@@ -170,6 +212,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
     return Object.entries(featuresByIcon).map(([iconKey, features]) => ({
       iconKey,
+      clusterIconKey: toClusterMarkerImageKey(iconKey),
       sourceId: toSourceId(iconKey),
       shape: {
         type: 'FeatureCollection',
@@ -193,7 +236,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         cameraRef.current?.setCamera({
           centerCoordinate: [longitude, latitude],
           zoomLevel: zoomLevel ?? initialRegion.zoom,
-          animationDuration: 300,
+          animationDuration: MAP_CAMERA_ANIMATION_MS,
         });
       },
       setShape: (fc: FeatureCollection) => {
@@ -207,7 +250,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           cameraRef.current?.setCamera({
             centerCoordinate: [c.longitude, c.latitude],
             zoomLevel: 12,
-            animationDuration: 300,
+            animationDuration: MAP_CAMERA_ANIMATION_MS,
           });
           return;
         }
@@ -221,7 +264,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           if (c.longitude < minLon) minLon = c.longitude;
           if (c.longitude > maxLon) maxLon = c.longitude;
         });
-        cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, 300);
+        cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, MAP_CAMERA_ANIMATION_MS);
       },
       getVisibleBounds: async () => {
         if (!mapViewRef.current) return null;
@@ -245,7 +288,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             paddingLeft: 20,
             paddingRight: 20,
           },
-          animationDuration: 300,
+          animationDuration: MAP_CAMERA_ANIMATION_MS,
         });
       },
       clearBoundsCache: () => {
@@ -294,7 +337,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       cameraRef.current?.setCamera({
         centerCoordinate: [Number(longitude), Number(latitude)],
         zoomLevel: expansionZoom ?? initialRegion.zoom + 2,
-        animationDuration: 280,
+        animationDuration: MAP_CAMERA_ANIMATION_MS,
       });
       return;
     }
@@ -313,6 +356,15 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         styleURL={styleURL || Mapbox.StyleURL.Street}
         onDidFinishLoadingMap={() => {
           onMapReady?.();
+        }}
+        onPress={(feature) => {
+          const properties = feature.properties as Record<string, unknown> | undefined;
+          const hitEventMarker = Boolean(
+            properties?.id || properties?.cluster || properties?.point_count != null
+          );
+          if (!hitEventMarker) {
+            onMapBackgroundPress?.();
+          }
         }}
         onMapIdle={async (event) => {
           const zoomLevel = (event.properties as any)?.zoomLevel ?? (event.properties as any)?.zoom;
@@ -359,39 +411,41 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           </Mapbox.ShapeSource>
         )}
 
-        {groupedEventSources.map(({ sourceId, iconKey, shape }) => (
+        {groupedEventSources.map(({ sourceId, iconKey, clusterIconKey, shape }) => (
           <Mapbox.ShapeSource
             key={sourceId}
             id={sourceId}
             ref={(sourceRef) => setShapeSourceRef(sourceId, sourceRef)}
             shape={shape}
-            cluster={true}
-            clusterRadius={50}
-            clusterMaxZoomLevel={14}
-            onPress={(event) => {
-              void handlePress(event, sourceId);
+            cluster
+            clusterRadius={42}
+            clusterMaxZoomLevel={15}
+            onPress={(pressEvent) => {
+              void handlePress(pressEvent, sourceId);
             }}
           >
             <Mapbox.SymbolLayer
               id={`${sourceId}-cluster-icon`}
               filter={['has', 'point_count']}
               style={{
-                iconImage: iconKey || DEFAULT_MAP_MARKER,
-                iconSize: ['step', ['get', 'point_count'], 0.95, 8, 1.05, 24, 1.15],
+                iconImage: clusterIconKey || DEFAULT_CLUSTER_MAP_MARKER,
+                iconSize: ['step', ['get', 'point_count'], 1, 10, 1.08, 25, 1.16],
                 iconAllowOverlap: true,
                 iconIgnorePlacement: true,
+                iconAnchor: 'center',
               }}
             />
             <Mapbox.SymbolLayer
               id={`${sourceId}-cluster-count`}
               filter={['has', 'point_count']}
               style={{
-                textField: ['get', 'point_count_abbreviated'],
-                textSize: 11,
-                textColor: colors.neutral[900],
-                textHaloColor: colors.neutral[0],
-                textHaloWidth: 1.2,
-                textOffset: [0, 2.1],
+                textField: ['to-string', ['get', 'point_count']],
+                textSize: ['step', ['get', 'point_count'], 12, 10, 11, 25, 10, 100, 9],
+                textColor: colors.neutral[0],
+                textHaloColor: 'rgba(15, 23, 25, 0.45)',
+                textHaloWidth: 0.6,
+                textAnchor: 'center',
+                textOffset: [0, 0],
                 textAllowOverlap: true,
                 textIgnorePlacement: true,
               }}
@@ -408,6 +462,32 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             />
           </Mapbox.ShapeSource>
         ))}
+
+        <Mapbox.ShapeSource id="selected-event-source" shape={selectedEventShape}>
+          <Mapbox.CircleLayer
+            id="selected-event-halo"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              circleRadius: 26,
+              circleColor: colors.primary[500],
+              circleOpacity: 0.24,
+              circleStrokeWidth: 3,
+              circleStrokeColor: colors.primary[400],
+              circleStrokeOpacity: 0.95,
+            }}
+          />
+          <Mapbox.SymbolLayer
+            id="selected-event-marker"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              iconImage: selectedMarkerIconKey,
+              iconSize: 1.45,
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+            }}
+          />
+        </Mapbox.ShapeSource>
+
         {children}
       </Mapbox.MapView>
     </View>
@@ -418,6 +498,8 @@ MapWrapper.displayName = 'MapWrapper';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    zIndex: 0,
+    elevation: 0,
   },
   map: {
     flex: 1,

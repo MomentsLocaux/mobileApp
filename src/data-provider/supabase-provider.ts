@@ -76,6 +76,7 @@ const EVENT_FULL_SELECT = `
   title,
   description,
   category,
+  category_meta:event_category(slug, icon),
   subcategory,
   tags,
   starts_at,
@@ -338,7 +339,7 @@ export const supabaseProvider: (Pick<
             !(e.latitude === 0 && e.longitude === 0),
         )
         .map((e) => {
-          const icon = typeof e.icon === 'string' && e.icon.trim().length > 0 ? e.icon : 'marker-15';
+          const icon = typeof e.icon === 'string' && e.icon.trim().length > 0 ? e.icon : 'category-marker-default';
           return {
             type: 'Feature',
             geometry: {
