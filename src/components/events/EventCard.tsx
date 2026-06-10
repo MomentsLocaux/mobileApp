@@ -6,6 +6,7 @@ import { colors, spacing, typography, borderRadius } from '../../constants/theme
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from './EventImageCarousel';
+import { EventCardMetaRows } from './EventCardMetaRows';
 
 interface EventCardProps {
   event: EventWithCreator;
@@ -31,14 +32,6 @@ export const EventCard: React.FC<EventCardProps> = ({
   distance,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
-  const formatDate = (date: string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-    });
-  };
-
   const images = (() => {
     const urls = [
       event.cover_url,
@@ -119,20 +112,17 @@ export const EventCard: React.FC<EventCardProps> = ({
             </View>
           </View>
 
-          <View style={styles.metaRow}>
+          <View style={styles.scheduleBlock}>
             <Calendar size={14} color={colors.brand.textSecondary} />
-            <Text style={styles.metaText}>{formatDate(event.starts_at)}</Text>
+            <EventCardMetaRows event={event} tone="muted" showCityIcon />
           </View>
 
-          <View style={styles.metaRow}>
-            <MapPin size={14} color={colors.brand.textSecondary} />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {event.city || event.address}
-            </Text>
-            {showDistance && distance !== undefined && (
-              <Text style={styles.distanceText}> • {distance.toFixed(1)} km</Text>
-            )}
-          </View>
+          {showDistance && distance !== undefined ? (
+            <View style={styles.metaRow}>
+              <MapPin size={14} color={colors.brand.textSecondary} />
+              <Text style={styles.distanceText}>{distance.toFixed(1)} km</Text>
+            </View>
+          ) : null}
 
           {event.interests_count > 0 && (
             <View style={styles.metaRow}>
@@ -211,6 +201,12 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: spacing.xs,
+    gap: spacing.xs,
+  },
+  scheduleBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: spacing.xs,
     gap: spacing.xs,
   },

@@ -5,5 +5,6 @@ export { SchedulePlanner } from './SchedulePlanner';
 export { MediaUploader } from './MediaUploader';
 export { AdditionalImagesUploader } from './AdditionalImagesUploader';
 export { EventImageCarousel } from './EventImageCarousel';
+export { EventCardMetaRows } from './EventCardMetaRows';
 export { PlaceMediaGallery } from './PlaceMediaGallery';
 export { EventPhotoContributionModal } from './EventPhotoContributionModal';

@@ -14,8 +14,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Motion, createEnterTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
+import { TriageControl } from './TriageControl';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
 import {
   VIEWPORT_PEEK_HEIGHT,
@@ -65,6 +67,11 @@ interface Props {
   peekCount: number;
   metaFilter?: EventMetaFilter;
   isLoading?: boolean;
+  sortBy?: SortOption;
+  sortOrder?: SortOrder;
+  onSortByChange?: (value: SortOption) => void;
+  onSortOrderChange?: (order: SortOrder) => void;
+  hasLocation?: boolean;
 }
 
 const SHEET_SURFACE = colors.brand.primary;
@@ -97,6 +104,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       peekCount,
       metaFilter = 'all',
       isLoading = false,
+      sortBy = 'triage',
+      sortOrder,
+      onSortByChange,
+      onSortOrderChange,
+      hasLocation = false,
     },
     ref
   ) => {
@@ -370,12 +382,26 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
           {isExpanded && mode !== 'single' ? (
             <Animated.View style={[styles.header, expandedChromeStyle]}>
-              <Text style={styles.headerTitle}>{peekTitle}</Text>
-              {events.length > 0 ? (
-                <Text style={styles.headerSubtitle}>
-                  {events.length} résultat{events.length > 1 ? 's' : ''}
-                </Text>
-              ) : null}
+              <View style={styles.headerRow}>
+                <View style={styles.headerTextBlock}>
+                  <Text style={styles.headerTitle}>{peekTitle}</Text>
+                  {events.length > 0 ? (
+                    <Text style={styles.headerSubtitle}>
+                      {events.length} résultat{events.length > 1 ? 's' : ''}
+                    </Text>
+                  ) : null}
+                </View>
+                {onSortByChange ? (
+                  <TriageControl
+                    value={sortBy}
+                    onChange={onSortByChange}
+                    sortOrder={sortOrder}
+                    onSortOrderChange={onSortOrderChange}
+                    hasLocation={hasLocation}
+                    showLabel={false}
+                  />
+                ) : null}
+              </View>
             </Animated.View>
           ) : null}
         </View>
@@ -505,6 +531,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     minHeight: 44,
     justifyContent: 'center',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  headerTextBlock: {
+    flex: 1,
   },
   headerTitle: {
     ...typography.h4,

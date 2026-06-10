@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { X, MapPin, Calendar, Heart } from 'lucide-react-native';
+import { X, Calendar, Heart } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from '../events/EventImageCarousel';
+import { EventCardMetaRows } from '../events/EventCardMetaRows';
 
 interface QuickPreviewProps {
   event: EventWithCreator;
@@ -15,16 +16,6 @@ interface QuickPreviewProps {
 export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProps) {
   const categoryColor = getCategoryColor(event.category || '');
   const categoryTextColor = getCategoryTextColor(event.category || '');
-  const formatDate = (date: string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -56,15 +47,8 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
         </Text>
 
         <View style={styles.infoRow}>
-          <MapPin size={14} color={colors.neutral[600]} />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {event.address}
-          </Text>
-        </View>
-
-        <View style={styles.infoRow}>
           <Calendar size={14} color={colors.neutral[600]} />
-          <Text style={styles.infoText}>{formatDate(event.starts_at)}</Text>
+          <EventCardMetaRows event={event} tone="muted" showCityIcon style={styles.scheduleMeta} />
         </View>
 
         <View style={styles.footer}>
@@ -132,9 +116,12 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.xs,
     marginBottom: spacing.xs,
+  },
+  scheduleMeta: {
+    flex: 1,
   },
   infoText: {
     ...typography.bodySmall,

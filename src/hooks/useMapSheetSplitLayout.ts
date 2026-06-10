@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { useSharedValue, withSpring } from 'react-native-reanimated';
+import { runOnJS, useSharedValue, withTiming } from 'react-native-reanimated';
 import {
   clampSheetHeight,
   getInitialSheetHeight,
@@ -7,7 +7,7 @@ import {
   getScreenHeight,
   getSheetSnapHeights,
   resolveSheetSnapIndex,
-  SHEET_SPRING_CONFIG,
+  SHEET_LAYOUT_TIMING,
   type MapSheetMode,
   VIEWPORT_PEEK_HEIGHT,
 } from '@/utils/map-sheet-layout';
@@ -18,6 +18,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
   const [layoutHeight, setLayoutHeight] = useState(0);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const dragOriginSheetHeightRef = useRef(VIEWPORT_PEEK_HEIGHT);
+  const onSettledRef = useRef<(() => void) | null>(null);
   const layoutHeightShared = useSharedValue(0);
   const mapSlotHeight = useSharedValue(
     getMapSlotHeight(ESTIMATED_LAYOUT_HEIGHT, VIEWPORT_PEEK_HEIGHT)
@@ -26,13 +27,24 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
   const snapHeights = layoutHeight > 0 ? getSheetSnapHeights(layoutHeight, mode) : [];
 
   const applySheetHeight = useCallback(
-    (sheetHeight: number, animated = false) => {
+    (sheetHeight: number, animated = false, onSettled?: () => void) => {
       if (layoutHeight <= 0) return;
       const clamped = clampSheetHeight(sheetHeight, layoutHeight, mode);
       const nextMap = getMapSlotHeight(layoutHeight, clamped);
-      mapSlotHeight.value = animated
-        ? withSpring(nextMap, SHEET_SPRING_CONFIG)
-        : nextMap;
+
+      if (!animated) {
+        onSettledRef.current = null;
+        mapSlotHeight.value = nextMap;
+        onSettled?.();
+        return;
+      }
+
+      onSettledRef.current = onSettled ?? null;
+      mapSlotHeight.value = withTiming(nextMap, SHEET_LAYOUT_TIMING, (finished) => {
+        if (!finished || !onSettledRef.current) return;
+        runOnJS(onSettledRef.current)();
+        onSettledRef.current = null;
+      });
     },
     [layoutHeight, mode, mapSlotHeight]
   );
@@ -45,15 +57,15 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
       const initialSheet = getInitialSheetHeight(height, mode);
       mapSlotHeight.value = getMapSlotHeight(height, initialSheet);
     },
-    [layoutHeight, mode, mapSlotHeight]
+    [layoutHeight, mode, mapSlotHeight, layoutHeightShared]
   );
 
   const setSheetSnapIndex = useCallback(
-    (index: number, animated = true) => {
+    (index: number, animated = true, onSettled?: () => void) => {
       if (layoutHeight <= 0) return;
       const targetSheet = getSheetSnapHeights(layoutHeight, mode)[index];
       if (targetSheet == null) return;
-      applySheetHeight(targetSheet, animated);
+      applySheetHeight(targetSheet, animated, onSettled);
     },
     [applySheetHeight, layoutHeight, mode]
   );
@@ -61,6 +73,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
   const beginSheetDrag = useCallback(
     (snapIndex: number) => {
       if (layoutHeight <= 0) return;
+      onSettledRef.current = null;
       const heights = getSheetSnapHeights(layoutHeight, mode);
       const origin = heights[snapIndex] ?? heights[0] ?? VIEWPORT_PEEK_HEIGHT;
       dragOriginSheetHeightRef.current = origin;
@@ -83,7 +96,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
   );
 
   const finishSheetDrag = useCallback(
-    (dy: number, velocityY: number) => {
+    (dy: number, velocityY: number, onSettled?: () => void) => {
       if (layoutHeight <= 0) return 0;
       setIsSheetDragging(false);
       const currentSheet = clampSheetHeight(
@@ -93,7 +106,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
       );
       const targetIndex = resolveSheetSnapIndex(currentSheet, layoutHeight, mode, velocityY);
       const targetSheet = getSheetSnapHeights(layoutHeight, mode)[targetIndex] ?? currentSheet;
-      applySheetHeight(targetSheet, true);
+      applySheetHeight(targetSheet, true, onSettled);
       return targetIndex;
     },
     [applySheetHeight, layoutHeight, mode]
@@ -111,4 +124,4 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
     updateSheetDrag,
     finishSheetDrag,
   };
-};
+}

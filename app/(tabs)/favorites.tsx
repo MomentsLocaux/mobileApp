@@ -15,9 +15,10 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronDown, Heart, MapPin, Search, Users } from 'lucide-react-native';
+import { Bell, ChevronDown, Heart, Search, Users } from 'lucide-react-native';
 
 import { AppBackground } from '@/components/ui';
+import { EventCardMetaRows } from '@/components/events/EventCardMetaRows';
 import { getCategoryLabel } from '@/constants/categories';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
@@ -361,7 +362,6 @@ export default function FavoritesScreen() {
               </View>
             }
             renderItem={({ item }) => {
-              const location = item.city || item.venue_name || item.address || 'Lieu à confirmer';
               const categoryLabel = getCategoryLabel(item.category || '').toUpperCase();
               const dateLabel = formatDateChip(item.starts_at);
 
@@ -403,12 +403,7 @@ export default function FavoritesScreen() {
                     <Text style={styles.eventTitle} numberOfLines={2}>
                       {item.title}
                     </Text>
-                    <View style={styles.locationRow}>
-                      <MapPin size={14} color={colors.brand.textSecondary} />
-                      <Text style={styles.locationText} numberOfLines={1}>
-                        {location}
-                      </Text>
-                    </View>
+                    <EventCardMetaRows event={item} tone="muted" showCityIcon compactSpacing />
                   </View>
                 </TouchableOpacity>
               );

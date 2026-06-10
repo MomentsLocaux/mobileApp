@@ -28,7 +28,13 @@ export const MAP_CAMERA_FOCUS_EXTRA_PADDING = 16;
 /** Sheet snap spring — aligned with Motion.spring.sheet. */
 export const SHEET_SPRING_CONFIG = {
   ...Motion.spring.sheet,
-  overshootClamping: false,
+  overshootClamping: true,
+};
+
+/** Layout resize timing — kept in sync with map camera refit duration. */
+export const SHEET_LAYOUT_TIMING = {
+  duration: Motion.duration.normal,
+  easing: Motion.easing.emphasized,
 };
 
 export type MapSheetMode = 'single' | 'viewport';

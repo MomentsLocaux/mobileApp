@@ -12,16 +12,20 @@ import { MapPin, Heart, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import { EventImageCarousel } from '../events/EventImageCarousel';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
 import { getEventLiveWindow } from '@/utils/event-status';
+import { getEventCardCity } from '@/utils/event-card-meta';
+import { EventCardMetaRows } from '../events/EventCardMetaRows';
 
 export const EVENT_RESULT_CARD_HEIGHT = 420;
 /** Compact height for cards inside the map bottom sheet list. */
 export const EVENT_RESULT_LIST_CARD_HEIGHT = 280;
 const COMPACT_THRESHOLD = 340;
+const LIST_MEDIA_HEIGHT = 148;
+const COMPACT_MEDIA_HEIGHT = 108;
 const DEFAULT_EVENT_IMAGE = require('../../../assets/images/icon.png');
 
 interface Props {
@@ -52,19 +56,6 @@ const normalizeImageUrl = (value: unknown): string | null => {
   if (lower === 'null' || lower === 'undefined' || lower === 'none') return null;
   return trimmed;
 };
-
-function formatDateRange(starts_at: string) {
-  const start = new Date(starts_at);
-  if (isNaN(start.getTime())) return '';
-
-  const timeLabel = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-  // Format: "Samedi, 21:00"
-  const dayName = start.toLocaleDateString('fr-FR', { weekday: 'long' });
-  const dayNameCap = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-
-  return `${dayNameCap}, ${timeLabel}`;
-}
 
 function extractCoords(event: EventWithCreator): { lat: number; lon: number } | null {
   if (Array.isArray((event as any)?.location?.coordinates)) {
@@ -103,7 +94,6 @@ export const EventResultCard: React.FC<Props> = ({
   const pressScale = useSharedValue(1);
   const [now, setNow] = useState(() => new Date());
   const { currentLocation } = useLocationStore();
-  const dateLabel = useMemo(() => formatDateRange(event.starts_at), [event.starts_at]);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -189,12 +179,180 @@ export const EventResultCard: React.FC<Props> = ({
         .slice(0, 2),
     [event.tags],
   );
-  const locationLabel = useMemo(
-    () => event.venue_name || event.city || event.address || 'Lieu à venir',
-    [event.venue_name, event.city, event.address],
-  );
   const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
+  const categoryColor = getCategoryColor(event.category || '');
+  const categoryTextColor = getCategoryTextColor(event.category || '');
   const isCompact = cardHeight < COMPACT_THRESHOLD;
+  const useStackedLayout = isCompact;
+  const hasCarousel = showCarousel && images.length > 0;
+  const mediaHeight = useStackedLayout
+    ? hasCarousel
+      ? LIST_MEDIA_HEIGHT
+      : COMPACT_MEDIA_HEIGHT
+    : cardHeight;
+  const cityLabel = useMemo(() => getEventCardCity(event), [event]);
+
+  const handleCardPress = () => {
+    if (isSwiping) return;
+    onSelect?.();
+    onPress();
+  };
+
+  const badgesSection = (
+    <View style={styles.topRow} pointerEvents="box-none">
+      <View style={styles.badgesContainer}>
+        {isLive && (
+          <View style={[styles.badge, styles.badgeLive]}>
+            <View style={styles.liveDot} />
+            <Text style={styles.badgeTextLive}>EN DIRECT</Text>
+          </View>
+        )}
+        <View style={[styles.badge, { backgroundColor: categoryColor }]}>
+          <Text style={[styles.badgeText, { color: categoryTextColor }]}>{categoryLabel}</Text>
+        </View>
+        {displayTags.map((tag) => (
+          <View key={tag} style={[styles.badge, styles.tagBadge]}>
+            <Text style={styles.tagText}>#{tag}</Text>
+          </View>
+        ))}
+      </View>
+
+      {onToggleLike && (
+        <TouchableOpacity
+          style={styles.favoriteButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            onToggleLike(event);
+          }}
+        >
+          <Heart
+            size={22}
+            color={isLiked ? colors.brand.error : '#fff'}
+            fill={isLiked ? colors.brand.error : 'rgba(0,0,0,0.3)'}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const footerSection = (
+    <View style={[styles.footer, isCompact && styles.footerCompact]}>
+        <View style={styles.attendeesContainer}>
+          <View style={styles.avatarPile}>
+            {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
+              <View key={i} style={[styles.attendeeAvatar, { transform: [{ translateX: -i * 10 }] }]}>
+                <View style={[styles.attendeeDot, useStackedLayout && styles.attendeeDotStacked]} />
+              </View>
+            ))}
+            {attendeesCount > 3 && (
+              <View style={[styles.attendeeAvatar, styles.attendeeMore, { transform: [{ translateX: -30 }] }]}>
+                <Text style={styles.moreText}>+</Text>
+              </View>
+            )}
+          </View>
+          <Text
+            style={[
+              styles.attendeeText,
+              { marginLeft: -20 },
+              useStackedLayout && styles.attendeeTextStacked,
+            ]}
+          >
+            {attendeesCount} ami{attendeesCount > 1 ? 's' : ''} y vont
+          </Text>
+        </View>
+
+        <View style={styles.statsContainer}>
+          <Eye size={14} color={useStackedLayout ? colors.brand.textSecondary : 'rgba(255,255,255,0.6)'} />
+          <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{viewCount} vues</Text>
+        </View>
+
+        {distanceLabel && (
+          <TouchableOpacity
+            style={[styles.locationBadge, useStackedLayout && styles.locationBadgeStacked]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onNavigate();
+            }}
+            activeOpacity={0.8}
+          >
+            <MapPin size={12} color={colors.brand.textSecondary} />
+            <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{distanceLabel}</Text>
+          </TouchableOpacity>
+        )}
+    </View>
+  );
+
+  const contentSection = useStackedLayout ? (
+    <View style={styles.stackedContentBody}>
+      <View style={styles.stackedMainCol}>
+        <Text
+          style={[styles.title, styles.titleCompact, styles.titleStacked]}
+          numberOfLines={2}
+        >
+          {event.title}
+        </Text>
+        <View style={styles.stackedCityRow}>
+          <MapPin size={12} color={colors.brand.textSecondary} />
+          <Text style={styles.stackedCityText} numberOfLines={1}>
+            {cityLabel}
+          </Text>
+        </View>
+        {footerSection}
+      </View>
+      <View style={styles.stackedScheduleCol}>
+        <EventCardMetaRows
+          event={event}
+          tone="surface"
+          isLive={isLive}
+          liveUntilLabel={liveUntilLabel}
+          showCity={false}
+          align="right"
+          compactSpacing
+        />
+      </View>
+    </View>
+  ) : (
+    <>
+      <View style={styles.overlayContentHeader}>
+        <View style={styles.overlayMainCol}>
+          <Text style={[styles.title, isCompact && styles.titleCompact]} numberOfLines={2}>
+            {event.title}
+          </Text>
+          <View style={styles.overlayCityRow}>
+            <MapPin size={12} color={colors.brand.textSecondary} />
+            <Text style={styles.overlayCityText} numberOfLines={1}>
+              {cityLabel}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.overlayScheduleCol}>
+          <EventCardMetaRows
+            event={event}
+            tone="overlay"
+            isLive={isLive}
+            liveUntilLabel={liveUntilLabel}
+            showCity={false}
+            align="right"
+            compactSpacing
+          />
+        </View>
+      </View>
+      {footerSection}
+    </>
+  );
+
+  const mediaSection =
+    hasCarousel ? (
+      <EventImageCarousel
+        images={images}
+        height={mediaHeight}
+        borderRadius={useStackedLayout ? 0 : borderRadius.xl}
+        onSwipeStart={() => setIsSwiping(true)}
+        onSwipeEnd={() => setIsSwiping(false)}
+      />
+    ) : (
+      <Image source={images[0] ? { uri: images[0] } : DEFAULT_EVENT_IMAGE} style={styles.image} />
+    );
 
   return (
     <Animated.View
@@ -205,137 +363,63 @@ export const EventResultCard: React.FC<Props> = ({
         cardAnimatedStyle,
       ]}
     >
-    <Pressable
-      style={styles.cardPressable}
-      onPressIn={() => {
-        if (reduceMotion) return;
-        pressScale.value = withTiming(Motion.transform.pressScale, {
-          duration: Motion.duration.micro,
-        });
-      }}
-      onPressOut={() => {
-        pressScale.value = withSpring(1, Motion.spring.soft);
-      }}
-      onPress={() => {
-        if (isSwiping) return;
-        onSelect?.();
-        onPress();
-      }}
-    >
-      <View style={styles.imageContainer}>
-        {showCarousel && images.length > 0 ? (
-          <EventImageCarousel
-            images={images}
-            height={cardHeight}
-            borderRadius={borderRadius.xl}
-            onSwipeStart={() => setIsSwiping(true)}
-            onSwipeEnd={() => setIsSwiping(false)}
-          />
-        ) : (
-          <Image
-            source={images[0] ? { uri: images[0] } : DEFAULT_EVENT_IMAGE}
-            style={styles.image}
-          />
-        )}
-
-        {/* Gradient Overlay */}
-        <LinearGradient
-          colors={['transparent', 'rgba(15, 23, 25, 0.4)', 'rgba(15, 23, 25, 0.95)']}
-          locations={[0, 0.5, 1]}
-          style={styles.gradientOverlay}
-        />
-
-        {/* Top Badges */}
-        <View style={styles.topRow}>
-          <View style={styles.badgesContainer}>
-            {isLive && (
-              <View style={[styles.badge, styles.badgeLive]}>
-                <View style={styles.liveDot} />
-                <Text style={styles.badgeTextLive}>EN DIRECT</Text>
-              </View>
-            )}
-            <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={styles.badgeText}>{categoryLabel}</Text>
-            </View>
-            {displayTags.map((tag) => (
-              <View key={tag} style={[styles.badge, styles.tagBadge]}>
-                <Text style={styles.tagText}>#{tag}</Text>
-              </View>
-            ))}
+      {useStackedLayout ? (
+        <View style={styles.stackedCard}>
+          <View style={[styles.stackedMedia, { height: mediaHeight }]}>
+            {mediaSection}
+            {badgesSection}
           </View>
+          <Pressable
+            style={styles.stackedContent}
+            onPressIn={() => {
+              if (reduceMotion) return;
+              pressScale.value = withTiming(Motion.transform.pressScale, {
+                duration: Motion.duration.micro,
+              });
+            }}
+            onPressOut={() => {
+              pressScale.value = withSpring(1, Motion.spring.soft);
+            }}
+            onPress={handleCardPress}
+          >
+            {contentSection}
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          style={styles.cardPressable}
+          onPressIn={() => {
+            if (reduceMotion) return;
+            pressScale.value = withTiming(Motion.transform.pressScale, {
+              duration: Motion.duration.micro,
+            });
+          }}
+          onPressOut={() => {
+            pressScale.value = withSpring(1, Motion.spring.soft);
+          }}
+          onPress={handleCardPress}
+        >
+          <View style={styles.imageContainer}>
+            {mediaSection}
 
-          {onToggleLike && (
-            <TouchableOpacity
-              style={styles.favoriteButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                onToggleLike(event);
-              }}
+            <LinearGradient
+              pointerEvents="none"
+              colors={['transparent', 'rgba(15, 23, 25, 0.4)', 'rgba(15, 23, 25, 0.95)']}
+              locations={[0, 0.5, 1]}
+              style={styles.gradientOverlay}
+            />
+
+            {badgesSection}
+
+            <View
+              pointerEvents="box-none"
+              style={[styles.contentContainer, isCompact && styles.contentContainerCompact]}
             >
-              <Heart
-                size={22}
-                color={isLiked ? colors.brand.error : '#fff'}
-                fill={isLiked ? colors.brand.error : 'rgba(0,0,0,0.3)'}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Content Overlay */}
-        <View style={[styles.contentContainer, isCompact && styles.contentContainerCompact]}>
-          {/* Date & Location */}
-          <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
-            {isLive && liveUntilLabel ? `En direct jusqu'à ${liveUntilLabel}` : dateLabel} •{' '}
-            <Text style={styles.venueName}>{locationLabel}</Text>
-          </Text>
-
-          {/* Title */}
-          <Text style={[styles.title, isCompact && styles.titleCompact]} numberOfLines={2}>
-            {event.title}
-          </Text>
-
-          {/* Footer: Attendees & Stats */}
-          <View style={[styles.footer, isCompact && styles.footerCompact]}>
-            <View style={styles.attendeesContainer}>
-              <View style={styles.avatarPile}>
-                {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
-                  <View key={i} style={[styles.attendeeAvatar, { transform: [{ translateX: -i * 10 }] }]}>
-                    <View style={styles.attendeeDot} />
-                  </View>
-                ))}
-                {attendeesCount > 3 && (
-                  <View style={[styles.attendeeAvatar, styles.attendeeMore, { transform: [{ translateX: -30 }] }]}>
-                    <Text style={styles.moreText}>+</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={[styles.attendeeText, { marginLeft: -20 }]}>
-                {attendeesCount} ami{attendeesCount > 1 ? 's' : ''} y vont
-              </Text>
+              {contentSection}
             </View>
-
-            <View style={styles.statsContainer}>
-              <Eye size={14} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.statsText}>{viewCount} vues</Text>
-            </View>
-
-            {distanceLabel && (
-              <TouchableOpacity
-                style={styles.locationBadge}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onNavigate();
-                }}
-                activeOpacity={0.8}
-              >
-                <MapPin size={12} color={colors.brand.textSecondary} />
-                <Text style={styles.statsText}>{distanceLabel}</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
-      </View>
-    </Pressable>
+        </Pressable>
+      )}
     </Animated.View>
   );
 };
@@ -349,6 +433,78 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   cardPressable: {
+    flex: 1,
+  },
+  stackedCard: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  stackedMedia: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+  },
+  stackedContent: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.brand.surface,
+  },
+  stackedContentBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  stackedMainCol: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'space-between',
+  },
+  stackedScheduleCol: {
+    maxWidth: '46%',
+    alignItems: 'flex-end',
+    paddingTop: 2,
+  },
+  stackedCityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+    marginBottom: spacing.xs,
+  },
+  stackedCityText: {
+    ...typography.caption,
+    color: colors.brand.text,
+    fontWeight: '600',
+    flex: 1,
+  },
+  overlayContentHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  overlayMainCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  overlayScheduleCol: {
+    maxWidth: '44%',
+    alignItems: 'flex-end',
+  },
+  overlayCityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  overlayCityText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '600',
     flex: 1,
   },
   cardNoBottomMargin: {
@@ -454,21 +610,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: spacing.lg,
   },
-  subtitle: {
-    ...typography.bodySmall,
-    color: colors.brand.secondary,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  subtitleCompact: {
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  venueName: {
-    color: colors.brand.text,
-  },
   title: {
     fontSize: 28,
     lineHeight: 32,
@@ -481,9 +622,27 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   titleCompact: {
-    fontSize: 20,
-    lineHeight: 24,
-    marginBottom: spacing.sm,
+    fontSize: 18,
+    lineHeight: 22,
+    marginBottom: 2,
+  },
+  titleStacked: {
+    color: colors.brand.text,
+    textShadowRadius: 0,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  attendeeDotStacked: {
+    backgroundColor: colors.brand.textSecondary,
+  },
+  attendeeTextStacked: {
+    color: colors.brand.textSecondary,
+  },
+  statsTextStacked: {
+    color: colors.brand.textSecondary,
+  },
+  locationBadgeStacked: {
+    backgroundColor: colors.brand.primary,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   footer: {
     flexDirection: 'row',
