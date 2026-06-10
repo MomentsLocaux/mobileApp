@@ -1,4 +1,5 @@
 import { Dimensions } from 'react-native';
+import { Motion } from '@/constants/motion';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -12,18 +13,21 @@ export const SHEET_JUNCTION_RADIUS = 16;
 export const VIEWPORT_PEEK_HEIGHT = 72;
 export const VIEWPORT_PEEK_SNAP = String(VIEWPORT_PEEK_HEIGHT);
 
-/** Expanded snap: full list (peek → list, no intermediate state). */
+/** Half snap: list revealed over ~50% of the layout column. */
+export const VIEWPORT_HALF_SNAP = '50%';
+export const VIEWPORT_HALF_RATIO = 0.5;
+
+/** Expanded snap: full list. */
 export const VIEWPORT_FULL_SNAP = '92%';
+export const VIEWPORT_FULL_RATIO = 0.92;
 export const VIEWPORT_PEEK_RATIO = VIEWPORT_PEEK_HEIGHT / SCREEN_HEIGHT;
 
 export const MAP_CAMERA_ANIMATION_MS = 300;
 export const MAP_CAMERA_FOCUS_EXTRA_PADDING = 16;
 
-/** Smooth snap — low stiffness to avoid jank after drag. */
+/** Sheet snap spring — aligned with Motion.spring.sheet. */
 export const SHEET_SPRING_CONFIG = {
-  damping: 24,
-  stiffness: 210,
-  mass: 0.72,
+  ...Motion.spring.sheet,
   overshootClamping: false,
 };
 
@@ -41,8 +45,18 @@ export const getSheetSnapHeights = (layoutHeight: number, mode: MapSheetMode): n
   if (mode === 'single') {
     return [Math.round(layoutHeight * 0.16), Math.round(layoutHeight * 0.47)];
   }
-  return [VIEWPORT_PEEK_HEIGHT, Math.round(layoutHeight * 0.92)];
+  return [
+    VIEWPORT_PEEK_HEIGHT,
+    Math.round(layoutHeight * VIEWPORT_HALF_RATIO),
+    Math.round(layoutHeight * VIEWPORT_FULL_RATIO),
+  ];
 };
+
+export const VIEWPORT_HALF_SNAP_INDEX = 1;
+export const VIEWPORT_FULL_SNAP_INDEX = 2;
+
+export const getSheetMaxSnapIndex = (mode: MapSheetMode) =>
+  mode === 'single' ? 1 : VIEWPORT_FULL_SNAP_INDEX;
 
 export const getMapSlotHeight = (layoutHeight: number, sheetHeight: number) => {
   return Math.max(0, layoutHeight - sheetHeight);

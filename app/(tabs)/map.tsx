@@ -1,11 +1,17 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useDerivedValue,
+} from 'react-native-reanimated';
 import {
   MAP_CAMERA_ANIMATION_MS,
   SHEET_JUNCTION_RADIUS,
   VIEWPORT_PEEK_HEIGHT,
+  getSheetMaxSnapIndex,
 } from '../../src/utils/map-sheet-layout';
 import { useMapSheetSplitLayout } from '@/hooks/useMapSheetSplitLayout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -38,6 +44,7 @@ import {
   type SearchResultsBottomSheetHandle,
 } from '../../src/components/search/SearchResultsBottomSheet';
 import { MapEventUnitOverlay } from '../../src/components/search/MapEventUnitOverlay';
+import { FloatingPressable } from '../../src/components/ui/FloatingPressable';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
@@ -74,6 +81,7 @@ export default function MapScreen() {
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
   const {
     isSheetDragging,
+    layoutHeightShared,
     mapSlotHeight,
     handleColumnLayout,
     setSheetSnapIndex,
@@ -82,8 +90,31 @@ export default function MapScreen() {
     finishSheetDrag,
   } = useMapSheetSplitLayout(sheetMode);
 
+  const sheetProgress = useDerivedValue(() => {
+    const layoutHeight = layoutHeightShared.value;
+    if (layoutHeight <= 0) return 0;
+    const fullSheetHeight = layoutHeight * 0.92; // max snap (index 2)
+    const currentSheetHeight = layoutHeight - mapSlotHeight.value;
+    const range = Math.max(1, fullSheetHeight - VIEWPORT_PEEK_HEIGHT);
+    return Math.min(1, Math.max(0, (currentSheetHeight - VIEWPORT_PEEK_HEIGHT) / range));
+  });
+
   const mapSlotStyle = useAnimatedStyle(() => ({
     height: Math.max(0, mapSlotHeight.value),
+  }));
+
+  const mapSceneStyle = useAnimatedStyle(() => ({
+    flex: 1,
+    opacity: interpolate(sheetProgress.value, [0, 1], [1, 0.85], Extrapolation.CLAMP),
+    transform: [
+      {
+        scale: interpolate(sheetProgress.value, [0, 1], [1, 0.98], Extrapolation.CLAMP),
+      },
+    ],
+  }));
+
+  const unitOverlayFadeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(sheetProgress.value, [0, 0.35], [1, 0], Extrapolation.CLAMP),
   }));
 
   const mapPaddingBottomRef = useRef(20);
@@ -589,16 +620,17 @@ export default function MapScreen() {
   const handleSheetIndexChange = useCallback(
     (idx: number, options?: { animate?: boolean }) => {
       if (idx < 0) return;
-      if (idx === bottomSheetIndex) return;
+      const clampedIdx = Math.min(idx, getSheetMaxSnapIndex(sheetMode));
+      if (clampedIdx === bottomSheetIndex) return;
 
       clearDebouncedViewportFetch();
       suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 600);
-      setBottomSheetIndex(idx);
+      setBottomSheetIndex(clampedIdx);
       if (options?.animate !== false) {
-        setSheetSnapIndex(idx);
+        setSheetSnapIndex(clampedIdx);
       }
 
-      if (idx === 0) {
+      if (clampedIdx === 0) {
         closeSheet();
         refitMapToFrozenViewport();
       } else {
@@ -606,11 +638,11 @@ export default function MapScreen() {
         void lockViewportForSheet();
       }
 
-      if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
-        focusOnEvent(sheetEvents[0], idx, { bumpZoom: false });
+      if (clampedIdx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
+        focusOnEvent(sheetEvents[0], clampedIdx, { bumpZoom: false });
       }
 
-      if (idx >= 1 && activeEventId) {
+      if (clampedIdx >= 1 && activeEventId) {
         resultsSheetRef.current?.scrollToEvent(activeEventId);
       }
     },
@@ -624,6 +656,7 @@ export default function MapScreen() {
       refitMapToFrozenViewport,
       setBottomSheetIndex,
       sheetEvents,
+      sheetMode,
       sheetStatus,
       setSheetSnapIndex,
       suppressBoundsRecalc,
@@ -773,15 +806,16 @@ export default function MapScreen() {
               />
             </View>
             <View ref={filterButtonRef} collapsable={false}>
-              <TouchableOpacity
+              <FloatingPressable
                 style={styles.filterButton}
                 onPress={() => setFiltersVisible(true)}
                 accessibilityRole="button"
                 accessibilityLabel="Ouvrir les filtres"
+                animateEntrance={false}
               >
                 <SlidersHorizontal size={20} color={colors.brand.text} />
                 {filtersActive ? <View style={styles.filterActiveDot} /> : null}
-              </TouchableOpacity>
+              </FloatingPressable>
             </View>
           </View>
         </View>
@@ -791,45 +825,51 @@ export default function MapScreen() {
           onLayout={(event) => handleColumnLayout(event.nativeEvent.layout.height)}
         >
           <Animated.View style={[styles.mapSlot, mapSlotStyle]}>
-            <MapWrapper
-              ref={mapRef}
-              initialRegion={mapCenter}
-              userLocation={userLocation}
-              onFeaturePress={handleFeaturePress}
-              onZoomChange={setZoom}
-              styleURL={mapStyle}
-              mapPadding={mapPadding}
-              onVisibleBoundsChange={handleBoundsChange}
-              onUserMapGestureStart={handleUserMapGestureStart}
-              onMapReady={handleMapReady}
-              onMapBackgroundPress={handleMapBackgroundPress}
-              activeEventId={activeEventId}
-            />
+            <Animated.View style={mapSceneStyle}>
+              <MapWrapper
+                ref={mapRef}
+                initialRegion={mapCenter}
+                userLocation={userLocation}
+                onFeaturePress={handleFeaturePress}
+                onZoomChange={setZoom}
+                styleURL={mapStyle}
+                mapPadding={mapPadding}
+                onVisibleBoundsChange={handleBoundsChange}
+                onUserMapGestureStart={handleUserMapGestureStart}
+                onMapReady={handleMapReady}
+                onMapBackgroundPress={handleMapBackgroundPress}
+                activeEventId={activeEventId}
+              />
+            </Animated.View>
 
-            {userLocation && !searchExpanded && (
-              <TouchableOpacity
+            {userLocation && !searchExpanded ? (
+              <FloatingPressable
                 style={[styles.recenterTopButton, { bottom: spacing.md }]}
                 onPress={recenterToUser}
+                accessibilityRole="button"
+                accessibilityLabel="Recentrer sur ma position"
               >
                 <Navigation size={18} color={colors.neutral[0]} />
-              </TouchableOpacity>
-            )}
+              </FloatingPressable>
+            ) : null}
 
             {unitCardEvent ? (
-              <MapEventUnitOverlay
-                event={unitCardEvent}
-                visible={!!unitCardEvent}
-                currentUserId={profile?.id}
-                isLiked={likesSet.has(unitCardEvent.id)}
-                onToggleLike={handleToggleLike}
-                onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
-                onNavigate={() => setNavEvent(unitCardEvent)}
-                onClose={() => {
-                  setUnitCardEvent(null);
-                  closeSheet();
-                }}
-                bottomInset={spacing.sm}
-              />
+              <Animated.View style={unitOverlayFadeStyle} pointerEvents="box-none">
+                <MapEventUnitOverlay
+                  event={unitCardEvent}
+                  visible={!!unitCardEvent}
+                  currentUserId={profile?.id}
+                  isLiked={likesSet.has(unitCardEvent.id)}
+                  onToggleLike={handleToggleLike}
+                  onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
+                  onNavigate={() => setNavEvent(unitCardEvent)}
+                  onClose={() => {
+                    setUnitCardEvent(null);
+                    closeSheet();
+                  }}
+                  bottomInset={spacing.sm}
+                />
+              </Animated.View>
             ) : null}
           </Animated.View>
 

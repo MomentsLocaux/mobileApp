@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -9,9 +8,12 @@ import Animated, {
 import { X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing } from '@/constants/theme';
+import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { VIEWPORT_PEEK_HEIGHT } from '@/utils/map-sheet-layout';
 import { EventResultCard } from './EventResultCard';
 import { EventCardStatsService } from '@/services/event-card-stats.service';
+import { FloatingPressable } from '@/components/ui/FloatingPressable';
 
 /** Peek band height so the card floats above the bottom sheet strip. */
 const VIEWPORT_PEEK_OFFSET = VIEWPORT_PEEK_HEIGHT + spacing.md;
@@ -41,16 +43,23 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   onClose,
   bottomInset = spacing.md,
 }) => {
+  const reduceMotion = useReduceMotion();
   const progress = useSharedValue(0);
   const [viewsCount, setViewsCount] = useState(0);
   const [friendsGoingCount, setFriendsGoingCount] = useState(0);
 
   useEffect(() => {
-    progress.value = withTiming(visible ? 1 : 0, {
-      duration: visible ? 320 : 220,
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
-    });
-  }, [progress, visible]);
+    if (reduceMotion) {
+      progress.value = visible ? 1 : 0;
+      return;
+    }
+    progress.value = withTiming(
+      visible ? 1 : 0,
+      visible
+        ? createEnterTiming(Motion.duration.normal)
+        : createExitTiming(Motion.duration.fast)
+    );
+  }, [progress, reduceMotion, visible]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,8 +77,23 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   const cardStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [
-      { translateY: (1 - progress.value) * 48 },
-      { scale: 0.94 + progress.value * 0.06 },
+      { translateY: (1 - progress.value) * Motion.distance.cardEnterY },
+      {
+        scale:
+          Motion.transform.cardInitialScale +
+          progress.value * (1 - Motion.transform.cardInitialScale),
+      },
+    ],
+  }));
+
+  const closeEnterStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      {
+        scale:
+          Motion.transform.buttonInitialScale +
+          progress.value * (1 - Motion.transform.buttonInitialScale),
+      },
     ],
   }));
 
@@ -79,18 +103,24 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
       style={[styles.wrapper, { bottom: bottomInset + VIEWPORT_PEEK_OFFSET }, cardStyle]}
     >
       <View style={styles.cardShell}>
-        <TouchableOpacity
+        <Animated.View
           style={[
             styles.closeButton,
             onToggleLike ? styles.closeButtonWithLike : null,
+            closeEnterStyle,
           ]}
-          onPress={onClose}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Fermer"
         >
-          <X size={20} color={colors.brand.text} />
-        </TouchableOpacity>
+          <FloatingPressable
+            style={styles.closePressable}
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Fermer"
+            animateEntrance={false}
+          >
+            <X size={20} color={colors.brand.text} />
+          </FloatingPressable>
+        </Animated.View>
 
         <EventResultCard
           event={event}
@@ -130,6 +160,8 @@ const styles = StyleSheet.create({
     top: spacing.md,
     right: spacing.md,
     zIndex: 40,
+  },
+  closePressable: {
     width: 36,
     height: 36,
     borderRadius: 18,

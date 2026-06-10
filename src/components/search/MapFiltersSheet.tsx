@@ -22,6 +22,7 @@ import { X } from 'lucide-react-native';
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 
 const META_FILTERS: { key: EventMetaFilter; label: string }[] = [
   { key: 'all', label: 'Tous' },
@@ -128,13 +129,10 @@ export function MapFiltersSheet({
         setOverlayMounted(true);
         progress.value = 0;
         contentProgress.value = 0;
-        progress.value = withTiming(1, {
-          duration: 340,
-          easing: Easing.bezier(0.22, 1, 0.36, 1),
-        });
+        progress.value = withTiming(1, createEnterTiming(Motion.duration.slow));
         contentProgress.value = withDelay(
-          120,
-          withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) })
+          Motion.duration.micro,
+          withTiming(1, createEnterTiming(Motion.duration.fast))
         );
       };
 
@@ -156,14 +154,11 @@ export function MapFiltersSheet({
       return;
     }
 
-    progress.value = withTiming(0, {
-      duration: 240,
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
-    });
-    contentProgress.value = withTiming(0, { duration: 140 });
+    progress.value = withTiming(0, createExitTiming(Motion.duration.fast));
+    contentProgress.value = withTiming(0, { duration: Motion.duration.micro });
     closeTimeoutRef.current = setTimeout(() => {
       setOverlayMounted(false);
-    }, 260);
+    }, Motion.duration.fast + 40);
   }, [
     anchorRef,
     contentProgress,

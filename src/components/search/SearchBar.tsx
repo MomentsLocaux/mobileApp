@@ -23,6 +23,7 @@ import Animated, {
 import { X, MapPin, Calendar, Tag, ChevronRight, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { useSearchStore } from '@/store/searchStore';
 import { MapboxService } from '@/services/mapbox.service';
@@ -344,13 +345,10 @@ export const SearchBar: React.FC<Props> = ({
       onExpandedChange?.(true);
       progress.value = 0;
       contentProgress.value = 0;
-      progress.value = withTiming(1, {
-        duration: 300,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
-      });
+      progress.value = withTiming(1, createEnterTiming(Motion.duration.normal));
       contentProgress.value = withDelay(
-        120,
-        withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) })
+        Motion.duration.micro,
+        withTiming(1, createEnterTiming(Motion.duration.fast))
       );
       setTimeout(() => {
         if (searchMode === 'members') {
@@ -363,15 +361,12 @@ export const SearchBar: React.FC<Props> = ({
   };
 
   const closeExpanded = () => {
-    progress.value = withTiming(0, {
-      duration: 220,
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
-    });
-    contentProgress.value = withTiming(0, { duration: 120 });
+    progress.value = withTiming(0, createExitTiming(Motion.duration.fast));
+    contentProgress.value = withTiming(0, { duration: Motion.duration.micro });
     setTimeout(() => {
       setOverlayVisible(false);
       onExpandedChange?.(false);
-    }, 240);
+    }, Motion.duration.fast);
   };
 
   const barAnimatedStyle = useAnimatedStyle(() => ({

@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { Motion } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { MapPin, Heart, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { EventWithCreator } from '../../types/database';
@@ -31,6 +39,7 @@ interface Props {
   onToggleLike?: (event: EventWithCreator) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (event: EventWithCreator) => void;
+  listEntranceDelay?: number;
 }
 
 const normalizeImageUrl = (value: unknown): string | null => {
@@ -83,8 +92,13 @@ export const EventResultCard: React.FC<Props> = ({
   onOpenCreator,
   isLiked,
   onToggleLike,
+  listEntranceDelay = 0,
 }) => {
+  const reduceMotion = useReduceMotion();
   const [isSwiping, setIsSwiping] = useState(false);
+  const activeProgress = useSharedValue(active ? 1 : 0);
+  const entranceProgress = useSharedValue(reduceMotion || listEntranceDelay <= 0 ? 1 : 0);
+  const pressScale = useSharedValue(1);
   const [now, setNow] = useState(() => new Date());
   const { currentLocation } = useLocationStore();
   const dateLabel = useMemo(() => formatDateRange(event.starts_at), [event.starts_at]);
@@ -101,6 +115,40 @@ export const EventResultCard: React.FC<Props> = ({
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    activeProgress.value = reduceMotion
+      ? active
+        ? 1
+        : 0
+      : withSpring(active ? 1 : 0, Motion.spring.soft);
+  }, [active, activeProgress, reduceMotion]);
+
+  useEffect(() => {
+    if (reduceMotion || listEntranceDelay <= 0) {
+      entranceProgress.value = 1;
+      return;
+    }
+    entranceProgress.value = 0;
+    const timer = setTimeout(() => {
+      entranceProgress.value = withTiming(1, {
+        duration: Motion.duration.fast,
+        easing: Motion.easing.emphasized,
+      });
+    }, listEntranceDelay);
+    return () => clearTimeout(timer);
+  }, [entranceProgress, listEntranceDelay, reduceMotion]);
+
+  const cardAnimatedStyle = useAnimatedStyle(() => {
+    const activeScale = 1 - activeProgress.value * 0.02;
+    return {
+      opacity: entranceProgress.value,
+      transform: [
+        { translateY: (1 - entranceProgress.value) * Motion.distance.listEnterY },
+        { scale: activeScale * pressScale.value },
+      ],
+    };
+  });
 
   const distanceLabel = useMemo(() => {
     if (typeof distanceKm === 'number' && Number.isFinite(distanceKm)) {
@@ -147,13 +195,25 @@ export const EventResultCard: React.FC<Props> = ({
   const isCompact = cardHeight < COMPACT_THRESHOLD;
 
   return (
-    <Pressable
+    <Animated.View
       style={[
         styles.card,
         { height: cardHeight },
-        active && styles.cardActive,
         noBottomMargin && styles.cardNoBottomMargin,
+        cardAnimatedStyle,
       ]}
+    >
+    <Pressable
+      style={styles.cardPressable}
+      onPressIn={() => {
+        if (reduceMotion) return;
+        pressScale.value = withTiming(Motion.transform.pressScale, {
+          duration: Motion.duration.micro,
+        });
+      }}
+      onPressOut={() => {
+        pressScale.value = withSpring(1, Motion.spring.soft);
+      }}
       onPress={() => {
         if (isSwiping) return;
         onSelect?.();
@@ -274,6 +334,7 @@ export const EventResultCard: React.FC<Props> = ({
         </View>
       </View>
     </Pressable>
+    </Animated.View>
   );
 };
 
@@ -285,8 +346,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.surface,
     marginBottom: spacing.lg,
   },
-  cardActive: {
-    transform: [{ scale: 0.98 }],
+  cardPressable: {
+    flex: 1,
   },
   cardNoBottomMargin: {
     marginBottom: 0,

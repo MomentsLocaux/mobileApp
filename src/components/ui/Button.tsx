@@ -7,9 +7,12 @@ import {
   type PressableProps,
 } from 'react-native';
 import { colors, spacing, borderRadius, typography, minimumTouchTarget } from '../../constants/theme';
+import { Motion } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -36,19 +39,22 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const normalizedSize = size === 'small' ? 'sm' : size;
+  const reduceMotion = useReduceMotion();
   const pressed = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withTiming(pressed.value, { duration: 110 }) }],
+    transform: [{ scale: pressed.value }],
   }));
 
   const handlePressIn: PressableProps['onPressIn'] = (event) => {
-    pressed.value = 0.98;
+    pressed.value = reduceMotion
+      ? 1
+      : withTiming(Motion.transform.pressScale, { duration: Motion.duration.micro });
     onPressIn?.(event);
   };
 
   const handlePressOut: PressableProps['onPressOut'] = (event) => {
-    pressed.value = 1;
+    pressed.value = reduceMotion ? 1 : withSpring(1, Motion.spring.soft);
     onPressOut?.(event);
   };
 

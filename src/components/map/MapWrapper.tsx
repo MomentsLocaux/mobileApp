@@ -1,4 +1,6 @@
 import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect } from 'react';
+import { runOnJS, useAnimatedReaction, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
+import { Motion } from '@/constants/motion';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MapPin, Users, type LucideIcon } from 'lucide-react-native';
@@ -139,6 +141,28 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const userTouchDragRef = useRef(false);
   const touchStartPosRef = useRef({ x: 0, y: 0 });
   const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
+  const [selectedIconSize, setSelectedIconSize] = useState(1.45);
+  const selectedIconScale = useSharedValue(1.45);
+
+  useEffect(() => {
+    if (!activeEventId) {
+      selectedIconScale.value = 1.45;
+      setSelectedIconSize(1.45);
+      return;
+    }
+    selectedIconScale.value = withSequence(
+      withSpring(1.45 * Motion.transform.markerSelectedScale, Motion.spring.soft),
+      withSpring(1.45, Motion.spring.soft)
+    );
+  }, [activeEventId, selectedIconScale]);
+
+  useAnimatedReaction(
+    () => selectedIconScale.value,
+    (value) => {
+      runOnJS(setSelectedIconSize)(value);
+    },
+    [selectedIconScale]
+  );
 
   const TOUCH_DRAG_THRESHOLD_PX = 8;
 
@@ -553,7 +577,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             filter={['!', ['has', 'point_count']]}
             style={{
               iconImage: selectedMarkerIconKey,
-              iconSize: 1.45,
+              iconSize: selectedIconSize,
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
             }}

@@ -37,7 +37,22 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Button, Card, AppBackground, screenHeaderStyles } from '../../components/ui';
+import {
+  Button,
+  Card,
+  AppBackground,
+  screenHeaderStyles,
+  MotionReveal,
+  FloatingPressable,
+} from '../../components/ui';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
+import { Motion, createEnterTiming } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { EventsService } from '../../services/events.service';
 import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
@@ -112,6 +127,9 @@ export default function EventDetailScreen() {
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
   const [loading, setLoading] = useState(true);
+  const reduceMotion = useReduceMotion();
+  const screenProgress = useSharedValue(0);
+  const bottomBarProgress = useSharedValue(0);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [navSheetVisible, setNavSheetVisible] = useState(false);
   const [communityPhotos, setCommunityPhotos] = useState<EventMediaSubmission[]>([]);
@@ -1026,6 +1044,32 @@ export default function EventDetailScreen() {
     event?.registration_required,
   ]);
 
+  useEffect(() => {
+    if (loading || !event) {
+      screenProgress.value = 0;
+      bottomBarProgress.value = 0;
+      return;
+    }
+    screenProgress.value = reduceMotion
+      ? 1
+      : withTiming(1, createEnterTiming(Motion.duration.normal));
+    bottomBarProgress.value = reduceMotion
+      ? 1
+      : withDelay(
+          Motion.duration.fast,
+          withTiming(1, createEnterTiming(Motion.duration.normal))
+        );
+  }, [bottomBarProgress, event, loading, reduceMotion, screenProgress]);
+
+  const screenStyle = useAnimatedStyle(() => ({
+    opacity: screenProgress.value,
+  }));
+
+  const bottomBarStyle = useAnimatedStyle(() => ({
+    opacity: bottomBarProgress.value,
+    transform: [{ translateY: (1 - bottomBarProgress.value) * Motion.distance.ctaEnterY }],
+  }));
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -1047,6 +1091,7 @@ export default function EventDetailScreen() {
 
   return (
     <>
+      <Animated.View style={[{ flex: 1 }, screenStyle]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: BOTTOM_BAR_HEIGHT + insets.bottom + spacing.lg }}
@@ -1056,38 +1101,40 @@ export default function EventDetailScreen() {
         <StatusBar barStyle="light-content" />
 
         <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-          <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
+          <FloatingPressable style={styles.iconButton} onPress={handleBack} entranceDelay={0}>
             <ChevronLeft size={22} color={colors.brand.text} />
-          </TouchableOpacity>
+          </FloatingPressable>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
+            <FloatingPressable style={styles.iconButton} onPress={handleShare} entranceDelay={40}>
               <Share2 size={20} color={colors.brand.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton} onPress={handleOpenEventReport}>
+            </FloatingPressable>
+            <FloatingPressable style={styles.iconButton} onPress={handleOpenEventReport} entranceDelay={80}>
               <Flag
                 size={20}
                 color={eventReported ? colors.error[500] : colors.brand.text}
                 fill={eventReported ? colors.error[500] : 'transparent'}
               />
-            </TouchableOpacity>
+            </FloatingPressable>
             {canEditEvent ? (
-              <TouchableOpacity
+              <FloatingPressable
                 style={styles.iconButton}
                 onPress={() => router.push(`/events/create/step-1?edit=${event.id}` as any)}
+                entranceDelay={120}
               >
                 <Edit size={20} color={colors.brand.secondary} />
-              </TouchableOpacity>
+              </FloatingPressable>
             ) : null}
-            <TouchableOpacity style={styles.iconButton} onPress={handleToggleLike}>
+            <FloatingPressable style={styles.iconButton} onPress={handleToggleLike} entranceDelay={160}>
               <Heart
                 size={20}
                 color={isEventLiked ? colors.error[500] : colors.brand.text}
                 fill={isEventLiked ? colors.error[500] : 'transparent'}
               />
-            </TouchableOpacity>
+            </FloatingPressable>
           </View>
         </View>
 
+        <MotionReveal delay={0}>
         <View style={styles.heroContainer}>
           <PlaceMediaGallery images={mediaImages} communityImages={communityMediaImages} onAddPhoto={handleAddPhoto}>
             <View style={styles.heroBadges}>
@@ -1103,8 +1150,10 @@ export default function EventDetailScreen() {
             </View>
           </PlaceMediaGallery>
         </View>
+        </MotionReveal>
 
         <View style={styles.content}>
+          <MotionReveal delay={Motion.stagger.content}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>{event.title}</Text>
             <TouchableOpacity
@@ -1116,7 +1165,9 @@ export default function EventDetailScreen() {
               <Text style={styles.debugIdText}>?</Text>
             </TouchableOpacity>
           </View>
+          </MotionReveal>
 
+          <MotionReveal delay={Motion.stagger.content * 2}>
           <TouchableOpacity
             style={styles.cardTouchable}
             activeOpacity={0.85}
@@ -1148,7 +1199,9 @@ export default function EventDetailScreen() {
               ) : null}
             </Card>
           </TouchableOpacity>
+          </MotionReveal>
 
+          <MotionReveal delay={Motion.stagger.content * 3}>
           <Card padding="md" style={[styles.infoCard, { marginTop: spacing.md }]}>
             <TouchableOpacity
               style={styles.infoRowNoMargin}
@@ -1199,6 +1252,7 @@ export default function EventDetailScreen() {
                 </View>
               ) : null}
           </Card>
+          </MotionReveal>
 
           {event.status === 'published' && (isOwner || isAdmin) ? (
             <Card padding="md" style={[styles.qrCard, { marginTop: spacing.md }]}>
@@ -1377,8 +1431,9 @@ export default function EventDetailScreen() {
           {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
         </View>
       </ScrollView>
+      </Animated.View>
 
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}> 
+      <Animated.View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }, bottomBarStyle]}> 
         <View style={styles.bottomBarContent}>
           <TouchableOpacity style={[styles.bottomBarCta, styles.bottomPrimary]} onPress={handleToggleFavorite}>
             <Bookmark
@@ -1395,7 +1450,7 @@ export default function EventDetailScreen() {
             <Text style={styles.checkinButtonText}>{hasCheckedIn ? 'Présence validée' : 'Valider ma présence'}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
 
       <NavigationOptionsSheet visible={navSheetVisible} event={event} onClose={() => setNavSheetVisible(false)} />
 

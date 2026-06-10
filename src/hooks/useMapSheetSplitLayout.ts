@@ -18,6 +18,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
   const [layoutHeight, setLayoutHeight] = useState(0);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const dragOriginSheetHeightRef = useRef(VIEWPORT_PEEK_HEIGHT);
+  const layoutHeightShared = useSharedValue(0);
   const mapSlotHeight = useSharedValue(
     getMapSlotHeight(ESTIMATED_LAYOUT_HEIGHT, VIEWPORT_PEEK_HEIGHT)
   );
@@ -39,6 +40,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
   const handleColumnLayout = useCallback(
     (height: number) => {
       if (height <= 0 || height === layoutHeight) return;
+      layoutHeightShared.value = height;
       setLayoutHeight(height);
       const initialSheet = getInitialSheetHeight(height, mode);
       mapSlotHeight.value = getMapSlotHeight(height, initialSheet);
@@ -99,6 +101,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
 
   return {
     layoutHeight,
+    layoutHeightShared,
     snapHeights,
     isSheetDragging,
     mapSlotHeight,

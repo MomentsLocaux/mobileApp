@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, type ViewProps, type PressableProps } from 'react-native';
 import { colors, spacing, borderRadius, shadows } from '../../constants/theme';
+import { Motion } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -30,9 +33,10 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const isInteractive = !!onPress || !!onLongPress;
+  const reduceMotion = useReduceMotion();
   const pressed = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withTiming(pressed.value, { duration: 110 }) }],
+    transform: [{ scale: pressed.value }],
   }));
 
   if (isInteractive) {
@@ -48,10 +52,12 @@ export const Card: React.FC<CardProps> = ({
         onPress={onPress}
         onLongPress={onLongPress}
         onPressIn={() => {
-          pressed.value = 0.98;
+          pressed.value = reduceMotion
+            ? 1
+            : withTiming(Motion.transform.pressScale, { duration: Motion.duration.micro });
         }}
         onPressOut={() => {
-          pressed.value = 1;
+          pressed.value = reduceMotion ? 1 : withSpring(1, Motion.spring.soft);
         }}
         accessible={accessible ?? true}
         accessibilityRole={accessibilityRole ?? 'button'}

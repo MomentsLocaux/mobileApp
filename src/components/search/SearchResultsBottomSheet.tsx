@@ -7,16 +7,29 @@ import {
   FlatList,
   PanResponder,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { Motion, createEnterTiming } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
-import { VIEWPORT_PEEK_HEIGHT } from '../../utils/map-sheet-layout';
+import {
+  VIEWPORT_PEEK_HEIGHT,
+  VIEWPORT_HALF_SNAP_INDEX,
+  VIEWPORT_FULL_SNAP_INDEX,
+  getSheetMaxSnapIndex,
+} from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 export {
   VIEWPORT_PEEK_SNAP,
+  VIEWPORT_HALF_SNAP,
   VIEWPORT_FULL_SNAP,
   VIEWPORT_PEEK_HEIGHT,
   VIEWPORT_PEEK_RATIO,
@@ -57,6 +70,7 @@ interface Props {
 const SHEET_SURFACE = colors.brand.primary;
 const SCROLL_EDGE_THRESHOLD = 2;
 const LIST_COLLAPSE_PULL_THRESHOLD = 28;
+const LIST_EXPAND_PULL_THRESHOLD = 28;
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -91,7 +105,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const scrollYRef = useRef(0);
     const isExpandedRef = useRef(false);
 
-    const maxIndex = 1;
+    const maxIndex = getSheetMaxSnapIndex(mode);
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
@@ -102,6 +116,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const isPeek = clampedIndex === 0;
     const isExpanded = clampedIndex >= 1;
     isExpandedRef.current = isExpanded;
+    const reduceMotion = useReduceMotion();
+    const expandProgress = useSharedValue(isExpanded ? 1 : 0);
     const showViewportList =
       mode !== 'single' && hasEvents && !isLoading && (isExpanded || isSheetDragging);
     const showSingleDetail = mode === 'single' && isExpanded && hasEvents && !isLoading;
@@ -154,6 +170,19 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [eventIds, eventIdsKey, currentUserId]);
 
     React.useEffect(() => {
+      expandProgress.value = reduceMotion
+        ? isExpanded
+          ? 1
+          : 0
+        : withTiming(isExpanded ? 1 : 0, createEnterTiming(Motion.duration.normal));
+    }, [expandProgress, isExpanded, reduceMotion]);
+
+    const expandedChromeStyle = useAnimatedStyle(() => ({
+      opacity: expandProgress.value,
+      transform: [{ translateY: (1 - expandProgress.value) * Motion.distance.listEnterY }],
+    }));
+
+    React.useEffect(() => {
       if (!showViewportList || !activeEventId || !isExpanded) return;
       scrollToEvent(activeEventId);
     }, [activeEventId, isExpanded, showViewportList, scrollToEvent]);
@@ -197,10 +226,24 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       []
     );
 
+    const modeRef = useRef(mode);
+    modeRef.current = mode;
+
     const shouldCollapseSheetFromList = useCallback(
       (dy: number) => {
         if (!isSheetExpandableRef.current || !isExpandedRef.current) return false;
         if (dy <= 4) return false;
+        return isListAtScrollStart();
+      },
+      [isListAtScrollStart]
+    );
+
+    const shouldExpandSheetFromList = useCallback(
+      (dy: number) => {
+        if (!isSheetExpandableRef.current || !isExpandedRef.current) return false;
+        if (modeRef.current !== 'viewport') return false;
+        if (snapIndexRef.current !== VIEWPORT_HALF_SNAP_INDEX) return false;
+        if (dy >= -4) return false;
         return isListAtScrollStart();
       },
       [isListAtScrollStart]
@@ -257,7 +300,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           onMoveShouldSetPanResponderCapture: (_, gesture) =>
             Math.abs(gesture.dy) > 4 &&
             Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.1 &&
-            shouldCollapseSheetFromList(gesture.dy),
+            (shouldCollapseSheetFromList(gesture.dy) ||
+              shouldExpandSheetFromList(gesture.dy)),
           onPanResponderGrant: () => {
             beginSheetDrag();
           },
@@ -270,10 +314,20 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             const collapseFromTop =
               isListAtScrollStart() &&
               (gesture.dy > LIST_COLLAPSE_PULL_THRESHOLD || gesture.vy > 0.35);
-            finishSheetDrag(
-              gesture.dy,
-              collapseFromTop ? Math.max(gesture.vy, 0.6) : gesture.vy
-            );
+            const expandFromHalf =
+              modeRef.current === 'viewport' &&
+              snapIndexRef.current === VIEWPORT_HALF_SNAP_INDEX &&
+              isListAtScrollStart() &&
+              (gesture.dy < -LIST_EXPAND_PULL_THRESHOLD || gesture.vy < -0.35);
+
+            let releaseVelocity = gesture.vy;
+            if (collapseFromTop) {
+              releaseVelocity = Math.max(gesture.vy, 0.6);
+            } else if (expandFromHalf) {
+              releaseVelocity = Math.min(gesture.vy, -0.6);
+            }
+
+            finishSheetDrag(gesture.dy, releaseVelocity);
           },
           onPanResponderTerminate: () => {
             dragActiveRef.current = false;
@@ -286,6 +340,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         isListAtScrollStart,
         onSheetDragMove,
         shouldCollapseSheetFromList,
+        shouldExpandSheetFromList,
       ]
     );
 
@@ -314,14 +369,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           ) : null}
 
           {isExpanded && mode !== 'single' ? (
-            <View style={styles.header}>
+            <Animated.View style={[styles.header, expandedChromeStyle]}>
               <Text style={styles.headerTitle}>{peekTitle}</Text>
               {events.length > 0 ? (
                 <Text style={styles.headerSubtitle}>
                   {events.length} résultat{events.length > 1 ? 's' : ''}
                 </Text>
               ) : null}
-            </View>
+            </Animated.View>
           ) : null}
         </View>
 
@@ -351,7 +406,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         )}
 
         {showViewportList && (
-          <View style={styles.listSlot} {...listPanHandlers}>
+          <Animated.View style={[styles.listSlot, expandedChromeStyle]} {...listPanHandlers}>
             <FlatList
               ref={listRef}
               data={events}
@@ -375,9 +430,12 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                   });
                 });
               }}
-              renderItem={({ item }: { item: EventWithCreator }) => (
+              renderItem={({ item, index }: { item: EventWithCreator; index: number }) => (
                 <EventResultCard
                   event={item}
+                  listEntranceDelay={
+                    isExpanded && index < 4 ? index * Motion.stagger.listItem : 0
+                  }
                   viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
                   friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
                   active={item.id === activeEventId}
@@ -395,7 +453,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 />
               )}
             />
-          </View>
+          </Animated.View>
         )}
       </View>
     );
