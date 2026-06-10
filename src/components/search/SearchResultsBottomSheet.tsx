@@ -55,6 +55,8 @@ interface Props {
 }
 
 const SHEET_SURFACE = colors.brand.primary;
+const SCROLL_EDGE_THRESHOLD = 2;
+const LIST_COLLAPSE_PULL_THRESHOLD = 28;
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -86,6 +88,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
   ) => {
     const listRef = useRef<FlatList<EventWithCreator>>(null);
     const dragActiveRef = useRef(false);
+    const scrollYRef = useRef(0);
+    const isExpandedRef = useRef(false);
 
     const maxIndex = 1;
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
@@ -97,6 +101,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       !isLoading && hasEvents && (mode === 'single' || peekCount > 0);
     const isPeek = clampedIndex === 0;
     const isExpanded = clampedIndex >= 1;
+    isExpandedRef.current = isExpanded;
     const showViewportList =
       mode !== 'single' && hasEvents && !isLoading && (isExpanded || isSheetDragging);
     const showSingleDetail = mode === 'single' && isExpanded && hasEvents && !isLoading;
@@ -187,6 +192,20 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const isSheetExpandableRef = useRef(isSheetExpandable);
     isSheetExpandableRef.current = isSheetExpandable;
 
+    const isListAtScrollStart = useCallback(
+      () => scrollYRef.current <= SCROLL_EDGE_THRESHOLD,
+      []
+    );
+
+    const shouldCollapseSheetFromList = useCallback(
+      (dy: number) => {
+        if (!isSheetExpandableRef.current || !isExpandedRef.current) return false;
+        if (dy <= 4) return false;
+        return isListAtScrollStart();
+      },
+      [isListAtScrollStart]
+    );
+
     const openFromPeek = useCallback(() => {
       if (!isSheetExpandableRef.current || snapIndexRef.current !== 0) return;
       requestSnapIndex(1);
@@ -232,7 +251,47 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       [beginSheetDrag, finishSheetDrag, onSheetDragMove]
     );
 
+    const listPanResponder = useMemo(
+      () =>
+        PanResponder.create({
+          onMoveShouldSetPanResponderCapture: (_, gesture) =>
+            Math.abs(gesture.dy) > 4 &&
+            Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.1 &&
+            shouldCollapseSheetFromList(gesture.dy),
+          onPanResponderGrant: () => {
+            beginSheetDrag();
+          },
+          onPanResponderMove: (_, gesture) => {
+            if (!dragActiveRef.current) return;
+            onSheetDragMove(gesture.dy);
+          },
+          onPanResponderRelease: (_, gesture) => {
+            if (!dragActiveRef.current) return;
+            const collapseFromTop =
+              isListAtScrollStart() &&
+              (gesture.dy > LIST_COLLAPSE_PULL_THRESHOLD || gesture.vy > 0.35);
+            finishSheetDrag(
+              gesture.dy,
+              collapseFromTop ? Math.max(gesture.vy, 0.6) : gesture.vy
+            );
+          },
+          onPanResponderTerminate: () => {
+            dragActiveRef.current = false;
+          },
+          onPanResponderTerminationRequest: () => false,
+        }),
+      [
+        beginSheetDrag,
+        finishSheetDrag,
+        isListAtScrollStart,
+        onSheetDragMove,
+        shouldCollapseSheetFromList,
+      ]
+    );
+
     const sheetChromeHandlers = isSheetExpandable ? sheetChromePanResponder.panHandlers : {};
+    const listPanHandlers =
+      isSheetExpandable && isExpanded ? listPanResponder.panHandlers : {};
 
     return (
       <View style={styles.container}>
@@ -292,7 +351,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         )}
 
         {showViewportList && (
-          <View style={styles.listSlot}>
+          <View style={styles.listSlot} {...listPanHandlers}>
             <FlatList
               ref={listRef}
               data={events}
@@ -301,8 +360,12 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               contentContainerStyle={styles.listContent}
               scrollEnabled={isExpanded && !isSheetDragging}
               bounces={isExpanded}
+              alwaysBounceVertical={isExpanded}
               scrollEventThrottle={16}
               nestedScrollEnabled
+              onScroll={(event) => {
+                scrollYRef.current = event.nativeEvent.contentOffset.y;
+              }}
               onScrollToIndexFailed={(info: { index: number }) => {
                 requestAnimationFrame(() => {
                   listRef.current?.scrollToIndex({
