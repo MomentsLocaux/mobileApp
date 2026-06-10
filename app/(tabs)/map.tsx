@@ -2,10 +2,10 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { VIEWPORT_PEEK_HEIGHT } from '../../src/utils/map-sheet-layout';
+import { SHEET_JUNCTION_RADIUS, VIEWPORT_PEEK_HEIGHT } from '../../src/utils/map-sheet-layout';
 import { useMapSheetSplitLayout } from '@/hooks/useMapSheetSplitLayout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Navigation, PlusCircle } from 'lucide-react-native';
+import { ArrowLeft, Navigation, PlusCircle, SlidersHorizontal } from 'lucide-react-native';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,7 +22,7 @@ import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '..
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius, typography } from '../../src/constants/theme';
 import { SearchBar } from '../../src/components/search/SearchBar';
-import { TriageControl } from '../../src/components/search/TriageControl';
+import { MapFiltersSheet, hasMapActiveFilters } from '../../src/components/search/MapFiltersSheet';
 import {
   getBoundsFromRadiusKm,
   hasSearchCriteria as checkSearchCriteria,
@@ -34,6 +34,7 @@ import {
   SearchResultsBottomSheet,
   type SearchResultsBottomSheetHandle,
 } from '../../src/components/search/SearchResultsBottomSheet';
+import { MapEventUnitOverlay } from '../../src/components/search/MapEventUnitOverlay';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
@@ -65,8 +66,16 @@ export default function MapScreen() {
   } = useMapResultsUIStore();
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
-  const { layoutHeight, mapSlotHeight, handleColumnLayout, setSheetSnapIndex } =
-    useMapSheetSplitLayout(sheetMode);
+  const {
+    snapHeights,
+    isSheetDragging,
+    mapSlotHeight,
+    handleColumnLayout,
+    setSheetSnapIndex,
+    beginSheetDrag,
+    updateSheetDrag,
+    finishSheetDrag,
+  } = useMapSheetSplitLayout(sheetMode);
 
   const mapSlotStyle = useAnimatedStyle(() => ({
     height: Math.max(0, mapSlotHeight.value),
@@ -80,6 +89,8 @@ export default function MapScreen() {
   const hasCenteredOnUserRef = useRef(false);
   const mapRef = useRef<MapWrapperHandle>(null);
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
+  const filterButtonRef = useRef<View>(null);
+  const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
   const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
   const includePast = !!searchState.when.includePast;
   const focusHandledRef = useRef(false);
@@ -88,13 +99,13 @@ export default function MapScreen() {
   const markerRequestIdRef = useRef(0);
   const viewportFrozenRef = useRef(false);
   const pendingProgrammaticRefreshRef = useRef(false);
-  const pendingCarouselScrollIdRef = useRef<string | null>(null);
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
   const searchApplied = searchState.searchApplied;
   const setSearchApplied = searchState.setSearchApplied;
   const commitSearch = searchState.commitSearch;
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [guestGateVisible, setGuestGateVisible] = useState(false);
+  const [filtersVisible, setFiltersVisible] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const initialViewportLoadInFlightRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
@@ -130,6 +141,7 @@ export default function MapScreen() {
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
+  const filtersActive = hasMapActiveFilters(metaFilter, mapMode, searchActive, sortBy);
   const sortCenter = useMemo(
     () =>
       searchState.where.location
@@ -390,51 +402,47 @@ export default function MapScreen() {
 
         eventCacheRef.current.set(id, evt);
 
-        const currentStatus = useMapResultsUIStore.getState().sheetStatus;
-        if (currentStatus === 'singleEvent') {
-          selectSingleEvent(evt, 1);
-          return;
-        }
-
         highlightViewportEvent(evt);
+        setUnitCardEvent(evt);
         viewportFrozenRef.current = true;
-        pendingCarouselScrollIdRef.current = id;
-        resultsSheetRef.current?.open(1);
-        focusOnEvent(evt, 1, { bumpZoom: false });
+        focusOnEvent(evt, 0, { bumpZoom: false });
       } catch (e) {
         if (requestId !== markerRequestIdRef.current) return;
         console.warn('getEventById error', e);
       }
     },
-    [focusOnEvent, highlightViewportEvent, selectSingleEvent, sheetEvents]
+    [focusOnEvent, highlightViewportEvent, sheetEvents]
   );
 
   const handleMapBackgroundPress = useCallback(() => {
+    setUnitCardEvent(null);
     viewportFrozenRef.current = false;
-    pendingCarouselScrollIdRef.current = null;
+    closeSheet();
     resultsSheetRef.current?.collapseToPeek();
-  }, []);
+  }, [closeSheet]);
 
   const handleSheetIndexChange = useCallback(
-    (idx: number) => {
+    (idx: number, options?: { animate?: boolean }) => {
       if (idx < 0) return;
       setBottomSheetIndex(idx);
-      setSheetSnapIndex(idx);
+      if (options?.animate !== false) {
+        setSheetSnapIndex(idx);
+      }
 
       if (idx === 0) {
         viewportFrozenRef.current = false;
         closeSheet();
+      } else {
+        setUnitCardEvent(null);
+        viewportFrozenRef.current = true;
       }
 
       if (idx > 0 && sheetStatus === 'singleEvent' && sheetEvents.length > 0) {
         focusOnEvent(sheetEvents[0], idx, { bumpZoom: false });
       }
 
-      const scrollId =
-        pendingCarouselScrollIdRef.current ?? (idx >= 1 ? activeEventId : undefined);
-      if (idx >= 1 && scrollId) {
-        pendingCarouselScrollIdRef.current = null;
-        resultsSheetRef.current?.scrollToEvent(scrollId);
+      if (idx >= 2 && activeEventId) {
+        resultsSheetRef.current?.scrollToEvent(activeEventId);
       }
     },
     [
@@ -448,9 +456,28 @@ export default function MapScreen() {
     ]
   );
 
+  const handleSheetDragEnd = useCallback(
+    (dy: number, velocityY: number) => {
+      const targetIdx = finishSheetDrag(dy, velocityY);
+      handleSheetIndexChange(targetIdx, { animate: false });
+    },
+    [finishSheetDrag, handleSheetIndexChange]
+  );
+
   const handleBackToList = useCallback(() => {
     router.push('/(tabs)/' as any);
   }, [router]);
+
+  const handleMetaFilterChange = useCallback(
+    (next: EventMetaFilter) => {
+      setMetaFilter(next);
+      if (next !== 'all') {
+        setSearchApplied(false);
+      }
+      refreshBounds();
+    },
+    [refreshBounds, setSearchApplied]
+  );
 
   const handleCreateEvent = useCallback(() => {
     if (!isAuthenticated) {
@@ -569,140 +596,139 @@ export default function MapScreen() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <AppBackground />
-      <View
-        style={styles.screenColumn}
-        onLayout={(event) => handleColumnLayout(event.nativeEvent.layout.height)}
-      >
-        <Animated.View style={[styles.mapSlot, mapSlotStyle]}>
-          <MapWrapper
-            ref={mapRef}
-            initialRegion={mapCenter}
-            userLocation={userLocation}
-            onFeaturePress={handleFeaturePress}
-            onZoomChange={setZoom}
-            styleURL={mapStyle}
-            mapPadding={mapPadding}
-            onVisibleBoundsChange={handleBoundsChange}
-            onMapReady={handleMapReady}
-            onMapBackgroundPress={handleMapBackgroundPress}
-            activeEventId={activeEventId}
-          />
-
-          <TouchableOpacity
-            style={[styles.backButton, { top: insets.top + spacing.xs }]}
-            onPress={handleBackToList}
-            accessibilityRole="button"
-            accessibilityLabel="Retour à la liste"
-          >
-            <ArrowLeft size={22} color="#222222" />
-          </TouchableOpacity>
-
-          <View style={[styles.topOverlay, { top: insets.top + spacing.xs }]}>
-            <SearchBar
-              onApply={applySearch}
-              hasLocation={!!userLocation}
-              applied={searchApplied}
-              onExpandedChange={setSearchExpanded}
-            />
-            <View style={styles.metaFilterRow}>
-              {([
-                { key: 'all', label: 'Tous' },
-                { key: 'live', label: 'En cours' },
-                { key: 'upcoming', label: 'À venir' },
-                { key: 'past', label: 'Passés' },
-              ] as const).map((item) => {
-                const active = metaFilter === item.key;
-                return (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
-                    onPress={() => {
-                      setMetaFilter(item.key);
-                      if (item.key !== 'all') {
-                        setSearchApplied(false);
-                      }
-                      refreshBounds();
-                    }}
-                  >
-                    <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+      <View style={styles.screenRoot}>
+        <View style={[styles.searchSlot, { paddingTop: insets.top + spacing.xs }]}>
+          <View style={styles.searchHeaderRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={handleBackToList}
+              accessibilityRole="button"
+              accessibilityLabel="Retour à la liste"
+            >
+              <ArrowLeft size={22} color={colors.brand.text} />
+            </TouchableOpacity>
+            <View style={styles.searchBarWrap}>
+              <SearchBar
+                onApply={applySearch}
+                hasLocation={!!userLocation}
+                applied={searchApplied}
+                onExpandedChange={setSearchExpanded}
+              />
             </View>
-            {searchActive ? (
-              <View style={styles.sortRow}>
-                <TriageControl
-                  value={sortBy}
-                  onChange={(value) => searchState.setSortBy(value)}
-                  sortOrder={sortOrder}
-                  onSortOrderChange={(order) => searchState.setSortOrder(order)}
-                  hasLocation={!!userLocation}
-                  showLabel={false}
-                />
-              </View>
-            ) : null}
-            <View style={styles.layerSwitcher}>
-              {(['standard', 'satellite'] as const).map((mode) => (
-                <TouchableOpacity
-                  key={mode}
-                  style={[styles.layerButton, mapMode === mode && styles.layerButtonActive]}
-                  onPress={() => setMapMode(mode)}
-                >
-                  <Text
-                    style={[styles.layerButtonText, mapMode === mode && styles.layerButtonTextActive]}
-                  >
-                    {mode === 'standard' ? 'Standard' : 'Satellite'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View ref={filterButtonRef} collapsable={false}>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setFiltersVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les filtres"
+              >
+                <SlidersHorizontal size={20} color={colors.brand.text} />
+                {filtersActive ? <View style={styles.filterActiveDot} /> : null}
+              </TouchableOpacity>
             </View>
           </View>
+        </View>
 
-          {userLocation && !searchExpanded && (
+        <View
+          style={styles.contentColumn}
+          onLayout={(event) => handleColumnLayout(event.nativeEvent.layout.height)}
+        >
+          <Animated.View style={[styles.mapSlot, mapSlotStyle]}>
+            <MapWrapper
+              ref={mapRef}
+              initialRegion={mapCenter}
+              userLocation={userLocation}
+              onFeaturePress={handleFeaturePress}
+              onZoomChange={setZoom}
+              styleURL={mapStyle}
+              mapPadding={mapPadding}
+              onVisibleBoundsChange={handleBoundsChange}
+              onMapReady={handleMapReady}
+              onMapBackgroundPress={handleMapBackgroundPress}
+              activeEventId={activeEventId}
+            />
+
+            {userLocation && !searchExpanded && (
+              <TouchableOpacity
+                style={[styles.recenterTopButton, { bottom: spacing.md }]}
+                onPress={recenterToUser}
+              >
+                <Navigation size={18} color={colors.neutral[0]} />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[styles.recenterTopButton, { bottom: spacing.md }]}
-              onPress={recenterToUser}
+              style={[styles.createFab, { bottom: spacing.md + 56 }]}
+              onPress={handleCreateEvent}
+              accessibilityRole="button"
+              accessibilityLabel="Créer un événement"
             >
-              <Navigation size={18} color={colors.neutral[0]} />
+              <PlusCircle size={28} color="#0f1719" />
             </TouchableOpacity>
-          )}
 
-          <TouchableOpacity
-            style={[styles.createFab, { bottom: spacing.md + 56 }]}
-            onPress={handleCreateEvent}
-            accessibilityRole="button"
-            accessibilityLabel="Créer un événement"
-          >
-            <PlusCircle size={28} color="#0f1719" />
-          </TouchableOpacity>
-        </Animated.View>
+            {unitCardEvent ? (
+              <MapEventUnitOverlay
+                event={unitCardEvent}
+                visible={!!unitCardEvent}
+                isFavorite={favoritesSet.has(unitCardEvent.id)}
+                onToggleFavorite={() => handleToggleFavorite(unitCardEvent)}
+                onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
+                onClose={() => {
+                  setUnitCardEvent(null);
+                  viewportFrozenRef.current = false;
+                  closeSheet();
+                }}
+                bottomInset={spacing.sm}
+              />
+            ) : null}
+          </Animated.View>
 
-        <View style={styles.sheetSlot}>
-          <SearchResultsBottomSheet
-            ref={resultsSheetRef}
-            events={sheetEvents}
-            currentUserId={profile?.id}
-            activeEventId={activeEventId}
-            onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
-            onHighlightEvent={handleHighlightEvent}
-            onNavigate={(event) => setNavEvent(event)}
-            onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
-            onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
-            onToggleLike={handleToggleLike}
-            isLiked={(id) => likesSet.has(id)}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={(id) => favoritesSet.has(id)}
-            snapIndex={bottomSheetIndex}
-            onSnapIndexChange={handleSheetIndexChange}
-            mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
-            peekCount={sheetStatus === 'singleEvent' ? 0 : visibleEventCount}
-            metaFilter={metaFilter}
-            isLoading={sheetStatus === 'loading'}
-          />
+          <View style={styles.sheetSlot}>
+            <SearchResultsBottomSheet
+              ref={resultsSheetRef}
+              events={sheetEvents}
+              currentUserId={profile?.id}
+              activeEventId={activeEventId}
+              snapHeights={snapHeights}
+              isSheetDragging={isSheetDragging}
+              onSheetDragStart={beginSheetDrag}
+              onSheetDragMove={updateSheetDrag}
+              onSheetDragEnd={handleSheetDragEnd}
+              onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
+              onHighlightEvent={handleHighlightEvent}
+              onNavigate={(event) => setNavEvent(event)}
+              onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
+              onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
+              onToggleLike={handleToggleLike}
+              isLiked={(id) => likesSet.has(id)}
+              onToggleFavorite={handleToggleFavorite}
+              isFavorite={(id) => favoritesSet.has(id)}
+              snapIndex={bottomSheetIndex}
+              onSnapIndexChange={handleSheetIndexChange}
+              mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
+              peekCount={sheetStatus === 'singleEvent' ? 0 : visibleEventCount}
+              metaFilter={metaFilter}
+              isLoading={sheetStatus === 'loading'}
+            />
+          </View>
         </View>
       </View>
+
+      <MapFiltersSheet
+        visible={filtersVisible}
+        anchorRef={filterButtonRef}
+        onClose={() => setFiltersVisible(false)}
+        metaFilter={metaFilter}
+        onMetaFilterChange={handleMetaFilterChange}
+        mapMode={mapMode}
+        onMapModeChange={setMapMode}
+        searchActive={searchActive}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortByChange={(value) => searchState.setSortBy(value)}
+        onSortOrderChange={(order) => searchState.setSortOrder(order)}
+        hasLocation={!!userLocation}
+      />
 
       <NavigationOptionsSheet
         visible={!!navEvent}
@@ -732,47 +758,81 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  screenColumn: {
+  screenRoot: {
     flex: 1,
     flexDirection: 'column',
+    backgroundColor: colors.brand.primary,
+  },
+  searchSlot: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+    backgroundColor: colors.brand.primary,
+    zIndex: 20,
+  },
+  searchHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  searchBarWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.brand.secondary,
+    borderWidth: 1.5,
+    borderColor: colors.brand.surface,
+  },
+  contentColumn: {
+    flex: 1,
+    flexDirection: 'column',
+    backgroundColor: colors.brand.primary,
   },
   mapSlot: {
     width: '100%',
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: colors.brand.primary,
+    borderBottomLeftRadius: SHEET_JUNCTION_RADIUS,
+    borderBottomRightRadius: SHEET_JUNCTION_RADIUS,
   },
   sheetSlot: {
     flex: 1,
     width: '100%',
     minHeight: VIEWPORT_PEEK_HEIGHT,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  topOverlay: {
-    position: 'absolute',
-    left: spacing.md + 52,
-    right: spacing.md,
-    maxWidth: 400,
-    zIndex: 10,
-    gap: spacing.sm,
+    backgroundColor: colors.brand.primary,
+    borderTopLeftRadius: SHEET_JUNCTION_RADIUS,
+    borderTopRightRadius: SHEET_JUNCTION_RADIUS,
+    marginTop: -SHEET_JUNCTION_RADIUS,
+    paddingTop: SHEET_JUNCTION_RADIUS,
   },
   backButton: {
-    position: 'absolute',
-    left: spacing.md,
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.brand.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 11,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   createFab: {
     position: 'absolute',
@@ -816,34 +876,6 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     fontSize: 14,
   },
-  sortRow: {
-    alignSelf: 'flex-end',
-  },
-  metaFilterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  metaFilterPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  metaFilterPillActive: {
-    backgroundColor: 'rgba(43, 191, 227, 0.1)',
-    borderColor: colors.brand.secondary,
-  },
-  metaFilterText: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    fontWeight: '600',
-  },
-  metaFilterTextActive: {
-    color: colors.brand.secondary,
-  },
   recenterTopButton: {
     position: 'absolute',
     right: spacing.md,
@@ -858,32 +890,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
     elevation: 4,
-  },
-  layerSwitcher: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  layerButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  layerButtonActive: {
-    backgroundColor: 'rgba(43, 191, 227, 0.1)',
-    borderColor: colors.brand.secondary,
-    borderWidth: 1,
-  },
-  layerButtonText: {
-    color: colors.brand.textSecondary,
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  layerButtonTextActive: {
-    color: colors.brand.secondary,
   },
 });

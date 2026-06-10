@@ -1,21 +1,18 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useRef, useCallback } from 'react';
-import { runOnJS } from 'react-native-reanimated';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   FlatList,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
+  PanResponder,
 } from 'react-native';
-import { Gesture, GestureDetector, NativeViewGestureHandler } from 'react-native-gesture-handler';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
+import { formatViewportPeekLabel } from '../../utils/map-peek-label';
+import { VIEWPORT_PEEK_HEIGHT } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard } from './EventResultCard';
-import { MapResultCard, MAP_RESULT_CARD_STRIDE } from './MapResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 export {
@@ -38,6 +35,11 @@ interface Props {
   currentUserId?: string | null;
   activeEventId?: string;
   snapIndex: number;
+  snapHeights: number[];
+  isSheetDragging?: boolean;
+  onSheetDragStart: (snapIndex: number) => void;
+  onSheetDragMove: (dy: number) => void;
+  onSheetDragEnd: (dy: number, velocityY: number) => void;
   onSelectEvent: (event: EventWithCreator) => void;
   onHighlightEvent: (event: EventWithCreator, options?: { focusMap?: boolean }) => void;
   onNavigate: (event: EventWithCreator) => void;
@@ -54,14 +56,7 @@ interface Props {
   isLoading?: boolean;
 }
 
-const META_SCOPE_LABELS: Record<EventMetaFilter, string> = {
-  all: 'dans cette zone',
-  live: 'en cours',
-  upcoming: 'à venir',
-  past: 'passés',
-};
-
-const SWIPE_THRESHOLD = 48;
+const SHEET_SURFACE = colors.brand.primary;
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -70,6 +65,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       currentUserId,
       activeEventId,
       snapIndex,
+      snapHeights,
+      isSheetDragging = false,
+      onSheetDragStart,
+      onSheetDragMove,
+      onSheetDragEnd,
       onSelectEvent,
       onHighlightEvent,
       onNavigate,
@@ -87,20 +87,23 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     },
     ref
   ) => {
-    const carouselListRef = useRef<FlatList<EventWithCreator>>(null);
     const listRef = useRef<FlatList<EventWithCreator>>(null);
-    const isCarouselScrollFromUserRef = useRef(false);
-    const suppressCarouselSyncRef = useRef(false);
-    const carouselPadding = spacing.lg;
+    const dragActiveRef = useRef(false);
 
     const maxIndex = mode === 'single' ? 1 : 2;
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
+    const snapIndexRef = useRef(clampedIndex);
+    snapIndexRef.current = clampedIndex;
+
     const hasEvents = events.length > 0;
-    const isPeek = mode !== 'single' && clampedIndex === 0;
+    const isSheetExpandable =
+      !isLoading && hasEvents && (mode === 'single' || peekCount > 0);
+    const isPeek = clampedIndex === 0;
     const isMid = mode !== 'single' && clampedIndex === 1;
     const isFull = mode === 'single' ? clampedIndex > 0 : clampedIndex >= 2;
-    const showCarousel = isMid && hasEvents && !isLoading;
-    const showFullList = isFull && hasEvents && !isLoading;
+    const showViewportList =
+      mode !== 'single' && hasEvents && !isLoading && (clampedIndex >= 1 || isSheetDragging);
+    const showSingleDetail = mode === 'single' && isFull && hasEvents && !isLoading;
     const showEmpty = isFull && mode !== 'single' && !hasEvents && !isLoading;
 
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
@@ -110,11 +113,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       [events]
     );
     const eventIdsKey = React.useMemo(() => eventIds.join(','), [eventIds]);
-
-    const carouselSnapOffsets = useMemo(
-      () => events.map((_, index) => carouselPadding + index * MAP_RESULT_CARD_STRIDE),
-      [events, carouselPadding]
-    );
 
     const requestSnapIndex = useCallback(
       (nextIndex: number) => {
@@ -127,19 +125,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       (eventId: string) => {
         const targetIndex = events.findIndex((event) => event.id === eventId);
         if (targetIndex < 0) return;
-        if (clampedIndex >= 2) {
-          listRef.current?.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.25 });
-          return;
-        }
-        if (clampedIndex === 1) {
-          isCarouselScrollFromUserRef.current = false;
-          carouselListRef.current?.scrollToOffset({
-            offset: carouselPadding + targetIndex * MAP_RESULT_CARD_STRIDE,
-            animated: true,
-          });
-        }
+        listRef.current?.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.25 });
       },
-      [clampedIndex, events, carouselPadding]
+      [events]
     );
 
     React.useEffect(() => {
@@ -163,97 +151,116 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [eventIds, eventIdsKey, currentUserId]);
 
     React.useEffect(() => {
-      if (!activeEventId || !showCarousel || suppressCarouselSyncRef.current) return;
+      if (!showViewportList) return;
+      if (isMid) {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+        return;
+      }
+      if (!activeEventId || !isFull) return;
       scrollToEvent(activeEventId);
-    }, [activeEventId, showCarousel, scrollToEvent]);
+    }, [activeEventId, isFull, isMid, showViewportList, scrollToEvent]);
 
     useImperativeHandle(ref, () => ({
-      open: (nextIndex = 1) => requestSnapIndex(nextIndex),
+      open: (nextIndex = 1) => {
+        if (!isSheetExpandableRef.current) return;
+        requestSnapIndex(nextIndex);
+      },
       close: () => requestSnapIndex(0),
       collapseToPeek: () => requestSnapIndex(0),
       scrollToEvent,
     }));
 
-    const scopeLabel = META_SCOPE_LABELS[metaFilter];
-
-    const peekTitle = useMemo(() => {
-      if (isLoading) return 'Chargement...';
-      if (!hasEvents) {
-        return metaFilter === 'all'
-          ? 'Aucun moment dans cette zone'
-          : `Aucun moment ${scopeLabel}`;
-      }
-      return `Plus de ${peekCount} moment${peekCount > 1 ? 's' : ''} ${scopeLabel}`;
-    }, [hasEvents, isLoading, metaFilter, peekCount, scopeLabel]);
-
-    const handleCarouselMomentumEnd = useCallback(
-      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        if (!isCarouselScrollFromUserRef.current) return;
-        const offsetX = event.nativeEvent.contentOffset.x;
-        const nextIndex = Math.round((offsetX - carouselPadding) / MAP_RESULT_CARD_STRIDE);
-        const clamped = Math.max(0, Math.min(nextIndex, events.length - 1));
-        const item = events[clamped];
-        if (item && item.id !== activeEventId) {
-          suppressCarouselSyncRef.current = true;
-          onHighlightEvent(item, { focusMap: false });
-          requestAnimationFrame(() => {
-            suppressCarouselSyncRef.current = false;
-          });
-        }
-        isCarouselScrollFromUserRef.current = false;
-      },
-      [activeEventId, carouselPadding, events, onHighlightEvent]
+    const peekTitle = useMemo(
+      () => formatViewportPeekLabel(peekCount, metaFilter, isLoading),
+      [isLoading, metaFilter, peekCount]
     );
 
-    const handlePanEnd = useCallback(
-      (translationY: number, currentIndex: number) => {
-        if (translationY <= -SWIPE_THRESHOLD) {
-          requestSnapIndex(currentIndex + 1);
-          return;
-        }
-        if (translationY >= SWIPE_THRESHOLD) {
-          requestSnapIndex(currentIndex - 1);
-        }
-      },
-      [requestSnapIndex]
-    );
+    const openFromPeekRef = useRef<() => void>(() => {});
+    const isSheetExpandableRef = useRef(isSheetExpandable);
+    isSheetExpandableRef.current = isSheetExpandable;
 
-    const handlePanGesture = useMemo(
+    const openFromPeek = useCallback(() => {
+      if (!isSheetExpandableRef.current || snapIndexRef.current !== 0) return;
+      requestSnapIndex(1);
+    }, [requestSnapIndex]);
+    openFromPeekRef.current = openFromPeek;
+
+    React.useEffect(() => {
+      if (isSheetExpandable || clampedIndex === 0) return;
+      requestSnapIndex(0);
+    }, [clampedIndex, isSheetExpandable, requestSnapIndex]);
+
+    const sheetChromePanResponder = useMemo(
       () =>
-        Gesture.Pan()
-          .activeOffsetY([-8, 8])
-          .failOffsetX([-16, 16])
-          .onEnd((event) => {
-            runOnJS(handlePanEnd)(event.translationY, clampedIndex);
-          }),
-      [clampedIndex, handlePanEnd]
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => isSheetExpandableRef.current,
+          onMoveShouldSetPanResponder: (_, gesture) =>
+            isSheetExpandableRef.current &&
+            Math.abs(gesture.dy) > 4 &&
+            Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.1,
+          onPanResponderGrant: () => {
+            dragActiveRef.current = false;
+          },
+          onPanResponderMove: (_, gesture) => {
+            if (!isSheetExpandableRef.current) return;
+            if (!dragActiveRef.current) {
+              if (Math.abs(gesture.dy) <= 4) return;
+              dragActiveRef.current = true;
+              onSheetDragStart(snapIndexRef.current);
+            }
+            onSheetDragMove(gesture.dy);
+          },
+          onPanResponderRelease: (_, gesture) => {
+            if (!isSheetExpandableRef.current) return;
+            if (!dragActiveRef.current) {
+              if (snapIndexRef.current === 0) {
+                openFromPeekRef.current();
+              }
+              return;
+            }
+            onSheetDragEnd(gesture.dy, gesture.vy);
+            dragActiveRef.current = false;
+          },
+          onPanResponderTerminationRequest: () => false,
+        }),
+      [onSheetDragEnd, onSheetDragMove, onSheetDragStart]
     );
+
+    const sheetChromeHandlers = isSheetExpandable ? sheetChromePanResponder.panHandlers : {};
 
     return (
       <View style={styles.container}>
-        <GestureDetector gesture={handlePanGesture}>
-          <View style={styles.handleArea}>
-            <View style={styles.handleIndicator} />
+        <View style={styles.sheetChrome} {...sheetChromeHandlers}>
+          <View style={[styles.handleArea, !isSheetExpandable && styles.handleAreaDisabled]}>
+            {isSheetExpandable ? <View style={styles.handleIndicator} /> : null}
           </View>
-        </GestureDetector>
 
-        <View style={isPeek ? styles.peekHeader : styles.header}>
-          {isLoading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={colors.brand.secondary} size="small" />
-              <Text style={styles.peekTitle}>{peekTitle}</Text>
+          {isPeek || isMid ? (
+            <View style={styles.peekHeader}>
+              {isLoading ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color={colors.brand.secondary} size="small" />
+                  <Text style={styles.peekTitle}>{peekTitle}</Text>
+                </View>
+              ) : (
+                <Text style={styles.peekTitle}>{peekTitle}</Text>
+              )}
             </View>
-          ) : (
-            <Text style={isPeek ? styles.peekTitle : styles.headerTitle}>{peekTitle}</Text>
-          )}
-          {!isPeek && events.length > 0 && isFull ? (
-            <Text style={styles.headerSubtitle}>
-              {events.length} résultat{events.length > 1 ? 's' : ''}
-            </Text>
+          ) : null}
+
+          {isFull && mode !== 'single' ? (
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>{peekTitle}</Text>
+              {events.length > 0 ? (
+                <Text style={styles.headerSubtitle}>
+                  {events.length} résultat{events.length > 1 ? 's' : ''}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
         </View>
 
-        {showFullList && mode === 'single' && (
+        {showSingleDetail && (
           <View style={styles.singleContainer}>
             <EventResultCard
               event={events[0]}
@@ -272,59 +279,21 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </View>
         )}
 
-        {showCarousel && (
-          <View style={styles.carouselSection}>
-            <NativeViewGestureHandler disallowInterruption>
-              <FlatList
-                ref={carouselListRef}
-                horizontal
-                data={events}
-                style={styles.carouselList}
-                keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled
-                directionalLockEnabled
-                snapToOffsets={carouselSnapOffsets}
-                decelerationRate="fast"
-                disableIntervalMomentum
-                contentContainerStyle={styles.carouselContent}
-                onScrollBeginDrag={() => {
-                  isCarouselScrollFromUserRef.current = true;
-                }}
-                onMomentumScrollEnd={handleCarouselMomentumEnd}
-                renderItem={({ item }) => (
-                  <MapResultCard
-                    event={item}
-                    active={item.id === activeEventId}
-                    onPress={() => onHighlightEvent(item, { focusMap: true })}
-                    onOpenDetails={() => onOpenDetails(item)}
-                  />
-                )}
-              />
-            </NativeViewGestureHandler>
-            <TouchableOpacity
-              style={styles.expandButton}
-              activeOpacity={0.85}
-              onPress={() => requestSnapIndex(2)}
-            >
-              <Text style={styles.expandText}>Afficher toute la liste</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {showEmpty && (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptySubtitle}>Zoomez ou déplacez la carte</Text>
           </View>
         )}
 
-        {showFullList && mode !== 'single' && (
+        {showViewportList && (
           <FlatList
             ref={listRef}
             data={events}
             style={styles.fullList}
             keyExtractor={(item: EventWithCreator) => item.id}
             contentContainerStyle={styles.listContent}
+            scrollEnabled={isFull && !isSheetDragging}
+            bounces={isFull}
             onScrollToIndexFailed={(info: { index: number }) => {
               requestAnimationFrame(() => {
                 listRef.current?.scrollToIndex({
@@ -364,18 +333,28 @@ SearchResultsBottomSheet.displayName = 'SearchResultsBottomSheet';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: SHEET_SURFACE,
+  },
+  sheetChrome: {
+    flexGrow: 0,
   },
   handleArea: {
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xs,
+  },
+  handleAreaDisabled: {
+    minHeight: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: 0,
   },
   handleIndicator: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
   peekHeader: {
     paddingHorizontal: spacing.lg,
@@ -386,7 +365,7 @@ const styles = StyleSheet.create({
   },
   peekTitle: {
     ...typography.body,
-    color: '#222222',
+    color: colors.brand.text,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -398,11 +377,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h4,
-    color: '#222222',
+    color: colors.brand.text,
   },
   headerSubtitle: {
     ...typography.caption,
-    color: '#717171',
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
   loadingRow: {
@@ -410,31 +389,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  carouselSection: {
-    paddingBottom: spacing.sm,
-  },
-  carouselList: {
-    flexGrow: 0,
-  },
-  carouselContent: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  expandButton: {
-    alignSelf: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  expandText: {
-    ...typography.caption,
-    color: '#222222',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
   fullList: {
     flex: 1,
+    overflow: 'hidden',
   },
   listContent: {
     paddingHorizontal: spacing.xs,
@@ -451,7 +408,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     ...typography.caption,
-    color: '#717171',
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
 });

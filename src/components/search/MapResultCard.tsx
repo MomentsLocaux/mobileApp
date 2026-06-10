@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     width: MAP_RESULT_CARD_WIDTH,
     height: CARD_HEIGHT,
     flexDirection: 'row',
-    backgroundColor: '#243033',
+    backgroundColor: colors.brand.surface,
     borderRadius: borderRadius.lg,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.08)',
