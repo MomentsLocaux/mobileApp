@@ -92,6 +92,7 @@ interface MapWrapperProps {
   children?: React.ReactNode;
   styleURL?: string;
   mapPadding?: { top: number; right: number; bottom: number; left: number };
+  maxBounds?: { sw: readonly [number, number]; ne: readonly [number, number] };
 }
 
 export type MapWrapperHandle = {
@@ -129,6 +130,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       children,
       styleURL,
       mapPadding,
+      maxBounds,
     },
     ref
   ) => {
@@ -497,6 +499,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             heading: 0,
           }}
           padding={toCameraPadding(mapPadding)}
+          maxBounds={maxBounds ? { sw: [...maxBounds.sw], ne: [...maxBounds.ne] } : undefined}
         />
 
         <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />

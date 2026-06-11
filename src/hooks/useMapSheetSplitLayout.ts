@@ -105,7 +105,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
     (dy: number) => {
       traceMapSheetPerf('updateSheetDrag');
       const layoutHeight = layoutHeightRef.current;
-      if (layoutHeight <= 0) return;
+      if (layoutHeight <= 0) return null;
       const nextSheet = clampSheetHeight(
         dragOriginSheetHeightRef.current - dy,
         layoutHeight,
@@ -113,6 +113,7 @@ export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
       );
       sheetVisibleHeight.value = nextSheet;
       sheetProgress.value = sheetHeightToProgress(nextSheet, layoutHeight, mode);
+      return nextSheet;
     },
     [mode, sheetProgress, sheetVisibleHeight]
   );

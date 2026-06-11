@@ -172,10 +172,13 @@ export function useMapViewportController({
     [mapRef, withProgrammaticMove]
   );
 
-  const syncMapToFrozenViewport = useCallback((options?: { paddingBottom?: number }) => {
+  const syncMapToFrozenViewport = useCallback((options?: {
+    paddingBottom?: number;
+    animationDuration?: number;
+  }) => {
     traceMapSheetPerf('syncMapToFrozenViewport');
     if (!frozenViewportBoundsRef.current) return;
-    refitMapToFrozenViewport(SHEET_LAYOUT_TIMING.duration, options);
+    refitMapToFrozenViewport(options?.animationDuration ?? SHEET_LAYOUT_TIMING.duration, options);
   }, [refitMapToFrozenViewport]);
 
   const lockViewportForSheet = useCallback(async () => {

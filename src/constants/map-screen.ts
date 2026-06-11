@@ -16,3 +16,9 @@ export const MAP_VIEW_PADDING = {
   bottom: MAP_FIT_PADDING,
   left: MAP_FIT_PADDING,
 } as const;
+
+/** Metropolitan France + Corsica, slightly padded for border-area browsing. */
+export const FRANCE_CAMERA_BOUNDS = {
+  sw: [-8.5, 40.0],
+  ne: [11.8, 52.8],
+} as const;

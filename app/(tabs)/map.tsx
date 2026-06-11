@@ -40,6 +40,7 @@ import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import {
   FONTOY_COORDS,
+  FRANCE_CAMERA_BOUNDS,
   MAP_FIT_PADDING,
   MAP_VIEW_PADDING,
   SIM_FALLBACK_COORDS,
@@ -57,6 +58,9 @@ import { NavigationOptionsSheet } from '../../src/components/search/NavigationOp
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
+
+const SHEET_CAMERA_FOLLOW_THROTTLE_MS = 72;
+const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 80;
 
 export default function MapScreen() {
   const router = useRouter();
@@ -110,6 +114,8 @@ export default function MapScreen() {
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const latestVisibleBoundsRef = useRef<MapBounds | null>(null);
   const sideEffectsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSheetCameraSyncAtRef = useRef(0);
+  const sheetCameraFollowActiveRef = useRef(false);
   const hasCenteredOnUserRef = useRef(false);
   const focusHandledRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
@@ -246,6 +252,31 @@ export default function MapScreen() {
     toggleFavorite,
   });
 
+  const syncCameraToSheetHeight = useCallback(
+    (visibleSheetHeight: number, reason: string, options?: { force?: boolean }) => {
+      if (!frozenViewportBoundsRef.current) return;
+
+      const now = Date.now();
+      if (!options?.force && now - lastSheetCameraSyncAtRef.current < SHEET_CAMERA_FOLLOW_THROTTLE_MS) {
+        return;
+      }
+
+      lastSheetCameraSyncAtRef.current = now;
+      sheetCameraFollowActiveRef.current = true;
+      const paddingBottom = Math.max(MAP_FIT_PADDING, Math.round(visibleSheetHeight + MAP_FIT_PADDING));
+      traceMapSheetPerf('syncMapToFrozenViewport', {
+        reason,
+        paddingBottom,
+        visibleSheetHeight,
+      });
+      syncMapToFrozenViewport({
+        paddingBottom,
+        animationDuration: SHEET_CAMERA_FOLLOW_ANIMATION_MS,
+      });
+    },
+    [frozenViewportBoundsRef, syncMapToFrozenViewport]
+  );
+
   const runSheetSideEffectsAfterSnap = useCallback(
     (targetIdx: number) => {
       if (sideEffectsTimerRef.current) {
@@ -340,19 +371,32 @@ export default function MapScreen() {
       suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 800);
       beginSheetDrag(snapIndex);
       setIsSheetDragging(true);
+      lastSheetCameraSyncAtRef.current = 0;
+      sheetCameraFollowActiveRef.current = false;
 
       if (!frozenViewportBoundsRef.current && latestVisibleBoundsRef.current) {
         frozenViewportBoundsRef.current = latestVisibleBoundsRef.current;
       }
+      syncCameraToSheetHeight(sheetVisibleHeight.value, 'sheetDragStart', { force: true });
     },
-    [beginSheetDrag, cancelViewportFetch, frozenViewportBoundsRef, suppressBoundsRecalc]
+    [
+      beginSheetDrag,
+      cancelViewportFetch,
+      frozenViewportBoundsRef,
+      sheetVisibleHeight,
+      suppressBoundsRecalc,
+      syncCameraToSheetHeight,
+    ]
   );
 
   const handleSheetDragMove = useCallback(
     (dy: number) => {
-      updateSheetDrag(dy);
+      const nextSheetHeight = updateSheetDrag(dy);
+      if (typeof nextSheetHeight === 'number') {
+        syncCameraToSheetHeight(nextSheetHeight, 'sheetDragMove');
+      }
     },
-    [updateSheetDrag]
+    [syncCameraToSheetHeight, updateSheetDrag]
   );
 
   const handleMapBackgroundPress = useCallback(() => {
@@ -430,9 +474,17 @@ export default function MapScreen() {
     (dy: number, velocityY: number) => {
       traceMapSheetPerf('handleSheetDragEnd', { dy, velocityY });
       const targetIdx = finishSheetDrag(dy, velocityY);
+      const didFollowCameraDuringDrag = sheetCameraFollowActiveRef.current;
+      sheetCameraFollowActiveRef.current = false;
+      lastSheetCameraSyncAtRef.current = 0;
       setIsSheetDragging(false);
 
-      if (targetIdx === bottomSheetIndex) return;
+      if (targetIdx === bottomSheetIndex) {
+        if (didFollowCameraDuringDrag) {
+          runSheetSideEffectsAfterSnap(targetIdx);
+        }
+        return;
+      }
 
       cancelViewportFetch();
       suppressBoundsRecalc(SHEET_LAYOUT_TIMING.duration + 400);
@@ -657,6 +709,7 @@ export default function MapScreen() {
               onZoomChange={setZoom}
               styleURL={mapStyle}
               mapPadding={MAP_VIEW_PADDING}
+              maxBounds={FRANCE_CAMERA_BOUNDS}
               onVisibleBoundsChange={handleBoundsChangeWithCache}
               onUserMapGestureStart={handleUserMapGestureStart}
               onMapReady={handleMapReady}
