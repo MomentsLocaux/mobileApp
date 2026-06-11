@@ -31,7 +31,6 @@ import {
   Edit,
   ChevronLeft,
   Star,
-  Bookmark,
   QrCode,
   Eye,
   CheckCircle2,
@@ -54,7 +53,6 @@ import Animated, {
 import { Motion, createEnterTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { EventsService } from '../../services/events.service';
-import { SocialService } from '../../services/social.service';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
@@ -76,6 +74,8 @@ import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
 import { getEventLiveWindow } from '@/utils/event-status';
+import { EVENT_ITINERARY_LABEL, openEventNavigationOptions } from '@/utils/event-navigation';
+import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
 
@@ -164,6 +164,7 @@ export default function EventDetailScreen() {
   const canEditEvent = isOwner && (event?.status === 'draft' || event?.status === 'refused');
   const isEventLiked = event ? isLiked(event.id) : false;
   const isEventFavorited = event ? isFavorite(event.id) : false;
+  const isEventHearted = isEventLiked || isEventFavorited;
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
@@ -331,43 +332,36 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handleToggleLike = async () => {
+  const handleToggleHeart = async () => {
     if (isGuest) {
       openGuestGate('Aimer cet événement');
       return;
     }
     if (!profile || !event) return;
+
+    const before = {
+      isLiked: isLiked(event.id),
+      isFavorite: isFavorite(event.id),
+    };
+
     try {
-      const nowLiked = await SocialService.like(profile.id, event.id);
-      const wasLiked = isLiked(event.id);
-      if (nowLiked !== wasLiked) {
-        toggleLikeStore(event.id);
-      }
-      setEvent((prev) => (prev ? { ...prev, is_liked: nowLiked } : null));
+      const after = await toggleEventHeart(profile.id, event, before);
+      syncHeartStores(event, before, after, {
+        toggleLike: toggleLikeStore,
+        toggleFavorite: toggleFavoriteStore,
+      });
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_liked: after.isLiked,
+              is_favorited: after.isFavorite,
+            }
+          : null
+      );
       await loadEventStats(event.id);
     } catch (error) {
-      Alert.alert('Erreur', "Impossible d'enregistrer le like pour le moment.");
-    }
-  };
-
-  const handleToggleFavorite = async () => {
-    if (isGuest) {
-      openGuestGate('Ajouter aux favoris');
-      return;
-    }
-    if (!profile || !event) return;
-    try {
-      const nowFavorited = await SocialService.toggleFavorite(profile.id, event.id);
-      const wasFavorited = isFavorite(event.id);
-      if (nowFavorited !== wasFavorited) {
-        toggleFavoriteStore(event);
-      }
-      setEvent((prev) => (prev ? { ...prev, is_favorited: nowFavorited } : null));
-      if (nowFavorited) {
-        Alert.alert('Favoris', 'Cet événement a bien été ajouté à vos favoris.');
-      }
-    } catch (error) {
-      Alert.alert('Erreur', "Impossible d'enregistrer le favori pour le moment.");
+      Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
     }
   };
 
@@ -835,21 +829,9 @@ export default function EventDetailScreen() {
 
   const handleOpenNavigationOptions = useCallback(() => {
     if (!event) return;
-    Alert.alert(
-      "S'y rendre",
-      'Choisissez comment ouvrir l’itinéraire.',
-      [
-        {
-          text: 'Voir sur la map Moments Locaux',
-          onPress: () => router.push(`/(tabs)/map?focus=${event.id}` as any),
-        },
-        {
-          text: "Ouvrir dans l'application de navigation",
-          onPress: () => setNavSheetVisible(true),
-        },
-        { text: 'Annuler', style: 'cancel' },
-      ],
-    );
+    openEventNavigationOptions(event, router, {
+      onOpenExternalNavigation: () => setNavSheetVisible(true),
+    });
   }, [event, router]);
 
   const eventQrPayload = useMemo(() => {
@@ -1124,11 +1106,11 @@ export default function EventDetailScreen() {
                 <Edit size={20} color={colors.brand.secondary} />
               </FloatingPressable>
             ) : null}
-            <FloatingPressable style={styles.iconButton} onPress={handleToggleLike} entranceDelay={160}>
+            <FloatingPressable style={styles.iconButton} onPress={handleToggleHeart} entranceDelay={160}>
               <Heart
                 size={20}
-                color={isEventLiked ? colors.error[500] : colors.brand.text}
-                fill={isEventLiked ? colors.error[500] : 'transparent'}
+                color={isEventHearted ? colors.brand.secondary : colors.brand.text}
+                fill={isEventHearted ? colors.brand.secondary : 'transparent'}
               />
             </FloatingPressable>
           </View>
@@ -1156,14 +1138,16 @@ export default function EventDetailScreen() {
           <MotionReveal delay={Motion.stagger.content}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>{event.title}</Text>
-            <TouchableOpacity
-              style={styles.debugIdButton}
-              onPress={handleShowDebugEventId}
-              accessibilityRole="button"
-              accessibilityLabel="Afficher l'identifiant de l'événement"
-            >
-              <Text style={styles.debugIdText}>?</Text>
-            </TouchableOpacity>
+            {__DEV__ ? (
+              <TouchableOpacity
+                style={styles.debugIdButton}
+                onPress={handleShowDebugEventId}
+                accessibilityRole="button"
+                accessibilityLabel="Afficher l'identifiant de l'événement"
+              >
+                <Text style={styles.debugIdText}>?</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
           </MotionReveal>
 
@@ -1217,7 +1201,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View style={styles.routeColumn}>
                   <TouchableOpacity style={styles.routeButton} onPress={handleOpenNavigationOptions}>
-                    <Text style={styles.routeText}>S&apos;y rendre</Text>
+                    <Text style={styles.routeText}>{EVENT_ITINERARY_LABEL}</Text>
                   </TouchableOpacity>
                   {distanceLabel ? <Text style={styles.routeDistanceText}>{distanceLabel}</Text> : null}
                 </View>
@@ -1279,8 +1263,13 @@ export default function EventDetailScreen() {
               <Eye size={20} color={colors.neutral[400]} style={{ marginBottom: 4 }} />
               <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
-            <TouchableOpacity style={styles.statBox} onPress={handleToggleLike}>
-              <Heart size={20} color={colors.error[500]} fill={isEventLiked ? colors.error[500] : 'transparent'} style={{ marginBottom: 4 }} />
+            <TouchableOpacity style={styles.statBox} onPress={handleToggleHeart}>
+              <Heart
+                size={20}
+                color={colors.brand.secondary}
+                fill={isEventHearted ? colors.brand.secondary : 'transparent'}
+                style={{ marginBottom: 4 }}
+              />
               <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
             </TouchableOpacity>
             <View style={styles.statBox}>
@@ -1435,15 +1424,7 @@ export default function EventDetailScreen() {
 
       <Animated.View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }, bottomBarStyle]}> 
         <View style={styles.bottomBarContent}>
-          <TouchableOpacity style={[styles.bottomBarCta, styles.bottomPrimary]} onPress={handleToggleFavorite}>
-            <Bookmark
-              size={18}
-              color={isEventFavorited ? colors.warning[500] : colors.brand.text}
-              fill={isEventFavorited ? colors.warning[500] : 'transparent'}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.bottomBarCta, styles.bottomSecondary]} onPress={handleCheckIn}>
+          <TouchableOpacity style={[styles.bottomBarCta, styles.bottomSecondary, styles.bottomCheckInFull]} onPress={handleCheckIn}>
             <View style={styles.checkinIconWrap}>
               <QrCode size={16} color="#D4F6FF" />
             </View>
@@ -2081,6 +2062,9 @@ const styles = StyleSheet.create({
   bottomSecondary: {
     flex: 0.8,
     backgroundColor: '#39BFE3',
+  },
+  bottomCheckInFull: {
+    flex: 1,
   },
   bottomBarText: {
     ...typography.bodySmall,

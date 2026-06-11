@@ -1,4 +1,5 @@
 export { EventCard } from './EventCard';
+export type { EventCardProps } from './EventCard';
 export { EventFilters } from './EventFilters';
 export { LocationPicker } from './LocationPicker';
 export { SchedulePlanner } from './SchedulePlanner';

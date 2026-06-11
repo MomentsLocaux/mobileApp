@@ -58,10 +58,8 @@ interface Props {
   onNavigate: (event: EventWithCreator) => void;
   onOpenDetails: (event: EventWithCreator) => void;
   onOpenCreator?: (creatorId: string) => void;
-  onToggleLike?: (event: EventWithCreator) => void;
-  isLiked?: (id: string) => boolean;
-  onToggleFavorite?: (event: EventWithCreator) => void;
-  isFavorite?: (id: string) => boolean;
+  onToggleHeart?: (event: EventWithCreator) => void;
+  isHearted?: (id: string) => boolean;
   onSnapIndexChange: (index: number) => void;
   mode: 'single' | 'viewport';
   peekCount: number;
@@ -95,10 +93,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onNavigate,
       onOpenDetails,
       onOpenCreator,
-      onToggleLike,
-      isLiked,
-      onToggleFavorite,
-      isFavorite,
+      onToggleHeart,
+      isHearted,
       onSnapIndexChange,
       mode,
       peekCount,
@@ -417,10 +413,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               onSelect={() => onSelectEvent(events[0])}
               onNavigate={() => onNavigate(events[0])}
               onOpenCreator={onOpenCreator}
-              onToggleLike={onToggleLike}
-              isLiked={isLiked ? isLiked(events[0].id) : undefined}
-              onToggleFavorite={onToggleFavorite}
-              isFavorite={isFavorite ? isFavorite(events[0].id) : undefined}
+              onToggleHeart={onToggleHeart}
+              isHearted={isHearted ? isHearted(events[0].id) : undefined}
             />
           </View>
         )}
@@ -472,10 +466,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                   }}
                   onNavigate={() => onNavigate(item)}
                   onOpenCreator={onOpenCreator}
-                  onToggleLike={onToggleLike}
-                  isLiked={isLiked ? isLiked(item.id) : undefined}
-                  onToggleFavorite={onToggleFavorite}
-                  isFavorite={isFavorite ? isFavorite(item.id) : undefined}
+                  onToggleHeart={onToggleHeart}
+                  isHearted={isHearted ? isHearted(item.id) : undefined}
                 />
               )}
             />

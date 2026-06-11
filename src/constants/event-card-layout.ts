@@ -1,17 +1,6 @@
 /**
- * Politique de mise en page des fiches événement (hors page détail).
- *
- * Structure canonique du panneau d'information :
- * 1. Ligne titre : titre (gauche) + horaires début/fin (droite, alignés en haut)
- * 2. Ligne ville : icône lieu + ville (pleine largeur)
- * 3. Ligne sociale (optionnelle) : amis qui y vont
- * 4. Ligne stats (optionnelle) : chips vues + distance
- *
- * Variantes de conteneur :
- * - hero-overlay : image plein fond + panneau en overlay (accueil, carte unitaire)
- * - hero-stacked  : image en bandeau haut + panneau surface en dessous (liste map)
- * - classic        : carousel image + panneau sous l'image (listes profil)
- * - horizontal     : vignette gauche + panneau compact à droite (carrousel map legacy)
+ * Politique legacy des panneaux EventCardContent (encore utilisée en interne).
+ * La carte unifiée `EventCard` s'appuie sur `EventCardVariant` dans event-card-variants.ts.
  */
 
 export type EventCardContainerVariant = 'hero-overlay' | 'hero-stacked' | 'classic' | 'horizontal';

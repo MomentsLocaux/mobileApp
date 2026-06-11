@@ -4,7 +4,6 @@ import {
   Alert,
   FlatList,
   Image,
-  ImageBackground,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,17 +17,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronDown, Heart, Search, Users } from 'lucide-react-native';
 
 import { AppBackground } from '@/components/ui';
-import { EventCardContent } from '@/components/events/EventCardContent';
-import { getCategoryLabel } from '@/constants/categories';
+import { EventCard } from '@/components/events/EventCard';
+import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 import { EventsService } from '@/services/events.service';
-import { SocialService } from '@/services/social.service';
 import { CommunityService } from '@/services/community.service';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import type { EventWithCreator } from '@/types/database';
 import type { CommunityMember } from '@/types/community';
+import { openEventNavigationOptions } from '@/utils/event-navigation';
+import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { useLikesStore } from '@/store/likesStore';
 
 type FavoriteRow = {
   event_id: string;
@@ -37,13 +38,6 @@ type FavoriteRow = {
 
 type Tab = 'events' | 'creators';
 type SortDirection = 'asc' | 'desc';
-
-const formatDateChip = (iso?: string | null) => {
-  if (!iso) return 'DATE';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'DATE';
-  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long' }).format(date).toUpperCase();
-};
 
 const eventSortValue = (event: EventWithCreator) => {
   const ts = new Date(event.starts_at || event.created_at || 0).getTime();
@@ -55,6 +49,7 @@ export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();
   const { profile, user, session, isLoading } = useAuth();
   const { favorites, replaceFavorites, clearFavorites, toggleFavorite } = useFavoritesStore();
+  const { likedEventIds, toggleLike } = useLikesStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('events');
   const [query, setQuery] = useState('');
@@ -62,6 +57,7 @@ export default function FavoritesScreen() {
   const [creatorFavorites, setCreatorFavorites] = useState<CommunityMember[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
 
   const loadFavorites = useCallback(async () => {
     const followerId = user?.id || session?.user?.id || profile?.id;
@@ -207,23 +203,25 @@ export default function FavoritesScreen() {
   }, [creatorFavorites, queryValue]);
 
   const favoritesSet = useMemo(() => new Set(favorites.map((event) => event.id)), [favorites]);
+  const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     loadFavorites();
   };
 
-  const handleToggleFavorite = async (event: EventWithCreator) => {
+  const handleToggleHeart = async (event: EventWithCreator) => {
     if (!profile?.id) return;
+    const before = {
+      isLiked: likesSet.has(event.id),
+      isFavorite: favoritesSet.has(event.id),
+    };
     try {
-      const nowFavorited = await SocialService.toggleFavorite(profile.id, event.id);
-      const wasFavorited = favoritesSet.has(event.id);
-      if (nowFavorited !== wasFavorited) {
-        toggleFavorite(event);
-      }
+      const after = await toggleEventHeart(profile.id, event, before);
+      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
     } catch (error) {
-      console.warn('favorites screen toggle favorite error', error);
-      Alert.alert('Erreur', "Impossible d'enregistrer le favori pour le moment.");
+      console.warn('favorites screen toggle heart error', error);
+      Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
     }
   };
 
@@ -233,11 +231,11 @@ export default function FavoritesScreen() {
       setCreatorFavorites((prev) => prev.filter((creator) => creator.user_id !== creatorId));
     } catch (error) {
       console.warn('favorites screen unfollow creator error', error);
-      Alert.alert('Erreur', "Impossible de retirer ce créateur de vos favoris.");
+      Alert.alert('Erreur', 'Impossible de ne plus suivre ce créateur pour le moment.');
     }
   };
 
-  const handleClearAll = async () => {
+  const handleClearEventFavorites = async () => {
     if (!profile?.id) return;
 
     Alert.alert('Vider les favoris', 'Supprimer tous vos événements favoris ?', [
@@ -253,6 +251,29 @@ export default function FavoritesScreen() {
           } catch (clearError) {
             console.warn('clear favorites error', clearError);
             Alert.alert('Erreur', 'Impossible de vider les favoris pour le moment.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleClearFollows = async () => {
+    const followerId = user?.id || session?.user?.id || profile?.id;
+    if (!followerId) return;
+
+    Alert.alert('Vider les suivis', 'Ne plus suivre tous ces créateurs ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Vider',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase.from('follows').delete().eq('follower', followerId);
+            if (error) throw error;
+            setCreatorFavorites([]);
+          } catch (clearError) {
+            console.warn('clear follows error', clearError);
+            Alert.alert('Erreur', 'Impossible de vider les suivis pour le moment.');
           }
         },
       },
@@ -279,7 +300,7 @@ export default function FavoritesScreen() {
   }
 
   const eventsCountLabel = `${filteredEvents.length} ÉVÉNEMENTS ENREGISTRÉS`;
-  const creatorsCountLabel = `${filteredCreators.length} CRÉATEURS ENREGISTRÉS`;
+  const creatorsCountLabel = `${filteredCreators.length} PROFILS SUIVIS`;
 
   return (
     <View style={styles.container}>
@@ -321,30 +342,37 @@ export default function FavoritesScreen() {
             onPress={() => setActiveTab('creators')}
             activeOpacity={0.85}
           >
-            <Text style={[styles.segmentText, activeTab === 'creators' && styles.segmentTextActive]}>Créateurs</Text>
+            <Text style={[styles.segmentText, activeTab === 'creators' && styles.segmentTextActive]}>Suivis</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>{activeTab === 'events' ? eventsCountLabel : creatorsCountLabel}</Text>
           {activeTab === 'events' ? (
-            <TouchableOpacity
-              style={styles.sortButton}
-              onPress={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.sortText}>Trier par Date</Text>
-              <ChevronDown
-                size={14}
-                color={colors.brand.secondary}
-                style={{ transform: [{ rotate: sortDirection === 'desc' ? '0deg' : '180deg' }] }}
-              />
+            <View style={styles.listHeaderActions}>
+              <TouchableOpacity
+                style={styles.sortButton}
+                onPress={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.sortText}>Trier par Date</Text>
+                <ChevronDown
+                  size={14}
+                  color={colors.brand.secondary}
+                  style={{ transform: [{ rotate: sortDirection === 'desc' ? '0deg' : '180deg' }] }}
+                />
+              </TouchableOpacity>
+              {filteredEvents.length > 0 ? (
+                <TouchableOpacity style={styles.sortButton} onPress={handleClearEventFavorites} activeOpacity={0.85}>
+                  <Text style={styles.sortText}>Vider</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : filteredCreators.length > 0 ? (
+            <TouchableOpacity style={styles.sortButton} onPress={handleClearFollows} activeOpacity={0.85}>
+              <Text style={styles.sortText}>Vider les suivis</Text>
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.sortButton} onPress={handleClearAll} activeOpacity={0.85}>
-              <Text style={styles.sortText}>Vider événements</Text>
-            </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         {activeTab === 'events' ? (
@@ -361,56 +389,29 @@ export default function FavoritesScreen() {
                 <Text style={styles.emptySubtitle}>Ajoutez des événements en favoris pour les retrouver ici.</Text>
               </View>
             }
-            renderItem={({ item }) => {
-              const categoryLabel = getCategoryLabel(item.category || '').toUpperCase();
-              const dateLabel = formatDateChip(item.starts_at);
-
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  style={styles.eventCard}
-                  onPress={() => router.push(`/events/${item.id}` as any)}
-                >
-                  <View style={styles.eventMediaWrap}>
-                    <ImageBackground
-                      source={item.cover_url ? { uri: item.cover_url } : undefined}
-                      resizeMode="cover"
-                      style={styles.eventMedia}
-                      imageStyle={styles.eventMediaImage}
-                    >
-                      <View style={styles.eventOverlay} />
-
-                      <TouchableOpacity
-                        style={styles.favoriteFab}
-                        activeOpacity={0.85}
-                        onPress={() => handleToggleFavorite(item)}
-                      >
-                        <Heart size={20} color={colors.brand.secondary} fill={colors.brand.secondary} />
-                      </TouchableOpacity>
-
-                      <View style={styles.badgesRow}>
-                        <View style={styles.categoryBadge}>
-                          <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
-                        </View>
-                        <View style={styles.dateBadge}>
-                          <Text style={styles.dateBadgeText}>{dateLabel}</Text>
-                        </View>
-                      </View>
-                    </ImageBackground>
-                  </View>
-
-                  <View style={styles.eventBody}>
-                    <EventCardContent
-                      event={item}
-                      tone="muted"
-                      density="comfortable"
-                      showSocial={false}
-                      showStats={false}
-                    />
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={({ item }) => (
+              <EventCard
+                event={item}
+                variant="favorite"
+                isFavorite={favoritesSet.has(item.id) || likesSet.has(item.id)}
+                isLiked={likesSet.has(item.id) || favoritesSet.has(item.id)}
+                isParticipating={Boolean(item.is_interested)}
+                onHeartPress={() => handleToggleHeart(item)}
+                onPress={() => router.push(`/events/${item.id}` as any)}
+                onPrimaryAction={() =>
+                  openEventNavigationOptions(item, router, {
+                    onOpenExternalNavigation: () => setNavEvent(item),
+                  })
+                }
+                onSecondaryAction={() => router.push(`/events/${item.id}` as any)}
+                onNavigate={() =>
+                  openEventNavigationOptions(item, router, {
+                    onOpenExternalNavigation: () => setNavEvent(item),
+                  })
+                }
+                style={styles.eventCard}
+              />
+            )}
           />
         ) : (
           <FlatList
@@ -422,8 +423,8 @@ export default function FavoritesScreen() {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Text style={styles.emptyTitle}>Aucun créateur favori</Text>
-                <Text style={styles.emptySubtitle}>Suivez des créateurs pour les retrouver ici.</Text>
+                <Text style={styles.emptyTitle}>Aucun profil suivi</Text>
+                <Text style={styles.emptySubtitle}>Suivez des créateurs depuis la communauté pour les retrouver ici.</Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -470,6 +471,12 @@ export default function FavoritesScreen() {
           />
         )}
       </View>
+
+      <NavigationOptionsSheet
+        visible={!!navEvent}
+        event={navEvent}
+        onClose={() => setNavEvent(null)}
+      />
     </View>
   );
 }
@@ -558,6 +565,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  listHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   listTitle: {
     ...typography.h6,
     color: '#9eb0c4',
@@ -579,73 +591,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   eventCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 28,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  eventMediaWrap: {
-    height: 252,
-  },
-  eventMedia: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: '#21343c',
-  },
-  eventMediaImage: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-  },
-  eventOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  favoriteFab: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(18, 22, 28, 0.68)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  categoryBadge: {
-    backgroundColor: colors.brand.secondary,
-    borderRadius: borderRadius.full,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  categoryBadgeText: {
-    ...typography.label,
-    color: '#06242c',
-    fontWeight: '800',
-  },
-  dateBadge: {
-    backgroundColor: 'rgba(27,32,40,0.75)',
-    borderRadius: borderRadius.full,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  dateBadgeText: {
-    ...typography.label,
-    color: colors.brand.text,
-    fontWeight: '800',
-  },
-  eventBody: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    marginBottom: 0,
   },
   creatorCard: {
     backgroundColor: 'rgba(255,255,255,0.06)',

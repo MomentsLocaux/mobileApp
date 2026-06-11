@@ -26,7 +26,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, signInWithProvider, isLoading, session } = useAuth();
+  const { signIn, signInWithProvider, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -108,12 +108,6 @@ export default function LoginScreen() {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (session) {
-      router.replace('/(tabs)/map');
-    }
-  }, [session, router]);
 
   return (
     <View style={styles.container}>

@@ -1,11 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { X, Heart } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
-import { EventImageCarousel } from '../events/EventImageCarousel';
-import { EventCardContent } from '../events/EventCardContent';
+import { EventCard } from '../events/EventCard';
 
 interface QuickPreviewProps {
   event: EventWithCreator;
@@ -14,53 +12,21 @@ interface QuickPreviewProps {
 }
 
 export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProps) {
-  const categoryColor = getCategoryColor(event.category || '');
-  const categoryTextColor = getCategoryTextColor(event.category || '');
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
         <X size={20} color={colors.neutral[600]} />
       </TouchableOpacity>
 
-      <EventImageCarousel
-        images={
-          Array.from(
-            new Set(
-              [
-                event.cover_url,
-                ...(event.media?.map((m) => m.url).filter((u) => !!u && u !== event.cover_url) as string[] | undefined || []),
-              ].filter(Boolean) as string[]
-            )
-          ).slice(0, 4)
-        }
-        height={140}
-        borderRadius={0}
+      <EventCard
+        event={event}
+        variant="map-preview"
+        showCarousel={false}
+        noBottomMargin
+        onPress={onViewDetails}
+        onPrimaryAction={onViewDetails}
+        style={styles.card}
       />
-
-      <View style={styles.content}>
-        <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
-          <Text style={[styles.categoryText, { color: categoryTextColor }]}>{getCategoryLabel(event.category || '')}</Text>
-        </View>
-
-        <EventCardContent
-          event={event}
-          tone="muted"
-          density="comfortable"
-          showSocial={false}
-          showStats={false}
-        />
-
-        <View style={styles.footer}>
-          <View style={styles.statsRow}>
-            <Heart size={14} color={colors.error[500]} />
-            <Text style={styles.statsText}>{event.interests_count}</Text>
-          </View>
-
-          <TouchableOpacity style={styles.viewButton} onPress={onViewDetails}>
-            <Text style={styles.viewButtonText}>Voir la fiche</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
     </View>
   );
 }
@@ -93,49 +59,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     padding: spacing.xs,
   },
-  content: {
-    padding: spacing.md,
-  },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    marginBottom: spacing.sm,
-  },
-  categoryText: {
-    ...typography.caption,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[100],
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  statsText: {
-    ...typography.bodySmall,
-    color: colors.neutral[700],
-    fontWeight: '600',
-  },
-  viewButton: {
-    backgroundColor: colors.primary[600],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-  },
-  viewButtonText: {
-    ...typography.bodySmall,
-    color: colors.neutral[0],
-    fontWeight: '600',
+  card: {
+    marginBottom: 0,
+    borderWidth: 0,
   },
 });

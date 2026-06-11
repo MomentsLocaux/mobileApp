@@ -18,8 +18,8 @@ import { useAuth } from '@/hooks';
 import { useLocationStore, useSearchStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
-import { SocialService } from '@/services/social.service';
 import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '@/utils/filter-events';
+import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { EventResultCard } from '@/components/search/EventResultCard';
@@ -295,27 +295,17 @@ export default function HomeScreen() {
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
-  const handleToggleLike = async (event: EventWithCreator) => {
+  const handleToggleHeart = async (event: EventWithCreator) => {
+    if (!profile?.id) return;
+    const before = {
+      isLiked: likesSet.has(event.id),
+      isFavorite: favoritesSet.has(event.id),
+    };
     try {
-      const nowLiked = await SocialService.like(profile?.id || '', event.id);
-      const wasLiked = likesSet.has(event.id);
-      if (nowLiked !== wasLiked) {
-        toggleLike(event.id);
-      }
+      const after = await toggleEventHeart(profile.id, event, before);
+      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
     } catch (e) {
-      console.warn('toggle like error', e);
-    }
-  };
-
-  const handleToggleFavorite = async (event: EventWithCreator) => {
-    try {
-      const nowFavorited = await SocialService.toggleFavorite(profile?.id || '', event.id);
-      const wasFavorited = favoritesSet.has(event.id);
-      if (nowFavorited !== wasFavorited) {
-        toggleFavorite(event);
-      }
-    } catch (e) {
-      console.warn('toggle favorite error', e);
+      console.warn('toggle heart error', e);
     }
   };
 
@@ -487,10 +477,8 @@ export default function HomeScreen() {
             onSelect={() => { }}
             onNavigate={() => setNavEvent(item)}
             onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
-            isLiked={likesSet.has(item.id)}
-            onToggleLike={handleToggleLike}
-            isFavorite={favoritesSet.has(item.id)}
-            onToggleFavorite={handleToggleFavorite}
+            isHearted={likesSet.has(item.id) || favoritesSet.has(item.id)}
+            onToggleHeart={handleToggleHeart}
           />
         )}
         keyExtractor={(item) => item.id}

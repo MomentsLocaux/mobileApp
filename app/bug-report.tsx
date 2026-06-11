@@ -74,7 +74,7 @@ export default function BugReportScreen() {
 
   const handleSubmit = async () => {
     if (!session) {
-      router.push('/auth/login' as any);
+      setError('Connectez-vous pour envoyer un signalement.');
       return;
     }
     if (!validate()) return;
@@ -146,7 +146,14 @@ export default function BugReportScreen() {
           Merci de décrire le problème rencontré. Les champs marqués sont obligatoires.
         </Text>
 
-        <View style={styles.formPanel}>
+        {!session ? (
+          <Text style={styles.authNotice}>
+            Cette fonctionnalité est réservée aux comptes connectés. Connectez-vous depuis l&apos;écran de connexion pour
+            envoyer un signalement.
+          </Text>
+        ) : null}
+
+        <View style={[styles.formPanel, !session && styles.formPanelDisabled]}>
           <View style={styles.field}>
             <Text style={styles.label}>Catégorie *</Text>
             {renderChips(CATEGORIES, category, CATEGORY_LABELS, (val) => setCategory(val))}
@@ -194,7 +201,7 @@ export default function BugReportScreen() {
             onPress={handleSubmit}
             loading={submitting}
             fullWidth
-            disabled={submitting}
+            disabled={submitting || !session}
           />
         </View>
       </ScrollView>
@@ -235,6 +242,11 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     marginBottom: spacing.md,
   },
+  authNotice: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    marginBottom: spacing.sm,
+  },
   formPanel: {
     padding: spacing.lg,
     gap: spacing.md,
@@ -242,6 +254,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+  },
+  formPanelDisabled: {
+    opacity: 0.55,
   },
   field: {
     gap: spacing.xs,

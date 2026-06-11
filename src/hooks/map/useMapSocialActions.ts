@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { SocialService } from '@/services/social.service';
 import type { EventWithCreator } from '@/types/database';
+import { isEventHearted, syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 
 type Params = {
   profileId?: string;
@@ -17,45 +17,31 @@ export function useMapSocialActions({
   toggleLike,
   toggleFavorite,
 }: Params) {
-  const handleToggleLike = useCallback(
+  const handleToggleHeart = useCallback(
     async (event: EventWithCreator) => {
       if (!profileId) {
-        console.warn('Cannot like event without profile id');
+        console.warn('Cannot heart event without profile id');
         return;
       }
 
-      try {
-        const nowLiked = await SocialService.like(profileId, event.id);
-        const wasLiked = likesSet.has(event.id);
-        if (nowLiked !== wasLiked) {
-          toggleLike(event.id);
-        }
-      } catch (error) {
-        console.warn('toggle like error', error);
-      }
-    },
-    [likesSet, profileId, toggleLike]
-  );
-
-  const handleToggleFavorite = useCallback(
-    async (event: EventWithCreator) => {
-      if (!profileId) {
-        console.warn('Cannot favorite event without profile id');
-        return;
-      }
+      const before = {
+        isLiked: likesSet.has(event.id),
+        isFavorite: favoritesSet.has(event.id),
+      };
 
       try {
-        const nowFavorited = await SocialService.toggleFavorite(profileId, event.id);
-        const wasFavorited = favoritesSet.has(event.id);
-        if (nowFavorited !== wasFavorited) {
-          toggleFavorite(event);
-        }
+        const after = await toggleEventHeart(profileId, event, before);
+        syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
       } catch (error) {
-        console.warn('toggle favorite error', error);
+        console.warn('toggle heart error', error);
       }
     },
-    [favoritesSet, profileId, toggleFavorite]
+    [favoritesSet, likesSet, profileId, toggleFavorite, toggleLike]
   );
 
-  return { handleToggleLike, handleToggleFavorite };
+  return { handleToggleHeart };
+}
+
+export function isHeartedInSets(eventId: string, likesSet: Set<string>, favoritesSet: Set<string>): boolean {
+  return isEventHearted(likesSet.has(eventId), favoritesSet.has(eventId));
 }

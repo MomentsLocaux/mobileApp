@@ -306,7 +306,7 @@ export default function TabsLayout() {
             <Text style={styles.sectionTitle}>DÉCOUVERTE</Text>
             <DrawerLink
               icon={PlusCircle}
-              label="Créer un évènement"
+              label="Créer un événement"
               onPress={() => {
                 toggleDrawer(false);
                 router.push('/events/create/step-1' as any);
@@ -367,7 +367,7 @@ export default function TabsLayout() {
             {hasMyEventsShortcut && (
               <DrawerLink
                 icon={MapPinned}
-                label="Mes évènements"
+                label="Mes événements"
                 onPress={() => {
                   toggleDrawer(false);
                   router.push('/profile/my-events' as any);
@@ -376,19 +376,20 @@ export default function TabsLayout() {
             )}
           </View>
 
-          {/* Section: Assistance */}
-          <View style={styles.drawerSection}>
-            <Text style={styles.sectionTitle}>ASSISTANCE</Text>
-            <DrawerLink
-              icon={Bug}
-              label="Reporter un bug"
-              iconColor={colors.error[400]}
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/bug-report' as any);
-              }}
-            />
-          </View>
+          {!isGuest ? (
+            <View style={styles.drawerSection}>
+              <Text style={styles.sectionTitle}>ASSISTANCE</Text>
+              <DrawerLink
+                icon={Bug}
+                label="Reporter un bug"
+                iconColor={colors.error[400]}
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/bug-report' as any);
+                }}
+              />
+            </View>
+          ) : null}
         </ScrollView>
 
         {/* Footer / Logout */}

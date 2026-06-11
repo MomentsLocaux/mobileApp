@@ -1,3 +1,5 @@
-import InviteFriendsScreen from '../../src/screens/profile/InviteFriendsScreen';
+import { Redirect } from 'expo-router';
 
-export default InviteFriendsScreen;
+export default function InviteFriendsRedirect() {
+  return <Redirect href="/(tabs)/profile" />;
+}

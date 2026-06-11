@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -73,7 +73,9 @@ export default function MapScreen() {
     visibleEventCount,
     activeEventId,
     frozenViewport,
+    viewportFetchError,
     setStatus,
+    setViewportFetchError,
     highlightViewportEvent,
     selectSingleEvent,
     freezeViewportResults,
@@ -216,7 +218,7 @@ export default function MapScreen() {
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
-  const { handleToggleLike, handleToggleFavorite } = useMapSocialActions({
+  const { handleToggleHeart } = useMapSocialActions({
     profileId: profile?.id,
     likesSet,
     favoritesSet,
@@ -571,6 +573,19 @@ export default function MapScreen() {
               />
             </Animated.View>
 
+            {viewportFetchError ? (
+              <View style={styles.mapErrorBanner}>
+                <Text style={styles.mapErrorText}>{viewportFetchError}</Text>
+                <TouchableOpacity
+                  onPress={() => setViewportFetchError(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fermer le message d'erreur"
+                >
+                  <Text style={styles.mapErrorDismiss}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             {userLocation && !searchExpanded ? (
               <FloatingPressable
                 style={[styles.recenterTopButton, { bottom: spacing.md }]}
@@ -588,8 +603,8 @@ export default function MapScreen() {
                   event={unitCardEvent}
                   visible={!!unitCardEvent}
                   currentUserId={profile?.id}
-                  isLiked={likesSet.has(unitCardEvent.id)}
-                  onToggleLike={handleToggleLike}
+                  isHearted={likesSet.has(unitCardEvent.id) || favoritesSet.has(unitCardEvent.id)}
+                  onToggleHeart={handleToggleHeart}
                   onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
                   onNavigate={() => setNavEvent(unitCardEvent)}
                   onClose={() => {
@@ -617,10 +632,8 @@ export default function MapScreen() {
               onNavigate={(event) => setNavEvent(event)}
               onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
               onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
-              onToggleLike={handleToggleLike}
-              isLiked={(id) => likesSet.has(id)}
-              onToggleFavorite={handleToggleFavorite}
-              isFavorite={(id) => favoritesSet.has(id)}
+              onToggleHeart={handleToggleHeart}
+              isHearted={(id) => likesSet.has(id) || favoritesSet.has(id)}
               snapIndex={bottomSheetIndex}
               onSnapIndexChange={handleSheetIndexChange}
               mode={sheetStatus === 'singleEvent' ? 'single' : 'viewport'}
@@ -753,6 +766,35 @@ const styles = StyleSheet.create({
   unitOverlaySlot: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 30,
+  },
+  mapErrorBanner: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(239, 68, 68, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  mapErrorText: {
+    flex: 1,
+    color: colors.brand.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  mapErrorDismiss: {
+    color: colors.brand.text,
+    fontSize: 13,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
   },
   recenterTopButton: {
     position: 'absolute',

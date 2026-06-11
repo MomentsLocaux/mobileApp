@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { Search, Flame, Clock, MapPin } from 'lucide-react-native';
 import { EventCard, EventFilters } from '../../components/events';
 import { AppBackground } from '@/components/ui';
-import { SocialService } from '../../services/social.service';
+import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { useAuth } from '../../hooks';
 import { useLocationStore, useFilterStore } from '../../store';
 import { filterEvents } from '../../utils/filter-events';
@@ -88,32 +88,28 @@ export default function EventsListScreen() {
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
-  const handleLikePress = async (eventId: string) => {
+  const handleHeartPress = async (event: EventWithCreator) => {
     if (!profile) return;
-    const nowLiked = await SocialService.like(profile.id, eventId);
-    const wasLiked = likesSet.has(eventId);
-    if (nowLiked !== wasLiked) {
-      toggleLike(eventId);
-    }
-  };
-
-  const handleFavoritePress = async (event: EventWithCreator) => {
-    if (!profile) return;
-    const nowFavorited = await SocialService.toggleFavorite(profile.id, event.id);
-    const wasFavorited = favoritesSet.has(event.id);
-    if (nowFavorited !== wasFavorited) {
-      toggleFavorite(event);
+    const before = {
+      isLiked: likesSet.has(event.id),
+      isFavorite: favoritesSet.has(event.id),
+    };
+    try {
+      const after = await toggleEventHeart(profile.id, event, before);
+      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+    } catch (error) {
+      console.warn('toggle heart error', error);
     }
   };
 
   const renderEventCard = ({ item }: { item: EventWithCreator }) => (
     <EventCard
       event={item}
+      variant="discovery"
       onPress={() => handleEventPress(item.id)}
-      onLikePress={() => handleLikePress(item.id)}
-      isLiked={likesSet.has(item.id)}
-      onFavoritePress={() => handleFavoritePress(item)}
-      isFavorited={favoritesSet.has(item.id)}
+      onHeartPress={() => handleHeartPress(item)}
+      isLiked={likesSet.has(item.id) || favoritesSet.has(item.id)}
+      isFavorite={likesSet.has(item.id) || favoritesSet.has(item.id)}
     />
   );
 

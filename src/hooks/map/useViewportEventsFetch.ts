@@ -51,7 +51,7 @@ export function useViewportEventsFetch({
   const bboxTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportRequestIdRef = useRef(0);
   const markerRequestIdRef = useRef(0);
-  const { setStatus, displayViewportResults } = useMapResultsUIStore();
+  const { setStatus, setViewportFetchError, displayViewportResults } = useMapResultsUIStore();
 
   const clearDebouncedViewportFetch = useCallback(() => {
     if (bboxTimeoutRef.current) {
@@ -100,6 +100,7 @@ export function useViewportEventsFetch({
     async (bounds: MapBounds, requestId: number) => {
       if (!isViewportRequestCurrent(requestId)) return;
       setStatus('loading');
+      setViewportFetchError(null);
 
       try {
         const effectiveSearchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
@@ -158,8 +159,8 @@ export function useViewportEventsFetch({
         displayViewportResults(dedupedEvents);
       } catch (error) {
         if (!isViewportRequestCurrent(requestId)) return;
-        // TODO: dedicated error state in mapResultsUIStore when product supports it.
         console.warn('bbox fetch error', error);
+        setViewportFetchError('Impossible de charger les événements. Vérifiez votre connexion.');
         setStatus('browsing');
       }
     },
@@ -174,6 +175,7 @@ export function useViewportEventsFetch({
       searchApplied,
       searchFilters,
       setStatus,
+      setViewportFetchError,
       sortBy,
       sortCenter,
       sortOrder,

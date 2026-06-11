@@ -104,6 +104,7 @@ export default function CreatorProfileScreen() {
               <EventCard
                 key={event.id}
                 event={event}
+                variant="discovery"
                 onPress={() => router.push(`/events/${event.id}`)}
               />
             ))

@@ -11,21 +11,18 @@ import { colors, spacing } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { VIEWPORT_PEEK_HEIGHT } from '@/utils/map-sheet-layout';
-import { EventResultCard } from './EventResultCard';
+import { EventCard } from '@/components/events/EventCard';
 import { EventCardStatsService } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
 
-/** Peek band height so the card floats above the bottom sheet strip. */
 const VIEWPORT_PEEK_OFFSET = VIEWPORT_PEEK_HEIGHT + spacing.md;
-
-export const MAP_UNIT_CARD_HEIGHT = 248;
 
 interface Props {
   event: EventWithCreator;
   visible: boolean;
   currentUserId?: string | null;
-  isLiked?: boolean;
-  onToggleLike?: (event: EventWithCreator) => void;
+  isHearted?: boolean;
+  onToggleHeart?: (event: EventWithCreator) => void;
   onPress: () => void;
   onNavigate: () => void;
   onClose: () => void;
@@ -36,8 +33,8 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   event,
   visible,
   currentUserId,
-  isLiked,
-  onToggleLike,
+  isHearted,
+  onToggleHeart,
   onPress,
   onNavigate,
   onClose,
@@ -72,29 +69,16 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [event.id, currentUserId]);
+  }, [currentUserId, event.id]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [
-      { translateY: (1 - progress.value) * Motion.distance.cardEnterY },
-      {
-        scale:
-          Motion.transform.cardInitialScale +
-          progress.value * (1 - Motion.transform.cardInitialScale),
-      },
-    ],
+    transform: [{ translateY: (1 - progress.value) * Motion.distance.listEnterY }],
   }));
 
   const closeEnterStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [
-      {
-        scale:
-          Motion.transform.buttonInitialScale +
-          progress.value * (1 - Motion.transform.buttonInitialScale),
-      },
-    ],
+    transform: [{ scale: 0.85 + progress.value * 0.15 }],
   }));
 
   return (
@@ -106,7 +90,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
         <Animated.View
           style={[
             styles.closeButton,
-            onToggleLike ? styles.closeButtonWithLike : null,
+            onToggleHeart ? styles.closeButtonWithLike : null,
             closeEnterStyle,
           ]}
         >
@@ -122,18 +106,19 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
           </FloatingPressable>
         </Animated.View>
 
-        <EventResultCard
+        <EventCard
           event={event}
-          cardHeight={MAP_UNIT_CARD_HEIGHT}
+          variant="map-preview"
           showCarousel={false}
-          active
           noBottomMargin
           viewsCount={viewsCount}
           friendsGoingCount={friendsGoingCount}
           onPress={onPress}
+          onPrimaryAction={onPress}
           onNavigate={onNavigate}
-          onToggleLike={onToggleLike}
-          isLiked={isLiked}
+          onHeartPress={onToggleHeart ? () => onToggleHeart(event) : undefined}
+          isLiked={isHearted}
+          isFavorite={isHearted}
         />
       </View>
     </Animated.View>
@@ -147,31 +132,31 @@ const styles = StyleSheet.create({
     right: spacing.md,
     zIndex: 30,
     shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 14,
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   cardShell: {
     position: 'relative',
   },
   closeButton: {
     position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
+    top: spacing.sm,
+    right: spacing.sm,
     zIndex: 40,
   },
+  closeButtonWithLike: {
+    top: spacing.sm + 48,
+  },
   closePressable: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(18, 22, 28, 0.82)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
-  },
-  closeButtonWithLike: {
-    right: spacing.md + 44 + spacing.xs,
   },
 });
