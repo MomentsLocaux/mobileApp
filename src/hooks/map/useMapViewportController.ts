@@ -147,13 +147,24 @@ export function useMapViewportController({
   }, [clearFrozenViewport, isProgrammaticMoveRef, mapRef, queueViewportFetch]);
 
   const refitMapToFrozenViewport = useCallback(
-    (animationDuration = MAP_CAMERA_ANIMATION_MS) => {
+    (
+      animationDuration = MAP_CAMERA_ANIMATION_MS,
+      options?: { paddingBottom?: number }
+    ) => {
       const bounds = frozenViewportBoundsRef.current;
       if (!bounds) return;
+      const paddingBottom =
+        typeof options?.paddingBottom === 'number'
+          ? Math.max(MAP_FIT_PADDING, Math.round(options.paddingBottom))
+          : MAP_FIT_PADDING;
+      const padding =
+        paddingBottom === MAP_FIT_PADDING
+          ? MAP_FIT_PADDING
+          : [MAP_FIT_PADDING, MAP_FIT_PADDING, paddingBottom, MAP_FIT_PADDING];
 
       withProgrammaticMove(
         () => {
-          mapRef.current?.fitToBounds(bounds, MAP_FIT_PADDING, animationDuration);
+          mapRef.current?.fitToBounds(bounds, padding, animationDuration);
         },
         { refreshAfter: false, durationMs: animationDuration }
       );
@@ -161,10 +172,10 @@ export function useMapViewportController({
     [mapRef, withProgrammaticMove]
   );
 
-  const syncMapToFrozenViewport = useCallback(() => {
+  const syncMapToFrozenViewport = useCallback((options?: { paddingBottom?: number }) => {
     traceMapSheetPerf('syncMapToFrozenViewport');
     if (!frozenViewportBoundsRef.current) return;
-    refitMapToFrozenViewport(SHEET_LAYOUT_TIMING.duration);
+    refitMapToFrozenViewport(SHEET_LAYOUT_TIMING.duration, options);
   }, [refitMapToFrozenViewport]);
 
   const lockViewportForSheet = useCallback(async () => {

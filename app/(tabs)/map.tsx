@@ -40,6 +40,7 @@ import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import {
   FONTOY_COORDS,
+  MAP_FIT_PADDING,
   MAP_VIEW_PADDING,
   SIM_FALLBACK_COORDS,
 } from '@/constants/map-screen';
@@ -255,12 +256,16 @@ export default function MapScreen() {
         traceMapSheetPerf('applySheetSideEffects', { targetIdx });
         applySheetSideEffects(targetIdx);
         if (targetIdx > 0) {
-          traceMapSheetPerf('syncMapToFrozenViewport');
-          syncMapToFrozenViewport();
+          const visibleSheetHeight = sheetVisibleHeight.value;
+          const paddingBottom = visibleSheetHeight + MAP_FIT_PADDING;
+          traceMapSheetPerf('syncMapToFrozenViewport', { paddingBottom, visibleSheetHeight });
+          syncMapToFrozenViewport({ paddingBottom });
+        } else {
+          mapRef.current?.resetCameraPadding();
         }
       }, SHEET_SIDE_EFFECTS_DELAY_MS);
     },
-    [applySheetSideEffects, syncMapToFrozenViewport]
+    [applySheetSideEffects, sheetVisibleHeight, syncMapToFrozenViewport]
   );
 
   const mapVisualStyle = useAnimatedStyle(() => {

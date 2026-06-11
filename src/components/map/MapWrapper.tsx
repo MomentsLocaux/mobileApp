@@ -97,10 +97,10 @@ interface MapWrapperProps {
 export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
   setShape: (fc: FeatureCollection) => void;
-  fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number) => void;
+  fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number | number[]) => void;
   fitToBounds: (
     bounds: { ne: [number, number]; sw: [number, number] },
-    padding?: number,
+    padding?: number | number[],
     animationDuration?: number
   ) => void;
   getVisibleBounds: () => Promise<{ ne: [number, number]; sw: [number, number] } | null>;
@@ -111,6 +111,7 @@ export type MapWrapperHandle = {
     paddingBottom?: number;
   }) => void;
   clearBoundsCache: () => void;
+  resetCameraPadding: () => void;
 };
 
 export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
@@ -365,8 +366,14 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       clearBoundsCache: () => {
         lastBoundsRef.current = null;
       },
+      resetCameraPadding: () => {
+        cameraRef.current?.setCamera({
+          padding: toCameraPadding(mapPadding),
+          animationDuration: MAP_CAMERA_ANIMATION_MS,
+        });
+      },
     }),
-    [initialRegion.zoom]
+    [initialRegion.zoom, mapPadding]
   );
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
