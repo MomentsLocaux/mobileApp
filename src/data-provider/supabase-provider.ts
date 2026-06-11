@@ -27,6 +27,16 @@ const applyPublicTimeScope = <T extends { lte: Function; gt: Function; or: Funct
   if (timeScope === 'upcoming') {
     return query.gt('starts_at', nowIso) as T;
   }
+  if (timeScope === 'current') {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfTodayIso = startOfToday.toISOString();
+    // Upcoming, explicitly still running, or same-day events without ends_at.
+    // Excludes stale rows with null ends_at and old starts_at (common scraper artifact).
+    return query.or(
+      `starts_at.gt.${nowIso},ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${startOfTodayIso})`,
+    ) as T;
+  }
   return query.lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gte.${nowIso}`) as T;
 };
 
@@ -320,6 +330,12 @@ export const supabaseProvider: (Pick<
       .or('latitude.neq.0,longitude.neq.0');
 
     query = applyPublicTimeScope(query, resolvedScope, nowIso);
+
+    if (resolvedScope === 'upcoming') {
+      query = query.order('starts_at', { ascending: true });
+    } else if (resolvedScope === 'current' || resolvedScope === 'ongoing') {
+      query = query.order('starts_at', { ascending: false });
+    }
 
     const { data, error } = await query.limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');

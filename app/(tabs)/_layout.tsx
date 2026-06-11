@@ -221,13 +221,13 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="community"
+          name="favorites"
           options={{
-            title: 'Communauté',
+            title: 'Favoris',
             tabBarIcon: ({ size, color }) => (
-              <Users size={size} color={isGuest ? colors.brand.textSecondary : color} />
+              <Heart size={size} color={isGuest ? colors.brand.textSecondary : color} />
             ),
-            tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à la communauté'),
+            tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
           }}
         />
         <Tabs.Screen
@@ -256,7 +256,7 @@ export default function TabsLayout() {
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
         <Tabs.Screen name="shop" options={{ href: null }} />
-        <Tabs.Screen name="favorites" options={{ href: null }} />
+        <Tabs.Screen name="community" options={{ href: null }} />
         <Tabs.Screen name="missions" options={{ href: null }} />
       </Tabs>
 

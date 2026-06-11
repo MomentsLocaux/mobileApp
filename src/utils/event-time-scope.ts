@@ -1,7 +1,7 @@
 import type { EventMetaFilter } from './filter-events';
 
 /** Server-side temporal scope for public event listings. */
-export type EventTimeScope = 'ongoing' | 'upcoming' | 'all';
+export type EventTimeScope = 'ongoing' | 'upcoming' | 'current' | 'all';
 
 export const resolveEventTimeScope = (params: {
   metaFilter?: EventMetaFilter;
@@ -15,7 +15,7 @@ export const resolveEventTimeScope = (params: {
   if (metaFilter === 'past') return 'all';
   if (metaFilter === 'upcoming') return 'upcoming';
   if (metaFilter === 'live') return 'ongoing';
-  if (metaFilter === 'all') return 'all';
+  if (metaFilter === 'all') return 'current';
   if (searchActive && includePast) return 'all';
   if (legacyIncludePast) return 'all';
   return 'ongoing';

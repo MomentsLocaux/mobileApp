@@ -7,6 +7,7 @@ import { MAP_FIT_PADDING, MAP_FOCUS_PADDING_BOTTOM } from '@/constants/map-scree
 import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
 import type { useMapProgrammaticMove } from './useMapProgrammaticMove';
+import type { ViewportFetchOptions } from './useViewportEventsFetch';
 
 type ProgrammaticMove = ReturnType<typeof useMapProgrammaticMove>;
 
@@ -16,10 +17,7 @@ type Params = {
   viewportFrozenRef: RefObject<boolean>;
   frozenViewportBoundsRef: RefObject<MapBounds | null>;
   programmatic: ProgrammaticMove;
-  queueViewportFetch: (
-    bounds: MapBounds,
-    options?: { immediate?: boolean; force?: boolean }
-  ) => void;
+  queueViewportFetch: (bounds: MapBounds, options?: ViewportFetchOptions) => void;
   clearFrozenViewport: () => void;
   freezeViewportResults: () => void;
   zoomRef: RefObject<number>;
@@ -133,7 +131,7 @@ export function useMapViewportController({
     }
   }, [isProgrammaticMoveRef, mapRef, queueViewportFetch]);
 
-  const refreshBounds = useCallback(async () => {
+  const refreshBounds = useCallback(async (options?: Pick<ViewportFetchOptions, 'metaFilter'>) => {
     const bounds = await mapRef.current?.getVisibleBounds?.();
     if (!bounds) return;
 
@@ -142,7 +140,7 @@ export function useMapViewportController({
     isProgrammaticMoveRef.current = false;
     mapRef.current?.clearBoundsCache?.();
     frozenViewportBoundsRef.current = bounds;
-    queueViewportFetch(bounds, { immediate: true, force: true });
+    queueViewportFetch(bounds, { immediate: true, force: true, metaFilter: options?.metaFilter });
   }, [clearFrozenViewport, isProgrammaticMoveRef, mapRef, queueViewportFetch]);
 
   const refitMapToFrozenViewport = useCallback(

@@ -259,6 +259,14 @@ export const isEventPast = (event: EventLike | null | undefined, now: Date = new
   return effectiveEnd < now;
 };
 
+/** Event has not started yet (strictly future start). */
+export const isEventUpcoming = (event: EventLike | null | undefined, now: Date = new Date()): boolean => {
+  if (!event?.starts_at) return false;
+  if (isEventPast(event, now) || isEventLive(event, now)) return false;
+  const startsAt = new Date(event.starts_at);
+  return !Number.isNaN(startsAt.getTime()) && startsAt > now;
+};
+
 const isWithinGlobalWindow = (startsAt: Date, endsAt: Date, now: Date): boolean => {
   if (now < startsAt) return false;
   if (now > endsAt) return false;

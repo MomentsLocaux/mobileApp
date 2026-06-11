@@ -33,7 +33,7 @@ import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../sr
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { buildFiltersFromSearch } from '../../src/utils/search-filters';
-import { type EventMetaFilter } from '../../src/utils/filter-events';
+import { filterEventsByMetaStatus, type EventMetaFilter } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import {
@@ -83,6 +83,7 @@ export default function MapScreen() {
     closeSheet,
     syncViewportEvents,
     restoreViewportFromFrozen,
+    displayViewportResults,
   } = useMapResultsUIStore();
 
   const insets = useSafeAreaInsets();
@@ -96,7 +97,7 @@ export default function MapScreen() {
     beginSheetDrag,
     updateSheetDrag,
     finishSheetDrag,
-  } = useMapSheetSplitLayout(sheetMode);
+  } = useMapSheetSplitLayout(sheetMode, bottomSheetIndex);
 
   const mapRef = useRef<MapWrapperHandle>(null);
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
@@ -145,11 +146,13 @@ export default function MapScreen() {
   const setSearchApplied = searchState.setSearchApplied;
   const commitSearch = searchState.commitSearch;
   const includePast = !!searchState.when.includePast;
-  const searchActive = metaFilter === 'all' && searchApplied && hasSearchCriteria;
+  const searchActive = searchApplied && hasSearchCriteria;
   const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
   const sortBy = searchState.sortBy || 'triage';
   const sortOrder = searchState.sortOrder;
-  const filtersActive = hasMapActiveFilters(metaFilter, mapMode, sortBy);
+  const whenPreset = searchState.when.preset;
+  const setWhen = searchState.setWhen;
+  const filtersActive = hasMapActiveFilters(metaFilter, mapMode, sortBy, whenPreset);
   const sortCenter = useMemo(
     () =>
       searchState.where.location
@@ -254,18 +257,19 @@ export default function MapScreen() {
   );
 
   const handleSheetDragStart = useCallback(
-    async (snapIndex: number) => {
+    (snapIndex: number) => {
       cancelViewportFetch();
       suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 800);
+      beginSheetDrag(snapIndex);
 
-      if (!frozenViewportBoundsRef.current) {
+      if (frozenViewportBoundsRef.current) return;
+
+      void (async () => {
         const bounds = await mapRef.current?.getVisibleBounds?.();
         if (bounds) {
           frozenViewportBoundsRef.current = bounds;
         }
-      }
-
-      beginSheetDrag(snapIndex);
+      })();
     },
     [beginSheetDrag, cancelViewportFetch, frozenViewportBoundsRef, suppressBoundsRecalc]
   );
@@ -373,15 +377,32 @@ export default function MapScreen() {
     ]
   );
 
+  const handleWhenPresetChange = useCallback(
+    (preset?: 'today' | 'tomorrow' | 'weekend') => {
+      setWhen({
+        preset,
+        startDate: undefined,
+        endDate: undefined,
+        includePast: false,
+      });
+      cancelViewportFetch();
+      void refreshBounds();
+    },
+    [cancelViewportFetch, refreshBounds, setWhen]
+  );
+
   const handleMetaFilterChange = useCallback(
     (next: EventMetaFilter) => {
       setMetaFilter(next);
-      if (next !== 'all') {
-        setSearchApplied(false);
+      clearFrozenViewport();
+      const uiState = useMapResultsUIStore.getState();
+      if (uiState.sheetStatus !== 'singleEvent' && uiState.sheetEvents.length > 0) {
+        displayViewportResults(filterEventsByMetaStatus(uiState.sheetEvents, next));
       }
-      void refreshBounds();
+      cancelViewportFetch();
+      void refreshBounds({ metaFilter: next });
     },
-    [refreshBounds, setSearchApplied]
+    [cancelViewportFetch, clearFrozenViewport, displayViewportResults, refreshBounds]
   );
 
   const reapplyViewportOrdering = useCallback(
@@ -664,6 +685,8 @@ export default function MapScreen() {
         onSortByChange={handleSortByChange}
         onSortOrderChange={handleSortOrderChange}
         hasLocation={!!userLocation}
+        whenPreset={whenPreset}
+        onWhenPresetChange={handleWhenPresetChange}
         resultCount={displaySheetEvents.length}
         isLoadingResults={sheetStatus === 'loading'}
       />

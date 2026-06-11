@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   FlatList,
   PanResponder,
+  InteractionManager,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -76,6 +77,7 @@ const SHEET_SURFACE = colors.brand.primary;
 const SCROLL_EDGE_THRESHOLD = 2;
 const LIST_COLLAPSE_PULL_THRESHOLD = 28;
 const LIST_EXPAND_PULL_THRESHOLD = 28;
+const LIST_ITEM_STRIDE = EVENT_RESULT_LIST_CARD_HEIGHT + spacing.md;
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -112,6 +114,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const dragActiveRef = useRef(false);
     const scrollYRef = useRef(0);
     const isExpandedRef = useRef(false);
+    const scrollTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(
+      null
+    );
 
     const maxIndex = getSheetMaxSnapIndex(mode);
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
@@ -151,10 +156,28 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const scrollToEvent = useCallback(
       (eventId: string) => {
         const targetIndex = events.findIndex((event) => event.id === eventId);
-        if (targetIndex < 0) return;
-        listRef.current?.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.25 });
+        if (targetIndex < 0 || !showViewportList) return;
+
+        scrollTaskRef.current?.cancel?.();
+        scrollTaskRef.current = InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => {
+            if (!listRef.current) return;
+            listRef.current.scrollToIndex({
+              index: targetIndex,
+              animated: true,
+              viewPosition: 0.25,
+            });
+          });
+        });
       },
-      [events]
+      [events, showViewportList]
+    );
+
+    React.useEffect(
+      () => () => {
+        scrollTaskRef.current?.cancel?.();
+      },
+      []
     );
 
     React.useEffect(() => {
@@ -264,9 +287,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     openFromPeekRef.current = openFromPeek;
 
     React.useEffect(() => {
-      if (isSheetExpandable || clampedIndex === 0) return;
+      if (isSheetDragging || isSheetExpandable || clampedIndex === 0) return;
       requestSnapIndex(0);
-    }, [clampedIndex, isSheetExpandable, requestSnapIndex]);
+    }, [clampedIndex, isSheetDragging, isSheetExpandable, requestSnapIndex]);
 
     const sheetChromePanResponder = useMemo(
       () =>
@@ -441,7 +464,16 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               onScroll={(event) => {
                 scrollYRef.current = event.nativeEvent.contentOffset.y;
               }}
-              onScrollToIndexFailed={(info: { index: number }) => {
+              getItemLayout={(_, index) => ({
+                length: LIST_ITEM_STRIDE,
+                offset: LIST_ITEM_STRIDE * index,
+                index,
+              })}
+              onScrollToIndexFailed={(info: { index: number; averageItemLength: number }) => {
+                const fallbackOffset = info.averageItemLength
+                  ? info.averageItemLength * info.index
+                  : LIST_ITEM_STRIDE * info.index;
+                listRef.current?.scrollToOffset({ offset: fallbackOffset, animated: true });
                 requestAnimationFrame(() => {
                   listRef.current?.scrollToIndex({
                     index: info.index,

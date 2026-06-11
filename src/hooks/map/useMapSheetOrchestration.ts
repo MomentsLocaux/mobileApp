@@ -28,9 +28,10 @@ export function useMapSheetOrchestration({
 }: Params) {
   const scrollToActiveEventIfNeeded = useCallback(
     (sheetIndex: number) => {
-      if (sheetIndex >= 1 && activeEventId) {
+      if (sheetIndex < 1 || !activeEventId) return;
+      requestAnimationFrame(() => {
         resultsSheetRef.current?.scrollToEvent(activeEventId);
-      }
+      });
     },
     [activeEventId, resultsSheetRef]
   );

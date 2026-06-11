@@ -36,3 +36,21 @@ export function filterFeatureCollectionByEventIds(
     }),
   };
 }
+
+export function mergeFeatureCollections(
+  ...collections: Array<EventMapFeatureCollection | null | undefined>
+): EventMapFeatureCollection {
+  const seen = new Set<string>();
+  const features: EventMapFeatureCollection['features'] = [];
+
+  for (const collection of collections) {
+    for (const feature of collection?.features ?? []) {
+      const id = feature.properties?.id;
+      if (typeof id !== 'string' || !id.length || seen.has(id)) continue;
+      seen.add(id);
+      features.push(feature);
+    }
+  }
+
+  return { type: 'FeatureCollection', features };
+}

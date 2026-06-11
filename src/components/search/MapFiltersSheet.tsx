@@ -36,6 +36,12 @@ const MAP_MODES: { key: 'standard' | 'satellite'; label: string }[] = [
   { key: 'satellite', label: 'Satellite' },
 ];
 
+const DATE_PRESETS: { key: 'today' | 'tomorrow' | 'weekend'; label: string }[] = [
+  { key: 'today', label: "Aujourd'hui" },
+  { key: 'tomorrow', label: 'Demain' },
+  { key: 'weekend', label: 'Ce week-end' },
+];
+
 const SORT_LABELS: Record<SortOption, string> = {
   triage: 'Pertinence',
   date: 'Date début',
@@ -61,6 +67,8 @@ interface Props {
   onSortByChange: (value: SortOption) => void;
   onSortOrderChange: (order: SortOrder) => void;
   hasLocation: boolean;
+  whenPreset?: 'today' | 'tomorrow' | 'weekend';
+  onWhenPresetChange: (preset?: 'today' | 'tomorrow' | 'weekend') => void;
   resultCount: number;
   isLoadingResults?: boolean;
 }
@@ -106,6 +114,8 @@ export function MapFiltersSheet({
   onSortByChange,
   onSortOrderChange,
   hasLocation,
+  whenPreset,
+  onWhenPresetChange,
   resultCount,
   isLoadingResults = false,
 }: Props) {
@@ -130,10 +140,12 @@ export function MapFiltersSheet({
     const parts: string[] = [];
     const metaLabel = META_FILTERS.find((item) => item.key === metaFilter)?.label;
     if (metaLabel && metaFilter !== 'all') parts.push(metaLabel);
+    const dateLabel = DATE_PRESETS.find((item) => item.key === whenPreset)?.label;
+    if (dateLabel) parts.push(dateLabel);
     if (mapMode === 'satellite') parts.push('Satellite');
     if (sortBy !== 'triage') parts.push(SORT_LABELS[sortBy]);
     return parts.length ? parts.join(' · ') : 'Aucun filtre actif';
-  }, [mapMode, metaFilter, sortBy]);
+  }, [mapMode, metaFilter, sortBy, whenPreset]);
 
   useEffect(() => {
     if (visible) {
@@ -265,6 +277,18 @@ export function MapFiltersSheet({
                 ))}
               </View>
 
+              <Text style={styles.sectionTitle}>Quand</Text>
+              <View style={styles.chipRow}>
+                {DATE_PRESETS.map((item) => (
+                  <FilterChip
+                    key={item.key}
+                    label={item.label}
+                    active={whenPreset === item.key}
+                    onPress={() => onWhenPresetChange(whenPreset === item.key ? undefined : item.key)}
+                  />
+                ))}
+              </View>
+
               <Text style={styles.sectionTitle}>Style de carte</Text>
               <View style={styles.chipRow}>
                 {MAP_MODES.map((item) => (
@@ -281,7 +305,7 @@ export function MapFiltersSheet({
               {!searchActive ? (
                 <Text style={styles.sectionHint}>
                   {metaFilter !== 'all'
-                    ? 'Les critères de recherche (barre du haut) sont désactivés tant qu’un statut est sélectionné.'
+                    ? 'Les critères de recherche sont actifs uniquement avec le statut « Tous ».'
                     : 'Lancez une recherche via la barre du haut pour filtrer par lieu, date, catégorie, etc.'}
                 </Text>
               ) : null}
@@ -343,9 +367,11 @@ export function MapFiltersSheet({
 export function hasMapActiveFilters(
   metaFilter: EventMetaFilter,
   mapMode: 'standard' | 'satellite',
-  sortBy: SortOption
+  sortBy: SortOption,
+  whenPreset?: 'today' | 'tomorrow' | 'weekend'
 ) {
   if (metaFilter !== 'all') return true;
+  if (whenPreset) return true;
   if (mapMode !== 'standard') return true;
   if (sortBy !== 'triage') return true;
   return false;

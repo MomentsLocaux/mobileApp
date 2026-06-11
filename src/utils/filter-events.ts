@@ -1,6 +1,7 @@
 import type { EventWithCreator } from '../types/database';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../types/filters';
-import { isEventLive, isEventPast } from './event-status';
+import { isEventLive, isEventPast, isEventUpcoming } from './event-status';
+import { eventMatchesDatePreset } from './event-date-windows';
 
 const POPULARITY_THRESHOLDS = {
   trending: 10,
@@ -8,50 +9,13 @@ const POPULARITY_THRESHOLDS = {
   top: 50,
 } as const;
 
-function getUpcomingWeekendWindow(now: Date): { start: Date; end: Date } {
-  const start = new Date(now);
-  const day = now.getDay();
-  const daysUntilSaturday = (6 - day + 7) % 7; // 6 = Saturday
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() + daysUntilSaturday);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 2); // Saturday to end of Sunday
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
-}
-
 function matchesTimeFilter(
   event: EventWithCreator,
   timeFilter: TimeFilter,
   now: Date
 ): boolean {
-  if (timeFilter === 'weekend') {
-    const startsAt = new Date(event.starts_at);
-    if (isNaN(startsAt.getTime())) return false;
-    const { start, end } = getUpcomingWeekendWindow(now);
-    return startsAt >= start && startsAt <= end;
-  }
-
-  if (timeFilter === 'today') {
-    const startsAt = new Date(event.starts_at);
-    if (isNaN(startsAt.getTime())) return false;
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
-    return startsAt >= startOfDay && startsAt <= endOfDay;
-  }
-
-  if (timeFilter === 'tomorrow') {
-    const startsAt = new Date(event.starts_at);
-    if (isNaN(startsAt.getTime())) return false;
-    const startOfDay = new Date(now);
-    startOfDay.setDate(startOfDay.getDate() + 1);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
-    return startsAt >= startOfDay && startsAt <= endOfDay;
+  if (timeFilter === 'weekend' || timeFilter === 'today' || timeFilter === 'tomorrow') {
+    return eventMatchesDatePreset(event, timeFilter, now);
   }
 
   if (timeFilter === 'live') {
@@ -235,7 +199,7 @@ export function filterEventsByMetaStatus(
       return isEventLive(event, now);
     }
     if (metaFilter === 'upcoming') {
-      return startsAt > now;
+      return isEventUpcoming(event, now);
     }
     if (metaFilter === 'past') {
       return isEventPast(event, now);

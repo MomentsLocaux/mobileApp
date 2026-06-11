@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { runOnJS, useSharedValue, withTiming } from 'react-native-reanimated';
 import {
   clampSheetHeight,
   getInitialSheetHeight,
   getMapSlotHeight,
   getScreenHeight,
+  getSheetMaxSnapIndex,
   getSheetSnapHeights,
   resolveSheetSnapIndex,
   SHEET_LAYOUT_TIMING,
@@ -14,7 +15,7 @@ import {
 
 const ESTIMATED_LAYOUT_HEIGHT = getScreenHeight();
 
-export function useMapSheetSplitLayout(mode: MapSheetMode) {
+export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
   const [layoutHeight, setLayoutHeight] = useState(0);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const dragOriginSheetHeightRef = useRef(VIEWPORT_PEEK_HEIGHT);
@@ -99,6 +100,26 @@ export function useMapSheetSplitLayout(mode: MapSheetMode) {
     },
     [layoutHeight, mode, mapSlotHeight]
   );
+
+  const previousModeRef = useRef(mode);
+  const layoutReadyRef = useRef(false);
+
+  useEffect(() => {
+    if (layoutHeight <= 0 || isSheetDragging) return;
+
+    const modeChanged = previousModeRef.current !== mode;
+    previousModeRef.current = mode;
+
+    const isFirstLayout = !layoutReadyRef.current;
+    layoutReadyRef.current = true;
+    if (!modeChanged && !isFirstLayout) return;
+
+    const clampedSnap = Math.min(Math.max(0, snapIndex), getSheetMaxSnapIndex(mode));
+    const targetSheet = getSheetSnapHeights(layoutHeight, mode)[clampedSnap];
+    if (targetSheet == null) return;
+
+    applySheetHeight(targetSheet, false);
+  }, [applySheetHeight, isSheetDragging, layoutHeight, mode, snapIndex]);
 
   const finishSheetDrag = useCallback(
     (dy: number, velocityY: number, onSettled?: () => void) => {

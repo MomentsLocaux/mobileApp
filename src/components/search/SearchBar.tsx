@@ -32,9 +32,7 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import { useLocationStore } from '@/store';
-import { EventsService } from '@/services/events.service';
-import { buildFiltersFromSearch } from '@/utils/search-filters';
-import { filterEvents } from '@/utils/filter-events';
+import { fetchSearchPreviewEvents } from '@/utils/search-preview-events';
 import type { SearchState } from '@/store/searchStore';
 import { buildSearchSummary } from '@/utils/search-summary';
 import {
@@ -42,7 +40,6 @@ import {
   PROXIMITY_RADIUS_KM,
   resolveEffectiveRadiusKm,
   resolveSearchCenter,
-  SEARCH_FETCH_LIMIT,
 } from '@/utils/search-helpers';
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
@@ -242,33 +239,10 @@ export const SearchBar: React.FC<Props> = ({
     setCountLoading(true);
     const timeout = setTimeout(async () => {
       try {
-        let events: EventWithCreator[] = [];
-        if (searchCenter && effectiveRadiusKm !== undefined) {
-          const latDelta = effectiveRadiusKm / 111;
-          const lonDelta =
-            effectiveRadiusKm /
-            (111 * Math.max(Math.cos((searchCenter.latitude * Math.PI) / 180), 0.1));
-          const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
-          const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
-
-          const featureCollection = await EventsService.listEventsByBBox({
-            ne,
-            sw,
-            limit: SEARCH_FETCH_LIMIT,
-            includePast,
-          });
-
-          const ids =
-            featureCollection?.features
-              ?.map((f: any) => f?.properties?.id)
-              .filter(Boolean) || [];
-          const uniqueIds = Array.from(new Set(ids)) as string[];
-          events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
-        } else {
-          events = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, includePast });
-        }
-        const filters = buildFiltersFromSearch({ where, when, who: { adults: 1, children: 0, babies: 0 }, what } as SearchState, userCoords);
-        const filteredEvents = filterEvents(events, filters, null);
+        const filteredEvents = await fetchSearchPreviewEvents(
+          { where, when, what },
+          { searchCenter, effectiveRadiusKm, userCoords }
+        );
         if (!cancelled) {
           setSearchCount(filteredEvents.length);
         }

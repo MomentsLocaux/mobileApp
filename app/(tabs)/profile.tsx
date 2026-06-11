@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Settings, User as UserIcon, Calendar, Award } from 'lucide-react-native';
-import { AppBackground, Button, Card } from '../../src/components/ui';
+import { AppBackground, Button, Card, ScreenHeader } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
@@ -62,6 +62,14 @@ export default function ProfileScreen() {
     router.push('/profile/my-events' as any);
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(tabs)/map' as any);
+  };
+
   if (isGuest) {
     return (
       <View style={styles.container}>
@@ -93,6 +101,7 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <AppBackground />
       <ScrollView style={styles.scroll}>
+        <ScreenHeader title="Mon profil" onBack={handleBack} />
         <View style={styles.header}>
           {profile.cover_url ? (
             <Image source={{ uri: profile.cover_url }} style={styles.cover} />

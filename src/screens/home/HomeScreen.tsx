@@ -36,6 +36,7 @@ import {
   SEARCH_FETCH_LIMIT,
 } from '@/utils/search-helpers';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
+import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { AppBackground } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -158,12 +159,14 @@ export default function HomeScreen() {
           const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
           const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
 
-          const featureCollection = await EventsService.listEventsByBBox({
-            ne,
-            sw,
-            limit: SEARCH_FETCH_LIMIT,
-            timeScope: searchTimeScope,
-          });
+          const featureCollection = await listEventsByBBoxForMap(
+            { ne, sw, limit: SEARCH_FETCH_LIMIT },
+            searchTimeScope,
+            {
+              mergeUpcomingForDatePreset:
+                searchTimeScope === 'current' && !!searchState.when.preset,
+            }
+          );
           const ids =
             featureCollection?.features
               ?.map((f: any) => f?.properties?.id)

@@ -23,7 +23,7 @@ export const EventsService = {
     sw: [number, number];
     limit?: number;
     includePast?: boolean;
-    timeScope?: 'ongoing' | 'upcoming' | 'all';
+    timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
   }) =>
     (dataProvider as any).listEventsByBBox
       ? (dataProvider as any).listEventsByBBox(params)
