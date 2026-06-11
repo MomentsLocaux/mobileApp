@@ -251,6 +251,13 @@ export default function MapScreen() {
       if (sideEffectsTimerRef.current) {
         clearTimeout(sideEffectsTimerRef.current);
       }
+      if (targetIdx === 0) {
+        traceMapSheetPerf('syncMapToFrozenViewport', {
+          reason: 'sheetClosing',
+          paddingBottom: MAP_FIT_PADDING,
+        });
+        syncMapToFrozenViewport({ paddingBottom: MAP_FIT_PADDING });
+      }
       sideEffectsTimerRef.current = setTimeout(() => {
         sideEffectsTimerRef.current = null;
         traceMapSheetPerf('applySheetSideEffects', { targetIdx });
