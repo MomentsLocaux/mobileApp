@@ -57,7 +57,7 @@ function resolveVariant(cardHeight: number, explicit?: EventCardVariant): EventC
   return 'discovery';
 }
 
-export const EventResultCard: React.FC<Props> = ({
+const EventResultCardComponent: React.FC<Props> = ({
   event,
   variant: explicitVariant,
   distanceKm,
@@ -168,6 +168,8 @@ export const EventResultCard: React.FC<Props> = ({
     </Animated.View>
   );
 };
+
+export const EventResultCard = React.memo(EventResultCardComponent);
 
 const styles = StyleSheet.create({
   wrapper: {

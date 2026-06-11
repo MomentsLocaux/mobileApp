@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import type { RefObject } from 'react';
 import type { SearchResultsBottomSheetHandle } from '@/components/search/SearchResultsBottomSheet';
 import type { EventWithCreator } from '@/types/database';
@@ -37,10 +38,12 @@ export function useMapSheetOrchestration({
   );
 
   const handleSheetCollapsedSideEffects = useCallback(() => {
+    traceMapSheetPerf('closeSheet');
     closeSheet();
   }, [closeSheet]);
 
   const handleSheetExpandedSideEffects = useCallback(() => {
+    traceMapSheetPerf('lockViewportForSheet');
     setUnitCardEvent(null);
     void lockViewportForSheet();
   }, [lockViewportForSheet, setUnitCardEvent]);
@@ -48,6 +51,7 @@ export function useMapSheetOrchestration({
   const handleSingleEventSheetSideEffects = useCallback(
     (sheetIndex: number) => {
       if (sheetIndex <= 0 || sheetStatus !== 'singleEvent' || sheetEvents.length === 0) return;
+      traceMapSheetPerf('focusOnEvent', { reason: 'singleEventSheet' });
       focusOnEvent(sheetEvents[0], { bumpZoom: false });
     },
     [focusOnEvent, sheetEvents, sheetStatus]

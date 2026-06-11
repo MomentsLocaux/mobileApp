@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { MapWrapperHandle } from '@/components/map';
 import { MAP_CAMERA_ANIMATION_MS, SHEET_LAYOUT_TIMING } from '@/utils/map-sheet-layout';
+import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { getBoundsFromRadiusKm } from '@/utils/search-helpers';
 import { MAP_FIT_PADDING, MAP_FOCUS_PADDING_BOTTOM } from '@/constants/map-screen';
 import type { EventWithCreator } from '@/types/database';
@@ -113,6 +114,7 @@ export function useMapViewportController({
   );
 
   const ensureInitialViewportLoad = useCallback(async () => {
+    traceMapSheetPerf('ensureInitialViewportLoad');
     if (initialViewportLoadInFlightRef.current) return;
     initialViewportLoadInFlightRef.current = true;
 
@@ -132,6 +134,7 @@ export function useMapViewportController({
   }, [isProgrammaticMoveRef, mapRef, queueViewportFetch]);
 
   const refreshBounds = useCallback(async (options?: Pick<ViewportFetchOptions, 'metaFilter'>) => {
+    traceMapSheetPerf('refreshBounds');
     const bounds = await mapRef.current?.getVisibleBounds?.();
     if (!bounds) return;
 
@@ -159,6 +162,7 @@ export function useMapViewportController({
   );
 
   const syncMapToFrozenViewport = useCallback(() => {
+    traceMapSheetPerf('syncMapToFrozenViewport');
     if (!frozenViewportBoundsRef.current) return;
     refitMapToFrozenViewport(SHEET_LAYOUT_TIMING.duration);
   }, [refitMapToFrozenViewport]);

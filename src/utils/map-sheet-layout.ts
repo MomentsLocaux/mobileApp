@@ -80,6 +80,35 @@ export const clampSheetHeight = (height: number, layoutHeight: number, mode: Map
   return Math.min(max, Math.max(min, height));
 };
 
+export const getMaxSheetHeight = (layoutHeight: number, mode: MapSheetMode) => {
+  const snaps = getSheetSnapHeights(layoutHeight, mode);
+  return snaps[snaps.length - 1] ?? VIEWPORT_PEEK_HEIGHT;
+};
+
+export const sheetHeightToProgress = (
+  sheetHeight: number,
+  layoutHeight: number,
+  mode: MapSheetMode
+): number => {
+  const peek = getSheetSnapHeights(layoutHeight, mode)[0] ?? VIEWPORT_PEEK_HEIGHT;
+  const max = getMaxSheetHeight(layoutHeight, mode);
+  const range = Math.max(1, max - peek);
+  return Math.min(1, Math.max(0, (sheetHeight - peek) / range));
+};
+
+export const progressToSheetHeight = (
+  progress: number,
+  layoutHeight: number,
+  mode: MapSheetMode
+): number => {
+  const peek = getSheetSnapHeights(layoutHeight, mode)[0] ?? VIEWPORT_PEEK_HEIGHT;
+  const max = getMaxSheetHeight(layoutHeight, mode);
+  return peek + Math.min(1, Math.max(0, progress)) * (max - peek);
+};
+
+/** Delay before heavy viewport side effects after snap animation. */
+export const SHEET_SIDE_EFFECTS_DELAY_MS = SHEET_LAYOUT_TIMING.duration + 80;
+
 export const resolveSheetSnapIndex = (
   sheetHeight: number,
   layoutHeight: number,

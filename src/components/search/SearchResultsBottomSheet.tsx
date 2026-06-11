@@ -29,6 +29,7 @@ import {
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
+import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 
 export {
   VIEWPORT_PEEK_SNAP,
@@ -122,6 +123,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
+
+    const renderCountRef = useRef(0);
+    renderCountRef.current += 1;
+    traceMapSheetPerf('SearchResultsBottomSheet render', {
+      count: renderCountRef.current,
+      isSheetDragging,
+      snapIndex: clampedIndex,
+    });
 
     const hasEvents = events.length > 0;
     const isSheetExpandable =
@@ -375,6 +384,38 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       ]
     );
 
+    const renderListItem = useCallback(
+      ({ item, index }: { item: EventWithCreator; index: number }) => (
+        <EventResultCard
+          event={item}
+          cardHeight={EVENT_RESULT_LIST_CARD_HEIGHT}
+          listEntranceDelay={isExpanded && index < 4 ? index * Motion.stagger.listItem : 0}
+          viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
+          friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
+          active={item.id === activeEventId}
+          onPress={() => onOpenDetails(item)}
+          onSelect={() => {
+            onHighlightEvent(item, { focusMap: false });
+          }}
+          onNavigate={() => onNavigate(item)}
+          onOpenCreator={onOpenCreator}
+          onToggleHeart={onToggleHeart}
+          isHearted={isHearted ? isHearted(item.id) : undefined}
+        />
+      ),
+      [
+        activeEventId,
+        isExpanded,
+        isHearted,
+        onHighlightEvent,
+        onNavigate,
+        onOpenCreator,
+        onOpenDetails,
+        onToggleHeart,
+        statsByEventId,
+      ]
+    );
+
     const sheetChromeHandlers = isSheetExpandable ? sheetChromePanResponder.panHandlers : {};
     const listPanHandlers =
       isSheetExpandable && isExpanded ? listPanResponder.panHandlers : {};
@@ -482,26 +523,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                   });
                 });
               }}
-              renderItem={({ item, index }: { item: EventWithCreator; index: number }) => (
-                <EventResultCard
-                  event={item}
-                  cardHeight={EVENT_RESULT_LIST_CARD_HEIGHT}
-                  listEntranceDelay={
-                    isExpanded && index < 4 ? index * Motion.stagger.listItem : 0
-                  }
-                  viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
-                  friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
-                  active={item.id === activeEventId}
-                  onPress={() => onOpenDetails(item)}
-                  onSelect={() => {
-                    onHighlightEvent(item, { focusMap: false });
-                  }}
-                  onNavigate={() => onNavigate(item)}
-                  onOpenCreator={onOpenCreator}
-                  onToggleHeart={onToggleHeart}
-                  isHearted={isHearted ? isHearted(item.id) : undefined}
-                />
-              )}
+              initialNumToRender={6}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+              removeClippedSubviews
+              renderItem={renderListItem}
             />
           </Animated.View>
         )}

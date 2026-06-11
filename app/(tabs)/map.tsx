@@ -5,15 +5,17 @@ import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedStyle,
-  useDerivedValue,
 } from 'react-native-reanimated';
 import {
   SHEET_JUNCTION_RADIUS,
   SHEET_LAYOUT_TIMING,
+  SHEET_SIDE_EFFECTS_DELAY_MS,
   VIEWPORT_PEEK_HEIGHT,
   getSheetMaxSnapIndex,
   MAP_CAMERA_ANIMATION_MS,
 } from '../../src/utils/map-sheet-layout';
+import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
+import type { MapBounds } from '@/types/map-events';
 import { useMapSheetSplitLayout } from '@/hooks/useMapSheetSplitLayout';
 import {
   useMapScreenData,
@@ -89,9 +91,10 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
   const {
-    isSheetDragging,
-    layoutHeightShared,
-    mapSlotHeight,
+    maxSheetHeightShared,
+    sheetVisibleHeight,
+    sheetProgress,
+    isSheetDraggingRef: sheetDraggingRef,
     handleColumnLayout,
     setSheetSnapIndex,
     beginSheetDrag,
@@ -103,6 +106,9 @@ export default function MapScreen() {
   const resultsSheetRef = useRef<SearchResultsBottomSheetHandle>(null);
   const filterButtonRef = useRef<View>(null);
   const isSheetDraggingRef = useRef(false);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
+  const latestVisibleBoundsRef = useRef<MapBounds | null>(null);
+  const sideEffectsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCenteredOnUserRef = useRef(false);
   const focusHandledRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
@@ -123,7 +129,17 @@ export default function MapScreen() {
 
   useEffect(() => {
     isSheetDraggingRef.current = isSheetDragging;
-  }, [isSheetDragging]);
+    sheetDraggingRef.current = isSheetDragging;
+  }, [isSheetDragging, sheetDraggingRef]);
+
+  useEffect(
+    () => () => {
+      if (sideEffectsTimerRef.current) {
+        clearTimeout(sideEffectsTimerRef.current);
+      }
+    },
+    []
+  );
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -229,23 +245,72 @@ export default function MapScreen() {
     toggleFavorite,
   });
 
-  const sheetProgress = useDerivedValue(() => {
-    const layoutHeight = layoutHeightShared.value;
-    if (layoutHeight <= 0) return 0;
-    const fullSheetHeight = layoutHeight * 0.92;
-    const currentSheetHeight = layoutHeight - mapSlotHeight.value;
-    const range = Math.max(1, fullSheetHeight - VIEWPORT_PEEK_HEIGHT);
-    return Math.min(1, Math.max(0, (currentSheetHeight - VIEWPORT_PEEK_HEIGHT) / range));
+  const runSheetSideEffectsAfterSnap = useCallback(
+    (targetIdx: number) => {
+      if (sideEffectsTimerRef.current) {
+        clearTimeout(sideEffectsTimerRef.current);
+      }
+      sideEffectsTimerRef.current = setTimeout(() => {
+        sideEffectsTimerRef.current = null;
+        traceMapSheetPerf('applySheetSideEffects', { targetIdx });
+        applySheetSideEffects(targetIdx);
+        if (targetIdx > 0) {
+          traceMapSheetPerf('syncMapToFrozenViewport');
+          syncMapToFrozenViewport();
+        }
+      }, SHEET_SIDE_EFFECTS_DELAY_MS);
+    },
+    [applySheetSideEffects, syncMapToFrozenViewport]
+  );
+
+  const mapVisualStyle = useAnimatedStyle(() => {
+    const progress = sheetProgress.value;
+    return {
+      opacity: interpolate(progress, [0, 1], [1, 0.9], Extrapolation.CLAMP),
+      transform: [
+        {
+          scale: interpolate(progress, [0, 1], [1, 0.965], Extrapolation.CLAMP),
+        },
+        {
+          translateY: interpolate(progress, [0, 1], [0, -28], Extrapolation.CLAMP),
+        },
+      ],
+    };
   });
 
-  const mapSlotStyle = useAnimatedStyle(() => ({
-    height: Math.max(0, mapSlotHeight.value),
+  const mapDimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(sheetProgress.value, [0, 1], [0, 0.12], Extrapolation.CLAMP),
   }));
 
-  const mapSceneStyle = useAnimatedStyle(() => ({
-    flex: 1,
-    opacity: interpolate(sheetProgress.value, [0, 1], [1, 0.92], Extrapolation.CLAMP),
+  const sheetOverlayStyle = useAnimatedStyle(() => {
+    const maxHeight = maxSheetHeightShared.value;
+    const visibleHeight = sheetVisibleHeight.value;
+    return {
+      height: maxHeight,
+      transform: [{ translateY: Math.max(0, maxHeight - visibleHeight) }],
+    };
+  });
+
+  const unitOverlayFadeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(sheetProgress.value, [0, 0.35], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateY: interpolate(sheetProgress.value, [0, 0.35], [0, 24], Extrapolation.CLAMP),
+      },
+      {
+        scale: interpolate(sheetProgress.value, [0, 0.35], [1, 0.98], Extrapolation.CLAMP),
+      },
+    ],
   }));
+
+  const handleBoundsChangeWithCache = useCallback(
+    (bounds: MapBounds, meta?: { isUserInteraction?: boolean }) => {
+      latestVisibleBoundsRef.current = bounds;
+      traceMapSheetPerf('handleBoundsChange', meta);
+      handleBoundsChange(bounds, meta);
+    },
+    [handleBoundsChange]
+  );
 
   const handleHighlightEvent = useCallback(
     (event: EventWithCreator, options?: { focusMap?: boolean }) => {
@@ -258,18 +323,15 @@ export default function MapScreen() {
 
   const handleSheetDragStart = useCallback(
     (snapIndex: number) => {
+      traceMapSheetPerf('handleSheetDragStart', { snapIndex });
       cancelViewportFetch();
       suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 800);
       beginSheetDrag(snapIndex);
+      setIsSheetDragging(true);
 
-      if (frozenViewportBoundsRef.current) return;
-
-      void (async () => {
-        const bounds = await mapRef.current?.getVisibleBounds?.();
-        if (bounds) {
-          frozenViewportBoundsRef.current = bounds;
-        }
-      })();
+      if (!frozenViewportBoundsRef.current && latestVisibleBoundsRef.current) {
+        frozenViewportBoundsRef.current = latestVisibleBoundsRef.current;
+      }
     },
     [beginSheetDrag, cancelViewportFetch, frozenViewportBoundsRef, suppressBoundsRecalc]
   );
@@ -290,6 +352,7 @@ export default function MapScreen() {
 
   const handleSheetIndexChange = useCallback(
     (idx: number, options?: { animate?: boolean }) => {
+      traceMapSheetPerf('handleSheetIndexChange', { idx });
       if (idx < 0) return;
       const clampedIdx = Math.min(idx, getSheetMaxSnapIndex(sheetMode));
       if (clampedIdx === bottomSheetIndex) return;
@@ -298,27 +361,22 @@ export default function MapScreen() {
       suppressBoundsRecalc(SHEET_LAYOUT_TIMING.duration + 400);
       setBottomSheetIndex(clampedIdx);
 
-      const onLayoutSettled = () => {
-        syncMapToFrozenViewport();
-      };
-
       if (options?.animate !== false) {
-        setSheetSnapIndex(clampedIdx, true, onLayoutSettled);
+        setSheetSnapIndex(clampedIdx, true);
       } else {
-        syncMapToFrozenViewport();
+        setSheetSnapIndex(clampedIdx, false);
       }
 
-      applySheetSideEffects(clampedIdx);
+      runSheetSideEffectsAfterSnap(clampedIdx);
     },
     [
-      applySheetSideEffects,
       bottomSheetIndex,
       cancelViewportFetch,
+      runSheetSideEffectsAfterSnap,
       setBottomSheetIndex,
       setSheetSnapIndex,
       sheetMode,
       suppressBoundsRecalc,
-      syncMapToFrozenViewport,
     ]
   );
 
@@ -358,22 +416,24 @@ export default function MapScreen() {
 
   const handleSheetDragEnd = useCallback(
     (dy: number, velocityY: number) => {
-      const targetIdx = finishSheetDrag(dy, velocityY, syncMapToFrozenViewport);
+      traceMapSheetPerf('handleSheetDragEnd', { dy, velocityY });
+      const targetIdx = finishSheetDrag(dy, velocityY);
+      setIsSheetDragging(false);
+
       if (targetIdx === bottomSheetIndex) return;
 
       cancelViewportFetch();
       suppressBoundsRecalc(SHEET_LAYOUT_TIMING.duration + 400);
       setBottomSheetIndex(targetIdx);
-      applySheetSideEffects(targetIdx);
+      runSheetSideEffectsAfterSnap(targetIdx);
     },
     [
-      applySheetSideEffects,
       bottomSheetIndex,
       cancelViewportFetch,
       finishSheetDrag,
+      runSheetSideEffectsAfterSnap,
       setBottomSheetIndex,
       suppressBoundsRecalc,
-      syncMapToFrozenViewport,
     ]
   );
 
@@ -576,23 +636,21 @@ export default function MapScreen() {
           style={styles.contentColumn}
           onLayout={(event) => handleColumnLayout(event.nativeEvent.layout.height)}
         >
-          <Animated.View style={[styles.mapSlot, mapSlotStyle]}>
-            <Animated.View style={mapSceneStyle}>
-              <MapWrapper
-                ref={mapRef}
-                initialRegion={mapCenter}
-                userLocation={userLocation}
-                onFeaturePress={handleFeaturePress}
-                onZoomChange={setZoom}
-                styleURL={mapStyle}
-                mapPadding={MAP_VIEW_PADDING}
-                onVisibleBoundsChange={handleBoundsChange}
-                onUserMapGestureStart={handleUserMapGestureStart}
-                onMapReady={handleMapReady}
-                onMapBackgroundPress={handleMapBackgroundPress}
-                activeEventId={activeEventId}
-              />
-            </Animated.View>
+          <Animated.View style={[styles.mapLayer, mapVisualStyle]}>
+            <MapWrapper
+              ref={mapRef}
+              initialRegion={mapCenter}
+              userLocation={userLocation}
+              onFeaturePress={handleFeaturePress}
+              onZoomChange={setZoom}
+              styleURL={mapStyle}
+              mapPadding={MAP_VIEW_PADDING}
+              onVisibleBoundsChange={handleBoundsChangeWithCache}
+              onUserMapGestureStart={handleUserMapGestureStart}
+              onMapReady={handleMapReady}
+              onMapBackgroundPress={handleMapBackgroundPress}
+              activeEventId={activeEventId}
+            />
 
             {viewportFetchError ? (
               <View style={styles.mapErrorBanner}>
@@ -617,28 +675,33 @@ export default function MapScreen() {
                 <Navigation size={18} color={colors.neutral[0]} />
               </FloatingPressable>
             ) : null}
-
-            {unitCardEvent ? (
-              <View style={styles.unitOverlaySlot} pointerEvents="box-none">
-                <MapEventUnitOverlay
-                  event={unitCardEvent}
-                  visible={!!unitCardEvent}
-                  currentUserId={profile?.id}
-                  isHearted={likesSet.has(unitCardEvent.id) || favoritesSet.has(unitCardEvent.id)}
-                  onToggleHeart={handleToggleHeart}
-                  onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
-                  onNavigate={() => setNavEvent(unitCardEvent)}
-                  onClose={() => {
-                    setUnitCardEvent(null);
-                    closeSheet();
-                  }}
-                  bottomInset={spacing.sm}
-                />
-              </View>
-            ) : null}
           </Animated.View>
 
-          <View style={styles.sheetSlot}>
+          <Animated.View pointerEvents="none" style={[styles.mapDimOverlay, mapDimStyle]} />
+
+          {unitCardEvent ? (
+            <Animated.View
+              style={[styles.unitOverlaySlot, unitOverlayFadeStyle]}
+              pointerEvents="box-none"
+            >
+              <MapEventUnitOverlay
+                event={unitCardEvent}
+                visible={!!unitCardEvent}
+                currentUserId={profile?.id}
+                isHearted={likesSet.has(unitCardEvent.id) || favoritesSet.has(unitCardEvent.id)}
+                onToggleHeart={handleToggleHeart}
+                onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
+                onNavigate={() => setNavEvent(unitCardEvent)}
+                onClose={() => {
+                  setUnitCardEvent(null);
+                  closeSheet();
+                }}
+                bottomInset={spacing.sm}
+              />
+            </Animated.View>
+          ) : null}
+
+          <Animated.View style={[styles.sheetOverlay, sheetOverlayStyle]}>
             <SearchResultsBottomSheet
               ref={resultsSheetRef}
               events={sortedListEvents}
@@ -667,7 +730,7 @@ export default function MapScreen() {
               onSortOrderChange={handleListSortOrderChange}
               hasLocation={!!userLocation}
             />
-          </View>
+          </Animated.View>
         </View>
       </View>
 
@@ -749,28 +812,29 @@ const styles = StyleSheet.create({
   },
   contentColumn: {
     flex: 1,
-    flexDirection: 'column',
-    backgroundColor: colors.brand.primary,
-  },
-  mapSlot: {
-    width: '100%',
     overflow: 'hidden',
-    position: 'relative',
     backgroundColor: colors.brand.primary,
-    borderBottomLeftRadius: SHEET_JUNCTION_RADIUS,
-    borderBottomRightRadius: SHEET_JUNCTION_RADIUS,
   },
-  sheetSlot: {
-    flex: 1,
-    width: '100%',
-    minHeight: VIEWPORT_PEEK_HEIGHT,
+  mapLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.brand.primary,
+  },
+  mapDimOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    zIndex: 2,
+  },
+  sheetOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
     overflow: 'hidden',
     backgroundColor: colors.brand.primary,
     borderTopLeftRadius: SHEET_JUNCTION_RADIUS,
     borderTopRightRadius: SHEET_JUNCTION_RADIUS,
-    marginTop: -SHEET_JUNCTION_RADIUS,
-    paddingTop: SHEET_JUNCTION_RADIUS,
-    marginBottom: -StyleSheet.hairlineWidth,
+    minHeight: VIEWPORT_PEEK_HEIGHT,
   },
   loadingContainer: {
     flex: 1,
@@ -788,7 +852,7 @@ const styles = StyleSheet.create({
   },
   unitOverlaySlot: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 30,
+    zIndex: 5,
   },
   mapErrorBanner: {
     position: 'absolute',
