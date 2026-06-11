@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronDown, Heart, Search, Users } from 'lucide-react-native';
 
 import { AppBackground } from '@/components/ui';
-import { EventCardMetaRows } from '@/components/events/EventCardMetaRows';
+import { EventCardContent } from '@/components/events/EventCardContent';
 import { getCategoryLabel } from '@/constants/categories';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
@@ -400,10 +400,13 @@ export default function FavoritesScreen() {
                   </View>
 
                   <View style={styles.eventBody}>
-                    <Text style={styles.eventTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                    <EventCardMetaRows event={item} tone="muted" showCityIcon compactSpacing />
+                    <EventCardContent
+                      event={item}
+                      tone="muted"
+                      density="comfortable"
+                      showSocial={false}
+                      showStats={false}
+                    />
                   </View>
                 </TouchableOpacity>
               );
@@ -643,21 +646,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.sm,
-  },
-  eventTitle: {
-    ...typography.h3,
-    color: colors.brand.text,
-    fontWeight: '800',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  locationText: {
-    ...typography.body,
-    color: '#a7b2c4',
-    flex: 1,
   },
   creatorCard: {
     backgroundColor: 'rgba(255,255,255,0.06)',

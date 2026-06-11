@@ -4,7 +4,7 @@ import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
 import { isEventLive } from '../../utils/event-status';
-import { EventCardMetaRows } from '../events/EventCardMetaRows';
+import { EventCardContent } from '../events/EventCardContent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export const MAP_RESULT_CARD_WIDTH = Math.min(300, SCREEN_WIDTH * 0.78);
@@ -44,17 +44,14 @@ export const MapResultCard: React.FC<Props> = ({ event, active = false, onPress,
     >
       <Image source={imageUri ? { uri: imageUri } : DEFAULT_EVENT_IMAGE} style={styles.image} />
       <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={2}>
-            {event.title}
-          </Text>
-          {onOpenDetails ? (
-            <Pressable onPress={onOpenDetails} hitSlop={8}>
-              <Text style={styles.detailsLink}>Détails</Text>
-            </Pressable>
-          ) : null}
-        </View>
-        <EventCardMetaRows event={event} tone="muted" compactSpacing />
+        <EventCardContent
+          event={event}
+          tone="muted"
+          density="compact"
+          isLive={isLive}
+          showSocial={false}
+          showStats={false}
+        />
         <View style={styles.metaRow}>
           {isLive ? (
             <View style={styles.liveBadge}>
@@ -64,6 +61,11 @@ export const MapResultCard: React.FC<Props> = ({ event, active = false, onPress,
           <Text style={styles.category} numberOfLines={1}>
             {categoryLabel}
           </Text>
+          {onOpenDetails ? (
+            <Pressable onPress={onOpenDetails} hitSlop={8}>
+              <Text style={styles.detailsLink}>Détails</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Pressable>
@@ -104,17 +106,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     justifyContent: 'center',
     gap: 2,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '700',
-    flex: 1,
   },
   detailsLink: {
     ...typography.caption,

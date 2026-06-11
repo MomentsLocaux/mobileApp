@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { X, Calendar, Heart } from 'lucide-react-native';
+import { X, Heart } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from '../events/EventImageCarousel';
-import { EventCardMetaRows } from '../events/EventCardMetaRows';
+import { EventCardContent } from '../events/EventCardContent';
 
 interface QuickPreviewProps {
   event: EventWithCreator;
@@ -42,14 +42,13 @@ export function QuickPreview({ event, onClose, onViewDetails }: QuickPreviewProp
           <Text style={[styles.categoryText, { color: categoryTextColor }]}>{getCategoryLabel(event.category || '')}</Text>
         </View>
 
-        <Text style={styles.title} numberOfLines={2}>
-          {event.title}
-        </Text>
-
-        <View style={styles.infoRow}>
-          <Calendar size={14} color={colors.neutral[600]} />
-          <EventCardMetaRows event={event} tone="muted" showCityIcon style={styles.scheduleMeta} />
-        </View>
+        <EventCardContent
+          event={event}
+          tone="muted"
+          density="comfortable"
+          showSocial={false}
+          showStats={false}
+        />
 
         <View style={styles.footer}>
           <View style={styles.statsRow}>
@@ -108,25 +107,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontWeight: '600',
     textTransform: 'uppercase',
-  },
-  title: {
-    ...typography.h4,
-    color: colors.neutral[900],
-    marginBottom: spacing.sm,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  scheduleMeta: {
-    flex: 1,
-  },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.neutral[600],
-    flex: 1,
   },
   footer: {
     flexDirection: 'row',

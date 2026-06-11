@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Heart, MapPin, Calendar, Users, Share2, Star } from 'lucide-react-native';
+import { Heart, Users, Share2, Star } from 'lucide-react-native';
 import { Card } from '../ui';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '../../constants/categories';
 import type { EventWithCreator } from '../../types/database';
 import { EventImageCarousel } from './EventImageCarousel';
-import { EventCardMetaRows } from './EventCardMetaRows';
+import { EventCardContent } from './EventCardContent';
 
 interface EventCardProps {
   event: EventWithCreator;
@@ -100,29 +100,23 @@ export const EventCard: React.FC<EventCardProps> = ({
         )}
 
         <View style={styles.content}>
-          <Text style={styles.title} numberOfLines={2}>
-            {event.title}
-          </Text>
-
-          <View style={styles.metaRow}>
-            <View style={[styles.visibilityPill, event.visibility === 'public' ? styles.publicPill : styles.privatePill]}>
-              <Text style={[styles.visibilityText, event.visibility === 'public' ? styles.publicText : styles.privateText]}>
-                {event.visibility === 'public' ? 'Public' : 'Privé'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.scheduleBlock}>
-            <Calendar size={14} color={colors.brand.textSecondary} />
-            <EventCardMetaRows event={event} tone="muted" showCityIcon />
-          </View>
-
-          {showDistance && distance !== undefined ? (
-            <View style={styles.metaRow}>
-              <MapPin size={14} color={colors.brand.textSecondary} />
-              <Text style={styles.distanceText}>{distance.toFixed(1)} km</Text>
-            </View>
-          ) : null}
+          <EventCardContent
+            event={event}
+            tone="muted"
+            density="comfortable"
+            showSocial={false}
+            showStats={Boolean(showDistance && distance !== undefined)}
+            distanceLabel={
+              showDistance && distance !== undefined ? `${distance.toFixed(1)} km` : null
+            }
+            titleAccessory={
+              <View style={[styles.visibilityPill, event.visibility === 'public' ? styles.publicPill : styles.privatePill]}>
+                <Text style={[styles.visibilityText, event.visibility === 'public' ? styles.publicText : styles.privateText]}>
+                  {event.visibility === 'public' ? 'Public' : 'Privé'}
+                </Text>
+              </View>
+            }
+          />
 
           {event.interests_count > 0 && (
             <View style={styles.metaRow}>
@@ -193,31 +187,16 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
   },
-  title: {
-    ...typography.h4,
-    color: colors.brand.text,
-    marginBottom: spacing.sm,
-  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
-    gap: spacing.xs,
-  },
-  scheduleBlock: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
     gap: spacing.xs,
   },
   metaText: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     flex: 1,
-  },
-  distanceText: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
   },
   freeBadge: {
     alignSelf: 'flex-start',

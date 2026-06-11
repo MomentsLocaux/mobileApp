@@ -2,7 +2,7 @@ import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, u
 import { runOnJS, useAnimatedReaction, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 import { Motion } from '@/constants/motion';
 import { StyleSheet, View, Text, Platform } from 'react-native';
-import Mapbox from '@rnmapbox/maps';
+import Mapbox, { type MapState } from '@rnmapbox/maps';
 import { MapPin, Users, type LucideIcon } from 'lucide-react-native';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
@@ -168,16 +168,20 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const TOUCH_DRAG_THRESHOLD_PX = 8;
 
   const markUserMapGesture = useCallback(() => {
+    const wasPending = pendingUserInteractionRef.current;
     pendingUserInteractionRef.current = true;
-    onUserMapGestureStart?.();
+    if (!wasPending) {
+      onUserMapGestureStart?.();
+    }
   }, [onUserMapGestureStart]);
 
-  const resolveUserInteraction = useCallback((event?: { properties?: unknown }) => {
-    const props = event?.properties as Record<string, unknown> | undefined;
+  const resolveUserInteraction = useCallback((state?: MapState) => {
+    const legacyProps = state?.properties as Record<string, unknown> | undefined;
     return (
       pendingUserInteractionRef.current ||
       userTouchDragRef.current ||
-      props?.isUserInteraction === true
+      state?.gestures?.isGestureActive === true ||
+      legacyProps?.isUserInteraction === true
     );
   }, []);
 
@@ -459,17 +463,17 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             onMapBackgroundPress?.();
           }
         }}
-        onRegionWillChange={(feature) => {
-          if (feature.properties?.isUserInteraction) {
+        onCameraChanged={(state) => {
+          if (state.gestures?.isGestureActive) {
             markUserMapGesture();
           }
         }}
-        onMapIdle={async (event) => {
-          const zoomLevel = (event.properties as any)?.zoomLevel ?? (event.properties as any)?.zoom;
+        onMapIdle={async (state) => {
+          const zoomLevel = state.properties?.zoom;
           if (onZoomChange && typeof zoomLevel === 'number') {
             onZoomChange(zoomLevel);
           }
-          const isUserInteraction = resolveUserInteraction(event);
+          const isUserInteraction = resolveUserInteraction(state);
           pendingUserInteractionRef.current = false;
           userTouchDragRef.current = false;
           await emitVisibleBounds({ isUserInteraction });

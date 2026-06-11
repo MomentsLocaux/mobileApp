@@ -6,5 +6,6 @@ export { MediaUploader } from './MediaUploader';
 export { AdditionalImagesUploader } from './AdditionalImagesUploader';
 export { EventImageCarousel } from './EventImageCarousel';
 export { EventCardMetaRows } from './EventCardMetaRows';
+export { EventCardContent } from './EventCardContent';
 export { PlaceMediaGallery } from './PlaceMediaGallery';
 export { EventPhotoContributionModal } from './EventPhotoContributionModal';

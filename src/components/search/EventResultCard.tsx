@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { MapPin, Heart, Eye } from 'lucide-react-native';
+import { Heart } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { EventWithCreator } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -17,8 +17,7 @@ import { EventImageCarousel } from '../events/EventImageCarousel';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
 import { getEventLiveWindow } from '@/utils/event-status';
-import { getEventCardCity } from '@/utils/event-card-meta';
-import { EventCardMetaRows } from '../events/EventCardMetaRows';
+import { EventCardContent } from '../events/EventCardContent';
 
 export const EVENT_RESULT_CARD_HEIGHT = 420;
 /** Compact height for cards inside the map bottom sheet list. */
@@ -190,8 +189,6 @@ export const EventResultCard: React.FC<Props> = ({
       ? LIST_MEDIA_HEIGHT
       : COMPACT_MEDIA_HEIGHT
     : cardHeight;
-  const cityLabel = useMemo(() => getEventCardCity(event), [event]);
-
   const handleCardPress = () => {
     if (isSwiping) return;
     onSelect?.();
@@ -235,125 +232,18 @@ export const EventResultCard: React.FC<Props> = ({
     </View>
   );
 
-  const attendeesSection = (
-    <View style={styles.attendeesContainer}>
-      <View style={styles.avatarPile}>
-        {Array.from({ length: Math.max(1, Math.min(attendeesCount, 3)) }).map((_, i) => (
-          <View key={i} style={[styles.attendeeAvatar, { transform: [{ translateX: -i * 10 }] }]}>
-            <View style={[styles.attendeeDot, useStackedLayout && styles.attendeeDotStacked]} />
-          </View>
-        ))}
-        {attendeesCount > 3 && (
-          <View style={[styles.attendeeAvatar, styles.attendeeMore, { transform: [{ translateX: -30 }] }]}>
-            <Text style={styles.moreText}>+</Text>
-          </View>
-        )}
-      </View>
-      <Text
-        style={[
-          styles.attendeeText,
-          { marginLeft: -20 },
-          useStackedLayout && styles.attendeeTextStacked,
-        ]}
-      >
-        {attendeesCount} ami{attendeesCount > 1 ? 's' : ''} y vont
-      </Text>
-    </View>
-  );
-
-  const statsChipsSection = (
-    <View style={[styles.statsChipsRow, useStackedLayout && styles.statsChipsRowStacked]}>
-      <View style={[styles.statsContainer, useStackedLayout && styles.statsContainerStacked]}>
-        <Eye size={14} color={useStackedLayout ? colors.brand.textSecondary : 'rgba(255,255,255,0.6)'} />
-        <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{viewCount} vues</Text>
-      </View>
-      {distanceLabel ? (
-        <TouchableOpacity
-          style={[styles.locationBadge, useStackedLayout && styles.locationBadgeStacked]}
-          onPress={(e) => {
-            e.stopPropagation();
-            onNavigate();
-          }}
-          activeOpacity={0.8}
-        >
-          <MapPin size={12} color={colors.brand.textSecondary} />
-          <Text style={[styles.statsText, useStackedLayout && styles.statsTextStacked]}>{distanceLabel}</Text>
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  );
-
-  const footerSection = useStackedLayout ? (
-    <View style={styles.stackedFooter}>
-      {attendeesSection}
-      {statsChipsSection}
-    </View>
-  ) : (
-    <View style={[styles.footer, isCompact && styles.footerCompact]}>
-      {attendeesSection}
-      {statsChipsSection}
-    </View>
-  );
-
-  const contentSection = useStackedLayout ? (
-    <View style={styles.stackedContentWrap}>
-      <View style={styles.stackedContentBody}>
-        <View style={styles.stackedMainCol}>
-          <Text
-            style={[styles.title, styles.titleCompact, styles.titleStacked]}
-            numberOfLines={2}
-          >
-            {event.title}
-          </Text>
-        </View>
-        <View style={styles.stackedScheduleCol}>
-          <EventCardMetaRows
-            event={event}
-            tone="surface"
-            isLive={isLive}
-            liveUntilLabel={liveUntilLabel}
-            showCity={false}
-            align="right"
-            compactSpacing
-          />
-        </View>
-      </View>
-      <View style={styles.stackedCityRow}>
-        <MapPin size={12} color={colors.brand.textSecondary} />
-        <Text style={styles.stackedCityText} numberOfLines={1}>
-          {cityLabel}
-        </Text>
-      </View>
-      {footerSection}
-    </View>
-  ) : (
-    <View style={styles.overlayContentWrap}>
-      <View style={styles.overlayContentHeader}>
-        <View style={styles.overlayMainCol}>
-          <Text style={[styles.title, isCompact && styles.titleCompact]} numberOfLines={2}>
-            {event.title}
-          </Text>
-        </View>
-        <View style={styles.overlayScheduleCol}>
-          <EventCardMetaRows
-            event={event}
-            tone="overlay"
-            isLive={isLive}
-            liveUntilLabel={liveUntilLabel}
-            showCity={false}
-            align="right"
-            compactSpacing
-          />
-        </View>
-      </View>
-      <View style={styles.overlayCityRow}>
-        <MapPin size={12} color={colors.brand.textSecondary} />
-        <Text style={styles.overlayCityText} numberOfLines={1}>
-          {cityLabel}
-        </Text>
-      </View>
-      {footerSection}
-    </View>
+  const contentSection = (
+    <EventCardContent
+      event={event}
+      tone={useStackedLayout ? 'surface' : 'overlay'}
+      density={isCompact ? 'compact' : 'comfortable'}
+      isLive={isLive}
+      liveUntilLabel={liveUntilLabel}
+      viewsCount={viewCount}
+      distanceLabel={distanceLabel}
+      friendsGoingCount={attendeesCount}
+      onNavigate={onNavigate}
+    />
   );
 
   const mediaSection =
@@ -467,83 +357,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     backgroundColor: colors.brand.surface,
   },
-  stackedContentWrap: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  stackedContentBody: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  stackedMainCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  stackedFooter: {
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  stackedScheduleCol: {
-    maxWidth: '46%',
-    alignItems: 'flex-end',
-    paddingTop: 2,
-  },
-  stackedCityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-    marginBottom: spacing.xs,
-  },
-  stackedCityText: {
-    ...typography.caption,
-    color: colors.brand.text,
-    fontWeight: '600',
-    flex: 1,
-  },
-  overlayContentWrap: {
-    gap: spacing.xs,
-  },
-  overlayContentHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  statsChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flexShrink: 0,
-  },
-  statsChipsRowStacked: {
-    flexWrap: 'wrap',
-  },
-  statsContainerStacked: {
-    backgroundColor: colors.brand.primary,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  overlayMainCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  overlayScheduleCol: {
-    maxWidth: '44%',
-    alignItems: 'flex-end',
-  },
-  overlayCityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  overlayCityText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '600',
-    flex: 1,
-  },
   cardNoBottomMargin: {
     marginBottom: 0,
   },
@@ -646,106 +459,5 @@ const styles = StyleSheet.create({
   contentContainerCompact: {
     padding: spacing.md,
     paddingBottom: spacing.lg,
-  },
-  title: {
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginBottom: spacing.md,
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  titleCompact: {
-    fontSize: 18,
-    lineHeight: 22,
-    marginBottom: 2,
-  },
-  titleStacked: {
-    color: colors.brand.text,
-    textShadowRadius: 0,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  attendeeDotStacked: {
-    backgroundColor: colors.brand.textSecondary,
-  },
-  attendeeTextStacked: {
-    color: colors.brand.textSecondary,
-  },
-  statsTextStacked: {
-    color: colors.brand.textSecondary,
-  },
-  locationBadgeStacked: {
-    backgroundColor: colors.brand.primary,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  footer: {
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  footerCompact: {
-    marginTop: 0,
-  },
-  attendeesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarPile: {
-    flexDirection: 'row',
-    marginRight: 8,
-  },
-  attendeeAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#0f1719', // Match dark bg
-    overflow: 'hidden',
-    backgroundColor: '#333',
-  },
-  attendeeDot: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255,255,255,0.55)',
-  },
-  attendeeMore: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brand.secondary,
-  },
-  moreText: {
-    fontSize: 8,
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  attendeeText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '500',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: borderRadius.full,
-  },
-  locationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: borderRadius.full,
-  },
-  statsText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '600',
   },
 });

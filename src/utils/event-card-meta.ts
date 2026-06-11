@@ -43,15 +43,26 @@ const formatDateTime = (date: Date, style: EventCardDateStyle): string => {
   return `${capitalizeFirst(datePart)} · ${timePart}`;
 };
 
+const normalizeCityLabel = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const [primary] = trimmed.split(',').map((part) => part.trim());
+  return primary || trimmed;
+};
+
 export function getEventCardCity(event: EventLike): string {
-  const city = typeof event.city === 'string' ? event.city.trim() : '';
+  const city = typeof event.city === 'string' ? normalizeCityLabel(event.city) : '';
   if (city) return city;
 
-  const venue = typeof event.venue_name === 'string' ? event.venue_name.trim() : '';
+  const venue = typeof event.venue_name === 'string' ? normalizeCityLabel(event.venue_name) : '';
   if (venue) return venue;
 
   const address = typeof event.address === 'string' ? event.address.trim() : '';
-  if (address) return address;
+  if (address) {
+    const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+    if (parts.length >= 2) return parts[parts.length - 2] ?? parts[0];
+    return normalizeCityLabel(address);
+  }
 
   return 'Ville à confirmer';
 }
