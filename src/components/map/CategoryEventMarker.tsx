@@ -1,6 +1,22 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import type { LucideIcon } from 'lucide-react-native';
+
+const PIN_VIEWBOX_WIDTH = 32;
+const PIN_VIEWBOX_HEIGHT = 40;
+
+/** Single teardrop path — head and pointer read as one shape. */
+const BULB_CENTER_Y = 11;
+
+const PIN_PATH = [
+  'M 16 38',
+  'C 16 38, 5 20, 5 12',
+  'C 5 6, 10 2, 16 2',
+  'C 22 2, 27 6, 27 12',
+  'C 27 20, 16 38, 16 38',
+  'Z',
+].join(' ');
 
 type Props = {
   color: string;
@@ -12,49 +28,32 @@ type Props = {
 
 export const CategoryEventMarker: React.FC<Props> = React.memo(
   ({ color, Icon, iconColor = '#ffffff', size = 36, variant = 'pin' }) => {
-    const headSize = Math.round(size * (variant === 'cluster' ? 0.92 : 0.72));
-    const iconSize = Math.max(12, Math.round(size * 0.34));
-    const pointerWidth = Math.round(headSize * 0.26);
-    const pointerHeight = Math.round(headSize * 0.32);
+    const pinHeight = Math.round(size * (PIN_VIEWBOX_HEIGHT / PIN_VIEWBOX_WIDTH));
+    const iconSize = Math.max(14, Math.round(size * 0.46));
+    const iconTop = Math.max(
+      0,
+      Math.round((pinHeight * BULB_CENTER_Y) / PIN_VIEWBOX_HEIGHT - iconSize / 2)
+    );
 
     if (variant === 'cluster') {
+      const clusterSize = Math.round(size * 0.92);
       return (
         <View collapsable={false} style={styles.clusterContainer}>
-          <View
-            style={[
-              styles.head,
-              {
-                width: headSize,
-                height: headSize,
-                borderRadius: headSize / 2,
-                backgroundColor: color,
-              },
-            ]}
-          />
+          <Svg width={clusterSize} height={clusterSize} viewBox="0 0 32 32">
+            <Circle cx={16} cy={16} r={13} fill={color} stroke="#ffffff" strokeWidth={2.5} />
+          </Svg>
         </View>
       );
     }
 
     return (
-      <View collapsable={false} style={styles.container}>
-        <View
-          style={[styles.head, { width: headSize, height: headSize, borderRadius: headSize / 2, backgroundColor: color }]}
-        >
-          <View style={styles.innerRing}>
-            <Icon size={iconSize} color={iconColor} strokeWidth={2.2} />
-          </View>
+      <View collapsable={false} style={[styles.container, { width: size, height: pinHeight }]}>
+        <Svg width={size} height={pinHeight} viewBox={`0 0 ${PIN_VIEWBOX_WIDTH} ${PIN_VIEWBOX_HEIGHT}`}>
+          <Path d={PIN_PATH} fill={color} stroke="#ffffff" strokeWidth={2.2} strokeLinejoin="round" />
+        </Svg>
+        <View style={[styles.iconLayer, { top: iconTop }]}>
+          <Icon size={iconSize} color={iconColor} strokeWidth={2.2} />
         </View>
-        <View
-          style={[
-            styles.pointer,
-            {
-              borderLeftWidth: pointerWidth,
-              borderRightWidth: pointerWidth,
-              borderTopWidth: pointerHeight,
-              borderTopColor: color,
-            },
-          ]}
-        />
       </View>
     );
   }
@@ -69,30 +68,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   container: {
-    width: 44,
-    height: 44,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  iconLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  head: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  innerRing: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 999,
-  },
-  pointer: {
-    marginTop: -2,
-    width: 0,
-    height: 0,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
   },
 });
