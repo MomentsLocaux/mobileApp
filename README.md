@@ -1,6 +1,6 @@
-# Technical Foundation - React Native/Expo Project
+# Moments Locaux — Application Mobile (Expo / React Native)
 
-Production-grade technical scaffold for a mobile application built with Expo and React Native.
+Application mobile Moments Locaux (Expo + React Native), structurée pour un parcours MVP complet (auth, onboarding, découverte map, création event, check-in, notifications, profil & reporting).
 
 ## Tech Stack
 
@@ -141,7 +141,7 @@ All screens are placeholder implementations ready for business logic:
 
 ## Next Steps
 
-This is a **technical foundation only**. To build your application:
+Le projet contient déjà un socle MVP opérationnel. Pour étendre les fonctionnalités :
 
 1. Add business logic to placeholder screens
 2. Implement data models and Supabase queries
