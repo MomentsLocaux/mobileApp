@@ -101,6 +101,15 @@ export default function TabsLayout() {
     outputRange: [400, 0],
   });
 
+  const tabIconColor = (focused: boolean, disabled = false) => {
+    if (disabled) return colors.brand.textSecondary;
+    return focused ? colors.brand.secondary : colors.brand.textSecondary;
+  };
+
+  const renderTabIconSlot = (focused: boolean, content: React.ReactNode) => (
+    <View style={[styles.tabIconSlot, focused && styles.tabIconSlotActive]}>{content}</View>
+  );
+
   const renderProtectedTabButton = (
     props: any,
     gateTitle: string,
@@ -176,9 +185,11 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Accueil',
-            tabBarIcon: ({ size, color }) => (
-              <Home size={size} color={isGuest ? colors.brand.textSecondary : color} />
-            ),
+            tabBarIcon: ({ focused, size }) =>
+              renderTabIconSlot(
+                focused,
+                <Home size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+              ),
             tabBarButton: (props) => renderProtectedTabButton(props, "Accéder à l'accueil"),
           }}
         />
@@ -186,7 +197,11 @@ export default function TabsLayout() {
           name="map"
           options={{
             title: 'Carte',
-            tabBarIcon: ({ size, color }) => <Map size={size} color={color} />,
+            tabBarIcon: ({ focused, size }) =>
+              renderTabIconSlot(
+                focused,
+                <Map size={size} color={tabIconColor(focused)} strokeWidth={focused ? 2.4 : 2} />
+              ),
             tabBarStyle: {
               backgroundColor: colors.brand.primary,
               borderTopWidth: 0,
@@ -224,9 +239,11 @@ export default function TabsLayout() {
           name="favorites"
           options={{
             title: 'Favoris',
-            tabBarIcon: ({ size, color }) => (
-              <Heart size={size} color={isGuest ? colors.brand.textSecondary : color} />
-            ),
+            tabBarIcon: ({ focused, size }) =>
+              renderTabIconSlot(
+                focused,
+                <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+              ),
             tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
           }}
         />
@@ -234,22 +251,27 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: 'Profil',
-            tabBarIcon: ({ size, color }) => (
-              <View style={styles.profileTabIconWrap}>
-                {profile?.avatar_url ? (
-                  <Image source={{ uri: profile.avatar_url }} style={styles.tabAvatar} />
-                ) : (
-                  <User size={size} color={isGuest ? colors.brand.textSecondary : color} />
-                )}
-                {unreadNotifications > 0 ? (
-                  <View style={styles.profileTabBadge}>
-                    <Text style={styles.profileTabBadgeText}>
-                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ),
+            tabBarIcon: ({ focused, size }) =>
+              renderTabIconSlot(
+                focused,
+                <View style={styles.profileTabIconWrap}>
+                  {profile?.avatar_url ? (
+                    <Image
+                      source={{ uri: profile.avatar_url }}
+                      style={[styles.tabAvatar, focused && styles.tabAvatarActive]}
+                    />
+                  ) : (
+                    <User size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                  )}
+                  {unreadNotifications > 0 ? (
+                    <View style={styles.profileTabBadge}>
+                      <Text style={styles.profileTabBadgeText}>
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ),
             tabBarButton: (props) =>
               renderProtectedTabButton(props, 'Accéder à votre profil', () => toggleDrawer(true)),
           }}
@@ -465,6 +487,20 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
+  },
+  tabAvatarActive: {
+    borderWidth: 2,
+    borderColor: colors.brand.secondary,
+  },
+  tabIconSlot: {
+    minWidth: 48,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  tabIconSlotActive: {
+    backgroundColor: 'rgba(43, 191, 227, 0.18)',
   },
   profileTabIconWrap: {
     width: 32,
