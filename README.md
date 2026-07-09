@@ -73,14 +73,17 @@ Application mobile Moments Locaux (Expo + React Native), structurée pour un par
 
 ## Environment Variables
 
-Create a `.env` file based on `.env.example`:
+```bash
+cp .env.example .env
+```
 
-```
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-EXPO_PUBLIC_MAPBOX_TOKEN=your_mapbox_token
-EXPO_PUBLIC_SENTRY_DSN=your_sentry_dsn
-```
+Required for local dev:
+
+- `EXPO_PUBLIC_SUPABASE_URL` (same Supabase project as admin / scrapper)
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_MAPBOX_TOKEN`
+
+Cross-repo env checklist and release candidate process: `Moments-Locaux-Scrapper/docs/ENV_CHECKLIST.md` and `docs/RELEASE_CANDIDATE.md`.
 
 Only `EXPO_PUBLIC_*` values are available in the mobile app bundle. Never prefix service-role, private, or secret values with `EXPO_PUBLIC_`.
 
