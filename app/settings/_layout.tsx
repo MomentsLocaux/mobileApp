@@ -5,6 +5,7 @@ export default function SettingsStackLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="discovery" />
       <Stack.Screen name="privacy/policy" />
       <Stack.Screen name="privacy/delete" />
       <Stack.Screen name="privacy/export" />

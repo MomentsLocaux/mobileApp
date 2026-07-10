@@ -10,7 +10,9 @@ import {
   Info,
   Cookie,
   BookOpenCheck,
+  Compass,
 } from 'lucide-react-native';
+import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
 
@@ -40,6 +42,17 @@ export default function SettingsScreen() {
           noBorder
         />
       </SettingsSectionCard>
+
+      {DISCOVERY_ENABLED && (
+        <SettingsSectionCard title="Discovery" icon={Compass}>
+          <SettingsRow
+            label="Personnalisation Discovery"
+            icon={Compass}
+            onPress={() => router.push('/settings/discovery' as any)}
+            noBorder
+          />
+        </SettingsSectionCard>
+      )}
 
       <SettingsSectionCard title="Confidentialité & données" icon={Lock} accent>
         <SettingsRow

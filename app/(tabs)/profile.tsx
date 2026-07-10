@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass } from 'lucide-react-native';
+import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { AppBackground, Button, Card, ScreenHeader } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
@@ -167,6 +168,15 @@ export default function ProfileScreen() {
 
           <Card padding="md" style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
+            {DISCOVERY_ENABLED && (
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => router.push('/discovery' as any)}
+              >
+                <Compass size={18} color={colors.brand.secondary} />
+                <Text style={styles.linkText}>Discovery</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
               <Calendar size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Mes événements</Text>
