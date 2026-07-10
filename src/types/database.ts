@@ -1,3 +1,17 @@
+import type {
+  DiscoveryConsent,
+  DiscoveryDailySummary,
+  DiscoveryInsight,
+  DiscoveryLocationBatch,
+  DiscoveryPlace,
+  DiscoveryProfile,
+  DiscoveryVisit,
+  EventRecommendation,
+  MobilityProfile,
+  RecommendationEvent,
+  UserSubscription,
+} from '@/types/discovery.types';
+
 export type Json =
   | string
   | number
@@ -104,9 +118,92 @@ export interface Database {
         Insert: never;
         Update: never;
       };
+      user_subscriptions: {
+        Row: UserSubscription;
+        Insert: Omit<UserSubscription, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<UserSubscription, 'id' | 'user_id'>>;
+      };
+      discovery_consents: {
+        Row: DiscoveryConsent;
+        Insert: Omit<DiscoveryConsent, 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<DiscoveryConsent, 'user_id'>>;
+      };
+      discovery_places: {
+        Row: DiscoveryPlace;
+        Insert: Omit<DiscoveryPlace, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<DiscoveryPlace, 'id' | 'user_id'>>;
+      };
+      discovery_visits: {
+        Row: DiscoveryVisit;
+        Insert: Omit<DiscoveryVisit, 'id' | 'created_at'>;
+        Update: Partial<Omit<DiscoveryVisit, 'id' | 'user_id'>>;
+      };
+      mobility_profiles: {
+        Row: MobilityProfile;
+        Insert: MobilityProfile;
+        Update: Partial<Omit<MobilityProfile, 'user_id'>>;
+      };
+      discovery_profiles: {
+        Row: DiscoveryProfile;
+        Insert: DiscoveryProfile;
+        Update: Partial<Omit<DiscoveryProfile, 'user_id'>>;
+      };
+      discovery_insights: {
+        Row: DiscoveryInsight;
+        Insert: Omit<DiscoveryInsight, 'id' | 'created_at'>;
+        Update: Partial<Omit<DiscoveryInsight, 'id' | 'user_id'>>;
+      };
+      event_recommendations: {
+        Row: EventRecommendation;
+        Insert: Omit<EventRecommendation, 'id'>;
+        Update: Partial<Omit<EventRecommendation, 'id' | 'user_id' | 'event_id'>>;
+      };
+      recommendation_events: {
+        Row: RecommendationEvent;
+        Insert: Omit<RecommendationEvent, 'id' | 'created_at'>;
+        Update: never;
+      };
+      discovery_daily_summaries: {
+        Row: DiscoveryDailySummary;
+        Insert: Omit<DiscoveryDailySummary, 'created_at'>;
+        Update: Partial<Omit<DiscoveryDailySummary, 'user_id' | 'date'>>;
+      };
+      discovery_location_batches: {
+        Row: DiscoveryLocationBatch;
+        Insert: Omit<DiscoveryLocationBatch, 'id' | 'received_at' | 'expires_at'>;
+        Update: Partial<Pick<DiscoveryLocationBatch, 'processed_at'>>;
+      };
     };
   };
 }
+
+export type {
+  CategoryAffinityMap,
+  DiscoveryConsent,
+  DiscoveryDailySummary,
+  DiscoveryInsight,
+  DiscoveryInsightType,
+  DiscoveryLocationBatch,
+  DiscoveryNotificationPreferences,
+  DiscoveryPlace,
+  DiscoveryPlaceType,
+  DiscoveryProfile,
+  DiscoveryTransportMode,
+  DiscoveryVisit,
+  DiscoveryVisitSource,
+  EventRecommendation,
+  MobilityProfile,
+  PurgeDiscoveryDataResult,
+  RecommendationEvent,
+  RecommendationEventType,
+  RecommendationType,
+  SubscriptionProvider,
+  SubscriptionStatus,
+  TrackRecommendationEventInput,
+  UpsertDiscoveryConsentInput,
+  UserEntitlement,
+  UserSubscription,
+} from '@/types/discovery.types';
 
 export type UserRole =
   | 'invite'
