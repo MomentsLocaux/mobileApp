@@ -2,17 +2,58 @@ import React, { useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
-import { Compass, Trash2 } from 'lucide-react-native';
-import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { Compass, MapPin, Trash2 } from 'lucide-react-native';
+import { DISCOVERY_CAPTURE_ENABLED, DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useDiscoveryConsent } from '@/hooks/useDiscoveryConsent';
 import { DiscoveryConsentService } from '@/services/discovery/discovery-consent.service';
+import { requestDiscoveryLocationPermissions } from '@/hooks/useDiscoveryCapture';
+import { stopDiscoveryBackgroundCapture } from '@/tasks/discovery-location.task';
 
 function DiscoverySettingsContent() {
   const { consent, loading, isEnabled, refresh, revoke, purge } = useDiscoveryConsent();
   const [busy, setBusy] = useState(false);
+
+  const handleLocationToggle = async (next: boolean) => {
+    if (!DISCOVERY_CAPTURE_ENABLED) {
+      Toast.show({ type: 'info', text1: 'La collecte passive n’est pas encore activée dans cette build.' });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (next) {
+        const granted = await requestDiscoveryLocationPermissions();
+        if (!granted) {
+          Toast.show({
+            type: 'error',
+            text1: 'Permission refusée',
+            text2: 'La localisation en arrière-plan est nécessaire pour enrichir Discovery.',
+          });
+          return;
+        }
+        await DiscoveryConsentService.enableLocationCapture();
+      } else {
+        await DiscoveryConsentService.disableLocationCapture();
+        await stopDiscoveryBackgroundCapture();
+      }
+      await refresh();
+      Toast.show({
+        type: 'success',
+        text1: next ? 'Collecte de lieux activée' : 'Collecte de lieux désactivée',
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Mise à jour impossible',
+        text2: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleToggle = async (next: boolean) => {
     setBusy(true);
@@ -21,6 +62,7 @@ function DiscoverySettingsContent() {
         await DiscoveryConsentService.activatePersonalization();
       } else {
         await revoke();
+        await stopDiscoveryBackgroundCapture();
       }
       await refresh();
       Toast.show({
@@ -95,6 +137,30 @@ function DiscoverySettingsContent() {
           </Text>
         )}
       </SettingsSectionCard>
+
+      {DISCOVERY_CAPTURE_ENABLED && (
+        <SettingsSectionCard
+          title="Lieux visités"
+          icon={MapPin}
+          description="Collecte passive optionnelle pour enrichir Mon territoire (arrêts ≥ 12 min)."
+        >
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleCopy}>
+              <Text style={styles.toggleLabel}>Localisation passive</Text>
+              <Text style={styles.toggleHint}>
+                Nécessite l’autorisation « Toujours ». Aucune trace GPS brute n’est conservée longtemps sur
+                le serveur.
+              </Text>
+            </View>
+            <Switch
+              value={consent?.location_enabled === true}
+              onValueChange={handleLocationToggle}
+              disabled={!isEnabled || loading || busy}
+              trackColor={{ false: colors.neutral[600], true: colors.brand.secondary }}
+            />
+          </View>
+        </SettingsSectionCard>
+      )}
 
       <SettingsSectionCard title="Données" icon={Trash2} accent>
         <SettingsRow

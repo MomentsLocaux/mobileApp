@@ -49,6 +49,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.',
       NSLocationWhenInUseUsageDescription:
         'Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.',
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        'Moments Locaux utilise votre position en arrière-plan pour repérer les lieux que vous visitez et enrichir Discovery. Vous pouvez désactiver cette option à tout moment.',
+      UIBackgroundModes: ['location'],
       NSFaceIDUsageDescription:
         'Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.',
       LSApplicationQueriesSchemes: ['waze', 'comgooglemaps'],
@@ -61,6 +64,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     permissions: [
       'android.permission.ACCESS_COARSE_LOCATION',
       'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
       'android.permission.CAMERA',
       // Android 13+ requires READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE
       'android.permission.READ_MEDIA_IMAGES',
@@ -80,6 +84,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@rnmapbox/maps',
     'expo-notifications',
     'expo-apple-authentication',
+    [
+      'expo-location',
+      {
+        locationAlwaysAndWhenInUsePermission:
+          'Moments Locaux utilise votre position en arrière-plan pour repérer les lieux visités et enrichir Discovery. Vous pouvez désactiver cette option à tout moment.',
+        isAndroidBackgroundLocationEnabled: true,
+        isIosBackgroundLocationEnabled: true,
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

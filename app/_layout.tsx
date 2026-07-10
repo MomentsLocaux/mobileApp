@@ -7,6 +7,8 @@ import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
+import { useDiscoveryCapture } from '../src/hooks/useDiscoveryCapture';
+import '@/tasks/discovery-location.task';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -15,6 +17,7 @@ export default function RootLayout() {
   const userId = useAuthStore((state) => state.user?.id);
 
   usePushNotifications(userId);
+  useDiscoveryCapture(userId);
 
   useEffect(() => {
     let mounted = true;

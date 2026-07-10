@@ -49,6 +49,25 @@ export const DiscoveryConsentService = {
     });
   },
 
+  async enableLocationCapture(): Promise<DiscoveryConsent> {
+    return this.upsert({
+      enabled: true,
+      location_enabled: true,
+      motion_enabled: false,
+      personalization_enabled: true,
+    });
+  },
+
+  async disableLocationCapture(): Promise<DiscoveryConsent> {
+    const current = await this.getMine();
+    return this.upsert({
+      enabled: current?.enabled ?? true,
+      location_enabled: false,
+      motion_enabled: false,
+      personalization_enabled: current?.personalization_enabled ?? true,
+    });
+  },
+
   async purgeMine(): Promise<PurgeDiscoveryDataResult> {
     const { data, error } = await supabase.rpc('purge_discovery_data');
     if (error) throw new Error(error.message || 'Impossible de supprimer les données Discovery');
