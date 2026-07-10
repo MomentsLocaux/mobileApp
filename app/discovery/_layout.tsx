@@ -10,6 +10,8 @@ export default function DiscoveryLayout() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="onboarding" />
+      <Stack.Screen name="my-radius" />
+      <Stack.Screen name="break-the-loop" />
     </Stack>
   );
 }

@@ -31,7 +31,7 @@ export const DiscoveryRecommendationsService = {
   async triggerScoring(params?: {
     latitude?: number;
     longitude?: number;
-    types?: ('right_now' | 'for_you')[];
+    types?: ('right_now' | 'for_you' | 'break_the_loop')[];
   }): Promise<DiscoveryScoreResult> {
     const { data, error } = await supabase.functions.invoke<DiscoveryScoreResult>('discovery-score', {
       body: {

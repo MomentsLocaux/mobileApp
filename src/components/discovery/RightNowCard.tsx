@@ -12,9 +12,19 @@ type Props = {
   onDismiss: () => void;
   onInterested: () => void;
   onRoute: () => void;
+  onWhyThis?: () => void;
+  showWhyThis?: boolean;
 };
 
-export function RightNowCard({ recommendation, onOpen, onDismiss, onInterested, onRoute }: Props) {
+export function RightNowCard({
+  recommendation,
+  onOpen,
+  onDismiss,
+  onInterested,
+  onRoute,
+  onWhyThis,
+  showWhyThis = false,
+}: Props) {
   const event = recommendation.event;
   if (!event) return null;
 
@@ -49,6 +59,11 @@ export function RightNowCard({ recommendation, onOpen, onDismiss, onInterested, 
 
       <View style={styles.actions}>
         <Button title="Voir" onPress={onOpen} fullWidth />
+        {showWhyThis && onWhyThis && (
+          <TouchableOpacity style={styles.whyButton} onPress={onWhyThis}>
+            <Text style={styles.whyText}>Pourquoi cette suggestion ?</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.secondaryRow}>
           <TouchableOpacity style={styles.secondaryButton} onPress={onInterested}>
             <Text style={styles.secondaryText}>Ça m'intéresse</Text>
@@ -126,5 +141,14 @@ const styles = StyleSheet.create({
   dismissText: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+  },
+  whyButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  whyText: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    textDecorationLine: 'underline',
   },
 });

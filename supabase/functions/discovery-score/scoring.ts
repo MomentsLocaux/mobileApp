@@ -55,7 +55,7 @@ export type ScoringContext = {
   places: PlaceContext[];
   engagedCreatorIds: Set<string>;
   engagedCategoryIds: Set<string>;
-  recommendationType: 'right_now' | 'for_you';
+  recommendationType: 'right_now' | 'for_you' | 'break_the_loop';
 };
 
 export type ScoredCandidate = {
@@ -197,13 +197,18 @@ export function scoreCandidate(ctx: ScoringContext, event: ScoringCandidateEvent
   const novelty = noveltyForLocation(ctx.places, event.latitude, event.longitude);
   const context = contextBoost(ctx, event);
 
-  const score =
+  let score =
     SCORING_WEIGHTS.content * affinity +
     SCORING_WEIGHTS.geo * geo +
     SCORING_WEIGHTS.time * time +
     SCORING_WEIGHTS.mobility * mobility +
     SCORING_WEIGHTS.novelty * novelty +
     SCORING_WEIGHTS.context * context;
+
+  if (ctx.recommendationType === 'break_the_loop') {
+    score += SCORING_WEIGHTS.novelty * novelty * 0.35;
+    if (novelty >= 0.7) score += 0.08;
+  }
 
   const hasPastInterest =
     (event.category != null && ctx.engagedCategoryIds.has(event.category)) ||

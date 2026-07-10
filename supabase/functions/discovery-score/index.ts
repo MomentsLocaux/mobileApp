@@ -21,14 +21,14 @@ const corsHeaders = {
 type ScoreRequest = {
   latitude?: number;
   longitude?: number;
-  types?: Array<'right_now' | 'for_you'>;
+  types?: ('right_now' | 'for_you' | 'break_the_loop')[];
   limit?: number;
 };
 
 type PersistedRecommendation = {
   user_id: string;
   event_id: string;
-  recommendation_type: 'right_now' | 'for_you';
+  recommendation_type: 'right_now' | 'for_you' | 'break_the_loop';
   score: number;
   reason_codes: string[];
   context: Record<string, unknown>;
@@ -108,6 +108,19 @@ async function countRightNowToday(admin: SupabaseClient, userId: string): Promis
     return 0;
   }
   return count ?? 0;
+}
+
+async function hasBreakLoopInsight(admin: SupabaseClient, userId: string): Promise<boolean> {
+  const { count, error } = await admin
+    .from('discovery_insights')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('type', ['repetitive_weekends', 'no_new_place_recently'])
+    .gt('valid_until', new Date().toISOString())
+    .is('seen_at', null);
+
+  if (error) return false;
+  return (count ?? 0) > 0;
 }
 
 async function loadEngagedSets(
@@ -244,9 +257,16 @@ Deno.serve(async (req: Request) => {
     }, 422);
   }
 
-  const types = body.types?.length ? body.types : (['right_now', 'for_you'] as const);
+  let types: ('right_now' | 'for_you' | 'break_the_loop')[] = body.types?.length
+    ? [...body.types]
+    : ['right_now', 'for_you'];
   const premium = await isPremiumActive(admin, userId);
   const rightNowToday = await countRightNowToday(admin, userId);
+  const breakLoopInsight = await hasBreakLoopInsight(admin, userId);
+
+  if (premium && breakLoopInsight && !body.types?.length) {
+    types.push('break_the_loop');
+  }
 
   const [
     profileRow,
@@ -284,11 +304,16 @@ Deno.serve(async (req: Request) => {
   const summary: Record<string, { generated: number; topScore: number | null }> = {};
 
   for (const recommendationType of types) {
+    if (recommendationType === 'break_the_loop' && !premium) {
+      summary[recommendationType] = { generated: 0, topScore: null };
+      continue;
+    }
+
     const horizonHours = recommendationType === 'right_now'
       ? RIGHT_NOW_HORIZON_HOURS
       : FOR_YOU_HORIZON_HOURS;
 
-    let limit = recommendationType === 'right_now' ? 3 : 10;
+    let limit = recommendationType === 'right_now' ? 3 : recommendationType === 'break_the_loop' ? 3 : 10;
     if (!premium) {
       limit = recommendationType === 'right_now' ? 1 : 10;
       if (recommendationType === 'right_now' && rightNowToday >= 1) {
@@ -299,7 +324,8 @@ Deno.serve(async (req: Request) => {
       limit = Math.max(1, Math.min(body.limit, 20));
     }
 
-    const candidates = await fetchCandidates(userClient, coords.lat, coords.lon, radiusKm, horizonHours);
+    const radiusForType = recommendationType === 'break_the_loop' ? radiusKm * 1.35 : radiusKm;
+    const candidates = await fetchCandidates(userClient, coords.lat, coords.lon, radiusForType, horizonHours);
     const soonFiltered = recommendationType === 'right_now'
       ? candidates.filter((event) => {
         const startsAt = new Date(event.starts_at).getTime();
@@ -325,7 +351,7 @@ Deno.serve(async (req: Request) => {
     };
 
     const ranked = rankCandidates(ctx, soonFiltered, limit);
-    const validHours = recommendationType === 'right_now' ? 4 : 24;
+    const validHours = recommendationType === 'right_now' ? 4 : recommendationType === 'break_the_loop' ? 12 : 24;
 
     for (const candidate of ranked) {
       persisted.push({

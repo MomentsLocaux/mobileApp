@@ -78,6 +78,44 @@ Deno.serve(async (req: Request) => {
         return json({ skipped: "push_disabled" }, 200);
     }
 
+    const discoveryTypes = new Set([
+        "discovery_right_now",
+        "discovery_break_loop",
+        "discovery_new_area",
+        "discovery_personal_match",
+        "discovery_life_insight",
+    ]);
+    if (record.type && discoveryTypes.has(record.type)) {
+        const { data: discoveryPref } = await admin
+            .from("user_preferences")
+            .select(
+                "discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled",
+            )
+            .eq("user_id", record.user_id)
+            .maybeSingle();
+        if (!discoveryPref || discoveryPref.discovery_push_enabled !== true) {
+            return json({ skipped: "discovery_push_disabled" }, 200);
+        }
+        if (
+            record.type === "discovery_right_now" &&
+            discoveryPref.right_now_push_enabled !== true
+        ) {
+            return json({ skipped: "right_now_push_disabled" }, 200);
+        }
+        if (
+            record.type === "discovery_break_loop" &&
+            discoveryPref.break_loop_push_enabled !== true
+        ) {
+            return json({ skipped: "break_loop_push_disabled" }, 200);
+        }
+        if (
+            record.type === "discovery_life_insight" &&
+            discoveryPref.life_insight_push_enabled !== true
+        ) {
+            return json({ skipped: "life_insight_push_disabled" }, 200);
+        }
+    }
+
     // --- Load the recipient's device tokens ---
     const { data: tokens, error: tokErr } = await admin
         .from("device_push_tokens")

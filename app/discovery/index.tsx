@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Compass, Settings } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
+import { DiscoveryInsightsCard } from '@/components/discovery/DiscoveryInsightsCard';
+import { WhyThisSheet } from '@/components/discovery/WhyThisSheet';
 import { AppBackground, Button, ScreenHeader } from '@/components/ui';
 import { ForYouList } from '@/components/discovery/ForYouList';
 import { MyRadiusTeaser } from '@/components/discovery/MyRadiusTeaser';
@@ -23,6 +25,7 @@ import { useLocation } from '@/hooks/useLocation';
 import { DiscoveryRecommendationsService } from '@/services/discovery/discovery-recommendations.service';
 import { PremiumPaywallSheet } from '@/components/discovery/PremiumPaywallSheet';
 import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
+import { useDiscoveryInsights } from '@/hooks/useDiscoveryInsights';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuthStore } from '@/state/auth';
 
@@ -47,6 +50,8 @@ export default function DiscoveryHomeScreen() {
     'discovery_home',
   );
   const { isPremium, loading: premiumLoading } = usePremiumEntitlement();
+  const { insights, markSeen } = useDiscoveryInsights();
+  const [whyVisible, setWhyVisible] = useState(false);
 
   const openPaywall = (source: 'my_radius' | 'right_now' | 'discovery_home') => {
     setPaywallSource(source);
@@ -155,6 +160,17 @@ export default function DiscoveryHomeScreen() {
 
         {error && <Text style={styles.errorText}>{error}</Text>}
 
+        <View style={styles.quickLinks}>
+          <Button title="Mon territoire" variant="outline" onPress={() => router.push('/discovery/my-radius' as any)} />
+          <Button title="Break the Loop" variant="outline" onPress={() => router.push('/discovery/break-the-loop' as any)} />
+        </View>
+
+        <DiscoveryInsightsCard
+          insights={insights}
+          onDismiss={markSeen}
+          onBreakLoopPress={() => router.push('/discovery/break-the-loop' as any)}
+        />
+
         <MyRadiusTeaser
           placesCount={placesCount}
           isPremium={isPremium}
@@ -196,6 +212,8 @@ export default function DiscoveryHomeScreen() {
               await react(topRightNow.id, 'route_requested');
               await DiscoveryRecommendationsService.openRoute(event.latitude, event.longitude);
             }}
+            showWhyThis={isPremium}
+            onWhyThis={() => setWhyVisible(true)}
           />
         ) : (
           <View style={styles.emptyRightNow}>
@@ -227,6 +245,11 @@ export default function DiscoveryHomeScreen() {
         visible={paywallVisible}
         source={paywallSource}
         onClose={() => setPaywallVisible(false)}
+      />
+      <WhyThisSheet
+        visible={whyVisible}
+        reasonCodes={topRightNow?.reason_codes ?? []}
+        onClose={() => setWhyVisible(false)}
       />
     </SafeAreaView>
   );
@@ -321,5 +344,10 @@ const styles = StyleSheet.create({
   },
   emptyCta: {
     marginTop: spacing.md,
+  },
+  quickLinks: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
 });

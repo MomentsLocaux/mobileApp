@@ -18,7 +18,7 @@ export function useDiscoveryRecommendations() {
   const [error, setError] = useState<string | null>(null);
   const [locationRequired, setLocationRequired] = useState(false);
 
-  const load = useCallback(async (options?: LoadOptions) => {
+  const load = useCallback(async (options?: LoadOptions & { types?: ('right_now' | 'for_you' | 'break_the_loop')[] }) => {
     setLoading(true);
     setError(null);
     setLocationRequired(false);
@@ -28,7 +28,7 @@ export function useDiscoveryRecommendations() {
         const scoreResult = await DiscoveryRecommendationsService.triggerScoring({
           latitude: options?.latitude,
           longitude: options?.longitude,
-          types: ['right_now', 'for_you'],
+          types: options?.types ?? ['right_now', 'for_you'],
         });
 
         if (!scoreResult.success && scoreResult.message === 'location_required') {

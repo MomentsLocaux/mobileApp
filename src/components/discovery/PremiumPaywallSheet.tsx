@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { PREMIUM_PLANS } from '@/services/subscription.service';
+import { ActivityLogService } from '@/services/activity-log.service';
 
 export type PremiumPaywallSource = 'my_radius' | 'right_now' | 'discovery_home' | 'subscription';
 
@@ -29,6 +30,11 @@ const SOURCE_COPY: Record<PremiumPaywallSource, string> = {
 };
 
 export function PremiumPaywallSheet({ visible, source = 'discovery_home', onClose }: Props) {
+  React.useEffect(() => {
+    if (!visible) return;
+    ActivityLogService.log('premium_paywall_view', { source }).catch(() => undefined);
+  }, [visible, source]);
+
   const handlePurchase = (plan: 'monthly' | 'annual') => {
     Toast.show({
       type: 'info',
