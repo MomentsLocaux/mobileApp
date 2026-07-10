@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
-import { Compass, MapPin, Trash2 } from 'lucide-react-native';
+import { Compass, Crown, MapPin, Trash2 } from 'lucide-react-native';
 import { DISCOVERY_CAPTURE_ENABLED, DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
@@ -11,8 +11,10 @@ import { useDiscoveryConsent } from '@/hooks/useDiscoveryConsent';
 import { DiscoveryConsentService } from '@/services/discovery/discovery-consent.service';
 import { requestDiscoveryLocationPermissions } from '@/hooks/useDiscoveryCapture';
 import { stopDiscoveryBackgroundCapture } from '@/tasks/discovery-location.task';
+import { useRouter } from 'expo-router';
 
 function DiscoverySettingsContent() {
+  const router = useRouter();
   const { consent, loading, isEnabled, refresh, revoke, purge } = useDiscoveryConsent();
   const [busy, setBusy] = useState(false);
 
@@ -161,6 +163,15 @@ function DiscoverySettingsContent() {
           </View>
         </SettingsSectionCard>
       )}
+
+      <SettingsSectionCard title="Premium" icon={Crown}>
+        <SettingsRow
+          label="Moments Locaux+"
+          icon={Crown}
+          onPress={() => router.push('/profile/subscription' as any)}
+          noBorder
+        />
+      </SettingsSectionCard>
 
       <SettingsSectionCard title="Données" icon={Trash2} accent>
         <SettingsRow

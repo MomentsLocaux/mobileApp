@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, Compass } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass, Crown } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { AppBackground, Button, Card, ScreenHeader } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
@@ -175,6 +175,15 @@ export default function ProfileScreen() {
               >
                 <Compass size={18} color={colors.brand.secondary} />
                 <Text style={styles.linkText}>Discovery</Text>
+              </TouchableOpacity>
+            )}
+            {DISCOVERY_ENABLED && (
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => router.push('/profile/subscription' as any)}
+              >
+                <Crown size={18} color={colors.brand.secondary} />
+                <Text style={styles.linkText}>Moments Locaux+</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>

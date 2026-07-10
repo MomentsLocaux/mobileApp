@@ -21,6 +21,8 @@ import { useDiscoveryConsent } from '@/hooks/useDiscoveryConsent';
 import { useDiscoveryRecommendations } from '@/hooks/useDiscoveryRecommendations';
 import { useLocation } from '@/hooks/useLocation';
 import { DiscoveryRecommendationsService } from '@/services/discovery/discovery-recommendations.service';
+import { PremiumPaywallSheet } from '@/components/discovery/PremiumPaywallSheet';
+import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuthStore } from '@/state/auth';
 
@@ -40,6 +42,16 @@ export default function DiscoveryHomeScreen() {
     react,
   } = useDiscoveryRecommendations();
   const [refreshing, setRefreshing] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [paywallSource, setPaywallSource] = useState<'my_radius' | 'right_now' | 'discovery_home'>(
+    'discovery_home',
+  );
+  const { isPremium, loading: premiumLoading } = usePremiumEntitlement();
+
+  const openPaywall = (source: 'my_radius' | 'right_now' | 'discovery_home') => {
+    setPaywallSource(source);
+    setPaywallVisible(true);
+  };
 
   const loadWithLocation = useCallback(async () => {
     const coords = currentLocation?.coords;
@@ -143,7 +155,24 @@ export default function DiscoveryHomeScreen() {
 
         {error && <Text style={styles.errorText}>{error}</Text>}
 
-        <MyRadiusTeaser placesCount={placesCount} />
+        <MyRadiusTeaser
+          placesCount={placesCount}
+          isPremium={isPremium}
+          onUnlockPress={!isPremium ? () => openPaywall('my_radius') : undefined}
+        />
+
+        {!premiumLoading && !isPremium && (
+          <TouchableOpacity
+            style={styles.premiumBanner}
+            onPress={() => openPaywall('right_now')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.premiumBannerTitle}>Right Now · version gratuite</Text>
+            <Text style={styles.premiumBannerBody}>
+              1 suggestion par jour. Passez à Moments Locaux+ pour un flux complet.
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {topRightNow ? (
           <RightNowCard
@@ -174,6 +203,14 @@ export default function DiscoveryHomeScreen() {
             <Text style={styles.emptyBody}>
               Revenez plus tard ou explorez la carte pour nourrir vos recommandations.
             </Text>
+            {!isPremium && (
+              <Button
+                title="Débloquer plus de suggestions"
+                variant="outline"
+                onPress={() => openPaywall('right_now')}
+                style={styles.emptyCta}
+              />
+            )}
           </View>
         )}
 
@@ -185,6 +222,12 @@ export default function DiscoveryHomeScreen() {
           }}
         />
       </ScrollView>
+
+      <PremiumPaywallSheet
+        visible={paywallVisible}
+        source={paywallSource}
+        onClose={() => setPaywallVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -257,5 +300,26 @@ const styles = StyleSheet.create({
   emptyBody: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
+  },
+  premiumBanner: {
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: 'rgba(43, 191, 227, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.25)',
+  },
+  premiumBannerTitle: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  premiumBannerBody: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+  },
+  emptyCta: {
+    marginTop: spacing.md,
   },
 });
