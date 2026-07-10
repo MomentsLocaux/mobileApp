@@ -1,10 +1,11 @@
-import { Bell, CalendarClock, Gift, Heart, Info, MapPin, Users } from 'lucide-react-native';
+import { Bell, CalendarClock, Gift, Heart, Info, MapPin, Sparkles, Users } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import {
   DEFAULT_PREFERENCES,
   type NotifyFrequency,
@@ -15,6 +16,7 @@ import { clearHomeLocation, syncHomeLocation } from '@/services/push.service';
 import { useAuthStore } from '@/state/auth';
 
 const RADIUS_CHOICES = [10, 25, 50, 100];
+const DISCOVERY_MAX_PUSH_CHOICES = [1, 3, 5, 7, 10];
 const FREQUENCY_CHOICES: { value: NotifyFrequency; label: string }[] = [
   { value: 'instant', label: 'Instantané' },
   { value: 'daily', label: 'Quotidien' },
@@ -196,6 +198,82 @@ export default function NotificationsSettingsScreen() {
           }
         />
       </SettingsSectionCard>
+
+      {DISCOVERY_ENABLED && (
+        <SettingsSectionCard
+          title="Suggestions Discovery"
+          description="Alertes personnalisées basées sur vos habitudes (Moments Locaux+)."
+          icon={Sparkles}
+        >
+          <SettingsRow
+            label="Notifications Discovery"
+            icon={Sparkles}
+            noBorder={!prefs.discovery_push_enabled}
+            right={
+              <Switch
+                value={prefs.discovery_push_enabled}
+                onValueChange={(value) =>
+                  persist({
+                    discovery_push_enabled: value,
+                    ...(value
+                      ? {}
+                      : {
+                          right_now_push_enabled: false,
+                          break_loop_push_enabled: false,
+                          life_insight_push_enabled: false,
+                        }),
+                  })
+                }
+              />
+            }
+          />
+
+          {prefs.discovery_push_enabled && (
+            <>
+              <SettingsRow
+                label="Opportunités immédiates"
+                icon={MapPin}
+                right={
+                  <Switch
+                    value={prefs.right_now_push_enabled}
+                    onValueChange={(value) => persist({ right_now_push_enabled: value })}
+                  />
+                }
+              />
+              <SettingsRow
+                label="Sortir de la routine"
+                icon={Heart}
+                right={
+                  <Switch
+                    value={prefs.break_loop_push_enabled}
+                    onValueChange={(value) => persist({ break_loop_push_enabled: value })}
+                  />
+                }
+              />
+              <SettingsRow
+                label="Insights de vie"
+                icon={Info}
+                right={
+                  <Switch
+                    value={prefs.life_insight_push_enabled}
+                    onValueChange={(value) => persist({ life_insight_push_enabled: value })}
+                  />
+                }
+              />
+              <ChoiceGroup label="Maximum par semaine">
+                {DISCOVERY_MAX_PUSH_CHOICES.map((count) => (
+                  <Chip
+                    key={count}
+                    label={`${count}`}
+                    active={prefs.discovery_max_push_per_week === count}
+                    onPress={() => persist({ discovery_max_push_per_week: count })}
+                  />
+                ))}
+              </ChoiceGroup>
+            </>
+          )}
+        </SettingsSectionCard>
+      )}
 
       <SettingsSectionCard
         title="Fréquence"
