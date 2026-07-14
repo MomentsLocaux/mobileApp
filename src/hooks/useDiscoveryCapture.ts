@@ -7,7 +7,7 @@ import { DiscoverySyncService } from '@/services/discovery/discovery-sync.servic
 import {
   startDiscoveryBackgroundCapture,
   stopDiscoveryBackgroundCapture,
-} from '@/tasks/discovery-location.task';
+} from '@/tasks/discovery-location';
 
 export function useDiscoveryCapture(userId?: string | null) {
   const { consent, isEnabled, refresh } = useDiscoveryConsent();

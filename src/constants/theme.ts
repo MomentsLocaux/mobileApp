@@ -125,6 +125,10 @@ export const colors: Record<string, ColorScale> = {
     success: '#10b981',
     error: '#ef4444',
     warning: '#f59e0b',
+    premium: '#D4AF37',
+    premiumLight: '#F0D060',
+    premiumMuted: 'rgba(212, 175, 55, 0.16)',
+    premiumBorder: 'rgba(212, 175, 55, 0.55)',
   },
 };
 

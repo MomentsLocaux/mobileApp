@@ -10,7 +10,7 @@ import { colors, spacing, typography } from '@/constants/theme';
 import { useDiscoveryConsent } from '@/hooks/useDiscoveryConsent';
 import { DiscoveryConsentService } from '@/services/discovery/discovery-consent.service';
 import { requestDiscoveryLocationPermissions } from '@/hooks/useDiscoveryCapture';
-import { stopDiscoveryBackgroundCapture } from '@/tasks/discovery-location.task';
+import { stopDiscoveryBackgroundCapture } from '@/tasks/discovery-location';
 import { useRouter } from 'expo-router';
 
 function DiscoverySettingsContent() {

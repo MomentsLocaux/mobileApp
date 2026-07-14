@@ -7,8 +7,13 @@ import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
+import { DISCOVERY_CAPTURE_ENABLED } from '@/config/discovery.flags';
 import { useDiscoveryCapture } from '../src/hooks/useDiscoveryCapture';
-import '@/tasks/discovery-location.task';
+import { ensureDiscoveryLocationTaskRegistered } from '@/tasks/discovery-location';
+
+if (DISCOVERY_CAPTURE_ENABLED) {
+  ensureDiscoveryLocationTaskRegistered();
+}
 
 export default function RootLayout() {
   useFrameworkReady();

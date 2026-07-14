@@ -26,6 +26,8 @@ import { DiscoveryRecommendationsService } from '@/services/discovery/discovery-
 import { PremiumPaywallSheet } from '@/components/discovery/PremiumPaywallSheet';
 import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { useDiscoveryInsights } from '@/hooks/useDiscoveryInsights';
+import { PremiumCard } from '@/components/premium/PremiumCard';
+import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuthStore } from '@/state/auth';
 
@@ -144,6 +146,12 @@ export default function DiscoveryHomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
+        {isPremium && (
+          <View style={styles.premiumHeader}>
+            <PremiumMemberBadge />
+          </View>
+        )}
+
         {loading && !refreshing && (
           <ActivityIndicator size="small" color={colors.brand.secondary} style={styles.loader} />
         )}
@@ -160,10 +168,12 @@ export default function DiscoveryHomeScreen() {
 
         {error && <Text style={styles.errorText}>{error}</Text>}
 
-        <View style={styles.quickLinks}>
-          <Button title="Mon territoire" variant="outline" onPress={() => router.push('/discovery/my-radius' as any)} />
-          <Button title="Break the Loop" variant="outline" onPress={() => router.push('/discovery/break-the-loop' as any)} />
-        </View>
+        <PremiumCard isPremium={isPremium}>
+          <View style={styles.quickLinks}>
+            <Button title="Mon territoire" variant="outline" onPress={() => router.push('/discovery/my-radius' as any)} />
+            <Button title="Break the Loop" variant="outline" onPress={() => router.push('/discovery/break-the-loop' as any)} />
+          </View>
+        </PremiumCard>
 
         <DiscoveryInsightsCard
           insights={insights}
@@ -307,6 +317,10 @@ const styles = StyleSheet.create({
   errorText: {
     ...typography.bodySmall,
     color: colors.brand.error,
+    marginBottom: spacing.md,
+  },
+  premiumHeader: {
+    alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
   emptyRightNow: {

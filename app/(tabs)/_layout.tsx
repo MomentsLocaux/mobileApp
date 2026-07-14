@@ -14,10 +14,15 @@ import {
   Settings,
   LogOut,
   MapPinned,
+  Compass,
+  Crown,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text, ScrollView } from 'react-native';
 import { colors } from '../../src/constants/theme';
+import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
+import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -25,6 +30,7 @@ import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
+  const { isPremium } = usePremiumEntitlement();
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -256,10 +262,12 @@ export default function TabsLayout() {
                 focused,
                 <View style={styles.profileTabIconWrap}>
                   {profile?.avatar_url ? (
-                    <Image
-                      source={{ uri: profile.avatar_url }}
-                      style={[styles.tabAvatar, focused && styles.tabAvatarActive]}
-                    />
+                    <PremiumAvatarFrame isPremium={isPremium} size={26} showBadge={false}>
+                      <Image
+                        source={{ uri: profile.avatar_url }}
+                        style={[styles.tabAvatar, focused && !isPremium && styles.tabAvatarActive]}
+                      />
+                    </PremiumAvatarFrame>
                   ) : (
                     <User size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
                   )}
@@ -304,7 +312,7 @@ export default function TabsLayout() {
                 router.push('/(tabs)/profile' as any);
               }}
             >
-              <View style={styles.avatarBorder}>
+              <PremiumAvatarFrame isPremium={isPremium} size={56}>
                 {profile?.avatar_url ? (
                   <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
                 ) : (
@@ -312,10 +320,16 @@ export default function TabsLayout() {
                     <UserCircle2 size={32} color={colors.neutral[400]} />
                   </View>
                 )}
-              </View>
+              </PremiumAvatarFrame>
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
+              {isPremium ? (
+                <View style={styles.drawerPremiumPill}>
+                  <Crown size={12} color={colors.brand.primary} strokeWidth={2.5} />
+                  <Text style={styles.drawerPremiumText}>Moments Locaux+</Text>
+                </View>
+              ) : null}
               <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
             </View>
           </View>
@@ -326,6 +340,18 @@ export default function TabsLayout() {
           {/* Section: Découverte */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>DÉCOUVERTE</Text>
+            {DISCOVERY_ENABLED && (
+              <DrawerLink
+                icon={Compass}
+                label="Discovery"
+                iconColor={isPremium ? colors.brand.premiumLight : undefined}
+                premium={isPremium}
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/discovery' as any);
+                }}
+              />
+            )}
             <DrawerLink
               icon={PlusCircle}
               label="Créer un événement"
@@ -455,6 +481,7 @@ const DrawerLink = ({
   active,
   badgeCount,
   iconColor,
+  premium,
 }: {
   icon: any;
   label: string;
@@ -462,11 +489,26 @@ const DrawerLink = ({
   active?: boolean;
   badgeCount?: number;
   iconColor?: string;
+  premium?: boolean;
 }) => (
-  <TouchableOpacity style={[styles.linkRow, active && styles.linkRowActive]} onPress={onPress} activeOpacity={0.7}>
-    <IconCmp size={20} color={iconColor || (active ? colors.brand.secondary : 'rgba(255,255,255,0.7)')} strokeWidth={2} />
+  <TouchableOpacity
+    style={[
+      styles.linkRow,
+      active && styles.linkRowActive,
+      premium && styles.linkRowPremium,
+    ]}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <IconCmp
+      size={20}
+      color={iconColor || (active ? colors.brand.secondary : 'rgba(255,255,255,0.7)')}
+      strokeWidth={2}
+    />
     <View style={styles.linkLabelWrapper}>
-      <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{label}</Text>
+      <Text style={[styles.linkLabel, active && styles.linkLabelActive, premium && styles.linkLabelPremium]}>
+        {label}
+      </Text>
     </View>
     {typeof badgeCount === 'number' && badgeCount > 0 ? (
       <View style={styles.linkBadge}>
@@ -579,6 +621,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#587588', // Muted slate blue/grey
   },
+  drawerPremiumPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: colors.brand.premiumLight,
+    borderWidth: 1,
+    borderColor: colors.brand.premiumBorder,
+  },
+  drawerPremiumText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.brand.primary,
+    letterSpacing: 0.3,
+  },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -627,6 +689,16 @@ const styles = StyleSheet.create({
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  linkRowPremium: {
+    borderWidth: 1,
+    borderColor: colors.brand.premiumBorder,
+    backgroundColor: colors.brand.premiumMuted,
+    borderRadius: 12,
+  },
+  linkLabelPremium: {
+    color: colors.brand.premiumLight,
+    fontWeight: '700',
   },
   drawerScroll: {
     flex: 1,

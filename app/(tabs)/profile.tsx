@@ -12,7 +12,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Settings, User as UserIcon, Calendar, Award, Compass, Crown } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
-import { AppBackground, Button, Card, ScreenHeader } from '../../src/components/ui';
+import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
+import { PremiumCard } from '@/components/premium/PremiumCard';
+import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
+import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
+import { AppBackground, Button, ScreenHeader } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
@@ -21,6 +25,7 @@ import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut, fullSignOut, session } = useAuth();
+  const { isPremium } = usePremiumEntitlement();
   const isGuest = !session;
 
   const handleSignOut = async () => {
@@ -110,13 +115,16 @@ export default function ProfileScreen() {
             <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
           )}
           <View style={styles.headerOverlay}>
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <UserIcon size={40} color={colors.brand.text} />
-              </View>
-            )}
+            <PremiumAvatarFrame isPremium={isPremium} size={100}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <UserIcon size={40} color={colors.brand.text} />
+                </View>
+              )}
+            </PremiumAvatarFrame>
+            {isPremium && <PremiumMemberBadge />}
             <Text style={styles.displayName}>{profile.display_name}</Text>
             <Text style={styles.email}>{profile.email}</Text>
             {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
@@ -148,7 +156,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.content}>
-          <Card padding="md">
+          <PremiumCard isPremium={isPremium}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Email</Text>
@@ -164,33 +172,35 @@ export default function ProfileScreen() {
                 {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
               </Text>
             </View>
-          </Card>
+          </PremiumCard>
 
-          <Card padding="md" style={styles.actionCard}>
+          <PremiumCard isPremium={isPremium} style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
             {DISCOVERY_ENABLED && (
               <TouchableOpacity
-                style={styles.linkButton}
+                style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/discovery' as any)}
               >
-                <Compass size={18} color={colors.brand.secondary} />
-                <Text style={styles.linkText}>Discovery</Text>
+                <Compass size={18} color={isPremium ? colors.brand.premiumLight : colors.brand.secondary} />
+                <Text style={[styles.linkText, isPremium && styles.linkTextPremium]}>Discovery</Text>
               </TouchableOpacity>
             )}
             {DISCOVERY_ENABLED && (
               <TouchableOpacity
-                style={styles.linkButton}
+                style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/profile/subscription' as any)}
               >
-                <Crown size={18} color={colors.brand.secondary} />
-                <Text style={styles.linkText}>Moments Locaux+</Text>
+                <Crown size={18} color={isPremium ? colors.brand.premiumLight : colors.brand.secondary} />
+                <Text style={[styles.linkText, isPremium && styles.linkTextPremium]}>
+                  {isPremium ? 'Moments Locaux+ actif' : 'Moments Locaux+'}
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
               <Calendar size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Mes événements</Text>
             </TouchableOpacity>
-          </Card>
+          </PremiumCard>
 
           <Button
             title="Se déconnecter"
@@ -229,12 +239,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: -60,
     paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: borderRadius.full,
-    marginBottom: spacing.md,
   },
   avatarPlaceholder: {
     width: 100,
@@ -243,7 +253,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
   displayName: {
     ...typography.h2,
@@ -328,6 +337,17 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.secondary,
     fontWeight: '600',
+  },
+  linkButtonPremium: {
+    backgroundColor: colors.brand.premiumMuted,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.brand.premiumBorder,
+    paddingHorizontal: spacing.sm,
+  },
+  linkTextPremium: {
+    color: colors.brand.premiumLight,
+    fontWeight: '700',
   },
   signOutButton: {
     marginTop: spacing.lg,

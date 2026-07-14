@@ -1,11 +1,15 @@
 PODS:
-  - EXConstants (18.0.10):
+  - EXApplication (7.0.8):
+    - ExpoModulesCore
+  - EXConstants (18.0.13):
     - ExpoModulesCore
   - EXImageLoader (6.0.0):
     - ExpoModulesCore
     - React-Core
   - EXJSONUtils (0.15.0)
   - EXManifests (1.0.9):
+    - ExpoModulesCore
+  - EXNotifications (0.32.17):
     - ExpoModulesCore
   - Expo (54.0.25):
     - ExpoModulesCore
@@ -203,6 +207,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - ExpoAppleAuthentication (8.0.8):
+    - ExpoModulesCore
   - ExpoAsset (12.0.10):
     - ExpoModulesCore
   - ExpoBlur (15.0.7):
@@ -273,6 +279,9 @@ PODS:
     - ExpoModulesCore
   - ExpoWebBrowser (15.0.9):
     - ExpoModulesCore
+  - EXTaskManager (14.0.9):
+    - ExpoModulesCore
+    - UMAppLoader
   - EXUpdatesInterface (2.0.0):
     - ExpoModulesCore
   - FBLazyVector (0.81.5)
@@ -2376,6 +2385,7 @@ PODS:
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - Turf (4.0.0)
+  - UMAppLoader (6.0.8)
   - Yoga (0.0.0)
   - ZXingObjC/Core (3.6.9)
   - ZXingObjC/OneD (3.6.9):
@@ -2384,15 +2394,18 @@ PODS:
     - ZXingObjC/Core
 
 DEPENDENCIES:
+  - EXApplication (from `../node_modules/expo-application/ios`)
   - EXConstants (from `../node_modules/expo-constants/ios`)
   - EXImageLoader (from `../node_modules/expo-image-loader/ios`)
   - EXJSONUtils (from `../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../node_modules/expo-manifests/ios`)
+  - EXNotifications (from `../node_modules/expo-notifications/ios`)
   - Expo (from `../node_modules/expo`)
   - expo-dev-client (from `../node_modules/expo-dev-client/ios`)
   - expo-dev-launcher (from `../node_modules/expo-dev-launcher`)
   - expo-dev-menu (from `../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
+  - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
   - ExpoCamera (from `../node_modules/expo-camera/ios`)
@@ -2415,6 +2428,7 @@ DEPENDENCIES:
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
   - ExpoSystemUI (from `../node_modules/expo-system-ui/ios`)
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
+  - EXTaskManager (from `../node_modules/expo-task-manager/ios`)
   - EXUpdatesInterface (from `../node_modules/expo-updates-interface/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
@@ -2494,6 +2508,7 @@ DEPENDENCIES:
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
+  - UMAppLoader (from `../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2508,6 +2523,8 @@ SPEC REPOS:
     - ZXingObjC
 
 EXTERNAL SOURCES:
+  EXApplication:
+    :path: "../node_modules/expo-application/ios"
   EXConstants:
     :path: "../node_modules/expo-constants/ios"
   EXImageLoader:
@@ -2516,6 +2533,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-json-utils/ios"
   EXManifests:
     :path: "../node_modules/expo-manifests/ios"
+  EXNotifications:
+    :path: "../node_modules/expo-notifications/ios"
   Expo:
     :path: "../node_modules/expo"
   expo-dev-client:
@@ -2526,6 +2545,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-dev-menu"
   expo-dev-menu-interface:
     :path: "../node_modules/expo-dev-menu-interface/ios"
+  ExpoAppleAuthentication:
+    :path: "../node_modules/expo-apple-authentication/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
   ExpoBlur:
@@ -2570,6 +2591,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-system-ui/ios"
   ExpoWebBrowser:
     :path: "../node_modules/expo-web-browser/ios"
+  EXTaskManager:
+    :path: "../node_modules/expo-task-manager/ios"
   EXUpdatesInterface:
     :path: "../node_modules/expo-updates-interface/ios"
   FBLazyVector:
@@ -2727,19 +2750,24 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-svg"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
+  UMAppLoader:
+    :path: "../node_modules/unimodules-app-loader/ios"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  EXConstants: fd688cef4e401dcf798a021cfb5d87c890c30ba3
+  EXApplication: 1e98d4b1dccdf30627f92917f4b2c5a53c330e5f
+  EXConstants: fce59a631a06c4151602843667f7cfe35f81e271
   EXImageLoader: 189e3476581efe3ad4d1d3fb4735b7179eb26f05
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
   EXManifests: 26e15640538c3d5ef028077ebcaf004b744d4932
+  EXNotifications: c67e92b9fdfe785ff9dbdc5f4c0ff935de357da7
   Expo: 111394d38f32be09385d4c7f70cc96d2da438d0d
   expo-dev-client: cc9491ad3e25a7a89f367c30f72884584c682b77
   expo-dev-launcher: 2c7725298ce170ea6fd2186b17cdbb4a585bae6b
   expo-dev-menu: 7b72a6130e42799659ba2cc349e35b22bcbb8aef
   expo-dev-menu-interface: 600df12ea01efecdd822daaf13cc0ac091775533
+  ExpoAppleAuthentication: 9413ae9a5e631a424cc04c1b13b0694dbab7d594
   ExpoAsset: d839c8eae8124470332408427327e8f88beb2dfd
   ExpoBlur: 2dd8f64aa31f5d405652c21d3deb2d2588b1852f
   ExpoCamera: 2a87c210f8955350ea5c70f1d539520b2fc5d940
@@ -2762,6 +2790,7 @@ SPEC CHECKSUMS:
   ExpoSymbols: 1ae04ce686de719b9720453b988d8bc5bf776c68
   ExpoSystemUI: 2761aa6875849af83286364811d46e8ed8ea64c7
   ExpoWebBrowser: b973e1351fdcf5fec0c400997b1851f5a8219ec3
+  EXTaskManager: 6f1a66e4c8cc6df6e24c3d90928704bc3013eae5
   EXUpdatesInterface: 5adf50cb41e079c861da6d9b4b954c3db9a50734
   FBLazyVector: e95a291ad2dadb88e42b06e0c5fb8262de53ec12
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
@@ -2847,6 +2876,7 @@ SPEC CHECKSUMS:
   SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   Turf: c9eb11a65d96af58cac523460fd40fec5061b081
+  UMAppLoader: 145337733539f9af9b3dd97eeaa7f3bd97cacb23
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
   ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
