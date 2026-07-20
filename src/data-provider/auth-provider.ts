@@ -75,6 +75,16 @@ export const authProvider: IAuthProvider = {
     return { ...(inserted as Profile), email: email ?? null };
   },
 
+  async requestPasswordReset(email, redirectTo) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+  },
+
+  async updatePassword(password) {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  },
+
   onAuthStateChange(callback) {
     const { data } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       callback(session);

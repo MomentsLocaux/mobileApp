@@ -4,10 +4,10 @@ import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { colors } from '@/constants/theme';
 import { AuthService } from '@/services/auth.service';
-import { completeOAuthFromUrl } from '@/services/oauth.service';
+import { completeAuthRedirectFromUrl } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
 
-/** Fallback handler when the app is opened via the OAuth redirect deep link. */
+/** Fallback handler when the app is opened via an Auth redirect deep link. */
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const { setSession, setUser, setProfile } = useAuthStore();
@@ -23,7 +23,16 @@ export default function AuthCallbackScreen() {
           return;
         }
 
-        const session = await completeOAuthFromUrl(url);
+        const { session, type } = await completeAuthRedirectFromUrl(url);
+
+        if (type === 'recovery') {
+          if (!mounted) return;
+          setSession(session);
+          setUser(session.user);
+          router.replace('/auth/reset-password');
+          return;
+        }
+
         const response = await AuthService.finalizeOAuthSession(session);
         if (!response.success || !response.user) {
           throw new Error(response.error || 'Connexion impossible');

@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { supabase } from '@/lib/supabase/client';
 import {
+  getAuthRedirectUri,
   signInWithApple,
   signInWithOAuthProvider,
   type SocialProvider,
@@ -334,6 +335,39 @@ export class AuthService {
       return this.attachEmail(profile, user.email);
     } catch {
       return null;
+    }
+  }
+
+  /** Sends a password-recovery email (redirect opens auth/reset-password). */
+  static async requestPasswordReset(email: string): Promise<AuthResponse> {
+    try {
+      const redirectTo = getAuthRedirectUri('auth/reset-password');
+      await dataProvider.requestPasswordReset(email.trim(), redirectTo);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Impossible d’envoyer l’email',
+      };
+    }
+  }
+
+  /** Sets a new password while a recovery (or authenticated) session is active. */
+  static async updatePassword(password: string): Promise<AuthResponse> {
+    try {
+      await dataProvider.updatePassword(password);
+      const session = await dataProvider.getSession();
+      const user = session?.user ?? (await dataProvider.getUser());
+      if (session) {
+        await this.clearAutoRestoreBlock();
+        await this.saveSession(session);
+      }
+      return { success: true, session, user };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Impossible de mettre à jour le mot de passe',
+      };
     }
   }
 
