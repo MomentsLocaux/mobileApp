@@ -58,6 +58,19 @@ export const authProvider: IAuthProvider = {
       .select()
       .single();
 
+    // Concurrent ensureProfile calls (sign-in + auth init) can both try INSERT.
+    if (insertError?.code === '23505') {
+      const { data: raced, error: refetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (refetchError) throw refetchError;
+      if (raced) {
+        return { ...(raced as Profile), email: email ?? null };
+      }
+    }
+
     if (insertError) throw insertError;
     return { ...(inserted as Profile), email: email ?? null };
   },
