@@ -28,12 +28,18 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files (never commit secrets)
 .env
+.env.*
+!.env.example
+!.env.uat.example
+.env*.local
 
 # supabase cli temp artifacts
 supabase/.temp/
+
+# One-off schema dump artifacts (DEV→UAT clone) — do not commit
+infra/dumps/
 
 # typescript
 *.tsbuildinfo
