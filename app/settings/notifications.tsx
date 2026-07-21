@@ -357,6 +357,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     flex: 1,
+    flexShrink: 1,
     lineHeight: 18,
   },
   choiceGroup: {

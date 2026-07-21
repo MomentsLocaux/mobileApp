@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -124,19 +124,21 @@ const styles = StyleSheet.create({
   },
   rowLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
     flex: 1,
   },
   rowRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: spacing.xs,
   },
   rowLabel: {
     ...typography.body,
     color: colors.brand.text,
     fontWeight: '600',
+    flexShrink: 1,
   },
   rowLabelDanger: {
     color: colors.error[500],

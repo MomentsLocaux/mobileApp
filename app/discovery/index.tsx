@@ -170,8 +170,20 @@ export default function DiscoveryHomeScreen() {
 
         <PremiumCard isPremium={isPremium}>
           <View style={styles.quickLinks}>
-            <Button title="Mon territoire" variant="outline" onPress={() => router.push('/discovery/my-radius' as any)} />
-            <Button title="Break the Loop" variant="outline" onPress={() => router.push('/discovery/break-the-loop' as any)} />
+            <Button
+              title="Mon territoire"
+              variant="outline"
+              size="sm"
+              style={styles.quickLinkButton}
+              onPress={() => router.push('/discovery/my-radius' as any)}
+            />
+            <Button
+              title="Break the Loop"
+              variant="outline"
+              size="sm"
+              style={styles.quickLinkButton}
+              onPress={() => router.push('/discovery/break-the-loop' as any)}
+            />
           </View>
         </PremiumCard>
 
@@ -361,7 +373,13 @@ const styles = StyleSheet.create({
   },
   quickLinks: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'stretch',
     gap: spacing.sm,
     marginBottom: spacing.md,
+  },
+  quickLinkButton: {
+    flex: 1,
+    minWidth: 0,
   },
 });

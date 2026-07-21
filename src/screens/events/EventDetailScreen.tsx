@@ -81,7 +81,23 @@ import MapboxGL from '@rnmapbox/maps';
 
 const { width } = Dimensions.get('window');
 const BOTTOM_BAR_HEIGHT = 104;
-const EVENT_QR_BASE_URL = process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL || 'https://momentslocaux.app/events';
+// QR code de l'événement : lien web HTTPS (Universal Links/App Links côté site).
+// Pour l'instant on peut laisser la variable vide : un placeholder est utilisé en local.
+const EVENT_QR_APP_BASE_URL =
+  typeof process.env.EXPO_PUBLIC_EVENT_QR_APP_BASE_URL === 'string'
+    ? process.env.EXPO_PUBLIC_EVENT_QR_APP_BASE_URL.trim()
+    : 'momentslocaux://events';
+
+const SHOULD_USE_APP_SCHEME = process.env.EXPO_PUBLIC_EVENT_QR_USE_APP_SCHEME === 'true';
+
+const EVENT_QR_WEB_BASE_URL =
+  (typeof process.env.EXPO_PUBLIC_EVENT_QR_WEB_BASE_URL === 'string'
+    ? process.env.EXPO_PUBLIC_EVENT_QR_WEB_BASE_URL.trim()
+    : '') ||
+  (typeof process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL === 'string' ? process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL.trim() : '') ||
+  'https://example.com/events';
+
+const EVENT_QR_BASE_URL = SHOULD_USE_APP_SCHEME ? EVENT_QR_APP_BASE_URL : EVENT_QR_WEB_BASE_URL;
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 type AttendeePreview = {
