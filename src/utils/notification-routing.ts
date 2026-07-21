@@ -6,7 +6,9 @@ type RouteTarget =
   | { href: '/missions' }
   | { href: '/discovery' }
   | { href: `/creator/${string}` }
-  | { href: '/profile/my-events' };
+  | { href: '/profile/my-events' }
+  | { href: `/contests/${string}` }
+  | { href: '/contests' };
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -61,6 +63,19 @@ export function resolveNotificationRoute(
 
   if (type === 'event_refused' || type === 'event_request_changes' || type === 'event_published') {
     return { href: '/profile/my-events' };
+  }
+
+  if (
+    type === 'contest_entry_refused'
+    || type === 'contest_opened'
+    || type === 'contest_ending_soon'
+    || type === 'contest_results'
+  ) {
+    const contestId = pickString(d, 'contestId', 'contest_id');
+    if (contestId) {
+      return { href: `/contests/${contestId}` };
+    }
+    return { href: '/contests' };
   }
 
   return { href: '/notifications' };

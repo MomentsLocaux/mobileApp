@@ -103,6 +103,7 @@ export default function RootLayout() {
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="discovery" />
+        <Stack.Screen name="contests" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />
