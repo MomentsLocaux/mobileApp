@@ -15,6 +15,7 @@ import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { AppBackground, Button } from '@/components/ui';
 import { useAuthStore } from '@/state/auth';
 import { ContestsService, type Contest, type ContestEntry, type ContestReward } from '@/features/contests';
+import { ContestZoneMap } from '@/features/contests/ContestZoneMap';
 
 export default function ContestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -141,6 +142,16 @@ export default function ContestDetailScreen() {
             ))}
           </View>
         ) : null}
+
+        <Text style={styles.sectionTitle}>Carte des zones</Text>
+        <Text style={styles.meta}>Zones approximatives — jamais de pin exact.</Text>
+        <ContestZoneMap
+          entries={entries}
+          gridMeters={contest.geo_grid_meters}
+          canVote={canVote}
+          myVoteEntryId={myVoteEntryId}
+          onVotePress={onVote}
+        />
 
         <Text style={styles.sectionTitle}>Galerie ({entries.length})</Text>
         {entries.map((entry) => (
