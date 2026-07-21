@@ -55,5 +55,7 @@ export const dataProvider: DataProvider = {
   getSession: () => authProvider.getSession(),
   getUser: () => authProvider.getUser(),
   ensureProfile: (userId, email) => authProvider.ensureProfile(userId, email),
+  requestPasswordReset: (email, redirectTo) => authProvider.requestPasswordReset(email, redirectTo),
+  updatePassword: (password) => authProvider.updatePassword(password),
   onAuthStateChange: (callback) => authProvider.onAuthStateChange(callback),
 };

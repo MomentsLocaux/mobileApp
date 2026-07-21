@@ -29,10 +29,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN,
-    // Required to obtain Expo push tokens. Populated by `eas init`; until then,
-    // set EAS_PROJECT_ID in the environment.
+    // Public EAS project id (not a secret). Override with EAS_PROJECT_ID if needed.
     eas: {
-      projectId: process.env.EAS_PROJECT_ID,
+      projectId: process.env.EAS_PROJECT_ID ?? 'cdd0ac2d-c334-4aee-8bb9-e0cfb0771983',
     },
   },
   ios: {

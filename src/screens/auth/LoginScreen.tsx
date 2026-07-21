@@ -172,6 +172,13 @@ export default function LoginScreen() {
                           placeholderTextColor="rgba(255,255,255,0.5)"
                         />
                       </View>
+
+                      <TouchableOpacity
+                        onPress={() => router.push('/auth/forgot-password')}
+                        style={styles.forgotButton}
+                      >
+                        <Text style={styles.forgotButtonText}>Mot de passe oublié ?</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : null}
 
@@ -310,6 +317,16 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: 'transparent',
     height: 50,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: spacing.xs,
+  },
+  forgotButtonText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   primaryButton: {
     backgroundColor: '#fff',

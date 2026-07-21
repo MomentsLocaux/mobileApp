@@ -97,6 +97,8 @@ export interface IAuthProvider {
   getSession(): Promise<any>;
   getUser(): Promise<any>;
   ensureProfile(userId: string, email: string): Promise<Profile | null>;
+  requestPasswordReset(email: string, redirectTo: string): Promise<void>;
+  updatePassword(password: string): Promise<void>;
   onAuthStateChange(callback: (session: any | null) => void): { unsubscribe: () => void };
 }
 

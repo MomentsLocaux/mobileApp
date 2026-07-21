@@ -30,3 +30,13 @@ Secrets live in Bitwarden / local `.env*` (gitignored). Templates: `.env.example
 ## Keys per env (Bitwarden)
 
 For each of DEV / UAT store: Project URL, `anon`, `service_role`, DB password.
+
+## Auth redirect URLs (Supabase Dashboard → Authentication → URL Configuration)
+
+| Value | Purpose |
+| --- | --- |
+| `momentslocaux://auth/callback` | Site URL + OAuth / email confirm |
+| `momentslocaux://auth/reset-password` | Password recovery deep link |
+| `exp://**` | Expo Go / local Metro |
+
+Password recovery is enabled with Email provider (default). Custom SMTP required for reliable delivery.
