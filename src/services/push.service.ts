@@ -114,20 +114,19 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     if (!token) return null;
 
-    const { error } = await supabase
-      .from('device_push_tokens')
-      .upsert(
-        {
-          user_id: userId,
-          token,
-          platform: Platform.OS,
-          device_name: Constants.deviceName ?? null,
-          last_seen_at: new Date().toISOString(),
-        } as never,
-        { onConflict: 'token' },
-      );
+    // Prefer auth.uid() inside the RPC so a stale profile id cannot fail RLS.
+    // SECURITY DEFINER RPC also reclaims a token previously owned by another account
+    // on the same device (plain upsert hits UPDATE USING and fails).
+    const platform: 'ios' | 'android' | 'web' =
+      Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
+
+    const { error } = await supabase.rpc('upsert_my_device_push_token', {
+      p_token: token,
+      p_platform: platform,
+      p_device_name: Constants.deviceName ?? null,
+    });
     if (error) {
-      console.warn('[push] Failed to persist device token:', error.message);
+      console.warn('[push] Failed to persist device token:', error.message, { userId });
       return null;
     }
     return token;
