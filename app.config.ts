@@ -39,6 +39,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'com.momentslocs.app',
     buildNumber: IOS_BUILD_NUMBER,
     usesAppleSignIn: true,
+    entitlements: {
+      'aps-environment': 'development',
+      'com.apple.developer.applesignin': ['Default'],
+    },
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.',
@@ -50,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
         'Moments Locaux utilise votre position en arrière-plan pour repérer les lieux que vous visitez et enrichir Discovery. Vous pouvez désactiver cette option à tout moment.',
-      UIBackgroundModes: ['location'],
+      UIBackgroundModes: ['location', 'remote-notification'],
       NSFaceIDUsageDescription:
         'Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.',
       LSApplicationQueriesSchemes: ['waze', 'comgooglemaps'],

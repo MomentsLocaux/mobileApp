@@ -82,6 +82,11 @@
     <true/>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>location</string>
+      <string>remote-notification</string>
+    </array>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
       <string>arm64</string>
