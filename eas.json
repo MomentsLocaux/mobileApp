@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EAS_PROJECT_ID": "cdd0ac2d-c334-4aee-8bb9-e0cfb0771983"
       }
     },
     "preview": {
@@ -20,13 +21,25 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_ENV": "uat"
+        "APP_ENV": "uat",
+        "EAS_PROJECT_ID": "cdd0ac2d-c334-4aee-8bb9-e0cfb0771983"
+      }
+    },
+    "preview-device": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "uat",
+        "EAS_PROJECT_ID": "cdd0ac2d-c334-4aee-8bb9-e0cfb0771983"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EAS_PROJECT_ID": "cdd0ac2d-c334-4aee-8bb9-e0cfb0771983"
       }
     }
   },
