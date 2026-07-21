@@ -31,6 +31,15 @@ Secrets live in Bitwarden / local `.env*` (gitignored). Templates: `.env.example
 
 For each of DEV / UAT store: Project URL, `anon`, `service_role`, DB password.
 
+## Push dispatch (`app_config`)
+
+After migration `20260722_push_dispatch_multi_env.sql`, run the matching ops script:
+
+- DEV: `supabase/ops/app_config/dev.sql`
+- UAT: `supabase/ops/app_config/uat.sql`
+
+See `infra/runbooks/PUSH_NOTIFICATIONS.md`.
+
 ## Auth redirect URLs (Supabase Dashboard → Authentication → URL Configuration)
 
 | Value | Purpose |

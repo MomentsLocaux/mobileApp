@@ -23,6 +23,7 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { NotificationsService, type AppNotification, type AppNotificationType } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
+import { resolveNotificationRoute } from '@/utils/notification-routing';
 import { ScreenHeader } from '@/components/ui';
 
 type FilterMode = 'all' | 'unread';
@@ -42,20 +43,6 @@ const asRecord = (value: unknown): Record<string, unknown> => {
   }
   if (typeof value !== 'object' || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
-};
-
-const getEventIdFromNotification = (item: AppNotification): string | null => {
-  const data = asRecord(item.data);
-  const directEventId = (data.eventId as string | undefined) || (data.event_id as string | undefined);
-  if (directEventId) return directEventId;
-
-  if (item.type === 'moderation_escalation') {
-    const targetType = (data.targetType as string | undefined) || (data.target_type as string | undefined);
-    const targetId = (data.targetId as string | undefined) || (data.target_id as string | undefined);
-    if (targetType === 'event' && targetId) return targetId;
-  }
-
-  return null;
 };
 
 const getFollowerNameFromNotification = (item: AppNotification): string | null => {
@@ -113,6 +100,8 @@ const formatRelative = (value: string) => {
 const typeLabel: Record<AppNotificationType, string> = {
   event_published: 'Événement',
   event_soon: 'Rappel',
+  event_nearby_new: 'Proximité',
+  followed_creator_published: 'Abonnement',
   lumo_reward: 'Notification',
   mission_completed: 'Notification',
   boost_expired: 'Notification',
@@ -127,6 +116,11 @@ const typeLabel: Record<AppNotificationType, string> = {
   media_rejected: 'Média',
   contest_entry_refused: 'Statut',
   moderation_escalation: 'Signalement',
+  discovery_right_now: 'Discovery',
+  discovery_break_loop: 'Discovery',
+  discovery_new_area: 'Discovery',
+  discovery_personal_match: 'Discovery',
+  discovery_life_insight: 'Discovery',
 };
 
 const typeIcon = (type: AppNotificationType) => {
@@ -209,9 +203,14 @@ export default function NotificationsInboxScreen() {
       setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, read: true } : row)));
     }
 
-    const eventId = getEventIdFromNotification(item);
+    if (item.type === 'moderation_escalation') {
+      Alert.alert('Signalement reçu', 'Cette notification est prise en charge depuis l’espace admin web.');
+    }
 
-    if (eventId) {
+    const { href } = resolveNotificationRoute(item.type, item.data);
+
+    if (href.startsWith('/events/')) {
+      const eventId = href.replace('/events/', '');
       try {
         const event = await EventsService.getEventById(eventId);
         if (!event) {
@@ -222,13 +221,9 @@ export default function NotificationsInboxScreen() {
         Alert.alert('Navigation impossible', 'Impossible d’ouvrir cet événement pour le moment.');
         return;
       }
-      router.push(`/events/${eventId}` as any);
-      return;
     }
 
-    if (item.type === 'moderation_escalation') {
-      Alert.alert('Signalement reçu', 'Cette notification est prise en charge depuis l’espace admin web.');
-    }
+    router.push(href as any);
   };
 
   const renderItem = ({ item }: { item: AppNotification }) => {

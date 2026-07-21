@@ -4,6 +4,7 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase/client';
+import { resolveNotificationRoute } from '@/utils/notification-routing';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -227,10 +228,9 @@ export function subscribeToNotificationResponses(onResponse: (data: unknown) => 
 /** Deep-links a notification tap to the relevant in-app screen. */
 export function routeFromNotificationData(data: unknown) {
   const d = (data ?? {}) as Record<string, unknown>;
-  const eventId = (d.eventId ?? d.event_id) as string | undefined;
-  if (eventId) {
-    router.push(`/events/${eventId}`);
-    return;
-  }
-  router.push('/notifications');
+  const type =
+    (typeof d.notificationType === 'string' ? d.notificationType : undefined) ??
+    (typeof d.type === 'string' ? d.type : undefined);
+  const { href } = resolveNotificationRoute(type, data);
+  router.push(href as never);
 }

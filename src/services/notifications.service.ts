@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase/client';
 export type AppNotificationType =
   | 'event_published'
   | 'event_soon'
+  | 'event_nearby_new'
+  | 'followed_creator_published'
   | 'lumo_reward'
   | 'mission_completed'
   | 'boost_expired'
@@ -16,7 +18,12 @@ export type AppNotificationType =
   | 'media_approved'
   | 'media_rejected'
   | 'contest_entry_refused'
-  | 'moderation_escalation';
+  | 'moderation_escalation'
+  | 'discovery_right_now'
+  | 'discovery_break_loop'
+  | 'discovery_new_area'
+  | 'discovery_personal_match'
+  | 'discovery_life_insight';
 
 export type AppNotification = {
   id: string;
@@ -58,8 +65,8 @@ export const NotificationsService = {
       body: `${creatorName || 'Un créateur'} vous invite à un événement privé: ${eventTitle}`,
       data: {
         kind: 'private_invite',
-        event_id: eventId,
-        event_title: eventTitle,
+        eventId: eventId,
+        eventTitle: eventTitle,
       },
       read: false,
     }));

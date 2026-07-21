@@ -68,14 +68,47 @@ Deno.serve(async (req: Request) => {
         return json({ error: "missing_user_id" }, 400);
     }
 
-    // --- Respect the user's push preference (missing row => enabled) ---
+    // --- Respect user notification preferences (missing row => enabled) ---
     const { data: pref } = await admin
         .from("user_preferences")
-        .select("push_enabled")
+        .select(
+            "push_enabled, notify_social, notify_rewards, notify_event_nearby, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled",
+        )
         .eq("user_id", record.user_id)
         .maybeSingle();
+
     if (pref && pref.push_enabled === false) {
         return json({ skipped: "push_disabled" }, 200);
+    }
+
+    const type = record.type ?? "";
+    if (pref) {
+        if (
+            (type === "social_follow" || type === "social_like") &&
+            pref.notify_social === false
+        ) {
+            return json({ skipped: "social_disabled" }, 200);
+        }
+        if (
+            (type === "mission_completed" ||
+                type === "lumo_reward" ||
+                type === "boost_expired") &&
+            pref.notify_rewards === false
+        ) {
+            return json({ skipped: "rewards_disabled" }, 200);
+        }
+        if (type === "event_nearby_new" && pref.notify_event_nearby === false) {
+            return json({ skipped: "event_nearby_disabled" }, 200);
+        }
+        if (
+            type === "followed_creator_published" &&
+            pref.notify_followed_creator === false
+        ) {
+            return json({ skipped: "followed_creator_disabled" }, 200);
+        }
+        if (type === "event_soon" && pref.notify_event_reminders === false) {
+            return json({ skipped: "event_reminders_disabled" }, 200);
+        }
     }
 
     const discoveryTypes = new Set([
@@ -86,31 +119,24 @@ Deno.serve(async (req: Request) => {
         "discovery_life_insight",
     ]);
     if (record.type && discoveryTypes.has(record.type)) {
-        const { data: discoveryPref } = await admin
-            .from("user_preferences")
-            .select(
-                "discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled",
-            )
-            .eq("user_id", record.user_id)
-            .maybeSingle();
-        if (!discoveryPref || discoveryPref.discovery_push_enabled !== true) {
+        if (!pref || pref.discovery_push_enabled !== true) {
             return json({ skipped: "discovery_push_disabled" }, 200);
         }
         if (
             record.type === "discovery_right_now" &&
-            discoveryPref.right_now_push_enabled !== true
+            pref?.right_now_push_enabled !== true
         ) {
             return json({ skipped: "right_now_push_disabled" }, 200);
         }
         if (
             record.type === "discovery_break_loop" &&
-            discoveryPref.break_loop_push_enabled !== true
+            pref?.break_loop_push_enabled !== true
         ) {
             return json({ skipped: "break_loop_push_disabled" }, 200);
         }
         if (
             record.type === "discovery_life_insight" &&
-            discoveryPref.life_insight_push_enabled !== true
+            pref?.life_insight_push_enabled !== true
         ) {
             return json({ skipped: "life_insight_push_disabled" }, 200);
         }
@@ -129,11 +155,16 @@ Deno.serve(async (req: Request) => {
         return json({ sent: 0, reason: "no_tokens" }, 200);
     }
 
+    const pushData = {
+        ...(record!.data ?? {}),
+        notificationType: record!.type ?? null,
+    };
+
     const messages = tokens.map((t: { token: string }) => ({
         to: t.token,
         title: record!.title,
         body: record!.body ?? "",
-        data: record!.data ?? {},
+        data: pushData,
         sound: "default",
     }));
 
