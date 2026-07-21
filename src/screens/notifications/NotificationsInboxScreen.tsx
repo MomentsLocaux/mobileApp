@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   MessageSquareWarning,
   ShieldAlert,
+  Trophy,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
@@ -115,6 +116,7 @@ const typeLabel: Record<AppNotificationType, string> = {
   media_approved: 'Média',
   media_rejected: 'Média',
   contest_entry_refused: 'Statut',
+  contest_results: 'Concours',
   moderation_escalation: 'Signalement',
   discovery_right_now: 'Discovery',
   discovery_break_loop: 'Discovery',
@@ -132,6 +134,9 @@ const typeIcon = (type: AppNotificationType) => {
   }
   if (type === 'warning_received' || type === 'user_banned') {
     return ShieldAlert;
+  }
+  if (type === 'contest_entry_refused' || type === 'contest_results') {
+    return Trophy;
   }
   if (type === 'moderation_escalation') {
     return MessageSquareWarning;

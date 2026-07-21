@@ -16,11 +16,13 @@ import {
   MapPinned,
   Compass,
   Crown,
+  Trophy,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text, ScrollView } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { useAuth } from '../../src/hooks';
@@ -349,6 +351,16 @@ export default function TabsLayout() {
                 onPress={() => {
                   toggleDrawer(false);
                   router.push('/discovery' as any);
+                }}
+              />
+            )}
+            {CONTESTS_ENABLED && (
+              <DrawerLink
+                icon={Trophy}
+                label="Concours"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/contests' as any);
                 }}
               />
             )}

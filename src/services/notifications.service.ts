@@ -18,6 +18,7 @@ export type AppNotificationType =
   | 'media_approved'
   | 'media_rejected'
   | 'contest_entry_refused'
+  | 'contest_results'
   | 'moderation_escalation'
   | 'discovery_right_now'
   | 'discovery_break_loop'
