@@ -54,6 +54,13 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="wallet"
+        options={{
+          title: 'Portefeuille Lumo',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="journey"
         options={{
           title: 'Mon parcours',

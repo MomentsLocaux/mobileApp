@@ -68,6 +68,8 @@ import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsShe
 import { EventPhotoContributionModal } from '@/components/events/EventPhotoContributionModal';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
 import { CommunityService } from '@/services/community.service';
+import { ShopService } from '@/services/shop.service';
+import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
@@ -169,6 +171,7 @@ export default function EventDetailScreen() {
   const [now, setNow] = useState(() => new Date());
   const [eventReportVisible, setEventReportVisible] = useState(false);
   const [eventReported, setEventReported] = useState(false);
+  const [boostBusy, setBoostBusy] = useState(false);
   const autoQrAttemptedRef = useRef(new Set<string>());
   const autoQrGuestPromptedRef = useRef(new Set<string>());
   const autoQrLocationPromptedRef = useRef(new Set<string>());
@@ -430,7 +433,12 @@ export default function EventDetailScreen() {
       if (res.success) {
         setHasCheckedIn(true);
         await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
-        Alert.alert(options?.successTitle || 'Check-in réussi', 'Présence validée.');
+        const lumo = Number(res.rewards?.lumo || 0);
+        const body =
+          GAMIFICATION_ENABLED && lumo > 0
+            ? `Présence validée.\n+${lumo} Lumo`
+            : 'Présence validée.';
+        Alert.alert(options?.successTitle || 'Check-in réussi', body);
       } else {
         Alert.alert(options?.successTitle || 'Check-in', res.message || 'Check-in non valide');
       }
@@ -910,7 +918,12 @@ export default function EventDetailScreen() {
         if (res.success) {
           setHasCheckedIn(true);
           await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
-          Alert.alert('Check-in QR réussi', 'Présence validée.');
+          const lumo = Number(res.rewards?.lumo || 0);
+          const body =
+            GAMIFICATION_ENABLED && lumo > 0
+              ? `Présence validée.\n+${lumo} Lumo`
+              : 'Présence validée.';
+          Alert.alert('Check-in QR réussi', body);
         } else {
           Alert.alert('Check-in QR', res.message || 'Check-in non valide');
         }
@@ -1169,6 +1182,45 @@ export default function EventDetailScreen() {
             ) : null}
           </View>
           </MotionReveal>
+
+          {GAMIFICATION_ENABLED && isOwner && event.status === 'published' ? (
+            <Button
+              title={
+                event.boosted_until && new Date(event.boosted_until).getTime() > Date.now()
+                  ? 'Boost actif'
+                  : boostBusy
+                    ? 'Boost…'
+                    : 'Booster 24h (Lumo)'
+              }
+              variant="outline"
+              disabled={
+                boostBusy ||
+                !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
+              }
+              onPress={async () => {
+                if (boostBusy) return;
+                setBoostBusy(true);
+                try {
+                  const res = await ShopService.purchaseEventBoost(event.id);
+                  setEvent((prev) =>
+                    prev
+                      ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
+                      : prev,
+                  );
+                  Toast.show({
+                    type: 'success',
+                    text1: 'Boost activé',
+                    text2: res.price ? `−${res.price} Lumo` : undefined,
+                  });
+                } catch (e: any) {
+                  Alert.alert('Boost', e?.message || 'Achat impossible');
+                } finally {
+                  setBoostBusy(false);
+                }
+              }}
+              style={{ marginBottom: spacing.md }}
+            />
+          ) : null}
 
           <MotionReveal delay={Motion.stagger.content * 2}>
           <TouchableOpacity

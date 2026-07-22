@@ -17,12 +17,16 @@ import {
   Compass,
   Crown,
   Trophy,
+  Target,
+  ShoppingBag,
+  Coins,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text, ScrollView } from 'react-native';
 import { colors } from '../../src/constants/theme';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
+import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { useAuth } from '../../src/hooks';
@@ -416,6 +420,34 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
+            {GAMIFICATION_ENABLED && (
+              <>
+                <DrawerLink
+                  icon={Coins}
+                  label="Portefeuille Lumo"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/profile/wallet' as any);
+                  }}
+                />
+                <DrawerLink
+                  icon={Target}
+                  label="Missions"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/(tabs)/missions' as any);
+                  }}
+                />
+                <DrawerLink
+                  icon={ShoppingBag}
+                  label="Boutique"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/(tabs)/shop' as any);
+                  }}
+                />
+              </>
+            )}
             <DrawerLink
               icon={Heart}
               label="Mes favoris"

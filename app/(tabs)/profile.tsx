@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
+import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { PremiumCard } from '@/components/premium/PremiumCard';
 import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
@@ -201,6 +202,31 @@ export default function ProfileScreen() {
               <Calendar size={18} color={colors.brand.secondary} />
               <Text style={styles.linkText}>Mes événements</Text>
             </TouchableOpacity>
+            {GAMIFICATION_ENABLED && (
+              <>
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => router.push('/profile/wallet' as any)}
+                >
+                  <Coins size={18} color={colors.brand.secondary} />
+                  <Text style={styles.linkText}>Portefeuille Lumo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => router.push('/(tabs)/missions' as any)}
+                >
+                  <Target size={18} color={colors.brand.secondary} />
+                  <Text style={styles.linkText}>Missions</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => router.push('/(tabs)/shop' as any)}
+                >
+                  <ShoppingBag size={18} color={colors.brand.secondary} />
+                  <Text style={styles.linkText}>Boutique</Text>
+                </TouchableOpacity>
+              </>
+            )}
             {CONTESTS_ENABLED && (
               <TouchableOpacity
                 style={styles.linkButton}

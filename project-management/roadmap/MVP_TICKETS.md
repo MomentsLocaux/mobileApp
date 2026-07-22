@@ -1474,7 +1474,7 @@ Dépendances: `MVP-LUMO-004` ; `MVP-LUMO-005` ; `MVP-LUMO-006`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes:
+Notes: **Implemented on branch `feat/post-mvp-lumo-ux-011` (2026-07-22)** — missions/shop réactivés sous flag ; wallet solde+historique ; entrées profil/drawer ; feedback check-in +X Lumo ; boost 24h sur fiche créateur. **Awaiting validation before main**.
 
 ### ID: MVP-LUMO-012
 
