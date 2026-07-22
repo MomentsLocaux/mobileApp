@@ -277,6 +277,7 @@ export interface Event {
   qr_token?: string | null;
   qr_generated_at?: string | null;
   boosted_until?: string | null;
+  early_access_until?: string | null;
   operating_hours: Json | null;
   comments_count: number;
   media_count: number;

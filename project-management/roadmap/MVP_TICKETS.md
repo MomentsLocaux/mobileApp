@@ -1418,7 +1418,7 @@ Dépendances: `MVP-LUMO-007` (ou mission weekly seule).
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes:
+Notes: **Implemented on branch `feat/post-mvp-lumo-early-access` (2026-07-22)** — `early_access_until`, grants/signups, RPCs enable/purchase/claim/stats/teaser ; `can_view_event` + anon RLS ; UI détail + deep-link unlock. DEV migration applied ; **awaiting validation before main**.
 
 ### ID: MVP-LUMO-010
 

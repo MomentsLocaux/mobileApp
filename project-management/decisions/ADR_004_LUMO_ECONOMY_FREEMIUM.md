@@ -198,6 +198,8 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 6. `MVP-LUMO-008`…`011` — Pass IRL, early access, boost créateur, UX flag (**next**).  
 7. `MVP-LUMO-012` — CGU / store à l’activation.  
 
+Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-access` (DEV appliqué) — **pas mergé main** tant que non validé.  
+
 ### Live DEV snapshot (2026-07-22, post-seed)
 
 | code | trigger | amount | active |

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import { dataProvider } from '@/data-provider';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { EarlyAccessService } from './early-access.service';
 
 export const ShopService = {
   purchase: (payload: { itemId: string; method: 'lumo' | 'eur'; userId: string }) =>
@@ -26,4 +27,6 @@ export const ShopService = {
       price?: number;
     };
   },
+
+  purchaseEarlyAccess: (eventId: string) => EarlyAccessService.purchase(eventId),
 };

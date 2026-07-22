@@ -97,6 +97,7 @@ const EVENT_FULL_SELECT = `
   longitude,
   address,
   boosted_until,
+  early_access_until,
   city,
   postal_code,
   venue_name,
