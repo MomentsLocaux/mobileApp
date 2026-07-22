@@ -1278,7 +1278,7 @@ Dépendances: `MVP-LUMO-003`.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes: **Done 2026-07-22** — `event-checkin` calls `credit_lumo_by_rule` with idempotency `checkin:{user}:{eventId}`. Quiet skip when flag off. Deploy Edge Function required on DEV.
+Notes: **Done 2026-07-22** — `event-checkin` calls `credit_lumo_by_rule` with idempotency `checkin:{user}:{eventId}`. Quiet skip when flag off. DEV Edge Function **v9** also records mission `checkin` progress.
 
 ### ID: MVP-LUMO-005
 
@@ -1306,7 +1306,7 @@ Dépendances: `MVP-LUMO-003`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: Aligner `src/types/database.ts` Mission sur schéma live.
+Notes: **Done 2026-07-22 on DEV** — `record_mission_progress` / `get_my_missions` ; favorite + event view + check-in steps ; credit via rules on completion ; `event-checkin` **v9** wires check-in step.
 
 ### ID: MVP-LUMO-006
 
@@ -1334,7 +1334,7 @@ Dépendances: `MVP-LUMO-003` ; optionnel parallèle à `MVP-LUMO-005`.
 
 Branche Git recommandée: `feat/post-mvp-shop-offers`
 
-Notes: Cosmétique cadre = nice-to-have même ticket ou sous-tâche.
+Notes: **Done 2026-07-22 on DEV** — `purchase_event_boost`, `events.boosted_until`, list/map prefer boosted events ; expiry clears signal.
 
 ### ID: MVP-LUMO-007
 

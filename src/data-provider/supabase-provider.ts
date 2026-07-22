@@ -96,6 +96,7 @@ const EVENT_FULL_SELECT = `
   latitude,
   longitude,
   address,
+  boosted_until,
   city,
   postal_code,
   venue_name,
@@ -129,6 +130,7 @@ const EVENT_LIGHT_SELECT = `
   id,
   latitude,
   longitude,
+  boosted_until,
   category_meta:event_category(slug, icon)
 `;
 
@@ -254,6 +256,7 @@ export const supabaseProvider: (Pick<
     let query = supabase
       .from('events')
       .select(EVENT_FULL_SELECT)
+      .order('boosted_until', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false });
 
     query = query.limit(appliedLimit);
@@ -340,12 +343,20 @@ export const supabaseProvider: (Pick<
     const { data, error } = await query.limit(limit);
     if (error) throw formatSupabaseError(error, 'listEventsByBBox');
 
-    const events = ((data || []) as any[]).map((row) => ({
-      id: String(row.id),
-      latitude: Number(row.latitude),
-      longitude: Number(row.longitude),
-      icon: resolveEventMarkerIcon(row.category_meta),
-    })) as { id: string; latitude: number; longitude: number; icon?: string }[];
+    const now = Date.now();
+    const events = ((data || []) as any[])
+      .map((row) => ({
+        id: String(row.id),
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+        icon: resolveEventMarkerIcon(row.category_meta),
+        boostedUntil: row.boosted_until ? String(row.boosted_until) : null,
+      }))
+      .sort((a, b) => {
+        const aBoost = a.boostedUntil && new Date(a.boostedUntil).getTime() > now ? 1 : 0;
+        const bBoost = b.boostedUntil && new Date(b.boostedUntil).getTime() > now ? 1 : 0;
+        return bBoost - aBoost;
+      }) as { id: string; latitude: number; longitude: number; icon?: string; boostedUntil?: string | null }[];
     const features =
       events
         .filter(

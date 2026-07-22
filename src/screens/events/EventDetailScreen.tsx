@@ -215,6 +215,9 @@ export default function EventDetailScreen() {
         if (error) return;
 
         await AsyncStorage.setItem(storageKey, 'true');
+        // Habitué daily mission step (no-op when gamification flag off)
+        const { MissionsService } = await import('@/services/missions.service');
+        await MissionsService.recordStep('open_event_detail');
       } catch (err) {
         console.warn('trackEventView error', err);
       }

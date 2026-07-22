@@ -266,6 +266,19 @@ serve(async (req) => {
     console.log('[event-checkin] lumo credit skipped', { reason: credit.reason });
   }
 
+  // MVP-LUMO-005: weekly mission progress (checkin step)
+  try {
+    const { error: missionError } = await supabase.rpc('record_mission_progress_core', {
+      p_user_id: userData.user.id,
+      p_step: 'checkin',
+    });
+    if (missionError) {
+      console.log('[event-checkin] mission progress error', { missionError });
+    }
+  } catch (missionErr) {
+    console.log('[event-checkin] mission progress threw', { missionErr });
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
