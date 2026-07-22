@@ -36,13 +36,17 @@
 - Transactions.
 - Classements Lumo.
 - Économie virtuelle.
+- Spec : `project-management/decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md`
+- Tickets : `MVP-LUMO-001` … `MVP-LUMO-012` dans `MVP_TICKETS.md`
+- Seed proposé (non appliqué) : `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`
 
 ### Gamification Avancée
 
 - Badges avancés.
-- Leaderboards.
+- Leaderboards locaux / statut quartier (pas national — ADR 004).
 - XP visible complexe.
 - Missions profondes.
+- Pass partenaires / early access / boost créateur gagné (matrice ADR 004).
 
 ### Creator Analytics Avancés
 
