@@ -37,6 +37,7 @@
 - Classements Lumo.
 - Économie virtuelle.
 - Spec : `project-management/decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md`
+- Couches marketing : **Local → Habitué → Éclaireur** (monnaie **Lumo**)
 - Tickets : `MVP-LUMO-001` … `MVP-LUMO-012` dans `MVP_TICKETS.md`
 - Seed proposé (non appliqué) : `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`
 

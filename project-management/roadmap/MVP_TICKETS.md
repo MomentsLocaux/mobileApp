@@ -1182,7 +1182,7 @@ Type d'action: Decision
 
 Fichiers probablement concernés: `ADR_004_LUMO_ECONOMY_FREEMIUM.md`
 
-Description: Passer ADR 004 de Proposed → Accepted ; confirmer stack P0 (M1–M5) et montants ; confirmer Premium+ orthogonal.
+Description: Passer ADR 004 de Proposed → Accepted ; confirmer stack P0 (M1–M5) et montants ; figer nommage **Local → Habitué → Éclaireur** (monnaie Lumo) ; confirmer Éclaireur orthogonal à Habitué/Lumo.
 
 Critères d'acceptation: ADR status Accepted ; montants check-in/missions/boost validés produit.
 

@@ -6,46 +6,61 @@ Proposed.
 
 ## Context
 
-Moments Locaux dispose déjà d’une infra dormante (tables `wallets`, `lumo_rules`, `lumo_transactions`, `missions`, `shop_items`, `active_boosts`, RPCs `earn_lumo` / `spend_lumo` / `buy_item`, crédit check-in via Edge Function) et d’un Premium Discovery amorcé (`Moments Locaux+`, ADR 003).
+Moments Locaux dispose déjà d’une infra dormante (tables `wallets`, `lumo_rules`, `lumo_transactions`, `missions`, `shop_items`, `active_boosts`, RPCs `earn_lumo` / `spend_lumo` / `buy_item`, crédit check-in via Edge Function) et d’un abonnement Discovery amorcé (entitlement technique `moments_locaux_plus`, ADR 003).
 
 Il n’existait pas de spec métier unique pour :
 
 - ce que Lumo représente ;
 - quels comportements méritent une récompense ;
 - ce que l’utilisateur gagne **dans l’app** et **dans la vraie vie** ;
-- comment Lumo coexiste avec l’abonnement Premium+.
+- comment Lumo coexiste avec l’abonnement **Éclaireur**.
 
 Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-POST-004`) risque une gamification vanity (points sans débouché) ou un pay-to-win.
 
 ## Decision
 
-1. **Lumo est une monnaie d’engagement local**, pas un jeu arcade. Elle mesure et récompense les comportements utiles au quartier (présence, création fiable, contribution utile).
+1. **Nommage produit des 3 couches (Option A — territoire)** : **Local → Habitué → Éclaireur**. La monnaie s’appelle **Lumo** (carburant d’engagement, pas une couche).
 
-2. **Toute récompense Lumo doit avoir un débouché dual** : valeur in-app **et** valeur réelle (accès, économie, statut, remplissage d’événement). Les sinks purement cosmétiques sont secondaires.
+2. **Lumo est une monnaie d’engagement local**, pas un jeu arcade. Elle mesure et récompense les comportements utiles au quartier (présence, création fiable, contribution utile).
 
-3. **Pas de conversion Lumo → €.** Pas de cash-out. Les packs Lumo payants sont reportés en phase 2 après stabilisation de l’économie.
+3. **Toute récompense Lumo doit avoir un débouché dual** : valeur in-app **et** valeur réelle (accès, économie, statut, remplissage d’événement). Les sinks purement cosmétiques sont secondaires.
 
-4. **Premium+ (Moments Locaux+) est orthogonal à Lumo** (ADR 003) : Premium = profondeur Discovery / confort ; Lumo = engagement événementiel. Premium ne doit pas créer d’avantage compétitif massif en Lumo (au plus ×1.1 soft ou missions exclusives non pay-to-win).
+4. **Pas de conversion Lumo → €.** Pas de cash-out. Les packs Lumo payants sont reportés en phase 2 après stabilisation de l’économie.
 
-5. **Source de vérité backend uniquement** : crédits/débits via RPC `SECURITY DEFINER` atomiques + `lumo_rules`. Le client ne décide jamais du montant. Feature flag `GAMIFICATION_ENABLED` (défaut off tant que post-MVP).
+5. **Éclaireur est orthogonal à Lumo / Habitué** (ADR 003) : Éclaireur = profondeur Discovery / confort ; Habitué + Lumo = engagement événementiel. L’abo ne doit pas créer d’avantage compétitif massif en Lumo (au plus ×1.1 soft ou missions exclusives non pay-to-win). Entitlement technique inchangé : `moments_locaux_plus` (ex-libellé Moments Locaux+).
 
-6. **Hors MVP mobile store-ready** (ADR 002). Implémentation post-MVP uniquement.
+6. **Source de vérité backend uniquement** : crédits/débits via RPC `SECURITY DEFINER` atomiques + `lumo_rules`. Le client ne décide jamais du montant. Feature flag `GAMIFICATION_ENABLED` (défaut off tant que post-MVP).
 
-7. **Promesse produit** : *Plus tu sors et tu animes ton quartier, plus tu débloques des accès, des avantages locaux et une réputation réelle — pas juste des points.*
+7. **Hors MVP mobile store-ready** (ADR 002). Implémentation post-MVP uniquement.
+
+8. **Promesse produit** : *Deviens Habitué de ton quartier. Passe Éclaireur pour découvrir encore mieux — des accès et une réputation réelle, pas juste des points.*
 
 ## Modèle en 3 couches
 
 ```
-Free (cœur gratuit : carte, events, création, check-in, social)
-  → Lumo (économie d’engagement)
-    → Premium Moments Locaux+ (abonnement IAP)
+Local (gratuit : carte, events, création, check-in, social)
+  → Habitué (engagement : Lumo, missions, Pass, statut quartier)
+    → Éclaireur (abonnement IAP : Discovery approfondie)
 ```
 
-| Couche | Rôle | Monétisation |
-|--------|------|--------------|
-| Free | Acquisition / boucle locale | — |
-| Lumo | Engagement + sinks utiles | Soft currency ; boosts créateurs phase 2 en € |
-| Premium+ | Depth Discovery (My Radius, Right Now avancé, Break the Loop…) | 2,99 €/mois · 19,99 €/an (indicatif) |
+Phrase marketing :
+> Explore ton quartier → Plus tu sors, plus tu débloques → Découvre autrement.
+
+| Couche | Nom marketing | Tagline | Rôle | Monétisation |
+|--------|---------------|---------|------|--------------|
+| 1 | **Local** | Explore ton quartier | Acquisition / boucle locale gratuite | — |
+| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement + Lumo + sinks utiles (Pass, early access, boosts) | Soft currency Lumo ; boosts créateurs phase 2 en € |
+| 3 | **Éclaireur** | Découvre autrement | Depth Discovery (My Radius, Right Now avancé, Break the Loop…) | 2,99 €/mois · 19,99 €/an (indicatif) |
+
+### Vocabulaire — ne pas confondre
+
+| Terme | Nature | Usage |
+|-------|--------|--------|
+| **Local** | Couche 1 (tous les comptes) | Par défaut, sans abo ni progression Habitué mise en avant |
+| **Habitué** | Couche 2 / programme d’engagement | UX missions, wallet Lumo, Pass, progression |
+| **Lumo** | Monnaie | Earn / spend uniquement — jamais le nom d’une couche |
+| **Ambassadeur** | Badge / palier *dans* Habitué (M3) | Statut quartier, pas une 4ᵉ couche |
+| **Éclaireur** | Couche 3 / abo | Libellé UI paywall & profil ; code = `moments_locaux_plus` |
 
 ## Stack minimale (5 mécanismes prioritaires)
 
@@ -53,7 +68,7 @@ Si une seule vague post-MVP : livrer ces 5 avant missions complexes / leaderboar
 
 1. Check-in → tampon / Pass partenaire  
 2. Early access events  
-3. Statut quartier / Ambassadeur  
+3. Statut quartier / badge Ambassadeur (palier Habitué, pas une couche)  
 4. Boost gagné pour créateurs (visibilité)  
 5. Streak de sorties mensuel (pas streak de login)
 
@@ -72,8 +87,8 @@ Colonnes :
 | ID | Mécanisme | Trigger earn / règle | Sink / dépense | Valeur in-app | Valeur réelle (IRL) | Métrique principale | Priorité |
 |----|-----------|----------------------|----------------|---------------|---------------------|---------------------|----------|
 | M1 | Preuve de présence | Check-in geo/QR validé → +15–25 Lumo ; max 1/event/user ; cap journalier | Accumulation vers Pass / tampon partenaire | Feedback immédiat “+X Lumo · tampon” | Réduction, café offert, file prioritaire, goodie partenaire | Check-ins / user / 30j ; % check-ins → Pass débloqué | P0 |
-| M2 | Early access | Solde / palier Ambassadeur ou mission hebdo | Dépenser Lumo **ou** statut pour révéler event 24–48h avant public | FOMO, feed “avant tout le monde” | Place limitée, exclusivité sociale locale | Taux d’inscription early vs public ; no-show early | P0 |
-| M3 | Statut quartier | Score agrégé (check-ins + events tenus + contributions) sur période / zone | Pas un sink monétaire ; seuil de palier | Badge profil, filtre communauté locale | Crédibilité IRL, invitations à co-organiser, confiance inscrits | Users avec badge actif ; follows / event après badge | P0 |
+| M2 | Early access | Solde Lumo / badge Ambassadeur (Habitué) ou mission hebdo | Dépenser Lumo **ou** statut pour révéler event 24–48h avant public | FOMO, feed “avant tout le monde” | Place limitée, exclusivité sociale locale | Taux d’inscription early vs public ; no-show early | P0 |
+| M3 | Statut quartier (badge Ambassadeur) | Score agrégé (check-ins + events tenus + contributions) sur période / zone — *palier dans Habitué* | Pas un sink monétaire ; seuil de palier | Badge profil, filtre communauté locale | Crédibilité IRL, invitations à co-organiser, confiance inscrits | Users avec badge actif ; follows / event après badge | P0 |
 | M4 | Boost créateur gagné | Event passé avec N check-ins réussis → crédit boost organique (ou Lumo dédiés créateur) | Activer boost 24–48h sur prochain event | Visibilité carte/liste | Remplissage réel de l’événement | Taux de remplissage avant/après boost ; events avec ≥N check-ins | P0 |
 | M5 | Streak de sorties | 3 check-ins distincts dans le mois (rayon / ville) | Déblocage Pass week-end (auto ou spend symbolique) | Progression mensuelle visible | Pass partenaires week-end / apéro offert | % users atteignant streak ; rétention M1/M2 | P0 |
 | M6 | Mission daily légère | Ex. 1 favori + 1 vue détail event → +10–15 Lumo ; 1/jour | Alimente M1/M2 | Habitude douce sans spam | Indirect (accélère Pass) | Daily active mission completion rate | P1 |
@@ -122,7 +137,7 @@ Colonnes :
 - RPCs `earn_lumo`, `spend_lumo`, `buy_item`  
 - `shop_items`, `user_inventory`, `active_boosts`  
 - Edge Function `event-checkin` (à refactor pour crédit atomique via RPC, pas double écriture manuelle)  
-- `user_subscriptions` + entitlement Premium+ (ADR 003)  
+- `user_subscriptions` + entitlement Éclaireur / `moments_locaux_plus` (ADR 003)  
 
 ### Ajouter / formaliser (post-MVP)
 
@@ -154,7 +169,8 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 | Users avec ≥1 check-in / 30j | À définir par ville |
 | Ratio Lumo earned / spent | 1.2–1.5 |
 | Délai medián 1er spend Lumo | < 21 jours après 1er check-in |
-| Conversion Free → Moments Locaux+ | Funnel Discovery (ADR 003) |
+| Conversion Local → Éclaireur | Funnel Discovery (ADR 003) |
+| Activation Habitué (≥1 earn Lumo / 30j) | Engagement couche 2 |
 | % spend Lumo sur boosts vs cosmétique | Boosts ≥ 70% |
 | Signal abus (multi-check-in, farm) | Alerte + caps |
 
@@ -195,7 +211,7 @@ RPC live : `earn_lumo(p_amount int, p_reason text, p_metadata jsonb)`, `spend_lu
 ## Related
 
 - `ADR_002_MOBILE_MVP_SCOPE.md` — hors MVP  
-- `ADR_003_DISCOVERY_ENGINE_DOMAIN.md` — Premium+ orthogonal  
+- `ADR_003_DISCOVERY_ENGINE_DOMAIN.md` — Éclaireur / entitlement `moments_locaux_plus` orthogonal  
 - `project-management/roadmap/POST_MVP.md`  
 - `project-management/roadmap/MVP_TICKETS.md` (`MVP-POST-002`…`004`, `MVP-LUMO-001`…`012`)  
 - `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`  
