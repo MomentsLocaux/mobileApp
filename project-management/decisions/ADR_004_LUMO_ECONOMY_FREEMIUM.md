@@ -199,6 +199,8 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 7. `MVP-LUMO-008` redemption IRL réelle (partenaire pilote + admin web).  
 8. Seed / flags UAT–prod.  
 
+Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-access` (DEV appliqué) — **pas mergé main** tant que non validé.  
+
 ### Live DEV snapshot (2026-07-22, post-seed)
 
 | code | trigger | amount | active |

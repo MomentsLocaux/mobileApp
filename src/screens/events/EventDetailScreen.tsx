@@ -70,6 +70,7 @@ import { EventMediaSubmissionsService } from '@/services/event-media-submissions
 import { CommunityService } from '@/services/community.service';
 import { ShopService } from '@/services/shop.service';
 import { CreatorBoostService } from '@/services/creator-boost.service';
+import { EarlyAccessService, type EarlyAccessTeaser } from '@/services/early-access.service';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
@@ -174,6 +175,8 @@ export default function EventDetailScreen() {
   const [eventReported, setEventReported] = useState(false);
   const [boostBusy, setBoostBusy] = useState(false);
   const [earnedBoosts, setEarnedBoosts] = useState(0);
+  const [earlyTeaser, setEarlyTeaser] = useState<EarlyAccessTeaser | null>(null);
+  const [earlyBusy, setEarlyBusy] = useState(false);
   const autoQrAttemptedRef = useRef(new Set<string>());
   const autoQrGuestPromptedRef = useRef(new Set<string>());
   const autoQrLocationPromptedRef = useRef(new Set<string>());
@@ -302,15 +305,26 @@ export default function EventDetailScreen() {
       const enriched = data ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) } : null;
       setEvent(enriched);
       if (enriched) {
+        setEarlyTeaser(null);
         await Promise.all([
           loadEventStats(enriched.id),
           loadCommunityPhotos(enriched.id),
           loadAttendeesAndCheckin(enriched.id),
         ]);
+        if (GAMIFICATION_ENABLED && EarlyAccessService.isWindowActive(enriched.early_access_until)) {
+          await EarlyAccessService.claim(enriched.id);
+        }
+      } else if (GAMIFICATION_ENABLED) {
+        const teaser = await EarlyAccessService.getTeaser(id);
+        setEarlyTeaser(teaser?.ok && teaser.locked ? teaser : null);
       }
     } catch (error) {
       console.warn('loadEventDetails error', error);
       setEvent(null);
+      if (GAMIFICATION_ENABLED && id) {
+        const teaser = await EarlyAccessService.getTeaser(id);
+        setEarlyTeaser(teaser?.ok && teaser.locked ? teaser : null);
+      }
     } finally {
       setLoading(false);
     }
@@ -1116,6 +1130,42 @@ export default function EventDetailScreen() {
   }
 
   if (!event) {
+    if (earlyTeaser?.locked) {
+      return (
+        <View style={styles.centered}>
+          <AppBackground />
+          <Text style={styles.errorTitle}>Accès anticipé</Text>
+          <Text style={[styles.errorTitle, { ...typography.body, marginTop: spacing.sm, textAlign: 'center', paddingHorizontal: spacing.lg }]}>
+            {earlyTeaser.title || 'Événement'} — réservé aux Ambassadeurs ou déblocage Lumo jusqu’à la sortie publique.
+          </Text>
+          <Button
+            title={
+              earlyBusy
+                ? 'Déblocage…'
+                : `Débloquer (${earlyTeaser.unlock_price ?? 40} Lumo)`
+            }
+            onPress={async () => {
+              if (!id || earlyBusy) return;
+              if (isGuest) {
+                openGuestGate('Connexion requise');
+                return;
+              }
+              setEarlyBusy(true);
+              try {
+                await EarlyAccessService.purchase(id);
+                await loadEventDetails();
+              } catch (e: any) {
+                Alert.alert('Accès anticipé', e?.message || 'Achat impossible');
+              } finally {
+                setEarlyBusy(false);
+              }
+            }}
+            style={{ marginTop: spacing.md }}
+          />
+          <Button title="Retour" variant="outline" onPress={() => router.back()} style={{ marginTop: spacing.sm }} />
+        </View>
+      );
+    }
     return (
       <View style={styles.centered}>
         <AppBackground />
@@ -1183,6 +1233,11 @@ export default function EventDetailScreen() {
                   <Text style={[styles.heroBadgeText, styles.heroBadgeTextLive]}>EN DIRECT</Text>
                 </View>
               )}
+              {EarlyAccessService.isWindowActive(event.early_access_until) ? (
+                <View style={[styles.heroBadge, styles.heroBadgeEarly]}>
+                  <Text style={styles.heroBadgeText}>ACCÈS ANTICIPÉ</Text>
+                </View>
+              ) : null}
             </View>
           </PlaceMediaGallery>
         </View>
@@ -1270,6 +1325,34 @@ export default function EventDetailScreen() {
                   }
                 }}
               />
+              {event.visibility === 'public' ? (
+                <Button
+                  title={
+                    EarlyAccessService.isWindowActive(event.early_access_until)
+                      ? 'Early access actif'
+                      : 'Ouvrir early access 48h'
+                  }
+                  variant="outline"
+                  disabled={earlyBusy || EarlyAccessService.isWindowActive(event.early_access_until)}
+                  onPress={async () => {
+                    if (earlyBusy) return;
+                    setEarlyBusy(true);
+                    try {
+                      const res = await EarlyAccessService.enable(event.id, 48);
+                      setEvent((prev) =>
+                        prev
+                          ? { ...prev, early_access_until: res.early_access_until || prev.early_access_until }
+                          : prev,
+                      );
+                      Toast.show({ type: 'success', text1: 'Early access ouvert' });
+                    } catch (e: any) {
+                      Alert.alert('Early access', e?.message || 'Action impossible');
+                    } finally {
+                      setEarlyBusy(false);
+                    }
+                  }}
+                />
+              ) : null}
             </View>
           ) : null}
 
@@ -1698,6 +1781,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  heroBadgeEarly: {
+    backgroundColor: 'rgba(234, 179, 8, 0.25)',
+    borderColor: 'rgba(234, 179, 8, 0.45)',
+    borderWidth: 1,
   },
   heroBadgeText: {
     color: '#FFF',

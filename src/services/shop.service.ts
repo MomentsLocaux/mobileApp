@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import { dataProvider } from '@/data-provider';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { EarlyAccessService } from './early-access.service';
 
 export type ShopItemRow = {
   id: string;
@@ -53,4 +54,6 @@ export const ShopService = {
       price?: number;
     };
   },
+
+  purchaseEarlyAccess: (eventId: string) => EarlyAccessService.purchase(eventId),
 };
