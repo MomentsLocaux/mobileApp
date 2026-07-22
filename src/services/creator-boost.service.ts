@@ -32,7 +32,7 @@ export const CreatorBoostService = {
     };
   },
 
-  async useOnEvent(eventId: string): Promise<{ expires_at?: string }> {
+  async applyToEvent(eventId: string): Promise<{ expires_at?: string }> {
     if (!GAMIFICATION_ENABLED) throw new Error('GAMIFICATION_DISABLED');
     const { data, error } = await supabase.rpc('use_earned_event_boost', {
       p_event_id: eventId,

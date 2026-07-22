@@ -1219,7 +1219,7 @@ export default function EventDetailScreen() {
                     if (boostBusy) return;
                     setBoostBusy(true);
                     try {
-                      const res = await CreatorBoostService.useOnEvent(event.id);
+                      const res = await CreatorBoostService.applyToEvent(event.id);
                       setEvent((prev) =>
                         prev
                           ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
