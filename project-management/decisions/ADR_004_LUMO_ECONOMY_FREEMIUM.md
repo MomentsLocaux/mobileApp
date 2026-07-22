@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted — 2026-07-22 (montants P0 et nommage Local → Habitué → Éclaireur validés produit).
 
 ## Context
 
@@ -190,21 +190,25 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 
 ### Follow-ups
 
-1. `MVP-LUMO-001` — accepter cet ADR (Proposed → Accepted).  
-2. `MVP-LUMO-002` — seed proposé : `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql` (**ne pas appliquer sans validation humaine**).  
-3. `MVP-LUMO-003` / `004` — RPC atomiques + refactor `event-checkin`.  
+1. ~~`MVP-LUMO-001` — accepter cet ADR~~ **Done 2026-07-22**.  
+2. ~~`MVP-LUMO-002` — seed DEV~~ **Done 2026-07-22** sur `moments-locaux-dev` ; UAT/prod en attente validation.  
+3. `MVP-LUMO-003` / `004` — RPC atomiques + refactor `event-checkin` (**next**).  
 4. `MVP-LUMO-005`…`011` — missions, shop boost, statut, Pass IRL, early access, UX flag.  
 5. `MVP-LUMO-012` — CGU / store à l’activation.  
 
-### Live DEV snapshot (2026-07-21)
-
-Règles actuelles avant recalibrage ADR :
+### Live DEV snapshot (2026-07-22, post-seed)
 
 | code | trigger | amount | active |
 |------|---------|--------|--------|
-| `checkin_base` | `checkin` | 5 | true |
-| `MISSION_DAILY` | `mission_complete` | 150 | true (inflationnaire) |
-| `CONTEST_WIN` | `contest_win` | 1200 | true (hors P0) |
+| `checkin_base` | `checkin` | 20 | true |
+| `mission_daily` | `mission_daily` | 12 | true |
+| `mission_weekly` | `mission_weekly` | 60 | true |
+| `event_published_approved` | `event_published_approved` | 50 | true |
+| `media_approved` / `referral_activated` | … | 20 / 100 | false |
+| `MISSION_DAILY` / `CONTEST_WIN` | legacy | 150 / 1200 | false |
+
+Shop ADR : `event_boost_24h` (100), `avatar_frame_local` skin (60).  
+Missions ADR : Sortie du jour (12), Week-end local (60).
 
 RPC live : `earn_lumo(p_amount int, p_reason text, p_metadata jsonb)`, `spend_lumo(p_amount int, p_item_type text, p_item_id uuid, p_metadata jsonb)`, `buy_item(p_item_key text)`.
 

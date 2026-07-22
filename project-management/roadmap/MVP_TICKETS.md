@@ -1194,7 +1194,7 @@ Dépendances: MVP mobile publié ou gelé.
 
 Branche Git recommandée: `docs/lumo-economy-adr`
 
-Notes: Live DEV actuel = check-in 5, mission daily 150, contest 1200 — à recalibrer.
+Notes: **Done 2026-07-22** — ADR Accepted ; montants P0 figés (check-in 20, daily 12, weekly 60, boost 100).
 
 ### ID: MVP-LUMO-002
 
@@ -1222,7 +1222,7 @@ Dépendances: `MVP-LUMO-001`.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes: **Interdit d'appliquer sans validation humaine explicite.**
+Notes: **Done 2026-07-22 on DEV** (`prymkgkafaovhzopslea`). Seed applied: rules checkin 20 / daily 12 / weekly 60 / event 50 ; shop boost 100 + skin 60 ; missions ADR daily/weekly. Legacy MISSION_DAILY + CONTEST_WIN deactivated. UAT/prod not applied. Diagnostic updated: `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`.
 
 ### ID: MVP-LUMO-003
 
