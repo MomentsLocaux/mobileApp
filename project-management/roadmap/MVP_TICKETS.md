@@ -1390,7 +1390,7 @@ Dépendances: `MVP-LUMO-004` ; admin web minimal pour redemption.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: Bloquant pour la promesse “gain réel” — prioriser un partenaire avant large release. **Partial on branch `feat/post-mvp-lumo-remaining-010-008-012`** — schéma partners/pass/streak + UX « bientôt » ; redemption off (`partner_pass_redemption_enabled=false`).
+Notes: Bloquant pour la promesse “gain réel” — prioriser un partenaire avant large release. **Partial on main** — schéma partners/pass/streak + UX « bientôt » ; redemption off (`partner_pass_redemption_enabled=false`). Admin web : tickets `ADMIN-LUMO-001`…`003` dans `MomentsLocaux---Moderation-WebConsole/GAMIFICATION_ADMIN_TICKETS.md`. **ADMIN-LUMO-001** — migration `20260728_admin_lumo_rpc_rls.sql` versionnée ; **applied DEV** 2026-07-22 (`prymkgkafaovhzopslea`) — UAT/prod non appliqués.
 
 ### ID: MVP-LUMO-009
 
@@ -1418,7 +1418,7 @@ Dépendances: `MVP-LUMO-007` (ou mission weekly seule).
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: **Implemented on branch `feat/post-mvp-lumo-early-access` (2026-07-22)** — `early_access_until`, grants/signups, RPCs enable/purchase/claim/stats/teaser ; `can_view_event` + anon RLS ; UI détail + deep-link unlock. DEV migration applied ; **awaiting validation before main**.
+Notes: **Done on main 2026-07-22** — `early_access_until`, grants/signups, RPCs enable/purchase/claim/stats/teaser ; `can_view_event` + anon RLS ; UI détail + deep-link unlock ; migration `20260726_lumo_early_access_events.sql`.
 
 ### ID: MVP-LUMO-010
 
@@ -1446,7 +1446,7 @@ Dépendances: `MVP-LUMO-006`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: **Implemented on branch `feat/post-mvp-lumo-remaining-010-008-012`** — `creator_boost_credits`, cron award, `use_earned_event_boost`, seuil `creator_boost_min_checkins` (défaut 5). **Awaiting validation before main**.
+Notes: **Done on main 2026-07-22** — `creator_boost_credits`, cron award, `use_earned_event_boost`, seuil `creator_boost_min_checkins` (défaut 5).
 
 ### ID: MVP-LUMO-011
 
@@ -1474,7 +1474,7 @@ Dépendances: `MVP-LUMO-004` ; `MVP-LUMO-005` ; `MVP-LUMO-006`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: **Implemented on branch `feat/post-mvp-lumo-ux-011` (2026-07-22)** — missions/shop réactivés sous flag ; wallet solde+historique ; entrées profil/drawer ; feedback check-in +X Lumo ; boost 24h sur fiche créateur. **Awaiting validation before main**.
+Notes: **Done on main 2026-07-22** — missions/shop réactivés sous flag ; wallet solde+historique ; entrées profil/drawer ; feedback check-in +X Lumo ; boost 24h sur fiche créateur.
 
 ### ID: MVP-LUMO-012
 
@@ -1502,4 +1502,4 @@ Dépendances: `MVP-LUMO-011` (activation).
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes: **Implemented on branch `feat/post-mvp-lumo-remaining-010-008-012`** — section CGU §18 affichée uniquement si `EXPO_PUBLIC_GAMIFICATION_ENABLED` ; draft à valider juridiquement. **Awaiting validation before main**.
+Notes: **Done on main 2026-07-22** — section CGU §18 affichée uniquement si `EXPO_PUBLIC_GAMIFICATION_ENABLED` ; draft à valider juridiquement.
