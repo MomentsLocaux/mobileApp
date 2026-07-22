@@ -54,6 +54,13 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="pass"
+        options={{
+          title: 'Pass quartier',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="wallet"
         options={{
           title: 'Portefeuille Lumo',

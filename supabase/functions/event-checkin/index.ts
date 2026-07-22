@@ -291,6 +291,18 @@ serve(async (req) => {
     console.log('[event-checkin] local status refresh threw', { statusErr });
   }
 
+  // MVP-LUMO-008: Pass / streak progress
+  try {
+    const { error: passError } = await supabase.rpc('record_pass_progress_core', {
+      p_user_id: userData.user.id,
+    });
+    if (passError) {
+      console.log('[event-checkin] pass progress error', { passError });
+    }
+  } catch (passErr) {
+    console.log('[event-checkin] pass progress threw', { passErr });
+  }
+
   return new Response(
     JSON.stringify({
       success: true,

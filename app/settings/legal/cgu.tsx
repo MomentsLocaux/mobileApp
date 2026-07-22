@@ -4,11 +4,12 @@ import { BookOpenCheck } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { colors, spacing, typography } from '@/constants/theme';
+import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 
 const CGU_TEXT = [
   'CONDITIONS GÉNÉRALES D’UTILISATION',
   'Application : Moments Locaux',
-  'Date de mise à jour : 11 juin 2026',
+  'Date de mise à jour : 22 juillet 2026',
   '',
   '1. ÉDITEUR',
   'L’application Moments Locaux est éditée par l’équipe Moments Locaux.',
@@ -85,12 +86,26 @@ const CGU_TEXT = [
   'Pour toute question, signalement de contenu tiers ou demande relative aux droits : contact@momentslocaux.app',
 ];
 
+const CGU_LUMO_SECTION = [
+  '',
+  '18. LUMO, HABITUÉ, BOOSTS ET PASS PARTENAIRES',
+  'Lorsque les fonctionnalités Habitué / gamification sont activées dans l’application, Moments Locaux peut attribuer une monnaie virtuelle appelée « Lumo ».',
+  'Le Lumo mesure et récompense certains comportements utiles (par ex. check-in validé, missions). Il n’a aucune valeur monétaire, n’est pas convertible en euros, n’est pas remboursable et ne constitue pas un instrument de paiement.',
+  'Les soldes, gains et dépenses de Lumo sont déterminés exclusivement côté serveur. L’utilisateur ne peut pas exiger un crédit manuel.',
+  'Des objets virtuels (boosts de visibilité, éléments cosmétiques) peuvent être obtenus contre du Lumo ou gagnés selon des règles publiées dans l’app. Un boost n’assure pas un nombre d’inscrits.',
+  'Le « Pass quartier » et les avantages partenaires IRL ne sont proposés que lorsqu’un partenaire pilote est contractuellement actif. Tant que la redemption n’est pas ouverte, l’app peut afficher une progression « bientôt » sans promesse d’avantage immédiat.',
+  'Moments Locaux peut modifier, suspendre ou retirer les règles Lumo, missions, boosts ou Pass pour des raisons d’abus, d’équilibre économique, de conformité ou de disponibilité partenaires, dans le respect du droit applicable.',
+  'La suppression du compte peut entraîner la perte du solde Lumo, des objets virtuels et des Pass non utilisés, selon la politique de suppression du compte.',
+];
+
 export default function CguScreen() {
+  const lines = GAMIFICATION_ENABLED ? [...CGU_TEXT, ...CGU_LUMO_SECTION] : CGU_TEXT;
+
   return (
     <SettingsLayout title="CGU">
       <SettingsSectionCard title="Conditions Générales d’Utilisation" icon={BookOpenCheck}>
         <View style={styles.block}>
-          {CGU_TEXT.map((line, index) => (
+          {lines.map((line, index) => (
             <Text
               key={`${line}-${index}`}
               style={line.match(/^\d+\./) ? styles.heading : line === '' ? styles.spacer : styles.text}

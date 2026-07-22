@@ -69,6 +69,7 @@ import { EventPhotoContributionModal } from '@/components/events/EventPhotoContr
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
 import { CommunityService } from '@/services/community.service';
 import { ShopService } from '@/services/shop.service';
+import { CreatorBoostService } from '@/services/creator-boost.service';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
@@ -172,6 +173,7 @@ export default function EventDetailScreen() {
   const [eventReportVisible, setEventReportVisible] = useState(false);
   const [eventReported, setEventReported] = useState(false);
   const [boostBusy, setBoostBusy] = useState(false);
+  const [earnedBoosts, setEarnedBoosts] = useState(0);
   const autoQrAttemptedRef = useRef(new Set<string>());
   const autoQrGuestPromptedRef = useRef(new Set<string>());
   const autoQrLocationPromptedRef = useRef(new Set<string>());
@@ -345,6 +347,26 @@ export default function EventDetailScreen() {
       mounted = false;
     };
   }, [event?.creator_id, profile?.id, isGuest]);
+
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!GAMIFICATION_ENABLED || !isOwner) {
+        if (mounted) setEarnedBoosts(0);
+        return;
+      }
+      try {
+        const summary = await CreatorBoostService.getMine();
+        if (mounted) setEarnedBoosts(summary.unused);
+      } catch {
+        if (mounted) setEarnedBoosts(0);
+      }
+    };
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [isOwner, event?.id]);
 
   const handleBack = () => {
     if (router.canGoBack?.()) {
@@ -1184,42 +1206,71 @@ export default function EventDetailScreen() {
           </MotionReveal>
 
           {GAMIFICATION_ENABLED && isOwner && event.status === 'published' ? (
-            <Button
-              title={
-                event.boosted_until && new Date(event.boosted_until).getTime() > Date.now()
-                  ? 'Boost actif'
-                  : boostBusy
-                    ? 'Boost…'
-                    : 'Booster 24h (Lumo)'
-              }
-              variant="outline"
-              disabled={
-                boostBusy ||
-                !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
-              }
-              onPress={async () => {
-                if (boostBusy) return;
-                setBoostBusy(true);
-                try {
-                  const res = await ShopService.purchaseEventBoost(event.id);
-                  setEvent((prev) =>
-                    prev
-                      ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
-                      : prev,
-                  );
-                  Toast.show({
-                    type: 'success',
-                    text1: 'Boost activé',
-                    text2: res.price ? `−${res.price} Lumo` : undefined,
-                  });
-                } catch (e: any) {
-                  Alert.alert('Boost', e?.message || 'Achat impossible');
-                } finally {
-                  setBoostBusy(false);
+            <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+              {earnedBoosts > 0 ? (
+                <Button
+                  title={boostBusy ? 'Boost…' : `Utiliser boost gagné (${earnedBoosts})`}
+                  variant="primary"
+                  disabled={
+                    boostBusy ||
+                    !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
+                  }
+                  onPress={async () => {
+                    if (boostBusy) return;
+                    setBoostBusy(true);
+                    try {
+                      const res = await CreatorBoostService.useOnEvent(event.id);
+                      setEvent((prev) =>
+                        prev
+                          ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
+                          : prev,
+                      );
+                      setEarnedBoosts((n) => Math.max(0, n - 1));
+                      Toast.show({ type: 'success', text1: 'Boost gagné activé' });
+                    } catch (e: any) {
+                      Alert.alert('Boost gagné', e?.message || 'Action impossible');
+                    } finally {
+                      setBoostBusy(false);
+                    }
+                  }}
+                />
+              ) : null}
+              <Button
+                title={
+                  event.boosted_until && new Date(event.boosted_until).getTime() > Date.now()
+                    ? 'Boost actif'
+                    : boostBusy
+                      ? 'Boost…'
+                      : 'Booster 24h (Lumo)'
                 }
-              }}
-              style={{ marginBottom: spacing.md }}
-            />
+                variant="outline"
+                disabled={
+                  boostBusy ||
+                  !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
+                }
+                onPress={async () => {
+                  if (boostBusy) return;
+                  setBoostBusy(true);
+                  try {
+                    const res = await ShopService.purchaseEventBoost(event.id);
+                    setEvent((prev) =>
+                      prev
+                        ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
+                        : prev,
+                    );
+                    Toast.show({
+                      type: 'success',
+                      text1: 'Boost activé',
+                      text2: res.price ? `−${res.price} Lumo` : undefined,
+                    });
+                  } catch (e: any) {
+                    Alert.alert('Boost', e?.message || 'Achat impossible');
+                  } finally {
+                    setBoostBusy(false);
+                  }
+                }}
+              />
+            </View>
           ) : null}
 
           <MotionReveal delay={Motion.stagger.content * 2}>

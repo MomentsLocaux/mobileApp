@@ -195,8 +195,9 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 3. ~~`MVP-LUMO-003` / `004` — RPC atomiques + refactor `event-checkin`~~ **Done 2026-07-22 on DEV**.  
 4. ~~`MVP-LUMO-005`…`006` — missions + boost~~ **Done 2026-07-22 on DEV**.  
 5. ~~`MVP-LUMO-007` — Ambassadeur / statut quartier~~ **Done 2026-07-22 on DEV**.  
-6. `MVP-LUMO-008`…`011` — Pass IRL, early access, boost créateur, UX flag (**next**).  
-7. `MVP-LUMO-012` — CGU / store à l’activation.  
+6. Branches en attente de merge : `feat/post-mvp-lumo-early-access` (009), `feat/post-mvp-lumo-ux-011` (011), `feat/post-mvp-lumo-remaining-010-008-012` (010 + 008 partiel + 012).  
+7. `MVP-LUMO-008` redemption IRL réelle (partenaire pilote + admin web).  
+8. Seed / flags UAT–prod.  
 
 ### Live DEV snapshot (2026-07-22, post-seed)
 

@@ -20,6 +20,7 @@ import {
   Target,
   ShoppingBag,
   Coins,
+  Ticket,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text, ScrollView } from 'react-native';
@@ -444,6 +445,14 @@ export default function TabsLayout() {
                   onPress={() => {
                     toggleDrawer(false);
                     router.push('/(tabs)/shop' as any);
+                  }}
+                />
+                <DrawerLink
+                  icon={Ticket}
+                  label="Pass quartier"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/profile/pass' as any);
                   }}
                 />
               </>

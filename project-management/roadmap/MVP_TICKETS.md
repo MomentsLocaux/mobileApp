@@ -1390,7 +1390,7 @@ Dépendances: `MVP-LUMO-004` ; admin web minimal pour redemption.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: Bloquant pour la promesse “gain réel” — prioriser un partenaire avant large release.
+Notes: Bloquant pour la promesse “gain réel” — prioriser un partenaire avant large release. **Partial on branch `feat/post-mvp-lumo-remaining-010-008-012`** — schéma partners/pass/streak + UX « bientôt » ; redemption off (`partner_pass_redemption_enabled=false`).
 
 ### ID: MVP-LUMO-009
 
@@ -1446,7 +1446,7 @@ Dépendances: `MVP-LUMO-006`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes:
+Notes: **Implemented on branch `feat/post-mvp-lumo-remaining-010-008-012`** — `creator_boost_credits`, cron award, `use_earned_event_boost`, seuil `creator_boost_min_checkins` (défaut 5). **Awaiting validation before main**.
 
 ### ID: MVP-LUMO-011
 
@@ -1502,4 +1502,4 @@ Dépendances: `MVP-LUMO-011` (activation).
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes:
+Notes: **Implemented on branch `feat/post-mvp-lumo-remaining-010-008-012`** — section CGU §18 affichée uniquement si `EXPO_PUBLIC_GAMIFICATION_ENABLED` ; draft à valider juridiquement. **Awaiting validation before main**.

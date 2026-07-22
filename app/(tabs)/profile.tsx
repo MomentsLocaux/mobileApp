@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
@@ -224,6 +224,13 @@ export default function ProfileScreen() {
                 >
                   <ShoppingBag size={18} color={colors.brand.secondary} />
                   <Text style={styles.linkText}>Boutique</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => router.push('/profile/pass' as any)}
+                >
+                  <Ticket size={18} color={colors.brand.secondary} />
+                  <Text style={styles.linkText}>Pass quartier</Text>
                 </TouchableOpacity>
               </>
             )}

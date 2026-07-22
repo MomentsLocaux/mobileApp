@@ -16,6 +16,7 @@ import { AppBackground, Card, ScreenHeader } from '@/components/ui';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { ShopService, type ShopItemRow } from '@/services/shop.service';
 import { LumoService } from '@/services/lumo.service';
+import { CreatorBoostService } from '@/services/creator-boost.service';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
@@ -35,6 +36,7 @@ function ShopScreenInner() {
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<ShopItemRow[]>([]);
   const [balance, setBalance] = useState(0);
+  const [earnedBoosts, setEarnedBoosts] = useState(0);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [guestGate, setGuestGate] = useState(false);
 
@@ -50,6 +52,12 @@ function ShopScreenInner() {
       setItems(list);
       if (userId) {
         setBalance(await LumoService.getBalance(userId));
+      }
+      try {
+        const earned = await CreatorBoostService.getMine();
+        setEarnedBoosts(earned.unused);
+      } catch {
+        setEarnedBoosts(0);
       }
     } catch (error) {
       console.warn('load shop items error', error);
@@ -146,6 +154,18 @@ function ShopScreenInner() {
           <Coins size={14} color={colors.brand.secondary} />
           <Text style={styles.balanceText}>{balance} Lumo</Text>
         </TouchableOpacity>
+
+        {earnedBoosts > 0 ? (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Boosts gagnés : {earnedBoosts}</Text>
+            <Text style={styles.emptyBody}>
+              Utilise-les gratuitement depuis la fiche d’un de tes événements publiés.
+            </Text>
+            <TouchableOpacity style={styles.buyBtn} onPress={() => router.push('/profile/my-events' as any)}>
+              <Text style={styles.buyBtnText}>Mes événements</Text>
+            </TouchableOpacity>
+          </Card>
+        ) : null}
 
         {loading ? (
           <View style={styles.loadingWrap}>
