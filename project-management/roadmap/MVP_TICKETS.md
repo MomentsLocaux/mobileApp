@@ -1362,7 +1362,7 @@ Dépendances: `MVP-LUMO-004` ; check-ins fiables.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes:
+Notes: **Done 2026-07-22 on DEV** — `user_local_status` + RPCs `refresh_user_local_status` / `get_local_status` ; badge `ambassadeur-quartier` ; community profile chip ; `lumo_total` Engagement gated by flag ; check-in refreshes status.
 
 ### ID: MVP-LUMO-008
 

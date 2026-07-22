@@ -279,6 +279,18 @@ serve(async (req) => {
     console.log('[event-checkin] mission progress threw', { missionErr });
   }
 
+  // MVP-LUMO-007: recompute quartier / Ambassadeur status
+  try {
+    const { error: statusError } = await supabase.rpc('refresh_user_local_status', {
+      p_user_id: userData.user.id,
+    });
+    if (statusError) {
+      console.log('[event-checkin] local status refresh error', { statusError });
+    }
+  } catch (statusErr) {
+    console.log('[event-checkin] local status refresh threw', { statusErr });
+  }
+
   return new Response(
     JSON.stringify({
       success: true,

@@ -11,6 +11,8 @@ export type CommunityMember = {
   followers_count: number;
   following_count?: number;
   is_following?: boolean;
+  is_ambassadeur?: boolean;
+  local_tier?: 'local' | 'habitue' | 'ambassadeur';
 };
 
 export type LeaderboardEntry = {

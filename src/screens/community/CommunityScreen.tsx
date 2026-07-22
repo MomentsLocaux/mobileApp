@@ -17,13 +17,16 @@ import { colors, spacing, typography, borderRadius } from '../../constants/theme
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
 import type { CommunityMember, LeaderboardEntry } from '../../types/community';
+import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 
 type TabKey = 'leaderboard' | 'members';
 
 const SORT_OPTIONS: { key: 'followers' | 'events' | 'lumo'; label: string }[] = [
   { key: 'followers', label: 'Followers' },
   { key: 'events', label: 'Événements' },
-  { key: 'lumo', label: 'Engagement' },
+  ...(GAMIFICATION_ENABLED
+    ? [{ key: 'lumo' as const, label: 'Engagement' }]
+    : []),
 ];
 
 export default function CommunityScreen() {
@@ -166,6 +169,7 @@ export default function CommunityScreen() {
               </Text>
               <Text style={styles.meta} numberOfLines={1}>
                 {item.followers_count} followers
+                {item.is_ambassadeur ? ' · Ambassadeur' : ''}
               </Text>
             </View>
           </View>

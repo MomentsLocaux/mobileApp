@@ -7,12 +7,14 @@ import { ArrowLeft, Flag } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { AppBackground } from '@/components/ui';
 import { CommunityService } from '../../services/community.service';
+import { LocalStatusService } from '@/services/local-status.service';
 import { ReportService } from '@/services/report.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import type { CommunityMember } from '../../types/community';
 import type { EventWithCreator } from '@/types/database';
 import { EventCard } from '@/components/events';
 import { useAuth } from '@/hooks';
+import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 
 export default function CommunityProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,6 +30,7 @@ export default function CommunityProfileScreen() {
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [isAmbassadeur, setIsAmbassadeur] = useState(false);
   const currentUserId = user?.id || session?.user?.id || profile?.id;
 
   const refreshFollowingState = React.useCallback(async () => {
@@ -46,6 +49,13 @@ export default function CommunityProfileScreen() {
       try {
         const data = await CommunityService.getMember(id);
         setMember(data);
+        const fromStats = data?.is_ambassadeur === true;
+        if (!GAMIFICATION_ENABLED) {
+          setIsAmbassadeur(false);
+        } else {
+          const status = await LocalStatusService.getForUser(id);
+          setIsAmbassadeur(status.isAmbassadeur || fromStats);
+        }
       } catch (e) {
         console.warn('load member', e);
       } finally {
@@ -133,6 +143,11 @@ export default function CommunityProfileScreen() {
           )}
           <Text style={styles.name}>{member.display_name}</Text>
           <Text style={styles.meta}>{member.city || 'Sans ville'}</Text>
+          {isAmbassadeur ? (
+            <View style={styles.ambassadorBadge}>
+              <Text style={styles.ambassadorBadgeText}>Ambassadeur</Text>
+            </View>
+          ) : null}
           {member.bio ? <Text style={styles.bio}>{member.bio}</Text> : null}
           {currentUserId !== member.user_id && (
             <View style={styles.profileActions}>
@@ -173,7 +188,7 @@ export default function CommunityProfileScreen() {
         <Stat label="Événements" value={member.events_created_count} />
         <Stat label="Followers" value={member.followers_count} />
         <Stat label="Suivis" value={member.following_count || 0} />
-        <Stat label="Engagement" value={member.lumo_total} />
+        {GAMIFICATION_ENABLED ? <Stat label="Engagement" value={member.lumo_total} /> : null}
       </View>
 
       <View style={styles.eventsSection}>
@@ -332,6 +347,19 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     marginBottom: spacing.xs,
+  },
+  ambassadorBadge: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.primary,
+  },
+  ambassadorBadgeText: {
+    ...typography.caption,
+    color: colors.brand.surface,
+    fontWeight: '700',
   },
   bio: {
     ...typography.body,

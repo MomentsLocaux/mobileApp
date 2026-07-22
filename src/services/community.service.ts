@@ -26,7 +26,7 @@ export const CommunityService = {
     const { query, city, limit = 12 } = options;
     let db = supabase
       .from('community_profile_stats')
-      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count')
+      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier')
       .limit(limit);
 
     if (query && query.trim()) {
@@ -60,7 +60,9 @@ export const CommunityService = {
       lumo_total,
       lumo_month,
       followers_count,
-      following_count
+      following_count,
+      is_ambassadeur,
+      local_tier
     `);
     if (city) {
       query = query.eq('city', city);
@@ -108,7 +110,7 @@ export const CommunityService = {
   async getMember(userId: string): Promise<CommunityMember | null> {
     const { data, error } = await supabase
       .from('community_profile_stats')
-      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count')
+      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier')
       .eq('user_id', userId)
       .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
