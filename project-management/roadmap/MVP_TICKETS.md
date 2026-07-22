@@ -1250,7 +1250,7 @@ Dépendances: `MVP-LUMO-002`.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes:
+Notes: **Done 2026-07-22 on DEV** — `credit_lumo_by_rule` (service_role), `earn_lumo` forbidden, `spend_lumo`/`buy_item` gated + write `lumo_transactions`, RLS SELECT-only, `app_config.gamification_enabled=false`. Migration: `20260722_lumo_economy_rpc_hardening.sql`.
 
 ### ID: MVP-LUMO-004
 
@@ -1278,7 +1278,7 @@ Dépendances: `MVP-LUMO-003`.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes:
+Notes: **Done 2026-07-22** — `event-checkin` calls `credit_lumo_by_rule` with idempotency `checkin:{user}:{eventId}`. Quiet skip when flag off. Deploy Edge Function required on DEV.
 
 ### ID: MVP-LUMO-005
 

@@ -237,68 +237,33 @@ serve(async (req) => {
     });
   }
 
+  // MVP-LUMO-004: atomic credit via credit_lumo_by_rule (amount from lumo_rules, caps + idempotency).
+  // Skips quietly when gamification_enabled is false (default).
   let rewardedLumo = 0;
-  const { data: ruleData, error: ruleError } = await supabase
-    .from('lumo_rules')
-    .select('amount')
-    .eq('trigger_event', LUMO_TRIGGER_EVENT)
-    .eq('active', true)
-    .maybeSingle();
+  const idempotencyKey = `checkin:${userData.user.id}:${eventId}`;
+  const { data: creditData, error: creditError } = await supabase.rpc('credit_lumo_by_rule', {
+    p_user_id: userData.user.id,
+    p_trigger_event: LUMO_TRIGGER_EVENT,
+    p_idempotency_key: idempotencyKey,
+    p_metadata: { event_id: eventId, distance: Math.round(distance) },
+  });
 
-  if (ruleError) {
-    console.log('[event-checkin] rule error', { ruleError });
-  }
-  if (ruleData) {
-    console.log('[event-checkin] rule data', { ruleData });
-  }
-
-  if (!ruleError && ruleData?.amount) {
-    rewardedLumo = Number(ruleData.amount) || 0;
-  }
-
-  if (rewardedLumo > 0) {
-    const metadata = { event_id: eventId, distance: Math.round(distance) };
-
-    const { error: txError } = await supabase.from('lumo_transactions').insert({
-      user_id: userData.user.id,
-      amount: rewardedLumo,
-      type: 'credit',
-      source: 'checkin',
-      reason: 'Check-in validé',
-      metadata,
+  if (creditError) {
+    console.log('[event-checkin] credit_lumo_by_rule error', { creditError });
+    return new Response(JSON.stringify({ success: false, message: 'Erreur lors du credit Lumo.' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
 
-    if (txError) {
-      console.log('[event-checkin] lumo transaction error', { txError });
-      return new Response(JSON.stringify({ success: false, message: 'Erreur lors du credit Lumo.' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const { data: wallet } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', userData.user.id)
-      .maybeSingle();
-
-    if (wallet) {
-      const nextBalance = Number(wallet.balance || 0) + rewardedLumo;
-      const { error: walletUpdateError } = await supabase
-        .from('wallets')
-        .update({ balance: nextBalance })
-        .eq('user_id', userData.user.id);
-      if (walletUpdateError) {
-        console.log('[event-checkin] wallet update error', { walletUpdateError });
-      }
-    } else {
-      const { error: walletInsertError } = await supabase
-        .from('wallets')
-        .insert({ user_id: userData.user.id, balance: rewardedLumo });
-      if (walletInsertError) {
-        console.log('[event-checkin] wallet insert error', { walletInsertError });
-      }
-    }
+  const credit = (creditData && typeof creditData === 'object' ? creditData : {}) as {
+    amount?: number;
+    skipped?: boolean;
+    reason?: string;
+  };
+  rewardedLumo = Number(credit.amount || 0);
+  if (credit.skipped) {
+    console.log('[event-checkin] lumo credit skipped', { reason: credit.reason });
   }
 
   return new Response(

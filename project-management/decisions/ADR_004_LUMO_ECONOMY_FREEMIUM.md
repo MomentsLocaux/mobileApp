@@ -192,8 +192,8 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 
 1. ~~`MVP-LUMO-001` — accepter cet ADR~~ **Done 2026-07-22**.  
 2. ~~`MVP-LUMO-002` — seed DEV~~ **Done 2026-07-22** sur `moments-locaux-dev` ; UAT/prod en attente validation.  
-3. `MVP-LUMO-003` / `004` — RPC atomiques + refactor `event-checkin` (**next**).  
-4. `MVP-LUMO-005`…`011` — missions, shop boost, statut, Pass IRL, early access, UX flag.  
+3. ~~`MVP-LUMO-003` / `004` — RPC atomiques + refactor `event-checkin`~~ **Done 2026-07-22 on DEV**.  
+4. `MVP-LUMO-005`…`011` — missions, shop boost, statut, Pass IRL, early access, UX flag. (**next**)  
 5. `MVP-LUMO-012` — CGU / store à l’activation.  
 
 ### Live DEV snapshot (2026-07-22, post-seed)

@@ -683,14 +683,18 @@ export const supabaseProvider: (Pick<
     return data ? (data as Profile) : null;
   },
 
-  async earnLumo(payload: { amount?: number; reason?: string; item_type?: string; item_id?: string }) {
-    const { data, error } = await (supabase.rpc as any)('earn_lumo', payload as any);
-    if (error) throw formatSupabaseError(error, 'earnLumo');
-    return data;
+  async earnLumo(_payload: { amount?: number; reason?: string; item_type?: string; item_id?: string }) {
+    // Credits are minted only via credit_lumo_by_rule (service_role) after validated triggers.
+    throw new Error('[earnLumo] CLIENT_EARN_FORBIDDEN');
   },
 
   async spendLumo(payload: { amount: number; reason?: string; item_type?: string; item_id?: string }) {
-    const { data, error } = await (supabase.rpc as any)('spend_lumo', payload as any);
+    const { data, error } = await (supabase.rpc as any)('spend_lumo', {
+      p_amount: payload.amount,
+      p_item_type: payload.item_type ?? payload.reason ?? 'spend',
+      p_item_id: payload.item_id ?? null,
+      p_metadata: {},
+    } as any);
     if (error) throw formatSupabaseError(error, 'spendLumo');
     return data;
   },
