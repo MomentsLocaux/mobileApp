@@ -63,6 +63,15 @@ Issue is upstream (trigger/SQL prefs). Push dispatch never ran.
 - No token in `device_push_tokens`
 - Wrong `app_config` URL (dispatch hits another project)
 - iOS entitlements / APNs profile mismatch
+- Android: missing FCM V1 service account in EAS credentials, or build without `google-services.json`
+
+## Android FCM (Expo)
+
+1. Firebase Android app package = `com.momentslocs.app`
+2. Commit `google-services.json` at repo root (`app.config.ts` → `android.googleServicesFile`)
+3. Upload **FCM V1 service account key** (private JSON) via `eas credentials` for each build profile you use (`development`, `preview`, `production`)
+4. Rebuild Android (`eas build --platform android --profile …`) — Metro reload is not enough
+5. Physical device + accept notification permission → row in `device_push_tokens` with `platform = android`
 
 ### 5. Manual smoke test
 

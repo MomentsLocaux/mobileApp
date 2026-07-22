@@ -64,11 +64,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.momentslocs.app',
     versionCode: ANDROID_VERSION_CODE,
     softwareKeyboardLayoutMode: 'resize',
+    // Required for FCM / Expo push on Android (file from Firebase Console).
+    googleServicesFile: './google-services.json',
     permissions: [
       'android.permission.ACCESS_COARSE_LOCATION',
       'android.permission.ACCESS_FINE_LOCATION',
       'android.permission.ACCESS_BACKGROUND_LOCATION',
       'android.permission.CAMERA',
+      // Android 13+ runtime notification permission
+      'android.permission.POST_NOTIFICATIONS',
       // Android 13+ requires READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE
       'android.permission.READ_MEDIA_IMAGES',
       // Backward compatibility for SDK < 33
