@@ -846,6 +846,150 @@ Branche Git recommandée: `chore/p2-data-ops`
 
 Notes:
 
+## P2 - Embarquement RISE (hors MVP à forte valeur)
+
+Sélection 2026-07-22 depuis `bug_reports` (méthode RISE = Reach × Impact × Success / Effort). Scope **slim** uniquement — pas de boutique, amis bilatéraux, chat natif, concours ni paywall création.
+
+### ID: MVP-P2-009
+
+Titre: Feedback post-événement J+1 (push + note)
+
+Priorité: P2
+
+Source audit: bug_reports `72c70107`, priorisation RISE #1 (score 50)
+
+Responsable / agent recommandé: Product Owner MVP, Mobile Reliability Engineer
+
+Type d'action: Notifications / rétention
+
+Fichiers probablement concernés: `supabase/functions/push-dispatch/*`, migrations cron/queue notifications, `src/services/notifications.service.ts`, éventuel écran note rapide
+
+Description: Après un événement passé auquel l'utilisateur a check-in (ou favori), envoyer un push J+1 « Comment c'était ? » avec note 1–5 et commentaire optionnel. Pas d'email dans ce ticket.
+
+Critères d'acceptation: Push déclenché une fois par couple user/event ; respect prefs notifications ; note persistée ; pas de spam si déjà noté ; feature testable en staging.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, test staging push + insert feedback.
+
+Risques: Over-notification ; timezone / fin d'événement mal calculée.
+
+Dépendances: prefs notifications (déjà livrées) ; check-ins fiables.
+
+Branche Git recommandée: `feat/p2-post-event-feedback`
+
+Notes: Bug reporter status `triage`. Email reporté.
+
+### ID: MVP-P2-010
+
+Titre: Feature flags freemium (GAMIFICATION + PREMIUM) + gates backend
+
+Priorité: P2
+
+Source audit: bug_reports `4886965d`, ADR_004, priorisation RISE #2 (score 40)
+
+Responsable / agent recommandé: Mobile Reliability Engineer, Supabase Security Architect
+
+Type d'action: Config / feature flags / sécurité
+
+Fichiers probablement concernés: `src/config/*`, `app.config.ts`, `src/constants/feature-flags.ts` (ou équivalent), RPCs wallet/shop, guards routes shop/missions
+
+Description: Introduire `EXPO_PUBLIC_GAMIFICATION_ENABLED` et `EXPO_PUBLIC_PREMIUM_ENABLED` (défaut off) + contrôles serveur alignés pour toute surface payante/Lumo. Pas de shop ni IAP dans ce ticket.
+
+Critères d'acceptation: Flags off → comportement MVP inchangé ; flags on → surfaces concernées accessibles seulement si autorisées ; aucun montant décidé côté client ; documenté dans ADR_004 / README env.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, `npx expo config`, revue guards.
+
+Risques: Flags oubliés sur une route ; divergence client/serveur.
+
+Dépendances: ADR_004 ; routes non-MVP déjà guardées (P0-002).
+
+Branche Git recommandée: `feat/p2-freemium-flags`
+
+Notes: Enabler pour Lumo/Premium post-MVP. Bug reporter `triage`.
+
+### ID: MVP-P2-011
+
+Titre: Tour 1ère connexion (coach marks légers)
+
+Priorité: P2
+
+Source audit: bug_reports `1b6ae88d`, priorisation RISE #3 (score 30)
+
+Responsable / agent recommandé: UX/UI Guardian
+
+Type d'action: Onboarding / activation
+
+Fichiers probablement concernés: `app/(tabs)/map.tsx`, layout tabs, AsyncStorage/preferences « tour_seen », éventuel composant coach-mark
+
+Description: Au premier accès authentifié, afficher 3–4 coach marks (carte, créer un événement, communauté/profil) avec CTA « Ne plus afficher ». Pas de vidéo ni parcours multi-écran lourd.
+
+Critères d'acceptation: Affiché une seule fois par user/device ; skippable ; ne bloque pas la navigation ; reset possible via settings debug ou clear storage en staging.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, test cold start nouvel utilisateur.
+
+Risques: Bruit UX si trop présent ; conflit avec onboarding profil existant.
+
+Dépendances: auth/onboarding P0.
+
+Branche Git recommandée: `feat/p2-owner-tour`
+
+Notes: Bug reporter `triage`.
+
+### ID: MVP-P2-012
+
+Titre: Capacité d'événement (max attendees + Complet)
+
+Priorité: P2
+
+Source audit: bug_reports `8e34e0eb`, priorisation RISE #4 (score 20)
+
+Responsable / agent recommandé: Product Owner MVP, Supabase Security Architect
+
+Type d'action: Event lifecycle / créateurs
+
+Fichiers probablement concernés: schéma `events`, create/edit flow, `EventDetailScreen`, cards, RLS/RPC counts
+
+Description: Permettre au créateur de définir `max_attendees` optionnel. Afficher compteur et statut « Complet » basé sur une métrique claire (check-ins validés ou intention « j'y vais » — à trancher en implémentation, documentée). **Hors scope :** paiement, réservation payante, invitations ticketing.
+
+Critères d'acceptation: Champ création/édition ; affichage public cohérent ; Complet visible ; pas de régression events sans limite ; migration validée humainement avant apply.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, tests manuels création + détail.
+
+Risques: Ambiguïté métrique capacité ; migration schéma.
+
+Dépendances: validation humaine migration Supabase.
+
+Branche Git recommandée: `feat/p2-event-capacity`
+
+Notes: Bug reporter `triage`. Slim vs ticket original places/réservation/tarification.
+
+### ID: MVP-P2-013
+
+Titre: Galerie événement — limite free 3–5 images
+
+Priorité: P2
+
+Source audit: bug_reports `daf62c22`, priorisation RISE #5 (score 18)
+
+Responsable / agent recommandé: UX/UI Guardian, Mobile Reliability Engineer
+
+Type d'action: Media / créateurs
+
+Fichiers probablement concernés: create/edit media upload, storage policies, `EventImageCarousel`, constantes limite
+
+Description: Clarifier et appliquer une limite free de 3 à 5 images par événement (choix produit figé dans le ticket d'implémentation). La cible « 10 images » reste réservée à un palier premium futur (flag PREMIUM), hors scope ici.
+
+Critères d'acceptation: Upload bloqué au-delà de la limite free avec message clair ; affichage carrousel OK ; pas de paywall UI ; limite documentée.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, test upload multi-images.
+
+Risques: Events existants au-delà de la nouvelle limite ; incohérence storage vs UI.
+
+Dépendances: media P1 ; idéalement après `MVP-P2-010` si gate premium anticipée.
+
+Branche Git recommandée: `feat/p2-event-gallery-limit`
+
+Notes: Bug reporter `triage`. Pas d'achat boutique.
+
 ## Post-MVP
 
 ### ID: MVP-POST-001
@@ -882,7 +1026,7 @@ Titre: Réintroduire boutique/offres
 
 Priorité: Post-MVP
 
-Source audit: `ADR_002`, `POST_MVP.md`
+Source audit: `ADR_002`, `POST_MVP.md`, `ADR_004`
 
 Responsable / agent recommandé: Product Owner MVP
 
@@ -890,19 +1034,19 @@ Type d'action: Feature post-MVP
 
 Fichiers probablement concernés: shop/offers services/routes
 
-Description: Reprendre boutique/offres uniquement quand modèle produit et paiement sont prêts.
+Description: Reprendre boutique/offres uniquement quand modèle produit et paiement sont prêts. Sinks Lumo prioritaires = boost event (M9) avant cosmétique (M10). Voir epic `MVP-LUMO-*`.
 
-Critères d'acceptation: scope, legal, paiement et UX validés.
+Critères d'acceptation: scope, legal, paiement et UX validés ; aligné ADR 004.
 
 Commandes de vérification: à définir.
 
 Risques: Store/payment complexity.
 
-Dépendances: MVP publié.
+Dépendances: MVP publié ; `MVP-LUMO-003`.
 
 Branche Git recommandée: `feat/post-mvp-shop-offers`
 
-Notes:
+Notes: Détaillé par `MVP-LUMO-006`. Packs Lumo / boost € = phase 2 (M13), pas ce ticket.
 
 ### ID: MVP-POST-003
 
@@ -910,7 +1054,7 @@ Titre: Réintroduire missions/gamification avancée
 
 Priorité: Post-MVP
 
-Source audit: `ADR_002`, `POST_MVP.md`
+Source audit: `ADR_002`, `POST_MVP.md`, `ADR_004`
 
 Responsable / agent recommandé: Product Owner MVP
 
@@ -918,19 +1062,19 @@ Type d'action: Feature post-MVP
 
 Fichiers probablement concernés: missions/lumo/badges/leaderboard
 
-Description: Réintroduire missions, badges, classements et XP seulement avec UX fiable.
+Description: Réintroduire missions, statut quartier et streaks selon ADR 004 (pas de leaderboard national). Epic détaillé `MVP-LUMO-*`.
 
-Critères d'acceptation: pas de valeurs hardcodées, données fiables.
+Critères d'acceptation: pas de valeurs hardcodées, données fiables, dual value app+IRL.
 
 Commandes de vérification: à définir.
 
 Risques: Effet gamification excessive.
 
-Dépendances: analytics et data fiables.
+Dépendances: analytics et data fiables ; `MVP-LUMO-003`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes:
+Notes: Prioriser M1/M3/M5/M6/M7 avant cercles/parrainage.
 
 ### ID: MVP-POST-004
 
@@ -938,7 +1082,7 @@ Titre: Réintroduire wallet/Lumo avancé
 
 Priorité: Post-MVP
 
-Source audit: `POST_MVP.md`, `RLS_AUDIT.md`
+Source audit: `POST_MVP.md`, `RLS_AUDIT.md`, `ADR_004`
 
 Responsable / agent recommandé: Product Owner MVP, Supabase Security Architect
 
@@ -946,19 +1090,19 @@ Type d'action: Feature post-MVP
 
 Fichiers probablement concernés: wallet/lumo services/stores/routes
 
-Description: Construire wallet/Lumo avec règles backend, sécurité et UX claire.
+Description: Construire wallet/Lumo avec règles backend, sécurité et UX claire. Spec métier = ADR 004. Epic détaillé `MVP-LUMO-*`.
 
-Critères d'acceptation: transactions cohérentes, pas de hardcode, RLS solide.
+Critères d'acceptation: transactions cohérentes, pas de hardcode, RLS solide, feature flag off par défaut.
 
 Commandes de vérification: à définir.
 
 Risques: Complexité économique/sécurité.
 
-Dépendances: backend sécurisé.
+Dépendances: backend sécurisé ; ADR 004 accepté.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes:
+Notes: Seed proposé (non appliqué) : `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`.
 
 ### ID: MVP-POST-005
 
@@ -1013,5 +1157,349 @@ Risques: Permissions/store complexity.
 Dépendances: notifications backend.
 
 Branche Git recommandée: `feat/post-mvp-push-notifications`
+
+Notes:
+
+## Post-MVP — Économie Lumo (ADR 004)
+
+Epic parent : `MVP-POST-002` / `MVP-POST-003` / `MVP-POST-004`.  
+Spec : `project-management/decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md`.  
+Seed proposé (ne pas appliquer sans validation) : `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`.
+
+Ordre recommandé : LUMO-001 → 002 → 003 → 004 → (005∥006) → 007 → 008 → 009 → 010 → 011.
+
+### ID: MVP-LUMO-001
+
+Titre: Accepter ADR 004 et figer le scope P0 économie
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`
+
+Responsable / agent recommandé: Product Owner MVP
+
+Type d'action: Decision
+
+Fichiers probablement concernés: `ADR_004_LUMO_ECONOMY_FREEMIUM.md`
+
+Description: Passer ADR 004 de Proposed → Accepted ; confirmer stack P0 (M1–M5) et montants ; confirmer Premium+ orthogonal.
+
+Critères d'acceptation: ADR status Accepted ; montants check-in/missions/boost validés produit.
+
+Commandes de vérification: relecture ADR + matrice.
+
+Risques: Changement de montants après seed.
+
+Dépendances: MVP mobile publié ou gelé.
+
+Branche Git recommandée: `docs/lumo-economy-adr`
+
+Notes: Live DEV actuel = check-in 5, mission daily 150, contest 1200 — à recalibrer.
+
+### ID: MVP-LUMO-002
+
+Titre: Appliquer seed lumo_rules + shop_items + missions ADR
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`, diagnostic seed
+
+Responsable / agent recommandé: Supabase Security Architect
+
+Type d'action: Data / migration contrôlée
+
+Fichiers probablement concernés: `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql` → migration validée
+
+Description: Après validation humaine, promouvoir le diagnostic en migration DEV puis UAT. Désactiver règles inflationnaires legacy.
+
+Critères d'acceptation: rules actives = checkin 20, mission_daily 12, mission_weekly 60, event_published_approved 50 ; shop boost 100 + cadre 60 ; 2 missions ADR.
+
+Commandes de vérification: SELECTs en bas du fichier diagnostic.
+
+Risques: ON CONFLICT / données prod ; ne jamais appliquer sur prod sans runbook.
+
+Dépendances: `MVP-LUMO-001`.
+
+Branche Git recommandée: `feat/post-mvp-wallet-lumo`
+
+Notes: **Interdit d'appliquer sans validation humaine explicite.**
+
+### ID: MVP-LUMO-003
+
+Titre: Durcir earn_lumo / spend_lumo (atomique, caps, idempotence, RLS, flag)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`, `RLS_AUDIT.md`
+
+Responsable / agent recommandé: Supabase Security Architect
+
+Type d'action: Backend security
+
+Fichiers probablement concernés: migrations RPC, `wallets`, `lumo_transactions`, feature flags
+
+Description: Une seule voie de crédit/débit ; lire amounts depuis `lumo_rules` ; enforce metadata caps ; idempotence `(user_id, source, item_id)` ; RLS owner-only ; flag `GAMIFICATION_ENABLED` défaut off. Aligner signature client (`earnLumo` payload) avec RPC live `(p_amount, p_reason, p_metadata)`.
+
+Critères d'acceptation: client ne peut pas s'auto-créditer un montant arbitraire si flag off ou sans trigger serveur ; tests SQL anon/auth.
+
+Commandes de vérification: scripts diagnostics RLS + RPC.
+
+Risques: Casse check-in existant ; inflation si caps oubliés.
+
+Dépendances: `MVP-LUMO-002`.
+
+Branche Git recommandée: `feat/post-mvp-wallet-lumo`
+
+Notes:
+
+### ID: MVP-LUMO-004
+
+Titre: Refactor event-checkin → earn_lumo atomique (M1)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`, `event-checkin`
+
+Responsable / agent recommandé: Supabase Security Architect, Mobile Reliability Engineer
+
+Type d'action: Backend
+
+Fichiers probablement concernés: `supabase/functions/event-checkin/index.ts`
+
+Description: Remplacer insert manuel `lumo_transactions` + update `wallets` par appel RPC atomique piloté par `lumo_rules` (trigger `checkin`).
+
+Critères d'acceptation: 1 check-in = au plus 1 crédit ; réponse `rewards.lumo` cohérente ; pas de double écriture.
+
+Commandes de vérification: tests manuels check-in + lecture wallet/transactions.
+
+Risques: Régression check-in MVP si flag mal géré — garder crédit silencieux ou off si gamification disabled.
+
+Dépendances: `MVP-LUMO-003`.
+
+Branche Git recommandée: `feat/post-mvp-wallet-lumo`
+
+Notes:
+
+### ID: MVP-LUMO-005
+
+Titre: Missions daily/weekly + completion RPC (M6/M7)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`
+
+Responsable / agent recommandé: Product Owner MVP, Supabase Security Architect
+
+Type d'action: Feature post-MVP
+
+Fichiers probablement concernés: `missions`, `user_missions`, Edge/RPC completion
+
+Description: Progression missions seedées ADR ; completion serveur crédite via rules `mission_daily` / `mission_weekly` ; pas de quêtes spam.
+
+Critères d'acceptation: caps 1/jour et 1/semaine ; reward = rule amount (pas hardcode client).
+
+Commandes de vérification: scénarios daily/weekly + rejeu.
+
+Risques: Farm ; drift types TS (`Mission`) vs schéma live (`kind`, `target`, `start_at`).
+
+Dépendances: `MVP-LUMO-003`.
+
+Branche Git recommandée: `feat/post-mvp-gamification`
+
+Notes: Aligner `src/types/database.ts` Mission sur schéma live.
+
+### ID: MVP-LUMO-006
+
+Titre: Boutique boost 24h + effet ranking (M9)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`, `buy_item`, `active_boosts`
+
+Responsable / agent recommandé: Product Owner MVP, Supabase Security Architect
+
+Type d'action: Feature post-MVP
+
+Fichiers probablement concernés: `shop_items`, `buy_item`, `active_boosts`, scoring/list events
+
+Description: Activer `event_boost_24h` ; spend Lumo ; créer `active_boosts` ; appliquer boost sur visibilité carte/liste ; cron expiry déjà présent.
+
+Critères d'acceptation: achat Lumo → boost actif → event remonté ; expiry notif `boost_expired`.
+
+Commandes de vérification: buy_item + liste events + cron sweep.
+
+Risques: Pay-to-win perçu ; boost sans effet visible = frustration.
+
+Dépendances: `MVP-LUMO-003` ; optionnel parallèle à `MVP-LUMO-005`.
+
+Branche Git recommandée: `feat/post-mvp-shop-offers`
+
+Notes: Cosmétique cadre = nice-to-have même ticket ou sous-tâche.
+
+### ID: MVP-LUMO-007
+
+Titre: Statut quartier / Ambassadeur (M3)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`
+
+Responsable / agent recommandé: Product Owner MVP, UX/UI Guardian
+
+Type d'action: Feature post-MVP
+
+Fichiers probablement concernés: vue/table `user_local_status`, profils communauté
+
+Description: Paliers locaux (pas leaderboard national) basés sur check-ins / events tenus / contributions sur zone.
+
+Critères d'acceptation: badge visible profil ; calcul serveur ; pas d'expo abusive de `lumo_total` public si non voulu.
+
+Commandes de vérification: scénarios palier + RLS communauté.
+
+Risques: Fuite stats ; gaming du score.
+
+Dépendances: `MVP-LUMO-004` ; check-ins fiables.
+
+Branche Git recommandée: `feat/post-mvp-gamification`
+
+Notes:
+
+### ID: MVP-LUMO-008
+
+Titre: Pass partenaire / streak sorties (M1/M5) — valeur IRL
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`
+
+Responsable / agent recommandé: Product Owner MVP, GDPR / Store Compliance Officer
+
+Type d'action: Feature + partnerships
+
+Fichiers probablement concernés: `partner_rewards`, redemption admin web, UX Pass
+
+Description: Modèle partenaires + tampons/Pass débloqués par check-ins / streak mensuel 3 sorties. Sans partenaire pilote, limiter à UX “bientôt” ou 1 ville pilote.
+
+Critères d'acceptation: au moins 1 partenaire pilote OU feature gated ; redemption anti-fraude ; CGU partenaires.
+
+Commandes de vérification: parcours check-in → Pass → QR redemption.
+
+Risques: Promesse IRL sans stock partenaire.
+
+Dépendances: `MVP-LUMO-004` ; admin web minimal pour redemption.
+
+Branche Git recommandée: `feat/post-mvp-gamification`
+
+Notes: Bloquant pour la promesse “gain réel” — prioriser un partenaire avant large release.
+
+### ID: MVP-LUMO-009
+
+Titre: Early access events (M2)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`
+
+Responsable / agent recommandé: Product Owner MVP
+
+Type d'action: Feature post-MVP
+
+Fichiers probablement concernés: events visibility windows, wallet spend optional
+
+Description: Fenêtre 24–48h early access pour users au palier Ambassadeur ou après spend/mission.
+
+Critères d'acceptation: event invisible au public hors fenêtre ; inscrits early trackés ; no-show mesurable.
+
+Commandes de vérification: comptes free vs ambassadeur.
+
+Risques: Complexité lifecycle event ; frustration free users.
+
+Dépendances: `MVP-LUMO-007` (ou mission weekly seule).
+
+Branche Git recommandée: `feat/post-mvp-gamification`
+
+Notes:
+
+### ID: MVP-LUMO-010
+
+Titre: Boost créateur gagné après N check-ins (M4)
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`
+
+Responsable / agent recommandé: Product Owner MVP
+
+Type d'action: Feature post-MVP
+
+Fichiers probablement concernés: post-event job, inventory boost, notifications
+
+Description: Si event passé atteint N check-ins, créditer un boost organique utilisable sur le prochain event (pas seulement Lumo).
+
+Critères d'acceptation: règle N configurable ; 1 boost gagné / event éligible ; usage unique.
+
+Commandes de vérification: fixture event + N check-ins → boost inventaire.
+
+Risques: Seuil trop bas = inflation boosts gratuits.
+
+Dépendances: `MVP-LUMO-006`.
+
+Branche Git recommandée: `feat/post-mvp-gamification`
+
+Notes:
+
+### ID: MVP-LUMO-011
+
+Titre: UX mobile wallet / missions / shop derrière feature flag
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`, `ADR_002`
+
+Responsable / agent recommandé: UX/UI Guardian, Mobile Reliability Engineer
+
+Type d'action: Mobile UI
+
+Fichiers probablement concernés: `app/(tabs)/missions.tsx`, `app/(tabs)/shop.tsx`, wallet screen, `LumoService`, navigation guards
+
+Description: Réactiver écrans actuellement Redirect ; solde + historique ; feedback check-in “+X Lumo” ; entrée shop/missions si `EXPO_PUBLIC_GAMIFICATION_ENABLED`.
+
+Critères d'acceptation: flag off = comportement MVP inchangé ; flag on = parcours M1/M6/M9 utilisables.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, QA manuelle flag on/off.
+
+Risques: Deep links vers routes non-MVP.
+
+Dépendances: `MVP-LUMO-004` ; `MVP-LUMO-005` ; `MVP-LUMO-006`.
+
+Branche Git recommandée: `feat/post-mvp-gamification`
+
+Notes:
+
+### ID: MVP-LUMO-012
+
+Titre: CGU / store copy monnaie virtuelle & partenaires
+
+Priorité: Post-MVP
+
+Source audit: `ADR_004`, `05_LEGAL_APP_CONTENT_AUDIT.md`
+
+Responsable / agent recommandé: GDPR / Store Compliance Officer
+
+Type d'action: Legal / compliance
+
+Fichiers probablement concernés: CGU, privacy, store listings
+
+Description: Activer mentions IAP/monnaie virtuelle/boosts **uniquement** quand flag gamification live ; clarifier absence de cash-out ; base légale partenaires.
+
+Critères d'acceptation: pas de promesse post-MVP dans CGU MVP ; section complète à l’activation.
+
+Commandes de vérification: relecture juridique + checklist store.
+
+Risques: Rejet store ; promesse excessive.
+
+Dépendances: `MVP-LUMO-011` (activation).
+
+Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
 Notes:
