@@ -118,7 +118,6 @@ DECLARE
   v_score integer := 0;
   v_tier text := 'local';
   v_badge_id uuid;
-  v_caller uuid := auth.uid();
   v_is_service boolean := (coalesce(auth.role(), '') = 'service_role');
 BEGIN
   IF p_user_id IS NULL THEN
