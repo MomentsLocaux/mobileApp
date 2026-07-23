@@ -15,8 +15,6 @@ import {
   Eye,
   Heart,
   MapPin,
-  Navigation,
-  ShieldCheck,
   Ticket,
 } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
@@ -39,12 +37,13 @@ import {
   getEventSocialProofLabel,
   getEventTemporalState,
   getHumanizedDate,
-  isEventVerified,
+  isMeaningfulAccessLabel,
+  isMeaningfulPriceLabel,
+  MIN_VIEWS_BADGE_THRESHOLD,
 } from '@/utils/event-card-display';
 import { getEventLiveWindow } from '@/utils/event-status';
+import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventImageCarousel } from './EventImageCarousel';
-
-const DEFAULT_EVENT_IMAGE = require('../../../assets/images/icon.png');
 
 /** Tokens alignés DESIGN.md (§2 Couleurs, §4 Boutons/Cards). */
 const CARD_THEME = {
@@ -80,7 +79,7 @@ export interface EventCardProps {
   noBottomMargin?: boolean;
 }
 
-export const EventCard: React.FC<EventCardProps> = ({
+const EventCardComponent: React.FC<EventCardProps> = ({
   event,
   variant = 'discovery',
   onPress,
@@ -100,12 +99,6 @@ export const EventCard: React.FC<EventCardProps> = ({
   noBottomMargin = false,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
-  const [now, setNow] = useState(() => new Date());
-
-  React.useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
 
   const images = useMemo(() => getEventImageUrls(event), [event.cover_url, event.media]);
   const hasCarousel = showCarousel && images.length > 1;
@@ -120,7 +113,6 @@ export const EventCard: React.FC<EventCardProps> = ({
   const humanDate = getHumanizedDate(event);
   const priceLabel = getEventPriceLabel(event);
   const accessLabel = getEventAccessLabel(event);
-  const verified = isEventVerified(event);
   const temporal = getEventTemporalState(event);
   const participating = isParticipating || Boolean(event.is_interested);
   const socialLabel = getEventSocialProofLabel(
@@ -128,13 +120,23 @@ export const EventCard: React.FC<EventCardProps> = ({
     (event.interests_count || 0) + (event.checkins_count || 0)
   );
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
-  const { isLive } = useMemo(() => getEventLiveWindow(event, now), [event, now]);
+  const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
+  const { isLive } = useMemo(() => getEventLiveWindow(event), [event]);
+  const showPriceBadge = isMeaningfulPriceLabel(priceLabel);
+  const showAccessBadge = isMeaningfulAccessLabel(accessLabel);
+  const showViewsBadge = viewCount >= MIN_VIEWS_BADGE_THRESHOLD;
+  const hasSocialProof =
+    (Number.isFinite(friendsGoingCount) && Number(friendsGoingCount) > 0) ||
+    (event.interests_count || 0) + (event.checkins_count || 0) > 0;
 
   const showDescription = Boolean(description) && variant !== 'compact' && variant !== 'map-preview';
   const showSchedulePanel = variant === 'discovery' || variant === 'favorite';
-  const showMetaBadges = variant !== 'map-preview';
-  const showSocial = variant !== 'compact';
-  const showStats = variant !== 'compact' || Boolean(distance);
+  const showMetaBadges =
+    variant !== 'map-preview' &&
+    (showPriceBadge || showAccessBadge || showViewsBadge || temporal === 'cancelled');
+  const showSocial = variant !== 'compact' && hasSocialProof;
+  const showFooter = variant === 'favorite';
+  const canNavigate = Boolean(onNavigate);
   const heartActive = isLiked || isFavorite;
   const showHeart = Boolean(onHeartPress);
 
@@ -186,11 +188,23 @@ export const EventCard: React.FC<EventCardProps> = ({
       onSwipeStart={() => setIsSwiping(true)}
       onSwipeEnd={() => setIsSwiping(false)}
     />
+  ) : images[0] ? (
+    <Image source={{ uri: images[0] }} style={[styles.mediaImage, { height: mediaHeight }]} />
   ) : (
-    <Image
-      source={images[0] ? { uri: images[0] } : DEFAULT_EVENT_IMAGE}
-      style={[styles.mediaImage, { height: mediaHeight }]}
-    />
+    <EventCoverPlaceholder category={event.category} height={mediaHeight} />
+  );
+
+  const locationContent = (
+    <>
+      <MapPin size={13} color={CARD_THEME.accent} />
+      <Text
+        style={[styles.locationText, canNavigate && styles.locationTextTappable]}
+        numberOfLines={1}
+      >
+        {locationLabel}
+      </Text>
+      {distance ? <Text style={styles.distanceInline}>{distance}</Text> : null}
+    </>
   );
 
   return (
@@ -256,13 +270,23 @@ export const EventCard: React.FC<EventCardProps> = ({
                 </Text>
               ) : null}
 
-              <View style={styles.locationRow}>
-                <MapPin size={13} color={CARD_THEME.accent} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {locationLabel}
-                </Text>
-                {distance ? <Text style={styles.distanceInline}>{distance}</Text> : null}
-              </View>
+              {canNavigate ? (
+                <TouchableOpacity
+                  style={styles.locationRow}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    onNavigate?.();
+                  }}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Itinéraire vers ${locationLabel}`}
+                  activeOpacity={0.7}
+                >
+                  {locationContent}
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.locationRow}>{locationContent}</View>
+              )}
             </View>
 
             {showSchedulePanel ? (
@@ -301,18 +325,22 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           {showMetaBadges ? (
             <View style={styles.metaBadgesRow}>
-              <View style={styles.metaBadge}>
-                <Ticket size={12} color={CARD_THEME.accent} />
-                <Text style={styles.metaBadgeText}>{priceLabel}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Calendar size={12} color={CARD_THEME.accent} />
-                <Text style={styles.metaBadgeText}>{accessLabel}</Text>
-              </View>
-              {verified ? (
-                <View style={[styles.metaBadge, styles.verifiedBadge]}>
-                  <ShieldCheck size={12} color={CARD_THEME.success} />
-                  <Text style={[styles.metaBadgeText, styles.verifiedText]}>Évènement vérifié</Text>
+              {showPriceBadge ? (
+                <View style={styles.metaBadge}>
+                  <Ticket size={12} color={CARD_THEME.accent} />
+                  <Text style={styles.metaBadgeText}>{priceLabel}</Text>
+                </View>
+              ) : null}
+              {showAccessBadge ? (
+                <View style={styles.metaBadge}>
+                  <Calendar size={12} color={CARD_THEME.accent} />
+                  <Text style={styles.metaBadgeText}>{accessLabel}</Text>
+                </View>
+              ) : null}
+              {showViewsBadge ? (
+                <View style={styles.metaBadge}>
+                  <Eye size={12} color={CARD_THEME.accent} />
+                  <Text style={styles.metaBadgeText}>{viewsLabel}</Text>
                 </View>
               ) : null}
               {temporal === 'cancelled' ? (
@@ -329,41 +357,13 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           {showSocial ? (
             <View style={styles.socialRow}>
-              <View style={styles.avatarPile}>
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <View key={i} style={[styles.avatarDot, { marginLeft: i === 0 ? 0 : -10 }]} />
-                ))}
-              </View>
               <Text style={styles.socialText}>{socialLabel}</Text>
             </View>
           ) : null}
 
-          <View style={styles.footerRow}>
-            {showStats ? (
-              <View style={styles.statsCol}>
-                <View style={styles.statChip}>
-                  <Eye size={13} color={CARD_THEME.accent} />
-                  <Text style={styles.statText}>
-                    {viewCount} vue{viewCount > 1 ? 's' : ''}
-                  </Text>
-                </View>
-                {distance && variant !== 'compact' ? (
-                  <TouchableOpacity
-                    style={styles.statChip}
-                    onPress={onNavigate}
-                    disabled={!onNavigate}
-                    hitSlop={6}
-                  >
-                    <Navigation size={13} color={CARD_THEME.accent} />
-                    <Text style={styles.statText}>{distance}</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            ) : (
+          {showFooter ? (
+            <View style={styles.footerRow}>
               <View style={styles.statsCol} />
-            )}
-
-            {variant === 'favorite' ? (
               <View style={styles.ctaColFavorite}>
                 {participating ? (
                   <Text style={styles.participatingLabel}>{EVENT_CARD_CTA.favoriteParticipating}</Text>
@@ -377,7 +377,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                       activeOpacity={0.85}
                     >
                       <Text style={styles.primaryCtaText}>
-                        {participating ? "Itinéraire" : primaryCta}
+                        {participating ? 'Itinéraire' : primaryCta}
                       </Text>
                     </TouchableOpacity>
                   ) : null}
@@ -390,24 +390,15 @@ export const EventCard: React.FC<EventCardProps> = ({
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : variant === 'compact' || variant === 'map-preview' ? null : (
-              <TouchableOpacity style={styles.primaryCta} onPress={handlePrimaryPress} activeOpacity={0.85}>
-                <Ticket size={16} color={CARD_THEME.onAccent} />
-                <Text style={styles.primaryCtaText}>{primaryCta}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {(variant === 'compact' || variant === 'map-preview') && (
-            <TouchableOpacity style={styles.compactCta} onPress={handlePrimaryPress} activeOpacity={0.85}>
-              <Text style={styles.compactCtaText}>{primaryCta}</Text>
-            </TouchableOpacity>
-          )}
+            </View>
+          ) : null}
         </View>
       </Pressable>
     </View>
   );
 };
+
+export const EventCard = React.memo(EventCardComponent);
 
 const styles = StyleSheet.create({
   card: {
@@ -561,6 +552,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
   },
+  locationTextTappable: {
+    textDecorationLine: 'underline',
+    textDecorationColor: 'rgba(43, 191, 227, 0.45)',
+  },
   distanceInline: {
     ...typography.caption,
     color: colors.brand.textSecondary,
@@ -642,13 +637,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.brand.text,
   },
-  verifiedBadge: {
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-  },
-  verifiedText: {
-    color: CARD_THEME.success,
-  },
   cancelledBadge: {
     backgroundColor: 'rgba(239,68,68,0.12)',
     borderColor: 'rgba(239,68,68,0.25)',
@@ -662,18 +650,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-  },
-  avatarPile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1.5,
-    borderColor: colors.brand.surface,
   },
   socialText: {
     fontSize: 12,
@@ -692,20 +668,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-  },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  statText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.brand.textSecondary,
   },
   ctaColFavorite: {
     flex: 1,
@@ -758,19 +720,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: CARD_THEME.textSecondary,
-  },
-  compactCta: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: borderRadius.full,
-    backgroundColor: CARD_THEME.accent,
-    borderWidth: 1,
-    borderColor: CARD_THEME.accent,
-  },
-  compactCtaText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: CARD_THEME.onAccent,
   },
 });

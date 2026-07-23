@@ -121,6 +121,7 @@ const EVENT_FULL_SELECT = `
   created_at,
   updated_at,
   status,
+  refusal_reason,
   ambiance,
   creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region),
   media:event_media(id, event_id, url, type, "order", created_at)

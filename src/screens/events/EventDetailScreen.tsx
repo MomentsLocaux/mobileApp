@@ -41,6 +41,7 @@ import {
   screenHeaderStyles,
   MotionReveal,
   FloatingPressable,
+  EventDetailSkeleton,
 } from '../../components/ui';
 import {
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
@@ -81,7 +82,7 @@ import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
 import { getEventLiveWindow } from '@/utils/event-status';
-import { EVENT_ITINERARY_LABEL, openEventNavigationOptions } from '@/utils/event-navigation';
+import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
@@ -931,10 +932,8 @@ export default function EventDetailScreen() {
 
   const handleOpenNavigationOptions = useCallback(() => {
     if (!event) return;
-    openEventNavigationOptions(event, router, {
-      onOpenExternalNavigation: () => setNavSheetVisible(true),
-    });
-  }, [event, router]);
+    setNavSheetVisible(true);
+  }, [event]);
 
   const eventQrPayload = useMemo(() => {
     if (!event?.qr_token) return null;
@@ -1161,9 +1160,9 @@ export default function EventDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={{ flex: 1 }}>
         <AppBackground />
-        <ActivityIndicator size="large" color={colors.brand.secondary} />
+        <EventDetailSkeleton />
       </View>
     );
   }
@@ -1722,7 +1721,15 @@ export default function EventDetailScreen() {
         </View>
       </Animated.View>
 
-      <NavigationOptionsSheet visible={navSheetVisible} event={event} onClose={() => setNavSheetVisible(false)} />
+      <NavigationOptionsSheet
+        visible={navSheetVisible}
+        event={event}
+        onClose={() => setNavSheetVisible(false)}
+        onOpenInAppMap={() => {
+          setNavSheetVisible(false);
+          router.push(`/(tabs)/map?focus=${event.id}` as any);
+        }}
+      />
 
       <Modal
         visible={qrScannerVisible}

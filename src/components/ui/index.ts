@@ -5,3 +5,4 @@ export { AppBackground } from './AppBackground';
 export { ScreenHeader, screenHeaderStyles } from './ScreenHeader';
 export { MotionReveal } from './MotionReveal';
 export { FloatingPressable } from './FloatingPressable';
+export { EventCardSkeleton, EventDetailSkeleton } from './EventCardSkeleton';

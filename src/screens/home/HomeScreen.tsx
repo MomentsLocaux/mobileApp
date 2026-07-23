@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
   Image,
@@ -28,6 +27,7 @@ import { CommunityService } from '@/services/community.service';
 import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
+import { NotificationsService } from '@/services/notifications.service';
 import { TriageControl } from '@/components/search/TriageControl';
 import {
   hasSearchCriteria as checkSearchCriteria,
@@ -38,7 +38,7 @@ import {
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { AppBackground } from '@/components/ui';
+import { AppBackground, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 type StoryItem = {
@@ -48,6 +48,43 @@ type StoryItem = {
   cover?: string | null;
   lastEventDate: Date;
 };
+
+type HomeFeedEventItemProps = {
+  event: EventWithCreator;
+  viewsCount: number;
+  friendsGoingCount: number;
+  isHearted: boolean;
+  onPressEvent: (eventId: string) => void;
+  onNavigateEvent: (event: EventWithCreator) => void;
+  onToggleHeart: (event: EventWithCreator) => void;
+};
+
+const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
+  event,
+  viewsCount,
+  friendsGoingCount,
+  isHearted,
+  onPressEvent,
+  onNavigateEvent,
+  onToggleHeart,
+}: HomeFeedEventItemProps) {
+  const onPress = useCallback(() => onPressEvent(event.id), [event.id, onPressEvent]);
+  const onNavigate = useCallback(() => onNavigateEvent(event), [event, onNavigateEvent]);
+
+  return (
+    <EventResultCard
+      event={event}
+      viewsCount={viewsCount}
+      friendsGoingCount={friendsGoingCount}
+      showCarousel={false}
+      variant="discovery"
+      onPress={onPress}
+      onNavigate={onNavigate}
+      isHearted={isHearted}
+      onToggleHeart={onToggleHeart}
+    />
+  );
+});
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -68,7 +105,11 @@ export default function HomeScreen() {
   const [metaFeedLoading, setMetaFeedLoading] = useState(false);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const insets = useSafeAreaInsets();
+
+  const firstName = profile?.display_name?.trim().split(/\s+/)[0];
+  const greeting = firstName ? `Salut, ${firstName} 👋` : 'Salut 👋';
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -128,6 +169,36 @@ export default function HomeScreen() {
     if (showSearchResults) return;
     loadMetaFeed();
   }, [loadMetaFeed, showSearchResults]);
+
+  const loadUnreadNotifications = useCallback(async () => {
+    if (!profile?.id) {
+      setUnreadNotifications(0);
+      return;
+    }
+    try {
+      const count = await NotificationsService.getUnreadCount();
+      setUnreadNotifications(count);
+    } catch {
+      setUnreadNotifications(0);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    loadUnreadNotifications();
+  }, [loadUnreadNotifications]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    return NotificationsService.subscribeToMyNotifications(profile.id, () => {
+      loadUnreadNotifications();
+    });
+  }, [profile?.id, loadUnreadNotifications]);
+
+  useEffect(() => {
+    return NotificationsService.subscribeToLocalChanges(() => {
+      loadUnreadNotifications();
+    });
+  }, [loadUnreadNotifications]);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,26 +369,63 @@ export default function HomeScreen() {
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
-  const handleToggleHeart = async (event: EventWithCreator) => {
-    if (!profile?.id) return;
-    const before = {
-      isLiked: likesSet.has(event.id),
-      isFavorite: favoritesSet.has(event.id),
-    };
-    try {
-      const after = await toggleEventHeart(profile.id, event, before);
-      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
-    } catch (e) {
-      console.warn('toggle heart error', e);
-    }
-  };
+  const handleToggleHeart = useCallback(
+    async (event: EventWithCreator) => {
+      if (!profile?.id) return;
+      const before = {
+        isLiked: likesSet.has(event.id),
+        isFavorite: favoritesSet.has(event.id),
+      };
+      try {
+        const after = await toggleEventHeart(profile.id, event, before);
+        syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+      } catch (e) {
+        console.warn('toggle heart error', e);
+      }
+    },
+    [favoritesSet, likesSet, profile?.id, toggleFavorite, toggleLike]
+  );
+
+  const handlePressEvent = useCallback(
+    (eventId: string) => {
+      router.push(`/events/${eventId}` as any);
+    },
+    [router]
+  );
+
+  const handleNavigateEvent = useCallback((event: EventWithCreator) => {
+    setNavEvent(event);
+  }, []);
+
+  const renderFeedItem = useCallback(
+    ({ item }: { item: EventWithCreator }) => (
+      <HomeFeedEventItem
+        event={item}
+        viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
+        friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
+        isHearted={likesSet.has(item.id) || favoritesSet.has(item.id)}
+        onPressEvent={handlePressEvent}
+        onNavigateEvent={handleNavigateEvent}
+        onToggleHeart={handleToggleHeart}
+      />
+    ),
+    [
+      eventCardStatsById,
+      favoritesSet,
+      handleNavigateEvent,
+      handlePressEvent,
+      handleToggleHeart,
+      likesSet,
+    ]
+  );
+
+  const keyExtractor = useCallback((item: EventWithCreator) => item.id, []);
 
   if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
         <AppBackground />
-        <ActivityIndicator size="large" color={colors.brand.secondary} />
-        <Text style={styles.loadingText}>Chargement des événements...</Text>
+        <EventCardSkeleton count={2} />
       </View>
     );
   }
@@ -328,7 +436,12 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={[styles.header, { marginTop: insets.top }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir mon profil"
+          >
             <View style={styles.headerAvatarContainer}>
               {profile?.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatar} />
@@ -342,16 +455,22 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
-            <Text style={styles.headerSubtitle}>Salut, {profile?.display_name?.split(' ')[0] || 'Alex'} 👋</Text>
+            <Text style={styles.headerSubtitle}>{greeting}</Text>
             <Text style={styles.headerTitle}>Moments Locaux</Text>
           </View>
 
           <TouchableOpacity
             style={styles.notificationBtn}
             onPress={() => router.push('/notifications' as any)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unreadNotifications > 0
+                ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? 's' : ''}`
+                : 'Notifications'
+            }
           >
             <Bell size={20} color={colors.brand.secondary} />
-            <View style={styles.notificationBadge} />
+            {unreadNotifications > 0 ? <View style={styles.notificationBadge} /> : null}
           </TouchableOpacity>
         </View>
 
@@ -382,7 +501,12 @@ export default function HomeScreen() {
           contentContainerStyle={styles.storiesContent}
           renderItem={({ item }: any) =>
             item.me ? (
-              <TouchableOpacity style={styles.storyItem} onPress={() => router.push('/events/create/step-1' as any)}>
+              <TouchableOpacity
+                style={styles.storyItem}
+                onPress={() => router.push('/events/create/step-1' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Créer un événement"
+              >
                 <LinearGradient
                   colors={['#2bbfe3', '#2bbfe3']}
                   style={styles.storyGradientBorder}
@@ -399,13 +523,15 @@ export default function HomeScreen() {
                   </View>
                 </LinearGradient>
                 <Text style={[styles.storyLabel, styles.storyLabelActive]} numberOfLines={1}>
-                  Live
+                  Créer
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={styles.storyItem}
                 onPress={() => router.push(`/community/${item.creatorId}` as any)}
+                accessibilityRole="button"
+                accessibilityLabel={`Profil de ${item.name}`}
               >
                 <LinearGradient
                   colors={['#8b5cf6', '#2bbfe3']} // Purple to Cyan gradient
@@ -447,6 +573,9 @@ export default function HomeScreen() {
                   setSearchApplied(false);
                 }
               }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Filtrer : ${item.label}`}
             >
               <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
                 {item.label}
@@ -469,23 +598,14 @@ export default function HomeScreen() {
 
       <FlatList
         data={filteredAndSortedEvents}
-        nestedScrollEnabled
-        renderItem={({ item }: { item: EventWithCreator }) => (
-          <EventResultCard
-            event={item}
-            viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
-            friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
-            showCarousel={false}
-            onPress={() => router.push(`/events/${item.id}` as any)}
-            onSelect={() => { }}
-            onNavigate={() => setNavEvent(item)}
-            onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
-            isHearted={likesSet.has(item.id) || favoritesSet.has(item.id)}
-            onToggleHeart={handleToggleHeart}
-          />
-        )}
-        keyExtractor={(item) => item.id}
+        renderItem={renderFeedItem}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.brand.secondary} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -510,6 +630,12 @@ export default function HomeScreen() {
         visible={!!navEvent}
         event={navEvent}
         onClose={() => setNavEvent(null)}
+        onOpenInAppMap={() => {
+          if (!navEvent) return;
+          const id = navEvent.id;
+          setNavEvent(null);
+          router.push(`/(tabs)/map?focus=${id}` as any);
+        }}
       />
 
     </View>
@@ -523,8 +649,6 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: colors.brand.primary,
   },
   loadingText: {

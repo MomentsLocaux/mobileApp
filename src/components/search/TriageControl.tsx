@@ -43,6 +43,8 @@ export const TriageControl: React.FC<Props> = ({
       <TouchableOpacity
         style={[styles.pill, !showLabel && styles.pillIconOnly]}
         onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`Trier par ${LABELS[value]}`}
       >
         <SlidersHorizontal size={16} color={colors.neutral[700]} />
         {showLabel ? (
@@ -71,6 +73,9 @@ export const TriageControl: React.FC<Props> = ({
                   }
                   setOpen(false);
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: value === option, disabled }}
+                accessibilityLabel={LABELS[option]}
               >
                 <Text
                   style={[

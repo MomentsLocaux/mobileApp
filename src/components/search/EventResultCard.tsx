@@ -9,24 +9,26 @@ import Animated, {
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import type { EventWithCreator } from '../../types/database';
-import { spacing } from '../../constants/theme';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
 import { EventCard } from '../events/EventCard';
 import type { EventCardVariant } from '@/constants/event-card-variants';
 
-export const EVENT_RESULT_CARD_HEIGHT = 420;
-export const EVENT_RESULT_LIST_CARD_HEIGHT = 280;
-const COMPACT_THRESHOLD = 340;
+/** Hauteur partagée bottom sheet (snap). Le feed Home omet cardHeight → hauteur intrinsèque. */
+export const EVENT_RESULT_LIST_CARD_HEIGHT = 420;
+/** @deprecated Alias — utiliser EVENT_RESULT_LIST_CARD_HEIGHT. */
+export const EVENT_RESULT_CARD_HEIGHT = EVENT_RESULT_LIST_CARD_HEIGHT;
 
 interface Props {
   event: EventWithCreator;
+  /** Défaut `discovery` : même carte pour feed et bottom sheet. */
   variant?: EventCardVariant;
   distanceKm?: number;
   viewsCount?: number;
   friendsGoingCount?: number;
   active?: boolean;
   showCarousel?: boolean;
+  /** When set, forces a minHeight (map sheet snap). Omit on feed lists for intrinsic height. */
   cardHeight?: number;
   noBottomMargin?: boolean;
   onPress: () => void;
@@ -51,21 +53,15 @@ function extractCoords(event: EventWithCreator): { lat: number; lon: number } | 
   return null;
 }
 
-function resolveVariant(cardHeight: number, explicit?: EventCardVariant): EventCardVariant {
-  if (explicit) return explicit;
-  if (cardHeight < COMPACT_THRESHOLD) return 'compact';
-  return 'discovery';
-}
-
 const EventResultCardComponent: React.FC<Props> = ({
   event,
-  variant: explicitVariant,
+  variant = 'discovery',
   distanceKm,
   viewsCount,
   friendsGoingCount,
   active = false,
   showCarousel = true,
-  cardHeight = EVENT_RESULT_CARD_HEIGHT,
+  cardHeight,
   noBottomMargin = false,
   onPress,
   onNavigate,
@@ -78,7 +74,6 @@ const EventResultCardComponent: React.FC<Props> = ({
   const activeProgress = useSharedValue(active ? 1 : 0);
   const entranceProgress = useSharedValue(reduceMotion || listEntranceDelay <= 0 ? 1 : 0);
   const { currentLocation } = useLocationStore();
-  const variant = resolveVariant(cardHeight, explicitVariant);
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -146,8 +141,15 @@ const EventResultCardComponent: React.FC<Props> = ({
     onPress();
   };
 
+  const handleHeartPress = useMemo(
+    () => (onToggleHeart ? () => onToggleHeart(event) : undefined),
+    [event, onToggleHeart]
+  );
+
   return (
-    <Animated.View style={[styles.wrapper, { minHeight: cardHeight }, cardAnimatedStyle]}>
+    <Animated.View
+      style={[styles.wrapper, cardHeight != null ? { minHeight: cardHeight } : null, cardAnimatedStyle]}
+    >
       <EventCard
         event={event}
         variant={variant}
@@ -156,7 +158,7 @@ const EventResultCardComponent: React.FC<Props> = ({
         onPress={handlePress}
         onPrimaryAction={onPress}
         onNavigate={onNavigate}
-        onHeartPress={onToggleHeart ? () => onToggleHeart(event) : undefined}
+        onHeartPress={handleHeartPress}
         isFavorite={isHearted}
         isLiked={isHearted}
         distanceKm={resolvedDistanceKm}

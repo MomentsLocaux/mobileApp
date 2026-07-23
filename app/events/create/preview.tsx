@@ -128,6 +128,32 @@ export default function CreateEventPreview() {
     [category, title, startDate, location, scheduleValidation.valid, visibility, privateAudienceIds.length],
   );
 
+  const missingPublishFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!coverImage) missing.push('une cover');
+    if (!title.trim()) missing.push('un titre');
+    if (!startDate) missing.push('une date');
+    if (!location) missing.push('un lieu');
+    if (!category) missing.push('une catégorie');
+    if (!scheduleValidation.valid) missing.push('des horaires valides');
+    if (visibility !== 'public' && privateAudienceIds.length === 0) {
+      missing.push('au moins un invité');
+    }
+    return missing;
+  }, [
+    coverImage,
+    title,
+    startDate,
+    location,
+    category,
+    scheduleValidation.valid,
+    visibility,
+    privateAudienceIds.length,
+  ]);
+
+  const missingFieldsHint =
+    missingPublishFields.length > 0 ? `Il manque ${missingPublishFields.join(', ')}.` : null;
+
   const handleConfirm = async () => {
     if (!canPublish || !location || !startDate) return;
     if (!user) return;
@@ -404,16 +430,25 @@ export default function CreateEventPreview() {
           style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
           disabled={!canPublish || submitting}
           onPress={handleConfirm}
+          accessibilityRole="button"
+          accessibilityLabel="Soumettre pour validation"
         >
           {submitting ? (
             <ActivityIndicator color="#0f1719" />
           ) : (
             <>
               <Rocket size={20} color="#0f1719" />
-              <Text style={styles.publishText}>Publier maintenant</Text>
+              <Text style={styles.publishText}>Soumettre pour validation</Text>
             </>
           )}
         </TouchableOpacity>
+        {missingFieldsHint ? (
+          <Text style={styles.missingHint}>{missingFieldsHint}</Text>
+        ) : (
+          <Text style={styles.missingHint}>
+            Votre événement sera vérifié avant d'être publié.
+          </Text>
+        )}
 
         <TouchableOpacity
           style={styles.editBtn}
@@ -596,6 +631,12 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: '#0f1719',
     fontWeight: '700',
+  },
+  missingHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: spacing.sm,
   },
   editBtn: {
     backgroundColor: 'rgba(255,255,255,0.05)',
