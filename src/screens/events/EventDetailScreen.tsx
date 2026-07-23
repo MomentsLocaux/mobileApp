@@ -33,9 +33,7 @@ import {
   Star,
   QrCode,
   Eye,
-  CheckCircle2,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Button,
   Card,
@@ -44,6 +42,11 @@ import {
   MotionReveal,
   FloatingPressable,
 } from '../../components/ui';
+import {
+  MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
+  MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
+  MOMENTS_LOCAUX_ORGANIZER_NAME,
+} from '@/constants/branding';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -138,7 +141,7 @@ const extractQrPayload = (raw: string): { eventId: string | null; qrToken: strin
 export default function EventDetailScreen() {
   const { id, qr } = useLocalSearchParams<{ id: string; qr?: string }>();
   const router = useRouter();
-  const { profile, session } = useAuth();
+  const { profile, session, isLoading: authLoading } = useAuth();
   const { currentLocation } = useLocationStore();
   const insets = useSafeAreaInsets();
   const { comments } = useComments(id || '');
@@ -169,6 +172,9 @@ export default function EventDetailScreen() {
   const [qrScannerVisible, setQrScannerVisible] = useState(false);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [descriptionCanExpand, setDescriptionCanExpand] = useState(false);
+  const [qrCardVisible, setQrCardVisible] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [now, setNow] = useState(() => new Date());
   const [eventReportVisible, setEventReportVisible] = useState(false);
@@ -216,13 +222,39 @@ export default function EventDetailScreen() {
         const alreadyViewed = await AsyncStorage.getItem(storageKey);
         if (alreadyViewed) return;
 
+        // RLS: authenticated inserts must set profile_id = auth.uid(); anon must use null.
+        // Prefer session.user.id so we don't insert null while the session exists but profile is still loading.
+        const viewerId = session?.user?.id ?? null;
         const { error } = await supabase.from('event_views').insert({
           event_id: eventId,
-          profile_id: profile?.id || null,
+          profile_id: viewerId,
         });
-        if (error) return;
+        if (error) {
+          console.warn('trackEventView insert failed', error.message);
+          return;
+        }
 
         await AsyncStorage.setItem(storageKey, 'true');
+
+        const { data: statsData, error: statsError } = await supabase.rpc('get_event_public_stats', {
+          event_ids: [eventId],
+        });
+        if (!statsError) {
+          const row = Array.isArray(statsData) ? statsData[0] : null;
+          if (row) {
+            setEventStats({
+              likes: Number(row?.likes_count || 0),
+              interests: Number(row?.interests_count || 0),
+              checkins: Number(row?.checkins_count || 0),
+              views: Number(row?.views_count || 0),
+            });
+          } else {
+            setEventStats((prev) => ({ ...prev, views: prev.views + 1 }));
+          }
+        } else {
+          setEventStats((prev) => ({ ...prev, views: prev.views + 1 }));
+        }
+
         // Habitué daily mission step (no-op when gamification flag off)
         const { MissionsService } = await import('@/services/missions.service');
         await MissionsService.recordStep('open_event_detail');
@@ -230,7 +262,7 @@ export default function EventDetailScreen() {
         console.warn('trackEventView error', err);
       }
     },
-    [profile?.id],
+    [session?.user?.id],
   );
 
   const loadCommunityPhotos = useCallback(async (eventId: string) => {
@@ -304,6 +336,9 @@ export default function EventDetailScreen() {
       const data = await EventsService.getEventById(id);
       const enriched = data ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) } : null;
       setEvent(enriched);
+      setDescriptionExpanded(false);
+      setDescriptionCanExpand(false);
+      setQrCardVisible(false);
       if (enriched) {
         setEarlyTeaser(null);
         await Promise.all([
@@ -333,9 +368,13 @@ export default function EventDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       loadEventDetails();
-      if (id) trackEventView(id);
-    }, [id, loadEventDetails, trackEventView]),
+    }, [loadEventDetails]),
   );
+
+  useEffect(() => {
+    if (!id || authLoading) return;
+    void trackEventView(id);
+  }, [id, authLoading, trackEventView]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -1260,6 +1299,41 @@ export default function EventDetailScreen() {
           </View>
           </MotionReveal>
 
+          {event.description ? (
+            <MotionReveal delay={Motion.stagger.content * 1.5}>
+              <Card padding="md" style={styles.descriptionCard}>
+                {/* Hidden full text to measure whether truncation is needed */}
+                {!descriptionCanExpand && !descriptionExpanded ? (
+                  <Text
+                    style={[styles.description, styles.descriptionMeasure]}
+                    onTextLayout={(e) => {
+                      if (e.nativeEvent.lines.length > 3) {
+                        setDescriptionCanExpand(true);
+                      }
+                    }}
+                  >
+                    {event.description}
+                  </Text>
+                ) : null}
+                <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>
+                  {event.description}
+                </Text>
+                {descriptionCanExpand || descriptionExpanded ? (
+                  <TouchableOpacity
+                    onPress={() => setDescriptionExpanded((prev) => !prev)}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    style={styles.descriptionToggle}
+                  >
+                    <Text style={styles.descriptionToggleText}>
+                      {descriptionExpanded ? 'Voir moins' : 'Voir plus'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </Card>
+            </MotionReveal>
+          ) : null}
+
           {GAMIFICATION_ENABLED && isOwner && event.status === 'published' ? (
             <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
               {earnedBoosts > 0 ? (
@@ -1447,19 +1521,38 @@ export default function EventDetailScreen() {
             <Card padding="md" style={[styles.qrCard, { marginTop: spacing.md }]}>
               <View style={styles.qrHeader}>
                 <Text style={styles.qrTitle}>QR code de l’événement</Text>
-                <TouchableOpacity style={styles.qrShareButton} onPress={handleShareQr}>
-                  <Share2 size={16} color={colors.brand.secondary} />
-                  <Text style={styles.qrShareText}>Partager</Text>
-                </TouchableOpacity>
+                <View style={styles.qrHeaderActions}>
+                  {qrCardVisible ? (
+                    <TouchableOpacity style={styles.qrShareButton} onPress={handleShareQr}>
+                      <Share2 size={16} color={colors.brand.secondary} />
+                      <Text style={styles.qrShareText}>Partager</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    style={styles.qrShareButton}
+                    onPress={() => setQrCardVisible((prev) => !prev)}
+                  >
+                    <QrCode size={16} color={colors.brand.secondary} />
+                    <Text style={styles.qrShareText}>{qrCardVisible ? 'Masquer' : 'Afficher'}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              {eventQrImageUrl ? (
-                <Image source={{ uri: eventQrImageUrl }} style={styles.qrImage} />
+              {qrCardVisible ? (
+                <>
+                  {eventQrImageUrl ? (
+                    <Image source={{ uri: eventQrImageUrl }} style={styles.qrImage} />
+                  ) : (
+                    <Text style={styles.qrHint}>Le QR code est en cours de génération.</Text>
+                  )}
+                  {eventQrPayload ? (
+                    <Text numberOfLines={1} style={styles.qrLink}>{eventQrPayload}</Text>
+                  ) : null}
+                </>
               ) : (
-                <Text style={styles.qrHint}>Le QR code est en cours de génération.</Text>
+                <Text style={styles.qrHint}>
+                  Affichez le QR code uniquement pour le présenter aux participants sur place.
+                </Text>
               )}
-              {eventQrPayload ? (
-                <Text numberOfLines={1} style={styles.qrLink}>{eventQrPayload}</Text>
-              ) : null}
             </Card>
           ) : null}
 
@@ -1488,23 +1581,6 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          <LinearGradient
-            colors={[colors.brand.secondary, '#2A4FE3']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.xpCard}
-          >
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.xpTitle}>Validez votre présence</Text>
-              <Text style={styles.xpSubtitle}>
-                Confirmez votre participation lorsque vous êtes sur place.
-              </Text>
-            </View>
-            <View style={styles.xpIcon}>
-              <CheckCircle2 size={30} color="#FFF" />
-            </View>
-          </LinearGradient>
-
           <View style={styles.facepileSection}>
             <View style={styles.facepileRow}>
               {attendees.slice(0, 3).map((attendee, i) => (
@@ -1531,8 +1607,6 @@ export default function EventDetailScreen() {
                 : `${Math.max(event.interests_count || 0, totalAttendees)} ami${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''} intéressé${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''}`}
             </Text>
           </View>
-
-          <Text style={styles.description}>{event.description}</Text>
 
           {event.tags?.length ? (
             <View style={styles.tagsContainer}>
@@ -1585,11 +1659,21 @@ export default function EventDetailScreen() {
               >
                 {event.creator?.avatar_url ? (
                   <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
+                ) : !event.creator && MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
+                  <Image
+                    source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
+                    defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
+                    style={styles.creatorCardAvatar}
+                  />
+                ) : !event.creator ? (
+                  <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 ) : (
                   <View style={[styles.creatorCardAvatar, styles.creatorCardAvatarFallback]} />
                 )}
                 <View style={styles.creatorCardInfo}>
-                  <Text style={styles.creatorCardName}>{event.creator?.display_name || 'Moments Locaux'}</Text>
+                  <Text style={styles.creatorCardName}>
+                    {event.creator?.display_name || MOMENTS_LOCAUX_ORGANIZER_NAME}
+                  </Text>
                   <Text style={styles.creatorCardMeta}>{event.creator?.city || 'Organisateur'}</Text>
                 </View>
               </TouchableOpacity>
@@ -1970,11 +2054,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  qrHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
   },
   qrTitle: {
     ...typography.body,
     color: colors.brand.text,
     fontWeight: '700',
+    flex: 1,
   },
   qrShareButton: {
     flexDirection: 'row',
@@ -2037,38 +2129,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 2,
   },
-  xpCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderRadius: 20,
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  xpTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  xpSubtitle: {
-    color: 'rgba(255,255,255,0.86)',
-    fontSize: 13,
-  },
-  xpIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
   facepileSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: spacing.lg,
     marginBottom: spacing.lg,
     paddingVertical: 8,
   },
@@ -2099,11 +2164,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
+  descriptionCard: {
+    marginTop: 0,
+    marginBottom: spacing.md,
+  },
   description: {
     ...typography.body,
     color: colors.brand.text,
-    lineHeight: 30,
-    marginBottom: spacing.md,
+    lineHeight: 24,
+  },
+  descriptionMeasure: {
+    position: 'absolute',
+    opacity: 0,
+    left: 0,
+    right: 0,
+    zIndex: -1,
+  },
+  descriptionToggle: {
+    marginTop: spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  descriptionToggleText: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '700',
   },
   tagsContainer: {
     flexDirection: 'row',
