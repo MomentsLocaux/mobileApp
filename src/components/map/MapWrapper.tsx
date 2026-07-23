@@ -63,10 +63,10 @@ const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
         );
       })}
       <Mapbox.Image name={DEFAULT_MAP_MARKER}>
-        <CategoryEventMarker color={colors.primary[500]} Icon={Users} />
+        <CategoryEventMarker color={colors.brand.secondary} Icon={Users} />
       </Mapbox.Image>
       <Mapbox.Image name={DEFAULT_CLUSTER_MAP_MARKER}>
-        <CategoryEventMarker color={colors.primary[500]} Icon={Users} variant="cluster" />
+        <CategoryEventMarker color={colors.brand.secondary} Icon={Users} variant="cluster" />
       </Mapbox.Image>
     </Mapbox.Images>
   );
@@ -119,7 +119,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   (
     {
       initialRegion,
-      userLocation,
+      userLocation: _userLocation,
       onFeaturePress,
       onZoomChange,
       onVisibleBoundsChange,
@@ -257,6 +257,19 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     if (!feature) return DEFAULT_MAP_MARKER;
     return normalizeEventIconKey(feature);
   }, [selectedEventShape]);
+
+  /** Hide the base pin while the enlarged selected overlay is shown (avoids visual double). */
+  const unselectedEventMarkerFilter = useMemo(
+    () =>
+      activeEventId
+        ? ([
+            'all',
+            ['!', ['has', 'point_count']],
+            ['!=', ['to-string', ['get', 'id']], String(activeEventId)],
+          ] as const)
+        : (['!', ['has', 'point_count']] as const),
+    [activeEventId]
+  );
 
   useEffect(() => {
     if (!mapPadding) return;
@@ -504,28 +517,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
         <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />
 
-        {userLocation && (
-          <Mapbox.ShapeSource
-            id="user-location"
-            shape={{
-              type: 'Feature',
-              geometry: { type: 'Point', coordinates: [userLocation.longitude, userLocation.latitude] },
-              properties: {},
-            }}
-          >
-            <Mapbox.SymbolLayer
-              id="user-location-symbol"
-              style={{
-                iconImage: 'marker-15',
-                iconSize: 1.6,
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
-                iconColor: colors.secondary[600] ?? '#ff7f50',
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
         {groupedEventSources.map(({ sourceId, iconKey, clusterIconKey, shape }) => (
           <Mapbox.ShapeSource
             key={sourceId}
@@ -567,12 +558,14 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             />
             <Mapbox.SymbolLayer
               id={`${sourceId}-event-markers`}
-              filter={['!', ['has', 'point_count']]}
+              filter={unselectedEventMarkerFilter as any}
               style={{
                 iconImage: iconKey || DEFAULT_MAP_MARKER,
                 iconSize: 1,
                 iconAllowOverlap: true,
                 iconIgnorePlacement: true,
+                iconAnchor: 'bottom',
+                iconOffset: [0, 2],
               }}
             />
           </Mapbox.ShapeSource>
@@ -583,12 +576,14 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             id="selected-event-halo"
             filter={['!', ['has', 'point_count']]}
             style={{
-              circleRadius: 26,
-              circleColor: colors.primary[500],
-              circleOpacity: 0.24,
-              circleStrokeWidth: 3,
-              circleStrokeColor: colors.primary[400],
-              circleStrokeOpacity: 0.95,
+              circleRadius: 20,
+              circleColor: colors.brand.secondary,
+              circleOpacity: 0.22,
+              circleStrokeWidth: 2.5,
+              circleStrokeColor: colors.brand.secondary,
+              circleStrokeOpacity: 0.9,
+              // Lift halo toward pin head (icon is bottom-anchored on the tip).
+              circleTranslate: [0, -16],
             }}
           />
           <Mapbox.SymbolLayer
@@ -599,6 +594,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
               iconSize: selectedIconSize,
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
+              iconAnchor: 'bottom',
+              iconOffset: [0, 2],
             }}
           />
         </Mapbox.ShapeSource>

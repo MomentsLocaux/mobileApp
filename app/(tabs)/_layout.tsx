@@ -552,6 +552,13 @@ const DrawerLink = ({
     ]}
     onPress={onPress}
     activeOpacity={0.7}
+    accessibilityRole="button"
+    accessibilityLabel={
+      typeof badgeCount === 'number' && badgeCount > 0
+        ? `${label}, ${badgeCount} notification${badgeCount > 1 ? 's' : ''}`
+        : label
+    }
+    accessibilityState={{ selected: !!active }}
   >
     <IconCmp
       size={20}

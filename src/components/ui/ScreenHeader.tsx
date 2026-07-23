@@ -17,7 +17,12 @@ export function ScreenHeader({ title, onBack, right, style }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }, style]}>
       {onBack ? (
-        <TouchableOpacity style={styles.iconButton} onPress={onBack}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Retour"
+        >
           <ChevronLeft size={22} color={colors.brand.text} />
         </TouchableOpacity>
       ) : (

@@ -64,6 +64,21 @@ export const CreateEventStepper = () => {
 
     const canPublish = canProceedStep2;
 
+    const missingPublishFields = useMemo(() => {
+        const missing: string[] = [];
+        if (!coverImage) missing.push('une cover');
+        if (!title.trim()) missing.push('un titre');
+        if (!startDate) missing.push('une date');
+        if (!location) missing.push('un lieu');
+        if (!category) missing.push('une catégorie');
+        return missing;
+    }, [coverImage, title, startDate, location, category]);
+
+    const missingFieldsHint =
+        missingPublishFields.length > 0
+            ? `Il manque ${missingPublishFields.join(', ')}.`
+            : null;
+
     const goToPage = (page: number) => {
         pagerRef.current?.setPage(page);
     };
@@ -74,11 +89,17 @@ export const CreateEventStepper = () => {
 
     const handleNext = () => {
         if (currentStep === 0 && !canProceedStep1) {
-            Alert.alert('Informations manquantes', 'Veuillez remplir tous les champs obligatoires.');
+            Alert.alert(
+                'Informations manquantes',
+                missingFieldsHint || 'Veuillez remplir tous les champs obligatoires.'
+            );
             return;
         }
         if (currentStep === 1 && !canProceedStep2) {
-            Alert.alert('Catégorie requise', 'Veuillez sélectionner une catégorie.');
+            Alert.alert(
+                'Informations manquantes',
+                missingFieldsHint || 'Veuillez sélectionner une catégorie.'
+            );
             return;
         }
         goToPage(currentStep + 1);
@@ -256,21 +277,30 @@ export const CreateEventStepper = () => {
 
             case 2:
                 return (
-                    <View style={styles.footer}>
+                    <View style={styles.publishFooter}>
                         <TouchableOpacity
                             style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
                             disabled={!canPublish || submitting}
                             onPress={handlePublish}
+                            accessibilityRole="button"
+                            accessibilityLabel="Soumettre pour validation"
                         >
                             {submitting ? (
                                 <ActivityIndicator color="#0f1719" />
                             ) : (
                                 <>
                                     <Rocket size={20} color="#0f1719" />
-                                    <Text style={styles.publishText}>Publier maintenant</Text>
+                                    <Text style={styles.publishText}>Soumettre pour validation</Text>
                                 </>
                             )}
                         </TouchableOpacity>
+                        {missingFieldsHint ? (
+                            <Text style={styles.missingHint}>{missingFieldsHint}</Text>
+                        ) : (
+                            <Text style={styles.missingHint}>
+                                Votre événement sera vérifié avant d'être publié.
+                            </Text>
+                        )}
                         <TouchableOpacity style={styles.editBtn} disabled={submitting} onPress={() => goToPage(0)}>
                             <Pencil size={18} color="#fff" />
                             <Text style={styles.editText}>Modifier les informations</Text>
@@ -382,6 +412,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: spacing.md,
     },
+    publishFooter: {
+        padding: spacing.md,
+        backgroundColor: colors.brand.primary,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.05)',
+        gap: spacing.sm,
+    },
+    missingHint: {
+        ...typography.caption,
+        color: colors.brand.textSecondary,
+        textAlign: 'center',
+        paddingHorizontal: spacing.sm,
+    },
     prevBtn: {
         flex: 1,
         paddingVertical: spacing.md,
@@ -411,7 +454,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     publishBtn: {
-        flex: 1,
         backgroundColor: colors.brand.secondary,
         paddingVertical: spacing.md,
         borderRadius: borderRadius.full,
@@ -429,7 +471,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     editBtn: {
-        flex: 1,
         backgroundColor: 'rgba(255,255,255,0.05)',
         paddingVertical: spacing.md,
         borderRadius: borderRadius.full,

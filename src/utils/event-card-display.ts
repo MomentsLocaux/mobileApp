@@ -107,6 +107,19 @@ export function getEventPriceLabel(event: Pick<EventWithCreator, 'is_free' | 'pr
   return 'Prix non renseigné';
 }
 
+/** Hide empty/placeholder price badges that hurt social proof on cards. */
+export function isMeaningfulPriceLabel(label: string): boolean {
+  return label !== 'Prix non renseigné';
+}
+
+/** Hide empty/placeholder access badges. */
+export function isMeaningfulAccessLabel(label: string): boolean {
+  return label !== 'Infos accès à confirmer';
+}
+
+/** Minimum view count before showing the eye badge on event cards. */
+export const MIN_VIEWS_BADGE_THRESHOLD = 5;
+
 export function getEventAccessLabel(
   event: Pick<
     EventWithCreator,
@@ -147,14 +160,20 @@ export function getEventDescriptionPreview(description?: string | null, maxLengt
   return `${normalized.slice(0, maxLength - 1).trim()}…`;
 }
 
+const CARD_HIDDEN_TAG_RE = /^(#?)(datatourisme(_api)?|data_tourisme(_api)?)$/i;
+
 export function getEventContextTags(event: Pick<EventWithCreator, 'tags' | 'ambiance'>): string[] {
   const tags = (Array.isArray(event.tags) ? event.tags : [])
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+    .filter((tag) => !CARD_HIDDEN_TAG_RE.test(tag.trim()))
     .map((tag) => (tag.startsWith('#') ? tag : `#${tag.trim()}`))
     .slice(0, 2);
 
   if (!tags.length && event.ambiance?.trim()) {
-    tags.push(event.ambiance.trim().startsWith('#') ? event.ambiance.trim() : `#${event.ambiance.trim()}`);
+    const ambiance = event.ambiance.trim();
+    if (!CARD_HIDDEN_TAG_RE.test(ambiance)) {
+      tags.push(ambiance.startsWith('#') ? ambiance : `#${ambiance}`);
+    }
   }
 
   return tags;

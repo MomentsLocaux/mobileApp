@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +16,7 @@ import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import type { EventWithCreator } from '@/types/database';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
-import { AppBackground, ScreenHeader } from '@/components/ui';
+import { AppBackground, EventCardSkeleton, ScreenHeader } from '@/components/ui';
 
 type StatusMeta = {
   label: string;
@@ -156,10 +155,9 @@ export default function MyEventsScreen() {
       <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
         <ScreenHeader title="Mes évènements" onBack={() => router.back()} />
 
-        {loading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator size="small" color={colors.brand.secondary} />
-            <Text style={styles.centerText}>Chargement…</Text>
+        {loading && !refreshing ? (
+          <View style={styles.skeletonWrap}>
+            <EventCardSkeleton count={2} />
           </View>
         ) : (
           <FlatList
@@ -176,15 +174,19 @@ export default function MyEventsScreen() {
               const statusMeta = getModerationStatusMeta(item.status);
               const temporalLabel = getTemporalLabel(item.starts_at, item.ends_at);
               const isEditable = item.status === 'draft' || item.status === 'refused';
+              const isRefused = item.status === 'refused';
+              const refusalReason = item.refusal_reason?.trim() || null;
+              const editHref = `/events/create/step-1?edit=${item.id}`;
+
               return (
                 <TouchableOpacity
                   style={styles.card}
                   onPress={() =>
-                    router.push(
-                      (isEditable ? `/events/create/step-1?edit=${item.id}` : `/events/${item.id}`) as any
-                    )
+                    router.push((isEditable ? editHref : `/events/${item.id}`) as any)
                   }
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.title || 'Sans titre'}, ${statusMeta.label}`}
                 >
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
@@ -208,6 +210,23 @@ export default function MyEventsScreen() {
                       {temporalLabel ? ` · ${temporalLabel}` : ''}
                     </Text>
                   </View>
+
+                  {isRefused ? (
+                    <View style={styles.refusalBox}>
+                      <Text style={styles.refusalLabel}>Motif du refus</Text>
+                      <Text style={styles.refusalText}>
+                        {refusalReason || 'Motif non précisé. Corrigez votre événement puis resoumettez-le.'}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.resubmitBtn}
+                        onPress={() => router.push(editHref as any)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Modifier et resoumettre"
+                      >
+                        <Text style={styles.resubmitText}>Modifier et resoumettre</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               );
             }}
@@ -221,7 +240,9 @@ export default function MyEventsScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    // backgroundColor: colors.neutral[50], // Removed for global background
+  },
+  skeletonWrap: {
+    flex: 1,
   },
   content: {
     padding: spacing.lg,
@@ -265,6 +286,39 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     flex: 1,
+  },
+  refusalBox: {
+    marginTop: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    gap: spacing.xs,
+  },
+  refusalLabel: {
+    ...typography.caption,
+    color: '#FCA5A5',
+    fontWeight: '700',
+  },
+  refusalText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+  },
+  resubmitBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  resubmitText: {
+    ...typography.caption,
+    color: colors.brand.primary,
+    fontWeight: '800',
   },
   centerState: {
     alignItems: 'center',

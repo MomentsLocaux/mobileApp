@@ -27,7 +27,6 @@ import { CommunityService } from '@/services/community.service';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import type { EventWithCreator } from '@/types/database';
 import type { CommunityMember } from '@/types/community';
-import { openEventNavigationOptions } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { useLikesStore } from '@/store/likesStore';
 
@@ -398,17 +397,9 @@ export default function FavoritesScreen() {
                 isParticipating={Boolean(item.is_interested)}
                 onHeartPress={() => handleToggleHeart(item)}
                 onPress={() => router.push(`/events/${item.id}` as any)}
-                onPrimaryAction={() =>
-                  openEventNavigationOptions(item, router, {
-                    onOpenExternalNavigation: () => setNavEvent(item),
-                  })
-                }
+                onPrimaryAction={() => setNavEvent(item)}
                 onSecondaryAction={() => router.push(`/events/${item.id}` as any)}
-                onNavigate={() =>
-                  openEventNavigationOptions(item, router, {
-                    onOpenExternalNavigation: () => setNavEvent(item),
-                  })
-                }
+                onNavigate={() => setNavEvent(item)}
                 style={styles.eventCard}
               />
             )}
@@ -476,6 +467,12 @@ export default function FavoritesScreen() {
         visible={!!navEvent}
         event={navEvent}
         onClose={() => setNavEvent(null)}
+        onOpenInAppMap={() => {
+          if (!navEvent) return;
+          const id = navEvent.id;
+          setNavEvent(null);
+          router.push(`/(tabs)/map?focus=${id}` as any);
+        }}
       />
     </View>
   );

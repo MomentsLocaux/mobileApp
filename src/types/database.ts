@@ -286,6 +286,7 @@ export interface Event {
   created_at: string;
   updated_at: string;
   status: EventModerationStatus | string | null;
+  refusal_reason?: string | null;
   ambiance: string | null;
 }
 
