@@ -1,6 +1,7 @@
 -- Admin console personal todos (per authenticated moderator/admin).
--- Do NOT apply without human validation (AGENTS.md).
--- Apply on DEV first, then UAT.
+-- Applied via Supabase MCP on 2026-07-23:
+--   DEV  prymkgkafaovhzopslea (moments-locaux-dev)
+--   UAT  ieehuzeotwagkkprohjr (moments-locaux-uat)
 
 CREATE TABLE IF NOT EXISTS public.admin_todos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
