@@ -1250,7 +1250,7 @@ Dépendances: `MVP-LUMO-002`.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes: **Done 2026-07-22 on DEV** — `credit_lumo_by_rule` (service_role), `earn_lumo` forbidden, `spend_lumo`/`buy_item` gated + write `lumo_transactions`, RLS SELECT-only, `app_config.gamification_enabled=false`. Migration: `20260722_lumo_economy_rpc_hardening.sql`.
+Notes: **Done 2026-07-22 on DEV** — `credit_lumo_by_rule` (service_role), `earn_lumo` forbidden, `spend_lumo`/`buy_item` gated + write `lumo_transactions`, RLS SELECT-only, `app_config.gamification_enabled=false`. Migration: `20260722_lumo_economy_rpc_hardening.sql`. **Follow-up 2026-07-23** — wire `event_published_approved` on moderation `pending→published` via trigger `trg_events_credit_lumo_on_published` + `weekly_cap` in `credit_lumo_by_rule` (`20260729_lumo_credit_on_event_published.sql`) — **awaiting DEV apply / human OK**.
 
 ### ID: MVP-LUMO-004
 
