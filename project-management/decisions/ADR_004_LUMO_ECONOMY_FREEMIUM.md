@@ -107,9 +107,12 @@ Colonnes :
 | `checkin` | 15–25 | 1 / event / user ; cooldown journalier global |
 | `mission_daily` | 10–15 | 1 / jour UTC user |
 | `mission_weekly` | 50–80 | 1 / semaine |
-| `event_published_approved` | 40–60 | 1–2 / semaine |
+| `event_held` | 20–150 (selon durée) | Après `ends_at` si status encore `published` ; 1 / event ; 2 / semaine ; pas de crédit si annulé/archivé avant la fin |
 | `media_approved` | 20 | Après modération only |
 | `referral_activated` | 100 | Cap mensuel |
+
+Barème `event_held` (durée `ends_at − starts_at`) : &lt;2h → 20 · 2–4h → 35 · 4–8h → 50 · 8–24h → 70 · 1–3j → 90 · 3–7j → 120 · &gt;7j → 150.  
+*(Amendment 2026-07-23 — remplace le crédit à l’approbation `event_published_approved`.)*
 
 | Sink shop / action | Coût Lumo | Effet |
 |--------------------|-----------|-------|
@@ -208,7 +211,8 @@ Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-acce
 | `checkin_base` | `checkin` | 20 | true |
 | `mission_daily` | `mission_daily` | 12 | true |
 | `mission_weekly` | `mission_weekly` | 60 | true |
-| `event_published_approved` | `event_published_approved` | 50 | true |
+| `event_held` | `event_held` | 20–150 (tiers durée) | true (migration `20260729`, awaiting DEV apply) |
+| `event_published_approved` | `event_published_approved` | 50 | **false** (remplacé par `event_held`) |
 | `media_approved` / `referral_activated` | … | 20 / 100 | false |
 | `MISSION_DAILY` / `CONTEST_WIN` | legacy | 150 / 1200 | false |
 

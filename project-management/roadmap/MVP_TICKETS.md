@@ -1250,7 +1250,7 @@ Dépendances: `MVP-LUMO-002`.
 
 Branche Git recommandée: `feat/post-mvp-wallet-lumo`
 
-Notes: **Done 2026-07-22 on DEV** — `credit_lumo_by_rule` (service_role), `earn_lumo` forbidden, `spend_lumo`/`buy_item` gated + write `lumo_transactions`, RLS SELECT-only, `app_config.gamification_enabled=false`. Migration: `20260722_lumo_economy_rpc_hardening.sql`. **Follow-up 2026-07-23** — wire `event_published_approved` on moderation `pending→published` via trigger `trg_events_credit_lumo_on_published` + `weekly_cap` in `credit_lumo_by_rule` (`20260729_lumo_credit_on_event_published.sql`) — **awaiting DEV apply / human OK**.
+Notes: **Done 2026-07-22 on DEV** — `credit_lumo_by_rule` (service_role), `earn_lumo` forbidden, `spend_lumo`/`buy_item` gated + write `lumo_transactions`, RLS SELECT-only, `app_config.gamification_enabled=false`. Migration: `20260722_lumo_economy_rpc_hardening.sql`. **Follow-up 2026-07-23** — abandon crédit à la publication ; `event_held` progressif post-`ends_at` (cron `award-completed-event-lumo`) + `weekly_cap` ; page mobile `/profile/lumo-earn` depuis le portefeuille. Migration `20260729_lumo_credit_on_event_published.sql` — **awaiting DEV apply / human OK**.
 
 ### ID: MVP-LUMO-004
 
@@ -1474,7 +1474,7 @@ Dépendances: `MVP-LUMO-004` ; `MVP-LUMO-005` ; `MVP-LUMO-006`.
 
 Branche Git recommandée: `feat/post-mvp-gamification`
 
-Notes: **Done on main 2026-07-22** — missions/shop réactivés sous flag ; wallet solde+historique ; entrées profil/drawer ; feedback check-in +X Lumo ; boost 24h sur fiche créateur.
+Notes: **Done on main 2026-07-22** — missions/shop réactivés sous flag ; wallet solde+historique ; entrées profil/drawer ; feedback check-in +X Lumo ; boost 24h sur fiche créateur. **2026-07-23** — page « Comment gagner des Lumo » (`/profile/lumo-earn`) depuis le portefeuille (branche `fix/lumo-credit-on-event-publish`).
 
 ### ID: MVP-LUMO-012
 

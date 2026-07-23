@@ -68,6 +68,13 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="lumo-earn"
+        options={{
+          title: 'Comment gagner des Lumo',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="journey"
         options={{
           title: 'Mon parcours',

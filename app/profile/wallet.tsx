@@ -6,9 +6,10 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
-import { Coins } from 'lucide-react-native';
+import { Coins, ChevronRight } from 'lucide-react-native';
 import { AppBackground, ScreenHeader } from '@/components/ui';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { useAuth } from '@/hooks';
@@ -94,6 +95,15 @@ function WalletScreenInner() {
             <Text style={styles.balanceValue}>{balance}</Text>
           )}
           <Text style={styles.balanceHint}>Monnaie d’engagement — pas convertible en €</Text>
+          <TouchableOpacity
+            style={styles.earnLink}
+            onPress={() => router.push('/profile/lumo-earn' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Comment gagner des Lumo"
+          >
+            <Text style={styles.earnLinkText}>Comment gagner des Lumo</Text>
+            <ChevronRight size={18} color={colors.brand.secondary} />
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Historique</Text>
@@ -165,6 +175,18 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xs,
+  },
+  earnLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  earnLinkText: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '600',
   },
   sectionTitle: {
     ...typography.h4,
