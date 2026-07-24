@@ -10,36 +10,28 @@ type Props = {
   onUnlockPress?: () => void;
 };
 
-export function MyRadiusTeaser({ placesCount, isPremium = false, onUnlockPress }: Props) {
-  const hasPlaces = placesCount > 0;
+/** Explains Mon territoire benefits — no free teaser counters as the sales hook. */
+export function MyRadiusTeaser({ placesCount: _placesCount, isPremium = false, onUnlockPress }: Props) {
   const showUnlock = !isPremium && !!onUnlockPress;
 
   const content = (
-  <>
+    <>
       <View style={styles.header}>
         <MapPinned size={18} color={colors.brand.secondary} />
-        <Text style={styles.title}>Mon territoire</Text>
+        <Text style={styles.title}>Carte de votre zone</Text>
       </View>
-      {hasPlaces ? (
-        <Text style={styles.body}>
-          {placesCount} lieu{placesCount > 1 ? 'x' : ''} repéré{placesCount > 1 ? 's' : ''} dans votre territoire
-          récent.
-          {isPremium
-            ? ' Le détail complet arrive dans une prochaine mise à jour.'
-            : ' Le détail complet est réservé à Moments Locaux+.'}
-        </Text>
-      ) : (
-        <Text style={styles.body}>
-          Votre territoire se construit au fil de vos découvertes. Activez la localisation passive pour
-          enrichir cette vue.
-        </Text>
-      )}
+      <Text style={styles.body}>
+        Voyez où vous sortez et découvrez de nouveaux coins proches. Avec Éclaireur, la carte détaillée
+        et l’historique de votre zone deviennent disponibles.
+      </Text>
       <Text style={styles.hint}>
-        {isPremium ? 'Moments Locaux+ actif' : 'Aperçu gratuit · débloquez le détail avec Premium'}
+        {isPremium
+          ? 'Éclaireur actif — détail de zone inclus'
+          : 'Inclus dans Éclaireur (avec tout Habitué)'}
       </Text>
       {showUnlock && (
         <View style={styles.ctaRow}>
-          <Text style={styles.ctaText}>Découvrir Moments Locaux+</Text>
+          <Text style={styles.ctaText}>Découvrir Éclaireur</Text>
           <ChevronRight size={16} color={colors.brand.secondary} />
         </View>
       )}

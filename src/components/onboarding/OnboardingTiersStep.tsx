@@ -5,6 +5,8 @@ import { MotionReveal } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { Motion } from '@/constants/motion';
 import { haptics } from '@/utils/haptics';
+import { OFFER_FEATURE_MATRIX } from '@/constants/offers';
+import { ECLAIREUR_PLANS, HABITUE_PLANS } from '@/services/subscription.service';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -19,7 +21,6 @@ type Tier = {
   tagline: string;
   body: string;
   badge?: string;
-  details: string[];
 };
 
 const TIERS: Tier[] = [
@@ -28,46 +29,24 @@ const TIERS: Tier[] = [
     icon: Compass,
     name: 'Local',
     tagline: 'Explore ton quartier',
-    body: 'Carte, moments, création, check-in et social — l’expérience complète, gratuite.',
+    body: 'Carte, moments, création et social — la base gratuite.',
     badge: 'Gratuit',
-    details: [
-      'Voir les moments autour de vous (carte + fil)',
-      'Créer un événement et le soumettre pour validation',
-      'Garder des favoris, liker et suivre des créateurs',
-      'Valider votre présence sur place (check-in)',
-      'Gérer votre profil et signaler un contenu',
-    ],
   },
   {
     id: 'habitue',
     icon: Sparkles,
     name: 'Habitué',
     tagline: 'Plus tu sors, plus tu débloques',
-    body: 'Offre d’engagement local (Lumo, missions, Pass). Payante — tarif bientôt annoncé.',
-    badge: 'Payant',
-    details: [
-      'Gagner des Lumo en sortant et en contribuant (points d’engagement)',
-      'Missions courtes pour progresser chaque jour / semaine',
-      'Débloquer des Pass partenaires (avantages IRL locaux)',
-      'Accéder plus tôt à certains événements (avant le public)',
-      'Gagner un statut de quartier (badge Ambassadeur)',
-      'Tarif d’abonnement : à confirmer (non figé dans l’ADR)',
-    ],
+    body: `Local + check-in, Lumo, missions, Pass. ${HABITUE_PLANS.monthly.priceLabel}/mois · ${HABITUE_PLANS.annual.priceLabel}/an.`,
+    badge: 'Abo',
   },
   {
     id: 'eclaireur',
     icon: Crown,
     name: 'Éclaireur',
     tagline: 'Découvre autrement',
-    body: 'Abonnement Discovery : suggestions plus riches et carte de votre zone. 2,99 €/mois ou 19,99 €/an.',
+    body: `Habitué + idées maintenant, carte de zone, recommandations. ${ECLAIREUR_PLANS.monthly.priceLabel}/mois · ${ECLAIREUR_PLANS.annual.priceLabel}/an.`,
     badge: 'Abo',
-    details: [
-      'Suggestions « maintenant » plus complètes (au-delà de l’aperçu gratuit)',
-      'Carte de votre zone habituelle et des nouveaux coins à explorer',
-      'Recommandations plus adaptées à vos sorties',
-      'Bientôt : idées pour sortir de vos routines + bilans de découverte',
-      'Indépendant d’Habitué : aide à découvrir, pas un boost de Lumo',
-    ],
   },
 ];
 
@@ -75,6 +54,10 @@ function toneColor(tone: TierTone) {
   if (tone === 'eclaireur') return colors.brand.premiumLight;
   if (tone === 'habitue') return colors.brand.success;
   return colors.brand.secondary;
+}
+
+function detailsFor(tier: TierTone): string[] {
+  return OFFER_FEATURE_MATRIX.filter((row) => row[tier]).map((row) => row.label);
 }
 
 export function OnboardingTiersStep() {
@@ -90,8 +73,8 @@ export function OnboardingTiersStep() {
     <MotionReveal style={styles.wrap}>
       <Text style={styles.title}>Trois façons de vivre Moments Locaux</Text>
       <Text style={styles.subtitle}>
-        Touchez une carte pour voir le détail. Local est gratuit. Habitué et Éclaireur sont des
-        offres payantes (Éclaireur déjà tarifé ; Habitué à venir).
+        Offres incrémentales : Habitué inclut Local, Éclaireur inclut Habitué. Touchez une carte pour
+        le détail.
       </Text>
 
       <View style={styles.list}>
@@ -99,6 +82,7 @@ export function OnboardingTiersStep() {
           const Icon = tier.icon;
           const expanded = expandedId === tier.id;
           const accent = toneColor(tier.id);
+          const details = detailsFor(tier.id);
 
           return (
             <MotionReveal key={tier.id} delay={index * Motion.stagger.content}>
@@ -157,8 +141,8 @@ export function OnboardingTiersStep() {
 
                 {expanded ? (
                   <View style={styles.details}>
-                    <Text style={styles.detailsLabel}>Contenu inclus</Text>
-                    {tier.details.map((item) => (
+                    <Text style={styles.detailsLabel}>Inclus dans {tier.name}</Text>
+                    {details.map((item) => (
                       <View key={item} style={styles.detailRow}>
                         <View style={[styles.checkWrap, { borderColor: `${accent}55` }]}>
                           <Check size={12} color={accent} strokeWidth={3} />

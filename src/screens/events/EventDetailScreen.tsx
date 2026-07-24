@@ -61,6 +61,7 @@ import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { haptics } from '@/utils/haptics';
 import { EventsService } from '../../services/events.service';
 import { useAuth } from '../../hooks';
+import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { getCategoryLabel } from '../../constants/categories';
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
@@ -146,6 +147,7 @@ export default function EventDetailScreen() {
   const { id, qr } = useLocalSearchParams<{ id: string; qr?: string }>();
   const router = useRouter();
   const { profile, session, isLoading: authLoading } = useAuth();
+  const { hasHabitue } = useOfferEntitlements();
   const { currentLocation } = useLocationStore();
   const insets = useSafeAreaInsets();
   const { comments } = useComments(id || '');
@@ -510,6 +512,17 @@ export default function EventDetailScreen() {
       openGuestGate('Faire un check-in');
       return;
     }
+    if (!hasHabitue) {
+      Alert.alert(
+        'Réservé à Habitué',
+        'Le check-in débloque Lumo et votre progression. Passez Habitué (ou Éclaireur) pour valider votre présence.',
+        [
+          { text: 'Voir les offres', onPress: () => router.push('/profile/offers' as any) },
+          { text: 'Annuler', style: 'cancel' },
+        ],
+      );
+      return;
+    }
     if (!profile || !event || !session?.access_token) return;
     if (!currentLocation) {
       Alert.alert('Localisation requise', 'Activez la localisation pour valider le check-in.');
@@ -545,10 +558,12 @@ export default function EventDetailScreen() {
   }, [
     currentLocation,
     event,
+    hasHabitue,
     isGuest,
     loadAttendeesAndCheckin,
     loadEventStats,
     profile,
+    router,
     session?.access_token,
   ]);
 
@@ -598,6 +613,17 @@ export default function EventDetailScreen() {
     }
     if (hasCheckedIn) {
       Alert.alert('Check-in', 'Votre présence est déjà validée pour cet événement.');
+      return;
+    }
+    if (!hasHabitue) {
+      Alert.alert(
+        'Réservé à Habitué',
+        'Le check-in débloque Lumo et votre progression. Passez Habitué (ou Éclaireur) pour valider votre présence.',
+        [
+          { text: 'Voir les offres', onPress: () => router.push('/profile/offers' as any) },
+          { text: 'Annuler', style: 'cancel' },
+        ],
+      );
       return;
     }
     Alert.alert(

@@ -27,7 +27,7 @@ Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-P
 
 4. **Pas de conversion Lumo → €.** Pas de cash-out. Les packs Lumo payants sont reportés en phase 2 après stabilisation de l’économie.
 
-5. **Éclaireur est orthogonal à Lumo / Habitué** (ADR 003) : Éclaireur = profondeur Discovery / confort ; Habitué + Lumo = engagement événementiel. L’abo ne doit pas créer d’avantage compétitif massif en Lumo (au plus ×1.1 soft ou missions exclusives non pay-to-win). Entitlement technique inchangé : `moments_locaux_plus` (ex-libellé Moments Locaux+).
+5. **Éclaireur est orthogonal en *produit Discovery*** mais **incrémental en entitlements** : Éclaireur ⇒ Habitué ⇒ Local. Habitué = abo engagement (check-in, Lumo, Pass…). Éclaireur = profondeur Discovery + tout Habitué. L’abo Éclaireur ne doit pas créer de pay-to-win Lumo massif (au plus ×1.1 soft). Entitlements : `moments_locaux_habitue` (Habitué), `moments_locaux_plus` (Éclaireur, ex-libellé Moments Locaux+).
 
 6. **Source de vérité backend uniquement** : crédits/débits via RPC `SECURITY DEFINER` atomiques + `lumo_rules`. Le client ne décide jamais du montant. Feature flag `GAMIFICATION_ENABLED` (défaut off tant que post-MVP).
 
@@ -38,9 +38,9 @@ Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-P
 ## Modèle en 3 couches
 
 ```
-Local (gratuit : carte, events, création, check-in, social)
-  → Habitué (engagement : Lumo, missions, Pass, statut quartier)
-    → Éclaireur (abonnement IAP : Discovery approfondie)
+Local (gratuit : carte, events, création, social — sans check-in)
+  → Habitué (abo : check-in + Lumo + missions + Pass + early access)
+    → Éclaireur (abo : Discovery approfondie + tout Habitué)
 ```
 
 Phrase marketing :
@@ -48,19 +48,19 @@ Phrase marketing :
 
 | Couche | Nom marketing | Tagline | Rôle | Monétisation |
 |--------|---------------|---------|------|--------------|
-| 1 | **Local** | Explore ton quartier | Acquisition / boucle locale gratuite | — |
-| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement + Lumo + sinks utiles (Pass, early access, boosts) | Soft currency Lumo ; boosts créateurs phase 2 en € |
-| 3 | **Éclaireur** | Découvre autrement | Depth Discovery (My Radius, Right Now avancé, Break the Loop…) | 2,99 €/mois · 19,99 €/an (indicatif) |
+| 1 | **Local** | Explore ton quartier | Acquisition / boucle locale gratuite | Gratuit |
+| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement + Lumo + Pass + check-in | **0,99 €/mois · 9,99 €/an** (abo) — inclut Local |
+| 3 | **Éclaireur** | Découvre autrement | Depth Discovery | **2,99 €/mois · 19,99 €/an** — inclut Habitué + Local |
 
 ### Vocabulaire — ne pas confondre
 
 | Terme | Nature | Usage |
 |-------|--------|--------|
-| **Local** | Couche 1 (tous les comptes) | Par défaut, sans abo ni progression Habitué mise en avant |
-| **Habitué** | Couche 2 / programme d’engagement | UX missions, wallet Lumo, Pass, progression |
-| **Lumo** | Monnaie | Earn / spend uniquement — jamais le nom d’une couche |
+| **Local** | Couche 1 (tous les comptes) | Gratuit — sans check-in |
+| **Habitué** | Couche 2 / abo engagement | 0,99 €/mois · 9,99 €/an ; inclut Local + check-in / Lumo / Pass |
+| **Lumo** | Monnaie | Earn / spend — jamais le nom d’une couche |
 | **Ambassadeur** | Badge / palier *dans* Habitué (M3) | Statut quartier, pas une 4ᵉ couche |
-| **Éclaireur** | Couche 3 / abo | Libellé UI paywall & profil ; code = `moments_locaux_plus` |
+| **Éclaireur** | Couche 3 / abo Discovery | 2,99 €/mois · 19,99 €/an ; inclut Habitué ; code = `moments_locaux_plus` |
 
 ## Stack minimale (5 mécanismes prioritaires)
 

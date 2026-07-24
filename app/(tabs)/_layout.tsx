@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   Coins,
   Ticket,
+  Sparkles,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView } from 'react-native';
@@ -37,7 +38,7 @@ import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
-import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
+import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -45,7 +46,7 @@ import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
-  const { isPremium } = usePremiumEntitlement();
+  const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -335,10 +336,15 @@ export default function TabsLayout() {
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-              {isPremium ? (
+              {hasEclaireur ? (
                 <View style={styles.drawerPremiumPill}>
                   <Crown size={12} color={colors.brand.primary} strokeWidth={2.5} />
-                  <Text style={styles.drawerPremiumText}>Moments Locaux+</Text>
+                  <Text style={styles.drawerPremiumText}>Éclaireur</Text>
+                </View>
+              ) : hasHabitue ? (
+                <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
+                  <Sparkles size={12} color={colors.brand.primary} strokeWidth={2.5} />
+                  <Text style={styles.drawerPremiumText}>Habitué</Text>
                 </View>
               ) : null}
               <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
@@ -403,6 +409,15 @@ export default function TabsLayout() {
           {/* Section: Compte */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>COMPTE</Text>
+            <DrawerLink
+              icon={Sparkles}
+              label="Nos offres"
+              iconColor={colors.brand.premiumLight}
+              onPress={() => {
+                toggleDrawer(false);
+                router.push('/profile/offers' as any);
+              }}
+            />
             <DrawerLink
               icon={Settings}
               label="Paramètres"
@@ -698,6 +713,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.premiumLight,
     borderWidth: 1,
     borderColor: colors.brand.premiumBorder,
+  },
+  drawerHabituePill: {
+    backgroundColor: '#6EE7B7',
+    borderColor: 'rgba(16,185,129,0.55)',
   },
   drawerPremiumText: {
     fontSize: 11,
