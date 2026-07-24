@@ -1,8 +1,12 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
 import { AppBackground } from '../src/components/ui/AppBackground';
+import { toastConfig } from '../src/components/ui/AppToast';
+import { brandFontAssets } from '../src/constants/fonts';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
@@ -11,18 +15,27 @@ import { DISCOVERY_CAPTURE_ENABLED } from '@/config/discovery.flags';
 import { useDiscoveryCapture } from '../src/hooks/useDiscoveryCapture';
 import { ensureDiscoveryLocationTaskRegistered } from '@/tasks/discovery-location';
 
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
 if (DISCOVERY_CAPTURE_ENABLED) {
   ensureDiscoveryLocationTaskRegistered();
 }
 
 export default function RootLayout() {
   useFrameworkReady();
+  const [fontsLoaded] = useFonts(brandFontAssets);
 
   const { setUser, setSession, setProfile, setLoading, initialized, setInitialized } = useAuthStore();
   const userId = useAuthStore((state) => state.user?.id);
 
   usePushNotifications(userId);
   useDiscoveryCapture(userId);
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsLoaded]);
 
   useEffect(() => {
     let mounted = true;
@@ -87,6 +100,10 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <>
       <AppBackground />
@@ -107,7 +124,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />
-      <Toast />
+      <Toast config={toastConfig} />
     </>
   );
 }

@@ -52,10 +52,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { Motion, createEnterTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { haptics } from '@/utils/haptics';
 import { EventsService } from '../../services/events.service';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
@@ -196,6 +199,21 @@ export default function EventDetailScreen() {
   const isEventLiked = event ? isLiked(event.id) : false;
   const isEventFavorited = event ? isFavorite(event.id) : false;
   const isEventHearted = isEventLiked || isEventFavorited;
+
+  const heartScale = useSharedValue(1);
+  const wasHeartedRef = useRef(isEventHearted);
+  useEffect(() => {
+    if (isEventHearted && !wasHeartedRef.current) {
+      heartScale.value = withSequence(
+        withSpring(1.3, Motion.spring.snappy),
+        withSpring(1, Motion.spring.soft)
+      );
+    }
+    wasHeartedRef.current = isEventHearted;
+  }, [isEventHearted, heartScale]);
+  const heartAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
@@ -437,6 +455,8 @@ export default function EventDetailScreen() {
     }
     if (!profile || !event) return;
 
+    haptics.light();
+
     const before = {
       isLiked: isLiked(event.id),
       isFavorite: isFavorite(event.id),
@@ -508,6 +528,7 @@ export default function EventDetailScreen() {
       );
       if (res.success) {
         setHasCheckedIn(true);
+        haptics.success();
         await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
         const lumo = Number(res.rewards?.lumo || 0);
         const body =
@@ -1249,11 +1270,13 @@ export default function EventDetailScreen() {
               </FloatingPressable>
             ) : null}
             <FloatingPressable style={styles.iconButton} onPress={handleToggleHeart} entranceDelay={160}>
-              <Heart
-                size={20}
-                color={isEventHearted ? colors.brand.secondary : colors.brand.text}
-                fill={isEventHearted ? colors.brand.secondary : 'transparent'}
-              />
+              <Animated.View style={heartAnimatedStyle}>
+                <Heart
+                  size={20}
+                  color={isEventHearted ? colors.brand.secondary : colors.brand.text}
+                  fill={isEventHearted ? colors.brand.secondary : 'transparent'}
+                />
+              </Animated.View>
             </FloatingPressable>
           </View>
         </View>
@@ -1561,12 +1584,14 @@ export default function EventDetailScreen() {
               <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
             <TouchableOpacity style={styles.statBox} onPress={handleToggleHeart}>
-              <Heart
-                size={20}
-                color={colors.brand.secondary}
-                fill={isEventHearted ? colors.brand.secondary : 'transparent'}
-                style={{ marginBottom: 4 }}
-              />
+              <Animated.View style={heartAnimatedStyle}>
+                <Heart
+                  size={20}
+                  color={colors.brand.secondary}
+                  fill={isEventHearted ? colors.brand.secondary : 'transparent'}
+                  style={{ marginBottom: 4 }}
+                />
+              </Animated.View>
               <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
             </TouchableOpacity>
             <View style={styles.statBox}>

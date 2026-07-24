@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell } from 'lucide-react-native';
+import { Bell, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvents } from '@/hooks/useEvents';
@@ -38,7 +38,7 @@ import {
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { AppBackground, EventCardSkeleton } from '@/components/ui';
+import { AppBackground, EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 
 type StoryItem = {
@@ -608,21 +608,29 @@ export default function HomeScreen() {
         removeClippedSubviews
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.brand.secondary} />}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {searchLoading || metaFeedLoading
-                ? 'Chargement...'
-                : showSearchResults
-                  ? 'Aucun événement pour ces critères. Élargissez le rayon ou incluez les événements passés.'
-                  : metaFilter === 'upcoming'
-                    ? 'Aucun événement à venir pour le moment.'
-                    : metaFilter === 'past'
-                      ? 'Aucun événement passé trouvé.'
-                      : metaFilter === 'live'
-                        ? 'Aucun événement en cours pour le moment.'
-                        : 'Aucun événement trouvé'}
-            </Text>
-          </View>
+          searchLoading || metaFeedLoading ? (
+            <EventCardSkeleton count={2} />
+          ) : showSearchResults ? (
+            <EmptyState
+              icon={Search}
+              title="Aucun événement pour ces critères"
+              subtitle="Élargissez le rayon ou incluez les événements passés."
+              ctaLabel="Effacer la recherche"
+              onCtaPress={() => setSearchApplied(false)}
+            />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {metaFilter === 'upcoming'
+                  ? 'Aucun événement à venir pour le moment.'
+                  : metaFilter === 'past'
+                    ? 'Aucun événement passé trouvé.'
+                    : metaFilter === 'live'
+                      ? 'Aucun événement en cours pour le moment.'
+                      : 'Aucun événement trouvé'}
+              </Text>
+            </View>
+          )
         }
       />
 

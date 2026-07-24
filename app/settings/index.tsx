@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   User,
@@ -11,6 +11,7 @@ import {
   Cookie,
   BookOpenCheck,
   Compass,
+  RotateCcw,
 } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
@@ -18,6 +19,20 @@ import { SettingsSectionCard, SettingsRow } from '@/components/settings/Settings
 
 export default function SettingsScreen() {
   const router = useRouter();
+
+  const handleReplayOnboarding = () => {
+    Alert.alert(
+      'Rejouer l’onboarding',
+      'Vous allez revoir les étapes de configuration du profil. Vous pourrez quitter à tout moment.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Rejouer',
+          onPress: () => router.push('/onboarding?replay=1' as any),
+        },
+      ],
+    );
+  };
 
   return (
     <SettingsLayout title="Paramètres">
@@ -31,6 +46,11 @@ export default function SettingsScreen() {
           icon={User}
           onPress={() => router.push('/profile/edit' as any)}
           noBorder
+        />
+        <SettingsRow
+          label="Rejouer l’onboarding"
+          icon={RotateCcw}
+          onPress={handleReplayOnboarding}
         />
       </SettingsSectionCard>
 

@@ -1,4 +1,8 @@
+import { brandFonts } from './fonts';
+
 type ColorScale = Record<string | number, string>;
+
+export { brandFonts };
 
 export const colors: Record<string, ColorScale> = {
   primary: {
@@ -153,71 +157,85 @@ export const borderRadius = {
 
 export const typography = {
   h1: {
+    fontFamily: brandFonts.bold,
     fontSize: 32,
     fontWeight: '700' as const,
     lineHeight: 38,
   },
   h2: {
+    fontFamily: brandFonts.bold,
     fontSize: 28,
     fontWeight: '700' as const,
     lineHeight: 34,
   },
   h3: {
+    fontFamily: brandFonts.semibold,
     fontSize: 24,
     fontWeight: '600' as const,
     lineHeight: 30,
   },
   h4: {
+    fontFamily: brandFonts.semibold,
     fontSize: 20,
     fontWeight: '600' as const,
     lineHeight: 26,
   },
   h5: {
+    fontFamily: brandFonts.semibold,
     fontSize: 18,
     fontWeight: '600' as const,
     lineHeight: 24,
   },
   h6: {
+    fontFamily: brandFonts.semibold,
     fontSize: 16,
     fontWeight: '600' as const,
     lineHeight: 22,
   },
   body: {
+    fontFamily: brandFonts.regular,
     fontSize: 16,
     fontWeight: '400' as const,
     lineHeight: 24,
   },
   bodyBold: {
+    fontFamily: brandFonts.bold,
     fontSize: 16,
     fontWeight: '700' as const,
     lineHeight: 24,
   },
   bodySmall: {
+    fontFamily: brandFonts.regular,
     fontSize: 14,
     fontWeight: '400' as const,
     lineHeight: 20,
   },
   bodyLarge: {
+    fontFamily: brandFonts.regular,
     fontSize: 18,
     fontWeight: '400' as const,
     lineHeight: 26,
   },
   label: {
+    fontFamily: brandFonts.semibold,
     fontSize: 13,
     fontWeight: '600' as const,
     lineHeight: 18,
   },
   small: {
+    fontFamily: brandFonts.regular,
     fontSize: 12,
     fontWeight: '400' as const,
     lineHeight: 16,
   },
   caption: {
+    fontFamily: brandFonts.regular,
     fontSize: 12,
     fontWeight: '400' as const,
     lineHeight: 16,
   },
   subtitle: {
+    fontFamily: brandFonts.medium,
     fontSize: 15,
     fontWeight: '500' as const,
     lineHeight: 22,

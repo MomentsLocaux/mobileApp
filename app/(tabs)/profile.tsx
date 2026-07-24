@@ -133,7 +133,10 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.roleBadge,
-                { backgroundColor: getRoleBadgeColor(profile.role).bg },
+                {
+                  backgroundColor: getRoleBadgeColor(profile.role).bg,
+                  borderColor: getRoleBadgeColor(profile.role).border,
+                },
               ]}
             >
               <Award size={14} color={getRoleBadgeColor(profile.role).text} />
@@ -161,19 +164,15 @@ export default function ProfileScreen() {
           <PremiumCard isPremium={isPremium}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{profile.email}</Text>
-            </View>
-            <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Rôle</Text>
               <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Onboarding</Text>
-              <Text style={styles.infoValue}>
-                {profile.onboarding_completed ? '✓ Terminé' : '○ En cours'}
-              </Text>
-            </View>
+            {profile.city ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Ville</Text>
+                <Text style={styles.infoValue}>{profile.city}</Text>
+              </View>
+            ) : null}
           </PremiumCard>
 
           <PremiumCard isPremium={isPremium} style={styles.actionCard}>
@@ -321,6 +320,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
+    borderWidth: 1,
     marginBottom: spacing.md,
   },
   roleText: {

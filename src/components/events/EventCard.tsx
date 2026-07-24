@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,12 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 import {
   Calendar,
   Clock,
@@ -19,6 +25,8 @@ import {
 } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { Motion } from '@/constants/motion';
+import { haptics } from '@/utils/haptics';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '@/constants/categories';
 import {
   EVENT_CARD_CTA,
@@ -140,6 +148,21 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const heartActive = isLiked || isFavorite;
   const showHeart = Boolean(onHeartPress);
 
+  const heartScale = useSharedValue(1);
+  const wasHeartActiveRef = useRef(heartActive);
+  useEffect(() => {
+    if (heartActive && !wasHeartActiveRef.current) {
+      heartScale.value = withSequence(
+        withSpring(1.3, Motion.spring.snappy),
+        withSpring(1, Motion.spring.soft)
+      );
+    }
+    wasHeartActiveRef.current = heartActive;
+  }, [heartActive, heartScale]);
+  const heartAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
+
   const primaryCta = useMemo(() => {
     if (variant === 'favorite') {
       if (temporal === 'past') return EVENT_CARD_CTA.favoritePast;
@@ -241,6 +264,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 style={styles.favoriteButton}
                 onPress={(e) => {
                   e.stopPropagation?.();
+                  haptics.light();
                   onHeartPress?.();
                 }}
                 hitSlop={8}
@@ -248,11 +272,13 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 accessibilityLabel={heartActive ? 'Retirer des favoris' : 'Aimer et enregistrer'}
                 disabled={!onHeartPress}
               >
-                <Heart
-                  size={22}
-                  color={heartActive ? CARD_THEME.accent : CARD_THEME.onAccent}
-                  fill={heartActive ? CARD_THEME.accent : 'rgba(0,0,0,0.25)'}
-                />
+                <Animated.View style={heartAnimatedStyle}>
+                  <Heart
+                    size={22}
+                    color={heartActive ? CARD_THEME.accent : CARD_THEME.onAccent}
+                    fill={heartActive ? CARD_THEME.accent : 'rgba(0,0,0,0.25)'}
+                  />
+                </Animated.View>
               </TouchableOpacity>
             ) : null}
           </View>
