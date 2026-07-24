@@ -15,7 +15,7 @@ type Props = {
   count?: number;
 };
 
-function SkeletonBlock({
+export function SkeletonBlock({
   height,
   width,
   radius = borderRadius.md,

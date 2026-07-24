@@ -1,87 +1,64 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   Alert,
   Image,
-  Dimensions,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Users } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MapPin, Users } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
-import type { CommunityMember, LeaderboardEntry } from '../../types/community';
+import type { CommunityMember } from '../../types/community';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { AppBackground, EmptyState, SkeletonBlock } from '@/components/ui';
+import { haptics } from '@/utils/haptics';
 
-type TabKey = 'leaderboard' | 'members';
+type SortKey = 'followers' | 'events' | 'lumo';
 
-const SORT_OPTIONS: { key: 'followers' | 'events' | 'lumo'; label: string }[] = [
-  { key: 'followers', label: 'Followers' },
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'followers', label: 'Abonnés' },
   { key: 'events', label: 'Événements' },
-  ...(GAMIFICATION_ENABLED
-    ? [{ key: 'lumo' as const, label: 'Engagement' }]
-    : []),
+  ...(GAMIFICATION_ENABLED ? [{ key: 'lumo' as const, label: 'Engagement' }] : []),
 ];
 
 export default function CommunityScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { profile, user, session } = useAuth();
-  const [tab, setTab] = useState<TabKey>('leaderboard');
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
-  const [period, setPeriod] = useState<'monthly' | 'global'>('monthly');
-  const [periodPickerVisible, setPeriodPickerVisible] = useState(false);
   const [members, setMembers] = useState<CommunityMember[]>([]);
-  const [cityFilter, setCityFilter] = useState<string | null>(null);
-  const [sort, setSort] = useState<'followers' | 'events' | 'lumo'>('followers');
-  const [sortPickerVisible, setSortPickerVisible] = useState(false);
-  const [loadingBoard, setLoadingBoard] = useState(false);
-  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [sort, setSort] = useState<SortKey>('followers');
+  const [cityOnly, setCityOnly] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followPendingId, setFollowPendingId] = useState<string | null>(null);
-  const currentUserId = user?.id || session?.user?.id || profile?.id;
   const [followingIds, setFollowingIds] = useState<string[]>([]);
 
-  const loadLeaderboard = useCallback(async () => {
-    try {
-      setLoadingBoard(true);
-      const data = await CommunityService.listLeaderboard({ period, city: period === 'monthly' ? cityFilter : null });
-      setLeaderboard(data);
-      if (currentUserId) {
-        const mine = await CommunityService.getMyLeaderboardEntry({
-          period,
-          city: period === 'monthly' ? cityFilter : null,
-          userId: currentUserId,
-        });
-        setMyEntry(mine);
-      } else {
-        setMyEntry(null);
-      }
-    } catch (e) {
-      console.warn('loadLeaderboard error', e);
-      Alert.alert('Erreur', 'Impossible de charger le classement');
-    } finally {
-      setLoadingBoard(false);
-    }
-  }, [period, cityFilter, currentUserId]);
+  const currentUserId = user?.id || session?.user?.id || profile?.id;
+  const profileCity = profile?.city?.trim() || null;
+  const cityFilter = cityOnly && profileCity ? profileCity : null;
 
   const loadMembers = useCallback(async () => {
     try {
       setLoadingMembers(true);
-      let ids: string[] = [];
       if (currentUserId) {
-        ids = await CommunityService.getFollowingIds(currentUserId);
+        const ids = await CommunityService.getFollowingIds(currentUserId);
         setFollowingIds(ids);
       } else {
         setFollowingIds([]);
       }
-      const data = await CommunityService.listMembers({ city: cityFilter, sort, limit: 50 });
+      const data = await CommunityService.listMembers({
+        city: cityFilter,
+        sort,
+        limit: 50,
+      });
       setMembers(data);
     } catch (e) {
       console.warn('loadMembers error', e);
@@ -92,26 +69,23 @@ export default function CommunityScreen() {
   }, [cityFilter, sort, currentUserId]);
 
   useEffect(() => {
-    if (tab === 'leaderboard') {
-      loadLeaderboard();
-    } else {
-      loadMembers();
-    }
-  }, [tab, loadLeaderboard, loadMembers]);
+    void loadMembers();
+  }, [loadMembers]);
 
   const toggleFollow = async (memberId: string, current: boolean) => {
     if (!currentUserId) {
       Alert.alert('Connexion requise', 'Connectez-vous pour suivre des membres.');
       return;
     }
+    haptics.light();
     setFollowPendingId(memberId);
     try {
       if (current) {
         await CommunityService.unfollow(memberId);
       } else {
         await CommunityService.follow(memberId);
+        haptics.success();
       }
-      // Always resync from DB so labels reflect actual follows rows.
       await loadMembers();
     } catch (e) {
       console.warn('follow/unfollow error', e);
@@ -125,199 +99,170 @@ export default function CommunityScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (tab === 'leaderboard') {
-      await loadLeaderboard();
-    } else {
-      await loadMembers();
-    }
+    await loadMembers();
     setRefreshing(false);
   };
-
-  const renderLeaderboardItem = ({ item }: { item: LeaderboardEntry }) => (
-    <View style={styles.cardRow}>
-      <View style={styles.rankBadge}>
-        <Text style={styles.rankText}>{item.rank}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.display_name}</Text>
-        {item.city ? <Text style={styles.meta}>{item.city}</Text> : null}
-      </View>
-      <Text style={styles.score}>{Math.round(item.score)}</Text>
-    </View>
-  );
 
   const renderMemberItem = ({ item }: { item: CommunityMember }) => {
     const isFollowing = followingSet.has(item.user_id);
     const isSelf = item.user_id === currentUserId;
+    const initial = (item.display_name || '?').slice(0, 1).toUpperCase();
+
     return (
-      <TouchableOpacity style={styles.gridCard} onPress={() => router.push(`/community/${item.user_id}` as any)}>
-        {item.cover_url ? (
-          <Image source={{ uri: item.cover_url }} style={styles.cover} />
+      <TouchableOpacity
+        style={styles.memberCard}
+        activeOpacity={0.88}
+        onPress={() => router.push(`/community/${item.user_id}` as any)}
+        accessibilityRole="button"
+        accessibilityLabel={`Profil de ${item.display_name}`}
+      >
+        {item.avatar_url ? (
+          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
         ) : (
-          <View style={[styles.cover, styles.coverPlaceholder]} />
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarFallbackText}>{initial}</Text>
+          </View>
         )}
-        <View style={styles.gridFooter}>
-          <View style={styles.gridInfo}>
-            {item.avatar_url ? (
-              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]} />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.display_name}
-              </Text>
-              <Text style={styles.meta} numberOfLines={1}>
-                {item.followers_count} followers
-                {item.is_ambassadeur ? ' · Ambassadeur' : ''}
-              </Text>
+
+        <View style={styles.memberBody}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.display_name}
+          </Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {item.city || 'Ville non renseignée'}
+            {item.is_ambassadeur ? ' · Ambassadeur' : ''}
+          </Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statPill}>
+              <Users size={12} color={colors.brand.textSecondary} />
+              <Text style={styles.statText}>{item.followers_count || 0}</Text>
+            </View>
+            <View style={styles.statPill}>
+              <Text style={styles.statText}>{item.events_created_count || 0} événements</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={[styles.followBtn, isFollowing && styles.followingBtn]}
-            disabled={isSelf || followPendingId === item.user_id}
-            onPress={() => toggleFollow(item.user_id, isFollowing)}
-          >
-            <Text style={[styles.followText, isFollowing && styles.followingText]}>
-              {isSelf ? 'Vous' : isFollowing ? 'Suivi' : 'Suivre'}
-            </Text>
-          </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={[styles.followBtn, isFollowing && styles.followingBtn, isSelf && styles.selfBtn]}
+          disabled={isSelf || followPendingId === item.user_id}
+          onPress={() => toggleFollow(item.user_id, isFollowing)}
+          accessibilityRole="button"
+          accessibilityLabel={isSelf ? 'Votre profil' : isFollowing ? 'Ne plus suivre' : 'Suivre'}
+          hitSlop={8}
+        >
+          <Text style={[styles.followText, isFollowing && styles.followingText, isSelf && styles.selfText]}>
+            {isSelf ? 'Vous' : isFollowing ? 'Suivi' : 'Suivre'}
+          </Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
+  const listHeader = (
+    <View style={styles.listHeaderBlock}>
+      <Text style={styles.countLabel}>
+        {loadingMembers ? 'Chargement…' : `${members.length} MEMBRE${members.length === 1 ? '' : 'S'}`}
+      </Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={styles.tabs}>
-        <TabButton label="Classements" active={tab === 'leaderboard'} onPress={() => setTab('leaderboard')} />
-        <TabButton label="Membres" active={tab === 'members'} onPress={() => setTab('members')} />
+      <AppBackground />
+
+      <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Communauté</Text>
+          <Text style={styles.subtitle}>Découvrez et suivez les créateurs près de chez vous</Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsRow}
+          style={styles.chipsScroll}
+        >
+          {SORT_OPTIONS.map((opt) => {
+            const active = sort === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => {
+                  haptics.selection();
+                  setSort(opt.key);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          {profileCity ? (
+            <TouchableOpacity
+              style={[styles.chip, cityOnly && styles.chipActive]}
+              onPress={() => {
+                haptics.selection();
+                setCityOnly((v) => !v);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: cityOnly }}
+            >
+              <MapPin size={14} color={cityOnly ? colors.brand.primary : colors.brand.textSecondary} />
+              <Text style={[styles.chipText, cityOnly && styles.chipTextActive]}>{profileCity}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </ScrollView>
+
+        {loadingMembers && !refreshing ? (
+          <MembersListSkeleton />
+        ) : (
+          <FlatList
+            data={members}
+            keyExtractor={(item) => item.user_id}
+            renderItem={renderMemberItem}
+            ListHeaderComponent={listHeader}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon={Users}
+                title="Aucun membre pour le moment"
+                subtitle={
+                  cityFilter
+                    ? `Personne à ${cityFilter} pour ce tri. Essayez sans filtre ville.`
+                    : 'Revenez bientôt — de nouveaux profils apparaissent au fil des publications.'
+                }
+                ctaLabel={cityFilter ? 'Voir partout' : undefined}
+                onCtaPress={cityFilter ? () => setCityOnly(false) : undefined}
+              />
+            }
+          />
+        )}
       </View>
-
-      {tab === 'leaderboard' && (
-        <View style={styles.section}>
-          <View style={styles.filtersRow}>
-            <TouchableOpacity style={styles.filterButton} onPress={() => setPeriodPickerVisible(true)}>
-              <Text style={styles.filterButtonText}>Filtrer par : {period === 'monthly' ? 'Mensuel' : 'Global'}</Text>
-            </TouchableOpacity>
-          </View>
-          {loadingBoard ? (
-            <ActivityIndicator color={colors.brand.secondary} />
-          ) : (
-            <FlatList
-              data={leaderboard}
-              keyExtractor={(item) => `${item.period}-${item.user_id}-${item.rank}`}
-              renderItem={renderLeaderboardItem}
-              contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />}
-              ListFooterComponent={
-                myEntry && myEntry.rank > 10 ? (
-                  <View style={styles.cardRow}>
-                    <View style={styles.rankBadgeMuted}>
-                      <Text style={styles.rankText}>{myEntry.rank}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>{myEntry.display_name}</Text>
-                      {myEntry.city ? <Text style={styles.meta}>{myEntry.city}</Text> : null}
-                    </View>
-                    <Text style={styles.score}>{Math.round(myEntry.score)}</Text>
-                  </View>
-                ) : null
-              }
-            />
-          )}
-          {periodPickerVisible && (
-            <View style={styles.modalOverlay}>
-              <TouchableOpacity style={styles.modalBackdrop} onPress={() => setPeriodPickerVisible(false)} />
-              <View style={styles.modalCard}>
-                <Text style={styles.modalTitle}>Filtrer par</Text>
-                {[
-                  { key: 'monthly', label: 'Mensuel' },
-                  { key: 'global', label: 'Global' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.optionRow, period === opt.key && styles.optionRowActive]}
-                    onPress={() => {
-                      setPeriod(opt.key as 'monthly' | 'global');
-                      setPeriodPickerVisible(false);
-                      loadLeaderboard();
-                    }}
-                  >
-                    <Text style={[styles.optionText, period === opt.key && styles.optionTextActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-      )}
-
-      {tab === 'members' && (
-        <View style={styles.section}>
-          <View style={styles.filtersRow}>
-            <TouchableOpacity style={styles.filterButton} onPress={() => setSortPickerVisible(true)}>
-              <Text style={styles.filterButtonText}>Filtrer par : {SORT_OPTIONS.find((o) => o.key === sort)?.label}</Text>
-            </TouchableOpacity>
-          </View>
-          {loadingMembers ? (
-            <ActivityIndicator color={colors.brand.secondary} />
-          ) : (
-            <FlatList
-              data={members}
-              keyExtractor={(item) => item.user_id}
-              renderItem={renderMemberItem}
-              numColumns={2}
-              columnWrapperStyle={styles.columnWrapper}
-              contentContainerStyle={styles.gridContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />}
-              ListEmptyComponent={
-                <View style={styles.empty}>
-                  <Text style={styles.meta}>Aucun membre</Text>
-                </View>
-              }
-            />
-          )}
-          {sortPickerVisible && (
-            <View style={styles.modalOverlay}>
-              <TouchableOpacity style={styles.modalBackdrop} onPress={() => setSortPickerVisible(false)} />
-              <View style={styles.modalCard}>
-                <Text style={styles.modalTitle}>Filtrer par</Text>
-                {SORT_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.optionRow, sort === opt.key && styles.optionRowActive]}
-                    onPress={() => {
-                      setSort(opt.key);
-                      setSortPickerVisible(false);
-                      loadMembers();
-                    }}
-                  >
-                    <Text style={[styles.optionText, sort === opt.key && styles.optionTextActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 }
 
-function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function MembersListSkeleton() {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.tabButton, active && styles.tabButtonActive]}>
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function Pill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={[styles.pill, active && styles.pillActive]}>
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
-    </TouchableOpacity>
+    <View style={styles.skeletonWrap}>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <View key={index} style={styles.memberCard}>
+          <SkeletonBlock height={56} width={56} radius={28} />
+          <View style={{ flex: 1, gap: 8 }}>
+            <SkeletonBlock height={14} width="55%" />
+            <SkeletonBlock height={11} width="40%" />
+            <SkeletonBlock height={22} width="70%" radius={borderRadius.full} />
+          </View>
+          <SkeletonBlock height={36} width={72} radius={borderRadius.full} />
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -326,100 +271,112 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  tabs: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-  },
-  tabButtonActive: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43, 191, 227, 0.1)',
-  },
-  tabText: {
-    ...typography.body,
-    color: colors.brand.textSecondary,
-  },
-  tabTextActive: {
-    color: colors.brand.secondary,
-    fontWeight: '700',
-  },
-  section: {
+  content: {
     flex: 1,
     paddingHorizontal: spacing.md,
+    gap: spacing.md,
   },
-  filtersRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  pillGroup: {
-    flexDirection: 'row',
+  header: {
     gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
   },
-  pill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+  title: {
+    ...typography.h3,
+    color: colors.brand.text,
   },
-  pillActive: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43, 191, 227, 0.1)',
-  },
-  pillText: {
+  subtitle: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
+    lineHeight: 20,
   },
-  pillTextActive: {
-    color: colors.brand.secondary,
+  chipsScroll: {
+    flexGrow: 0,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    minHeight: 40,
+  },
+  chipActive: {
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
+  },
+  chipText: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+  },
+  chipTextActive: {
+    color: colors.brand.primary,
+  },
+  listHeaderBlock: {
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  countLabel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    letterSpacing: 0.6,
     fontWeight: '700',
   },
   listContent: {
-    paddingBottom: spacing.lg,
-    gap: spacing.xs,
+    paddingBottom: spacing.xl * 2,
+    flexGrow: 1,
   },
-  cardRow: {
+  skeletonWrap: {
+    gap: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
     gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  avatarFallback: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43, 191, 227, 0.14)',
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.28)',
   },
-  rankBadgeMuted: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[200],
-  },
-  rankText: {
-    ...typography.body,
-    fontWeight: '700',
+  avatarFallbackText: {
+    ...typography.h5,
     color: colors.brand.secondary,
+  },
+  memberBody: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
   },
   name: {
     ...typography.body,
@@ -430,122 +387,53 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
   },
-  score: {
-    ...typography.body,
-    fontWeight: '700',
-    color: colors.brand.secondary,
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: 4,
+  },
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  statText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
   },
   followBtn: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     borderRadius: borderRadius.full,
     backgroundColor: colors.brand.secondary,
+    minHeight: 40,
+    justifyContent: 'center',
   },
   followingBtn: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
+  selfBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
   followText: {
     ...typography.bodySmall,
     color: colors.brand.primary,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   followingText: {
     color: colors.brand.text,
   },
-  empty: {
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  gridContent: {
-    paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.sm,
-    gap: spacing.md,
-  },
-  columnWrapper: {
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  gridCard: {
-    flex: 1,
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  cover: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-  },
-  coverPlaceholder: {
-    backgroundColor: 'rgba(43, 191, 227, 0.08)',
-  },
-  gridFooter: {
-    padding: spacing.sm,
-    gap: spacing.xs,
-  },
-  gridInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  avatarPlaceholder: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  filterButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  filterButtonText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    inset: 0,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  modalCard: {
-    backgroundColor: colors.brand.surface,
-    padding: spacing.lg,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    gap: spacing.sm,
-  },
-  modalTitle: {
-    ...typography.h4,
-    color: colors.brand.text,
-  },
-  optionRow: {
-    paddingVertical: spacing.sm,
-  },
-  optionRowActive: {
-    backgroundColor: 'rgba(43, 191, 227, 0.12)',
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-  },
-  optionText: {
-    ...typography.body,
-    color: colors.brand.text,
-  },
-  optionTextActive: {
-    color: colors.brand.secondary,
-    fontWeight: '700',
+  selfText: {
+    color: colors.brand.textSecondary,
   },
 });

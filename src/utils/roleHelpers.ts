@@ -3,9 +3,9 @@ import type { UserRole } from '../types/database';
 export const getRoleLabel = (role: UserRole): string => {
   const roleLabels: Record<UserRole, string> = {
     invite: 'Invité',
-    particulier: 'Particulier',
-    professionnel: 'Professionnel',
-    institutionnel: 'Institutionnel',
+    particulier: 'Découvreur',
+    professionnel: 'Organisateur',
+    institutionnel: 'Structure',
     moderateur: 'Modérateur',
     admin: 'Administrateur',
   };
@@ -13,38 +13,49 @@ export const getRoleLabel = (role: UserRole): string => {
   return roleLabels[role] || role;
 };
 
+/**
+ * Dark-UI badge palette (semi-transparent tinted bg + light text + subtle border):
+ * particulier → cyan brand, professionnel → émeraude, institutionnel → indigo,
+ * moderateur → bleu, admin → rouge, invite → neutre ardoise.
+ */
 export const getRoleBadgeColor = (role: UserRole) => {
   switch (role) {
     case 'admin':
       return {
-        bg: '#FEE2E2',
-        text: '#991B1B',
+        bg: 'rgba(239, 68, 68, 0.16)',
+        text: '#FCA5A5',
+        border: 'rgba(239, 68, 68, 0.35)',
       };
     case 'moderateur':
       return {
-        bg: '#DBEAFE',
-        text: '#1E40AF',
+        bg: 'rgba(59, 130, 246, 0.16)',
+        text: '#93C5FD',
+        border: 'rgba(59, 130, 246, 0.35)',
       };
     case 'professionnel':
       return {
-        bg: '#D1FAE5',
-        text: '#065F46',
+        bg: 'rgba(16, 185, 129, 0.16)',
+        text: '#6EE7B7',
+        border: 'rgba(16, 185, 129, 0.35)',
       };
     case 'institutionnel':
       return {
-        bg: '#E0E7FF',
-        text: '#3730A3',
+        bg: 'rgba(129, 140, 248, 0.16)',
+        text: '#A5B4FC',
+        border: 'rgba(129, 140, 248, 0.35)',
       };
     case 'invite':
       return {
-        bg: '#E2E8F0',
-        text: '#475569',
+        bg: 'rgba(148, 163, 184, 0.14)',
+        text: '#CBD5E1',
+        border: 'rgba(148, 163, 184, 0.3)',
       };
     case 'particulier':
     default:
       return {
-        bg: '#FEF3C7',
-        text: '#92400E',
+        bg: 'rgba(43, 191, 227, 0.16)',
+        text: '#7DD8F0',
+        border: 'rgba(43, 191, 227, 0.35)',
       };
   }
 };

@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import Toast from 'react-native-toast-message';
 import { ChevronLeft, Calendar, MapPin, Euro, Rocket, Pencil } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
+import { haptics } from '@/utils/haptics';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
@@ -302,6 +304,8 @@ export default function CreateEventPreview() {
         }
         await useEventsStore.getState().fetchEvents({ force: true });
         resetStore();
+        haptics.success();
+        Toast.show({ type: 'success', text1: 'Événement mis à jour', text2: 'Ton événement a été mis à jour avec succès.' });
         router.replace('/(tabs)/map');
         return;
       }
@@ -327,16 +331,13 @@ export default function CreateEventPreview() {
       }
       await useEventsStore.getState().fetchEvents({ force: true });
       resetStore();
-      Alert.alert(
-        'Événement soumis',
-        'Votre événement a bien été soumis pour validation.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/profile/my-events' as any),
-          },
-        ]
-      );
+      haptics.success();
+      Toast.show({
+        type: 'success',
+        text1: 'Événement soumis',
+        text2: 'Votre événement a bien été soumis pour validation.',
+      });
+      router.replace('/profile/my-events' as any);
     } catch (e) {
       console.error('publish event', e);
       Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');

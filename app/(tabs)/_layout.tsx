@@ -22,9 +22,17 @@ import {
   Coins,
   Ticket,
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Animated, Pressable, Text, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { colors } from '../../src/constants/theme';
+import { Motion } from '@/constants/motion';
+import { haptics } from '@/utils/haptics';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
@@ -44,7 +52,7 @@ export default function TabsLayout() {
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [hasMyEventsShortcut, setHasMyEventsShortcut] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const drawerProgress = useSharedValue(0);
   useTaxonomy();
   const isGuest = !isAuthenticated;
 
@@ -102,17 +110,17 @@ export default function TabsLayout() {
 
   const toggleDrawer = (open: boolean) => {
     setDrawerOpen(open);
-    Animated.timing(slideAnim, {
-      toValue: open ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    drawerProgress.value = withSpring(open ? 1 : 0, Motion.spring.sheet);
+    if (open) haptics.selection();
   };
 
-  const drawerTranslate = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [400, 0],
-  });
+  const drawerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(drawerProgress.value, [0, 1], [400, 0]) }],
+  }));
+
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: drawerProgress.value,
+  }));
 
   const tabIconColor = (focused: boolean, disabled = false) => {
     if (disabled) return colors.brand.textSecondary;
@@ -146,6 +154,7 @@ export default function TabsLayout() {
         testID={testID}
         onLongPress={onLongPress || undefined}
         onPress={() => {
+          haptics.selection();
           if (isGuest) {
             openGuestGate(gateTitle);
             return;
@@ -297,17 +306,12 @@ export default function TabsLayout() {
         <Tabs.Screen name="missions" options={{ href: null }} />
       </Tabs>
 
-      {drawerOpen && (
-        <Pressable style={styles.backdrop} onPress={() => toggleDrawer(false)} />
-      )}
-      <Animated.View
-        style={[
-          styles.drawer,
-          {
-            transform: [{ translateX: drawerTranslate }],
-          },
-        ]}
-      >
+      {drawerOpen ? (
+        <Animated.View style={[styles.backdrop, backdropStyle]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => toggleDrawer(false)} />
+        </Animated.View>
+      ) : null}
+      <Animated.View style={[styles.drawer, drawerStyle]}>
         {/* User Header Section */}
         <View style={styles.drawerHeader}>
           <View style={styles.drawerUserRow}>

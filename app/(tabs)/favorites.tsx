@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -14,9 +13,9 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronDown, Heart, Search, Users } from 'lucide-react-native';
+import { Bell, ChevronDown, Compass, Heart, Search, Users } from 'lucide-react-native';
 
-import { AppBackground } from '@/components/ui';
+import { AppBackground, EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCard } from '@/components/events/EventCard';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
@@ -281,9 +280,9 @@ export default function FavoritesScreen() {
 
   if (isLoading || initialLoading) {
     return (
-      <View style={styles.centeredContainer}>
+      <View style={styles.loadingContainer}>
         <AppBackground />
-        <ActivityIndicator size="large" color={colors.brand.secondary} />
+        <EventCardSkeleton count={3} />
       </View>
     );
   }
@@ -383,10 +382,13 @@ export default function FavoritesScreen() {
             }
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyTitle}>Aucun événement favori</Text>
-                <Text style={styles.emptySubtitle}>Ajoutez des événements en favoris pour les retrouver ici.</Text>
-              </View>
+              <EmptyState
+                icon={Heart}
+                title="Aucun événement favori"
+                subtitle="Ajoutez des événements en favoris pour les retrouver ici."
+                ctaLabel="Explorer les événements"
+                onCtaPress={() => router.push('/(tabs)' as any)}
+              />
             }
             renderItem={({ item }) => (
               <EventCard
@@ -413,10 +415,13 @@ export default function FavoritesScreen() {
             }
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyTitle}>Aucun profil suivi</Text>
-                <Text style={styles.emptySubtitle}>Suivez des créateurs depuis la communauté pour les retrouver ici.</Text>
-              </View>
+              <EmptyState
+                icon={Compass}
+                title="Aucun profil suivi"
+                subtitle="Suivez des créateurs depuis la communauté pour les retrouver ici."
+                ctaLabel="Découvrir la communauté"
+                onCtaPress={() => router.push('/(tabs)/community' as any)}
+              />
             }
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -481,7 +486,7 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090607',
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
@@ -494,7 +499,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
-    backgroundColor: '#090607',
+    backgroundColor: 'transparent',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   headerRow: {
     flexDirection: 'row',

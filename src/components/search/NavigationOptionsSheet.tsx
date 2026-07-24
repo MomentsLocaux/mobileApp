@@ -32,6 +32,7 @@ import { getEventLocationLabel } from '@/utils/event-card-display';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
+import { haptics } from '@/utils/haptics';
 
 interface Props {
   visible: boolean;
@@ -290,7 +291,10 @@ export const NavigationOptionsSheet: React.FC<Props> = ({
               <FloatingPressable
                 key={option.key}
                 style={[styles.optionCard, option.accent && styles.optionCardAccent]}
-                onPress={option.onPress}
+                onPress={() => {
+                  haptics.selection();
+                  option.onPress();
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={option.title}
                 entranceDelay={reduceMotion ? 0 : 40 + index * 35}

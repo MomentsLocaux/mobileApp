@@ -18,16 +18,21 @@ export type GeocodeResult = {
   latitude: number;
   longitude: number;
   city: string;
+  region: string;
   postalCode: string;
   country: string;
 };
 
 export const MapboxService = {
-  async search(query: string): Promise<GeocodeResult[]> {
+  async search(
+    query: string,
+    options?: { types?: string },
+  ): Promise<GeocodeResult[]> {
     if (!MAPBOX_TOKEN || !query.trim()) return [];
+    const types = options?.types ?? 'address,place,locality';
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
       query
-    )}.json?access_token=${MAPBOX_TOKEN}&country=FR&types=address,place,locality&language=fr`;
+    )}.json?access_token=${MAPBOX_TOKEN}&country=FR&types=${types}&language=fr`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
@@ -35,7 +40,8 @@ export const MapboxService = {
       label: f.place_name,
       latitude: f.center[1],
       longitude: f.center[0],
-      city: extractContext(f, 'place') || extractContext(f, 'locality') || '',
+      city: extractContext(f, 'place') || extractContext(f, 'locality') || f.place_name.split(',')[0] || '',
+      region: extractContext(f, 'region') || '',
       postalCode: extractContext(f, 'postcode') || '',
       country: 'FR',
     }));
@@ -54,6 +60,7 @@ export const MapboxService = {
       latitude: feature.center[1],
       longitude: feature.center[0],
       city: extractContext(feature, 'place') || extractContext(feature, 'locality') || '',
+      region: extractContext(feature, 'region') || '',
       postalCode: extractContext(feature, 'postcode') || '',
       country: 'FR',
     };

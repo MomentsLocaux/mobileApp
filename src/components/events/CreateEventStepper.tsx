@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,11 +9,16 @@ import {
     Platform,
     ActivityIndicator,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import PagerView from 'react-native-pager-view';
 import { ChevronLeft, Rocket, Pencil } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
+import { Motion, createStandardTiming } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { haptics } from '@/utils/haptics';
 import { Step1Content } from '@/components/events/steps/Step1Content';
 import { Step2Content } from '@/components/events/steps/Step2Content';
 import { Step3Content } from '@/components/events/steps/Step3Content';
@@ -34,6 +39,8 @@ export const CreateEventStepper = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const [formValid, setFormValid] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const reduceMotion = useReduceMotion();
+    const progressAnim = useSharedValue((1 / 3) * 100);
 
     const coverImage = useCreateEventStore((s) => s.coverImage);
     const title = useCreateEventStore((s) => s.title);
@@ -203,18 +210,15 @@ export const CreateEventStepper = () => {
             }
 
             resetStore();
-            Alert.alert(
-                edit ? 'Événement mis à jour' : 'Événement créé',
-                edit
+            haptics.success();
+            Toast.show({
+                type: 'success',
+                text1: edit ? 'Événement mis à jour' : 'Événement créé',
+                text2: edit
                     ? 'Ton événement a été mis à jour avec succès.'
                     : 'Ton événement a été créé et sera vérifié avant publication.',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.replace('/profile/my-events' as any),
-                    },
-                ]
-            );
+            });
+            router.replace('/profile/my-events' as any);
         } catch (e) {
             console.error('publish event', e);
             Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');
@@ -240,9 +244,16 @@ export const CreateEventStepper = () => {
         return `Étape ${currentStep + 1} sur 3`;
     };
 
-    const getProgress = () => {
-        return ((currentStep + 1) / 3) * 100;
-    };
+    useEffect(() => {
+        const target = ((currentStep + 1) / 3) * 100;
+        progressAnim.value = reduceMotion
+            ? target
+            : withTiming(target, createStandardTiming(Motion.duration.normal));
+    }, [currentStep, progressAnim, reduceMotion]);
+
+    const progressBarStyle = useAnimatedStyle(() => ({
+        width: `${progressAnim.value}%`,
+    }));
 
     const renderFooter = () => {
         switch (currentStep) {
@@ -334,7 +345,7 @@ export const CreateEventStepper = () => {
 
                 {/* Progress Bar */}
                 <View style={styles.progressBarContainer}>
-                    <View style={[styles.progressBar, { width: `${getProgress()}%` }]} />
+                    <Animated.View style={[styles.progressBar, progressBarStyle]} />
                 </View>
 
                 {/* Pager */}

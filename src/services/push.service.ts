@@ -190,6 +190,27 @@ export async function syncHomeLocation({ prompt }: { prompt: boolean }): Promise
   }
 }
 
+/** Persists a chosen map place as the user's home_location (onboarding / settings). */
+export async function setHomeLocationFromCoords(
+  latitude: number,
+  longitude: number,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc('set_home_location', {
+      p_lat: latitude,
+      p_lon: longitude,
+    });
+    if (error) {
+      console.warn('[push] set_home_location failed:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[push] setHomeLocationFromCoords error:', e);
+    return false;
+  }
+}
+
 /** Removes the stored reference point (e.g. when the user disables nearby alerts). */
 export async function clearHomeLocation(): Promise<void> {
   try {

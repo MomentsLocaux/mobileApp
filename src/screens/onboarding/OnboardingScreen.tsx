@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,47 +7,112 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
+  ActivityIndicator,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { User, ChevronLeft } from 'lucide-react-native';
-import { AppBackground, Button } from '../../components/ui';
-import { colors, spacing, typography } from '../../constants/theme';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ChevronLeft,
+  Compass,
+  Heart,
+  ImagePlus,
+  Landmark,
+  MapPin,
+  Megaphone,
+  PlusCircle,
+  SearchX,
+  User,
+  X,
+} from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
+import { AppBackground, Button, MotionReveal } from '../../components/ui';
+import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
+import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
+import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { Motion } from '@/constants/motion';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
+import { setHomeLocationFromCoords } from '@/services/push.service';
+import { PREMIUM_PLANS } from '@/services/subscription.service';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { haptics } from '@/utils/haptics';
 
-const ROLE_OPTIONS = [
-  { value: 'particulier', label: 'Particulier', description: 'Je découvre et participe.' },
-  { value: 'professionnel', label: 'Professionnel', description: 'Je propose des moments.' },
-  { value: 'institutionnel', label: 'Institutionnel', description: 'Je représente une structure.' },
+type RoleValue = 'particulier' | 'professionnel' | 'institutionnel';
+type StepId = 'welcome' | 'identity' | 'location' | 'avatar' | 'creator' | 'tiers' | 'eclairer';
+
+const ROLE_OPTIONS: {
+  value: RoleValue;
+  label: string;
+  description: string;
+  icon: typeof User;
+}[] = [
+  {
+    value: 'particulier',
+    label: 'Découvreur',
+    description: 'Vous explorez et participez aux moments près de chez vous.',
+    icon: User,
+  },
+  {
+    value: 'professionnel',
+    label: 'Organisateur',
+    description: 'Vous proposez des moments à votre public.',
+    icon: Megaphone,
+  },
+  {
+    value: 'institutionnel',
+    label: 'Structure',
+    description: 'Mairie, association, lieu culturel…',
+    icon: Landmark,
+  },
 ];
+
+const VALUE_PROPS = [
+  {
+    icon: Compass,
+    title: 'Découvrir',
+    body: 'Les moments près de chez vous, sur la carte et dans le fil.',
+  },
+  {
+    icon: Heart,
+    title: 'Participer',
+    body: 'Favoris, suivi de créateurs et check-in sur place.',
+  },
+  {
+    icon: PlusCircle,
+    title: 'Créer',
+    body: 'Publiez un moment et soumettez-le pour validation.',
+  },
+] as const;
+
+const SEARCH_MIN_CHARS = 2;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { replay } = useLocalSearchParams<{ replay?: string }>();
+  const isReplay = replay === '1' || replay === 'true';
   const { profile, user, refreshProfile } = useAuth();
   const { pickImage } = useImagePicker();
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
-
-  const [step, setStep] = useState(1);
-  const totalSteps = 4;
 
   const fallbackDisplayName = useMemo(
     () => profile?.display_name || profile?.email || user?.email || '',
     [profile?.display_name, profile?.email, user?.email],
   );
 
+  const [stepIndex, setStepIndex] = useState(0);
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
-  const [role, setRole] = useState<string>(profile?.role || 'particulier');
-  const [city, setCity] = useState(profile?.city || '');
-  const [region, setRegion] = useState(profile?.region || '');
+  const [role, setRole] = useState<RoleValue>(
+    (profile?.role as RoleValue) || 'particulier',
+  );
   const [addressSearch, setAddressSearch] = useState('');
   const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<GeocodeResult | null>(null);
@@ -59,13 +124,40 @@ export default function OnboardingScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<'avatar' | 'cover' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
+  const profilePersisted = useRef(false);
+
+  const isCreatorRole = role === 'professionnel' || role === 'institutionnel';
+  const isUploading = uploadTarget !== null;
+
+  const steps: StepId[] = useMemo(() => {
+    const profileSteps: StepId[] = isCreatorRole
+      ? ['welcome', 'identity', 'location', 'avatar', 'creator']
+      : ['welcome', 'identity', 'location', 'avatar'];
+    return [...profileSteps, 'tiers', 'eclairer'];
+  }, [isCreatorRole]);
+
+  const stepId = steps[Math.min(stepIndex, steps.length - 1)];
+  const totalSteps = steps.length;
+  const isLastStep = stepIndex >= totalSteps - 1;
+  const lastProfileStepId: StepId = isCreatorRole ? 'creator' : 'avatar';
+  const isMarketingStep = stepId === 'tiers' || stepId === 'eclairer';
+  const progressSteps = steps.filter(
+    (id) => id !== 'welcome' && id !== 'tiers' && id !== 'eclairer',
+  );
+
   const canContinue =
-    (step === 1 && !!displayName.trim()) ||
-    (step === 2 && !!selectedAddress) ||
-    step === 3 ||
-    step === 4;
+    stepId === 'welcome' ||
+    (stepId === 'identity' && !!displayName.trim()) ||
+    (stepId === 'location' && !!selectedAddress) ||
+    stepId === 'avatar' ||
+    stepId === 'creator' ||
+    stepId === 'tiers' ||
+    stepId === 'eclairer';
 
   useEffect(() => {
     if (!profile && user) {
@@ -79,33 +171,55 @@ export default function OnboardingScreen() {
     }
   }, [displayName, fallbackDisplayName]);
 
-  const searchAddress = useCallback(
-    async (q: string) => {
-      setError(null);
-      setAddressSearch(q);
-      if (!q.trim()) {
-        setAddressResults([]);
-        return;
-      }
-      setLocationLoading(true);
-      try {
-        const results = await MapboxService.search(q);
-        setAddressResults(results);
-      } catch (e) {
-        setError('Impossible de chercher cette adresse.');
-      } finally {
-        setLocationLoading(false);
-      }
+  useEffect(() => {
+    if (stepIndex >= steps.length) {
+      setStepIndex(steps.length - 1);
+    }
+  }, [stepIndex, steps.length]);
+
+  useEffect(
+    () => () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
     },
     [],
   );
 
-  const geocodeLocation = async () => {
-    if (!selectedAddress) return false;
-    setCity(selectedAddress.city || selectedAddress.label);
-    setRegion(selectedAddress.country || 'France');
-    return true;
-  };
+  const handleSearchChange = useCallback((query: string) => {
+    setError(null);
+    setAddressSearch(query);
+    setSelectedAddress(null);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+
+    if (query.trim().length < SEARCH_MIN_CHARS) {
+      setAddressResults([]);
+      setLocationLoading(false);
+      return;
+    }
+
+    setLocationLoading(true);
+    searchTimer.current = setTimeout(async () => {
+      const seq = ++searchSeq.current;
+      try {
+        const results = await MapboxService.search(query, {
+          types: 'place,locality,neighborhood',
+        });
+        if (seq !== searchSeq.current) return;
+        setAddressResults(results);
+      } catch {
+        if (seq === searchSeq.current) setError('Impossible de chercher ce lieu.');
+      } finally {
+        if (seq === searchSeq.current) setLocationLoading(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+  }, []);
+
+  const handleSelectLocation = useCallback((item: GeocodeResult) => {
+    haptics.selection();
+    Keyboard.dismiss();
+    setSelectedAddress(item);
+    setAddressSearch(item.label);
+    setAddressResults([]);
+  }, []);
 
   const uploadImage = useCallback(
     async (target: 'avatar' | 'cover') => {
@@ -116,7 +230,8 @@ export default function OnboardingScreen() {
 
       const asset = await pickImage({ allowsEditing: true });
       if (!asset?.uri) return;
-      setIsLoading(true);
+      setError(null);
+      setUploadTarget(target);
       try {
         const response = await fetch(asset.uri);
         const arrayBuffer = await response.arrayBuffer();
@@ -138,50 +253,166 @@ export default function OnboardingScreen() {
         const { data } = supabase.storage.from(bucket).getPublicUrl(path);
         if (target === 'avatar') setAvatarUrl(data.publicUrl);
         else setCoverUrl(data.publicUrl);
-      } catch (e) {
+        haptics.light();
+      } catch {
         setError("Échec de l'upload, réessayez.");
       } finally {
-        setIsLoading(false);
+        setUploadTarget(null);
       }
     },
     [pickImage, user?.id],
   );
 
-  const handleComplete = async () => {
-    if (!user) return;
-    setError(null);
+  const finishToHome = () => {
+    haptics.success();
+    router.replace('/(tabs)');
+  };
 
+  const persistProfile = async (): Promise<boolean> => {
+    if (!user) return false;
+    if (profilePersisted.current && profile?.onboarding_completed) return true;
+
+    setError(null);
     setIsLoading(true);
     try {
       const activeProfile = profile || (await refreshProfile());
       if (!activeProfile) {
         setError('Profil indisponible, réessayez dans quelques secondes.');
-        return;
+        return false;
       }
 
+      const resolvedCity =
+        selectedAddress?.city ||
+        selectedAddress?.label.split(',')[0] ||
+        profile?.city ||
+        '';
+      const resolvedRegion = selectedAddress?.region || profile?.region || 'France';
+
       await ProfileService.updateProfile(activeProfile.id, {
-        display_name: displayName,
-        bio: bio || null,
-        role: role as any,
-        city: city.trim(),
-        region: region.trim(),
+        display_name: displayName.trim(),
+        bio: isCreatorRole ? bio.trim() || null : null,
+        role,
+        city: resolvedCity,
+        region: resolvedRegion,
         avatar_url: avatarUrl || null,
-        cover_url: coverUrl || null,
-        facebook_url: facebook.trim() || null,
-        instagram_url: instagram.trim() || null,
-        tiktok_url: tiktok.trim() || null,
+        cover_url: isCreatorRole ? coverUrl || null : null,
+        facebook_url: isCreatorRole ? facebook.trim() || null : null,
+        instagram_url: isCreatorRole ? instagram.trim() || null : null,
+        tiktok_url: isCreatorRole ? tiktok.trim() || null : null,
         onboarding_completed: true,
       });
 
       await refreshProfile();
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Error completing onboarding:', error);
-      setError(error instanceof Error ? error.message : 'Erreur de mise à jour du profil');
+      profilePersisted.current = true;
+      return true;
+    } catch (err) {
+      console.error('Error completing onboarding:', err);
+      setError(err instanceof Error ? err.message : 'Erreur de mise à jour du profil');
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
+
+  const goNext = async () => {
+    setError(null);
+    if (stepId === 'location') {
+      if (!selectedAddress) return;
+      setLocationLoading(true);
+      try {
+        const ok = await setHomeLocationFromCoords(
+          selectedAddress.latitude,
+          selectedAddress.longitude,
+        );
+        if (!ok) console.warn('home_location not saved during onboarding');
+      } finally {
+        setLocationLoading(false);
+      }
+    }
+
+    if (stepId === lastProfileStepId) {
+      const saved = await persistProfile();
+      if (!saved) return;
+      haptics.light();
+      setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+      return;
+    }
+
+    if (stepId === 'eclairer') {
+      finishToHome();
+      return;
+    }
+
+    if (isLastStep) {
+      finishToHome();
+      return;
+    }
+
+    haptics.light();
+    setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+  };
+
+  const goBack = () => {
+    if (stepIndex <= 0) return;
+    haptics.selection();
+    setStepIndex((prev) => Math.max(0, prev - 1));
+  };
+
+  const exitReplay = () => {
+    haptics.selection();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(tabs)');
+  };
+
+  /** Skip remaining profile extras and jump to marketing tiers. */
+  const skipOptionalToTiers = async () => {
+    haptics.selection();
+    const saved = await persistProfile();
+    if (!saved) return;
+    const tiersIndex = steps.indexOf('tiers');
+    setStepIndex(tiersIndex >= 0 ? tiersIndex : totalSteps - 1);
+  };
+
+  const continueFree = async () => {
+    haptics.selection();
+    if (!profilePersisted.current) {
+      const saved = await persistProfile();
+      if (!saved) return;
+    }
+    finishToHome();
+  };
+
+  const handleUnlockTease = (plan: 'monthly' | 'annual') => {
+    haptics.light();
+    Toast.show({
+      type: 'info',
+      text1: 'Achats in-app bientôt disponibles',
+      text2: `Offre Éclaireur ${PREMIUM_PLANS[plan].label} — intégration store en cours.`,
+    });
+    finishToHome();
+  };
+
+  const primaryTitle =
+    stepId === 'welcome'
+      ? 'Personnaliser mon profil'
+      : stepId === 'tiers'
+        ? 'Voir l’offre Éclaireur'
+        : stepId === 'eclairer'
+          ? 'Déverrouiller Éclaireur'
+          : 'Continuer';
+
+  const showSkip = stepId === 'avatar' || stepId === 'creator';
+  const showContinueFree = isMarketingStep;
+  const activeRoleDescription = ROLE_OPTIONS.find((option) => option.value === role)?.description;
+  const showNoResults =
+    stepId === 'location' &&
+    !locationLoading &&
+    !selectedAddress &&
+    addressSearch.trim().length >= SEARCH_MIN_CHARS &&
+    addressResults.length === 0;
 
   return (
     <KeyboardAvoidingView
@@ -193,239 +424,410 @@ export default function OnboardingScreen() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + spacing.md, paddingBottom: spacing.xl + insets.bottom },
+        ]}
         keyboardShouldPersistTaps="handled"
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={colors.brand.text} />
-          <Text style={styles.backText}>Retour</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Bienvenue sur Moments Locaux</Text>
-        <Text style={styles.subtitle}>Configurons votre profil en quelques étapes</Text>
-        <Text style={styles.progressLabel}>
-          Étape {step} / {totalSteps}
-        </Text>
-      </View>
-
-      <View style={styles.progressBar}>
-        {[1, 2, 3, 4].map((idx) => (
-          <View key={idx} style={[styles.progressStep, step >= idx && styles.progressStepActive]} />
-        ))}
-      </View>
-
-      {step === 1 && (
-        <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Parlez-nous de vous</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nom d&apos;affichage</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Comment voulez-vous être appelé ?"
-              placeholderTextColor={colors.brand.textSecondary}
-              value={displayName}
-              onChangeText={setDisplayName}
-              maxLength={50}
-              ref={registerFieldRef('displayName')}
-              onFocus={() => handleInputFocus('displayName')}
-            />
+        {isReplay ? (
+          <View style={styles.replayTopBar}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={exitReplay}
+              accessibilityRole="button"
+              accessibilityLabel="Quitter l'onboarding"
+              hitSlop={12}
+            >
+              <X size={20} color={colors.brand.text} />
+              <Text style={styles.closeText}>Fermer</Text>
+            </TouchableOpacity>
           </View>
+        ) : null}
 
-          <View style={styles.roleOptions}>
-            {ROLE_OPTIONS.map((option) => (
+        {stepId === 'welcome' ? (
+          <MotionReveal style={styles.welcomeHeader}>
+            <Text style={styles.welcomeTitle}>
+              {isReplay ? 'Revoir Moments Locaux' : 'Bienvenue sur\nMoments Locaux'}
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
+              {isReplay
+                ? 'Reprenez les étapes de configuration de votre profil'
+                : 'Pour vous montrer ce qui se passe près de vous'}
+            </Text>
+          </MotionReveal>
+        ) : isMarketingStep ? (
+          <View style={styles.stepHeader}>
+            <View style={styles.stepHeaderRow}>
               <TouchableOpacity
-                key={option.value}
-                style={[styles.roleCard, role === option.value && styles.roleCardSelected]}
-                onPress={() => setRole(option.value)}
+                style={styles.backButton}
+                onPress={goBack}
+                accessibilityRole="button"
+                accessibilityLabel="Revenir à l'étape précédente"
               >
-                <View style={styles.roleIcon}>
-                  <User
-                    size={32}
-                    color={role === option.value ? colors.brand.secondary : colors.brand.textSecondary}
-                  />
-                </View>
-                <Text style={styles.roleLabel}>{option.label}</Text>
-                <Text style={styles.roleDescription}>{option.description}</Text>
+                <ChevronLeft size={20} color={colors.brand.text} />
+                <Text style={styles.backText}>Retour</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {step === 2 && (
-        <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Où êtes-vous basé ?</Text>
-          <Text style={styles.helper}>Recherche limitée à la France.</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Adresse ou ville</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex. 10 rue de Rivoli, Paris"
-              placeholderTextColor={colors.brand.textSecondary}
-              value={addressSearch}
-              onChangeText={searchAddress}
-              autoCapitalize="none"
-              ref={registerFieldRef('addressSearch')}
-              onFocus={() => handleInputFocus('addressSearch')}
-            />
-          </View>
-          {locationLoading && <Text style={styles.meta}>Recherche en cours...</Text>}
-          <View style={styles.resultsContainer}>
-            {addressResults.map((item) => (
               <TouchableOpacity
-                key={`${item.latitude}-${item.longitude}-${item.label}`}
-                style={[
-                  styles.resultRow,
-                  selectedAddress?.label === item.label && styles.resultRowActive,
-                ]}
-                onPress={() => setSelectedAddress(item)}
+                style={styles.closeButton}
+                onPress={continueFree}
+                accessibilityRole="button"
+                accessibilityLabel="Continuer gratuitement"
+                hitSlop={12}
               >
-                <Text style={styles.resultText}>{item.label}</Text>
+                <X size={20} color={colors.brand.text} />
               </TouchableOpacity>
-            ))}
-          </View>
-          {selectedAddress ? (
-            <View style={styles.selection}>
-              <Text style={styles.meta}>Adresse sélectionnée :</Text>
-              <Text style={styles.info}>{selectedAddress.label}</Text>
             </View>
-          ) : null}
-        </View>
-      )}
-
-      {step === 3 && (
-        <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Ajoutez vos visuels</Text>
-          <View style={styles.uploadRow}>
-            <TouchableOpacity style={styles.uploadCard} onPress={() => uploadImage('avatar')}>
-              {avatarUrl ? (
-                <ImagePreview uri={avatarUrl} label="Avatar" />
-              ) : (
-                <Text style={styles.uploadText}>Avatar</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.uploadCard} onPress={() => uploadImage('cover')}>
-              {coverUrl ? (
-                <ImagePreview uri={coverUrl} label="Cover" />
-              ) : (
-                <Text style={styles.uploadText}>Cover</Text>
-              )}
-            </TouchableOpacity>
           </View>
-          <Text style={styles.helper}>Ces visuels pourront être modifiés plus tard.</Text>
-        </View>
-      )}
-
-      {step === 4 && (
-        <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Réseaux & bio</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Instagram</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="@moncompte ou lien"
-              placeholderTextColor={colors.brand.textSecondary}
-              value={instagram}
-              onChangeText={setInstagram}
-              autoCapitalize="none"
-              ref={registerFieldRef('instagram')}
-              onFocus={() => handleInputFocus('instagram')}
-            />
+        ) : (
+          <View style={styles.stepHeader}>
+            <View style={styles.stepHeaderRow}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={goBack}
+                accessibilityRole="button"
+                accessibilityLabel="Revenir à l'étape précédente"
+              >
+                <ChevronLeft size={20} color={colors.brand.text} />
+                <Text style={styles.backText}>Retour</Text>
+              </TouchableOpacity>
+              <Text style={styles.progressLabel}>
+                Étape {Math.max(1, progressSteps.indexOf(stepId) + 1)} / {progressSteps.length}
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              {progressSteps.map((id, idx) => (
+                <View
+                  key={id}
+                  style={[
+                    styles.progressStep,
+                    progressSteps.indexOf(stepId) >= idx && styles.progressStepActive,
+                  ]}
+                />
+              ))}
+            </View>
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>TikTok</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="@moncompte ou lien"
-              placeholderTextColor={colors.brand.textSecondary}
-              value={tiktok}
-              onChangeText={setTiktok}
-              autoCapitalize="none"
-              ref={registerFieldRef('tiktok')}
-              onFocus={() => handleInputFocus('tiktok')}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Facebook</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="URL ou page"
-              placeholderTextColor={colors.brand.textSecondary}
-              value={facebook}
-              onChangeText={setFacebook}
-              autoCapitalize="none"
-              ref={registerFieldRef('facebook')}
-              onFocus={() => handleInputFocus('facebook')}
-            />
-          </View>
-
-          <Text style={styles.stepTitle}>Bio (optionnel)</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bio</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Parlez de vous ou de vos événements..."
-              placeholderTextColor={colors.brand.textSecondary}
-              value={bio}
-              onChangeText={setBio}
-              multiline
-              numberOfLines={4}
-              maxLength={200}
-              ref={registerFieldRef('bio')}
-              onFocus={() => handleInputFocus('bio')}
-            />
-          </View>
-        </View>
-      )}
-
-      {error && <Text style={styles.errorText}>{error}</Text>}
-
-      <View style={styles.buttonGroup}>
-        {step > 1 && (
-          <Button
-            title="Retour"
-            onPress={() => setStep((prev) => Math.max(1, prev - 1))}
-            variant="outline"
-            style={styles.buttonHalf}
-            disabled={isLoading}
-          />
         )}
-        <Button
-          title={step === totalSteps ? 'Valider' : 'Continuer'}
-          onPress={async () => {
-            if (step === 2) {
-              const ok = await geocodeLocation();
-              if (!ok) return;
+
+        {stepId === 'welcome' && (
+          <View style={styles.stepContainer}>
+            {VALUE_PROPS.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <MotionReveal key={item.title} delay={idx * Motion.stagger.content}>
+                  <View style={styles.valueCard}>
+                    <View style={styles.valueIcon}>
+                      <Icon size={22} color={colors.brand.secondary} strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.valueCopy}>
+                      <Text style={styles.valueTitle}>{item.title}</Text>
+                      <Text style={styles.valueBody}>{item.body}</Text>
+                    </View>
+                  </View>
+                </MotionReveal>
+              );
+            })}
+          </View>
+        )}
+
+        {stepId === 'identity' && (
+          <MotionReveal key="identity" style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Qui êtes-vous ?</Text>
+            <Text style={styles.helper}>Votre nom et la façon dont vous vous présentez.</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nom d&apos;affichage</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Comment voulez-vous être appelé ?"
+                placeholderTextColor={colors.brand.textSecondary}
+                value={displayName}
+                onChangeText={setDisplayName}
+                maxLength={50}
+                returnKeyType="done"
+                accessibilityLabel="Nom d'affichage"
+                ref={registerFieldRef('displayName')}
+                onFocus={() => handleInputFocus('displayName')}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Je souhaite me présenter en tant que :</Text>
+              <View style={styles.roleChips}>
+                {ROLE_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  const active = role === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.roleChip, active && styles.roleChipActive]}
+                      onPress={() => {
+                        haptics.selection();
+                        setRole(option.value);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`${option.label}. ${option.description}`}
+                    >
+                      <Icon
+                        size={15}
+                        color={active ? colors.brand.primary : colors.brand.textSecondary}
+                        strokeWidth={2.2}
+                      />
+                      <Text style={[styles.roleChipLabel, active && styles.roleChipLabelActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {activeRoleDescription ? (
+                <Text style={styles.roleHint}>{activeRoleDescription}</Text>
+              ) : null}
+              <Text style={styles.roleNote}>
+                Quel que soit votre choix, vous pouvez tout faire : découvrir, participer et
+                créer des moments. Ce choix personnalise simplement votre profil.
+              </Text>
+            </View>
+          </MotionReveal>
+        )}
+
+        {stepId === 'location' && (
+          <MotionReveal key="location" style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Où voulez-vous explorer ?</Text>
+            <Text style={styles.helper}>Pour afficher les moments autour de vous.</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Ville ou quartier</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex. Lyon, Bastille, Nantes…"
+                placeholderTextColor={colors.brand.textSecondary}
+                value={addressSearch}
+                onChangeText={handleSearchChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Rechercher une ville ou un quartier"
+                ref={registerFieldRef('addressSearch')}
+                onFocus={() => handleInputFocus('addressSearch')}
+              />
+            </View>
+            {locationLoading && !selectedAddress ? (
+              <View style={styles.searchStatus}>
+                <ActivityIndicator size="small" color={colors.brand.secondary} />
+                <Text style={styles.meta}>Recherche en cours…</Text>
+              </View>
+            ) : null}
+            {addressResults.length > 0 ? (
+              <View style={styles.resultsContainer}>
+                {addressResults.map((item) => (
+                  <TouchableOpacity
+                    key={`${item.latitude}-${item.longitude}-${item.label}`}
+                    style={styles.resultRow}
+                    onPress={() => handleSelectLocation(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choisir ${item.label}`}
+                  >
+                    <MapPin size={16} color={colors.brand.secondary} />
+                    <Text style={styles.resultText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+            {showNoResults ? (
+              <View style={styles.searchStatus}>
+                <SearchX size={16} color={colors.brand.textSecondary} />
+                <Text style={styles.meta}>Aucun lieu trouvé, essayez une autre orthographe.</Text>
+              </View>
+            ) : null}
+            {selectedAddress ? (
+              <View style={styles.selection}>
+                <MapPin size={16} color={colors.brand.secondary} />
+                <View style={styles.selectionCopy}>
+                  <Text style={styles.meta}>Lieu sélectionné</Text>
+                  <Text style={styles.info}>{selectedAddress.label}</Text>
+                </View>
+              </View>
+            ) : null}
+          </MotionReveal>
+        )}
+
+        {stepId === 'avatar' && (
+          <MotionReveal key="avatar" style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Ajoutez une photo</Text>
+            <Text style={styles.helper}>Optionnel — vous pourrez la modifier plus tard.</Text>
+            <TouchableOpacity
+              style={styles.avatarUpload}
+              onPress={() => uploadImage('avatar')}
+              disabled={isUploading}
+              accessibilityRole="button"
+              accessibilityLabel="Choisir une photo de profil"
+            >
+              {uploadTarget === 'avatar' ? (
+                <View style={styles.avatarPlaceholder}>
+                  <ActivityIndicator color={colors.brand.secondary} />
+                </View>
+              ) : avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarPreview} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <User size={30} color={colors.brand.secondary} />
+                  <Text style={styles.uploadText}>Choisir une photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {avatarUrl && uploadTarget !== 'avatar' ? (
+              <Text style={styles.avatarHint}>Touchez la photo pour la remplacer.</Text>
+            ) : null}
+          </MotionReveal>
+        )}
+
+        {stepId === 'creator' && (
+          <MotionReveal key="creator" style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Profil créateur</Text>
+            <Text style={styles.helper}>
+              Optionnel — complétez maintenant ou plus tard depuis votre profil.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.coverUpload}
+              onPress={() => uploadImage('cover')}
+              disabled={isUploading}
+              accessibilityRole="button"
+              accessibilityLabel="Ajouter une image de couverture"
+            >
+              {uploadTarget === 'cover' ? (
+                <ActivityIndicator color={colors.brand.secondary} />
+              ) : coverUrl ? (
+                <Image source={{ uri: coverUrl }} style={styles.coverPreview} />
+              ) : (
+                <View style={styles.coverPlaceholder}>
+                  <ImagePlus size={20} color={colors.brand.secondary} />
+                  <Text style={styles.uploadText}>Ajouter une cover</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bio</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Présentez votre activité en quelques mots…"
+                placeholderTextColor={colors.brand.textSecondary}
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                numberOfLines={4}
+                maxLength={200}
+                accessibilityLabel="Bio"
+                ref={registerFieldRef('bio')}
+                onFocus={() => handleInputFocus('bio')}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Instagram</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="@moncompte ou lien"
+                placeholderTextColor={colors.brand.textSecondary}
+                value={instagram}
+                onChangeText={setInstagram}
+                autoCapitalize="none"
+                accessibilityLabel="Instagram"
+                ref={registerFieldRef('instagram')}
+                onFocus={() => handleInputFocus('instagram')}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>TikTok</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="@moncompte ou lien"
+                placeholderTextColor={colors.brand.textSecondary}
+                value={tiktok}
+                onChangeText={setTiktok}
+                autoCapitalize="none"
+                accessibilityLabel="TikTok"
+                ref={registerFieldRef('tiktok')}
+                onFocus={() => handleInputFocus('tiktok')}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Facebook</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="URL ou page"
+                placeholderTextColor={colors.brand.textSecondary}
+                value={facebook}
+                onChangeText={setFacebook}
+                autoCapitalize="none"
+                accessibilityLabel="Facebook"
+                ref={registerFieldRef('facebook')}
+                onFocus={() => handleInputFocus('facebook')}
+              />
+            </View>
+          </MotionReveal>
+        )}
+
+        {stepId === 'tiers' ? <OnboardingTiersStep /> : null}
+
+        {stepId === 'eclairer' ? (
+          <OnboardingEclaireurCtaStep onUnlock={handleUnlockTease} />
+        ) : null}
+
+        {error ? (
+          <Text style={styles.errorText} accessibilityRole="alert">
+            {error}
+          </Text>
+        ) : null}
+
+        <View style={styles.buttonGroup}>
+          {showSkip ? (
+            <Button
+              title="Passer"
+              onPress={skipOptionalToTiers}
+              variant="outline"
+              size="sm"
+              style={styles.footerButton}
+              disabled={isLoading || isUploading}
+              accessibilityLabel="Passer et continuer"
+            />
+          ) : null}
+          {showContinueFree ? (
+            <Button
+              title="Continuer gratuitement"
+              onPress={continueFree}
+              variant="outline"
+              size="sm"
+              style={styles.footerButton}
+              disabled={isLoading}
+              accessibilityLabel="Continuer gratuitement"
+            />
+          ) : null}
+          <Button
+            title={primaryTitle}
+            onPress={
+              stepId === 'eclairer' ? () => handleUnlockTease('annual') : goNext
             }
-            if (step < totalSteps) {
-              setStep((prev) => prev + 1);
-            } else {
-              handleComplete();
+            size="sm"
+            loading={isLoading || (stepId === 'location' && locationLoading && !!selectedAddress)}
+            style={
+              stepId === 'eclairer'
+                ? [styles.footerButton, styles.premiumCta]
+                : styles.footerButton
             }
-          }}
-          loading={isLoading || locationLoading}
-          style={step > 1 ? styles.buttonHalf : undefined}
-          disabled={!canContinue || isLoading || locationLoading}
-        />
-      </View>
+            disabled={!canContinue || isLoading || isUploading}
+            accessibilityLabel={primaryTitle}
+          />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const ImagePreview = ({ uri, label }: { uri: string; label: string }) => (
-  <View style={styles.previewContainer}>
-    <Image source={{ uri }} style={styles.previewImage} />
-    <Text style={styles.uploadText}>{label}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -437,44 +839,66 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-  header: {
-    marginBottom: spacing.xl,
+  replayTopBar: {
+    alignItems: 'flex-end',
+    marginBottom: spacing.sm,
+  },
+  closeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: spacing.xs,
+  },
+  closeText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  welcomeHeader: {
     marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  welcomeTitle: {
+    ...typography.h1,
+    color: colors.brand.text,
+    textAlign: 'center',
+  },
+  welcomeSubtitle: {
+    ...typography.body,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+  },
+  stepHeader: {
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: spacing.md,
+    minHeight: 44,
   },
   backText: {
     ...typography.bodySmall,
     color: colors.brand.text,
     fontWeight: '600',
   },
-  title: {
-    ...typography.h1,
-    color: colors.brand.text,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.brand.textSecondary,
-    textAlign: 'center',
-  },
   progressLabel: {
     ...typography.caption,
     color: colors.brand.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.sm,
   },
   progressBar: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
   },
   progressStep: {
     flex: 1,
@@ -486,13 +910,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.secondary,
   },
   stepContainer: {
-    gap: spacing.lg,
+    gap: spacing.md,
     marginBottom: spacing.xl,
   },
   stepTitle: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.brand.text,
-    marginBottom: spacing.md,
   },
   inputGroup: {
     gap: spacing.xs,
@@ -506,7 +929,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     padding: spacing.md,
     color: colors.brand.text,
   },
@@ -519,41 +942,93 @@ const styles = StyleSheet.create({
     color: colors.error[500],
     marginTop: spacing.sm,
   },
-  roleOptions: {
+  valueCard: {
+    flexDirection: 'row',
     gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'flex-start',
   },
-  roleCard: {
-    backgroundColor: 'rgba(26,36,38,0.9)',
+  valueIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(43, 191, 227, 0.14)',
+  },
+  valueCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  valueTitle: {
+    ...typography.h6,
+    color: colors.brand.text,
+  },
+  valueBody: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    lineHeight: 20,
+  },
+  roleChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  roleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: 'center',
   },
-  roleCardSelected: {
+  roleChipActive: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: colors.brand.secondary,
   },
-  roleIcon: {
-    marginBottom: spacing.sm,
-  },
-  roleLabel: {
-    ...typography.h3,
+  roleChipLabel: {
+    ...typography.bodySmall,
+    fontWeight: '600',
     color: colors.brand.text,
-    marginBottom: spacing.xs,
   },
-  roleDescription: {
-    ...typography.small,
+  roleChipLabelActive: {
+    color: colors.brand.primary,
+    fontWeight: '700',
+  },
+  roleHint: {
+    ...typography.caption,
     color: colors.brand.textSecondary,
-    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  roleNote: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 18,
+    fontStyle: 'italic',
   },
   buttonGroup: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.md,
   },
-  buttonHalf: {
+  footerButton: {
     flex: 1,
+    minHeight: 48,
+    maxHeight: 48,
+  },
+  premiumCta: {
+    backgroundColor: colors.brand.premium,
   },
   helper: {
     ...typography.bodySmall,
@@ -567,51 +1042,92 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.text,
   },
-  resultRow: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 12,
-  },
-  resultRowActive: {
-    backgroundColor: 'rgba(43,191,227,0.12)',
-  },
-  resultText: {
-    ...typography.body,
-    color: colors.brand.text,
+  searchStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   resultsContainer: {
-    maxHeight: 200,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+  },
+  resultText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    flex: 1,
   },
   selection: {
-    gap: spacing.xs,
-  },
-  uploadRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(43,191,227,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(43,191,227,0.3)',
   },
-  uploadCard: {
+  selectionCopy: {
     flex: 1,
+    gap: 2,
+  },
+  avatarUpload: {
+    alignSelf: 'center',
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 16,
-    padding: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  avatarPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  avatarHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+  },
+  coverUpload: {
+    height: 120,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  coverPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  coverPreview: {
+    width: '100%',
+    height: '100%',
   },
   uploadText: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: colors.brand.text,
     fontWeight: '600',
-  },
-  previewContainer: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  previewImage: {
-    width: 96,
-    height: 96,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
 });

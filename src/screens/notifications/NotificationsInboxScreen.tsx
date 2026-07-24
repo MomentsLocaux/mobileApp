@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   RefreshControl,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,7 +24,7 @@ import { useAuth } from '@/hooks';
 import { NotificationsService, type AppNotification, type AppNotificationType } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
-import { ScreenHeader } from '@/components/ui';
+import { EmptyState, ScreenHeader, SkeletonBlock } from '@/components/ui';
 
 type FilterMode = 'all' | 'unread';
 
@@ -290,9 +289,16 @@ export default function NotificationsInboxScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.centerState}>
-          <ActivityIndicator size="small" color={colors.brand.secondary} />
-          <Text style={styles.stateText}>Chargement des notifications...</Text>
+        <View style={styles.listContent}>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <View key={index} style={styles.itemCard}>
+              <View style={styles.itemTitleRow}>
+                <SkeletonBlock height={26} width={26} radius={borderRadius.full} />
+                <SkeletonBlock height={14} width="55%" />
+              </View>
+              <SkeletonBlock height={12} width="85%" />
+            </View>
+          ))}
         </View>
       ) : (
         <FlatList
@@ -302,12 +308,11 @@ export default function NotificationsInboxScreen() {
           renderItem={renderItem}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           ListEmptyComponent={
-            <View style={styles.centerState}>
-              <Bell size={20} color={colors.brand.textSecondary} />
-              <Text style={styles.stateText}>
-                {error ? `Erreur: ${error}` : mode === 'unread' ? 'Aucune notification non lue.' : 'Aucune notification.'}
-              </Text>
-            </View>
+            <EmptyState
+              icon={Bell}
+              title={error ? 'Une erreur est survenue' : mode === 'unread' ? 'Aucune notification non lue' : 'Aucune notification'}
+              subtitle={error || 'Vous serez notifié ici des nouveautés et de vos activités.'}
+            />
           }
         />
       )}
