@@ -20,7 +20,7 @@ export default function ProfileLayout() {
       <Stack.Screen
         name="subscription"
         options={{
-          title: 'Moments Locaux+',
+          title: 'Éclaireur',
           headerShown: false,
         }}
       />

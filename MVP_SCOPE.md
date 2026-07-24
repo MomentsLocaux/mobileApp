@@ -5,12 +5,13 @@ This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is t
 ## Visible MVP Features
 
 - Authentication: register, login, logout, persisted session, and social login (OAuth, e.g. Facebook) — see scope amendment 2026-06-08.
-- Onboarding: profile identity, role, location, avatar/cover, social links, bio.
+- Onboarding: profile identity, role, location, avatar; soft presentation tiers; skippable offers CTA.
+- Offers: drawer entry **Nos offres** with incremental Local ⊂ Habitué ⊂ Éclaireur matrix (IAP stub until store integration).
 - Map discovery: Mapbox map, visible-area event loading, search, filters, event preview, event details.
 - Event browsing: home/list results, detail page, creator profile links, sharing.
 - Event creation: multi-step creation, cover upload, location, date, category, media, draft/edit, publication status.
 - Social basics: favorites, likes/interests, follow creator/member, community profiles.
-- Check-in: QR/location check-in through the Supabase Edge Function.
+- Check-in: QR/location check-in through the Supabase Edge Function — **reserved to Habitué+** (Éclaireur includes Habitué). Local users are directed to Nos offres.
 - Notifications: inbox, unread badge, notification routing, push delivery (device notifications), and a notification preferences center (per-type granularity, plus geolocated radius/frequency) — see scope amendment 2026-06-08.
 - User reporting: report an event, comment, media, or profile.
 - Creator publication status: view created event statuses (`draft`, `pending`, `published`, `refused`, `archived`) and refusal reasons when available.

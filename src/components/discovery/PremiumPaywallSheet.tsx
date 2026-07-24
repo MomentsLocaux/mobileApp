@@ -23,10 +23,10 @@ type Props = {
 };
 
 const SOURCE_COPY: Record<PremiumPaywallSource, string> = {
-  my_radius: 'Visualisez votre territoire en détail et recevez des suggestions plus fines.',
-  right_now: 'Débloquez un flux Right Now complet, au-delà d’une suggestion par jour.',
-  discovery_home: 'Accédez à Discovery+ pour enrichir vos découvertes au quotidien.',
-  subscription: 'Passez à Moments Locaux+ pour profiter de toutes les fonctionnalités Discovery.',
+  my_radius: 'Débloquez la carte de votre zone et des suggestions plus adaptées à vos sorties.',
+  right_now: 'Recevez des idées de moments à rejoindre tout de suite, près de vous.',
+  discovery_home: 'Passez Éclaireur pour découvrir autrement — Habitué inclus.',
+  subscription: 'Passez Éclaireur pour la profondeur Discovery (Habitué inclus).',
 };
 
 export function PremiumPaywallSheet({ visible, source = 'discovery_home', onClose }: Props) {
@@ -62,14 +62,15 @@ export function PremiumPaywallSheet({ visible, source = 'discovery_home', onClos
           <View style={styles.iconWrap}>
             <Crown size={24} color={colors.brand.secondary} />
           </View>
-          <Text style={styles.title}>Moments Locaux+</Text>
+          <Text style={styles.title}>Éclaireur</Text>
           <Text style={styles.subtitle}>{SOURCE_COPY[source]}</Text>
 
           <View style={styles.benefits}>
-            <Benefit text="Right Now illimité" />
-            <Benefit text="Mon territoire détaillé" />
-            <Benefit text="Suggestions Discovery enrichies" />
-            <Benefit text="Fonctionnalités Premium à venir (Break the Loop, insights…)" />
+            <Benefit text="Idées de moments à rejoindre tout de suite" />
+            <Benefit text="Carte de votre zone (où vous sortez)" />
+            <Benefit text="Recommandations calées sur vos sorties" />
+            <Benefit text="Idées hors habitudes + bilans de découverte" />
+            <Benefit text="Inclut Habitué (check-in, Lumo, Pass…)" />
           </View>
 
           <View style={styles.plans}>

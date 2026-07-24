@@ -17,23 +17,23 @@ import { ActivityLogService } from '@/services/activity-log.service';
 const BENEFITS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Sparkles,
-    title: 'Suggestions « maintenant »',
-    body: 'Plus d’idées de moments à rejoindre tout de suite, au-delà de l’aperçu gratuit.',
+    title: 'Idées maintenant',
+    body: 'Des moments à rejoindre tout de suite, près de vous.',
   },
   {
     icon: MapPinned,
     title: 'Carte de votre zone',
-    body: 'Voyez où vous sortez habituellement et découvrez de nouveaux coins proches.',
+    body: 'Voyez où vous sortez et les coins à explorer à proximité.',
   },
   {
     icon: Compass,
     title: 'Recommandations adaptées',
-    body: 'Des propositions plus proches de vos goûts et de vos habitudes de sortie.',
+    body: 'Des propositions calées sur vos sorties passées.',
   },
   {
     icon: CheckCircle2,
-    title: 'Bientôt dans Éclaireur',
-    body: 'Idées pour sortir de la routine et petits bilans de vos découvertes.',
+    title: 'Routine & bilans',
+    body: 'Idées hors habitudes + résumé de vos découvertes. Inclut tout Habitué.',
   },
 ];
 
