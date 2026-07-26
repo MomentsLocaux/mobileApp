@@ -23,6 +23,9 @@ Legend: **Push** = device banner; **Inbox** = app Notifications screen; **Route*
 | Budget/quiet bypass | same + type `event_refused` | Admin refuse | ✓ | ✓ | My events |
 | Themes nearby | slugs set, event other category | Publish in radius | ✗ (no row) | ✗ | — |
 | Themes empty | slugs `{}` | Publish in radius | ✓ | ✓ | Event |
+| Proximity live on | `notify_proximity_live`, Always location, native build | Approach live/soon event ≤500 m | ✓ | ✓ | Event (`source=proximity_live`) |
+| Proximity live off | pref false | Same approach / RPC | ✗ | ✗ | — |
+| Proximity anti-dupe | already alerted same event <24 h | Approach again | ✗ (no new row) | ✗ | — |
 | Discovery personal match | discovery master on + `for_you` reco | Cron opportunities | ✓ if prefs | ✓ | Discovery |
 | Discovery right now | discovery flags + consents + reco | Cron / data | ✓ if prefs | ✓ | Discovery |
 | Private invite | — | Creator private invite RPC | ✓ | ✓ | Event (`eventId`) |

@@ -6,6 +6,7 @@ import {
   Info,
   MapPin,
   Moon,
+  Navigation,
   Sparkles,
   Users,
 } from 'lucide-react-native';
@@ -17,6 +18,8 @@ import { SettingsRow, SettingsSectionCard } from '@/components/settings/Settings
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { CATEGORY_VISUAL_SLUGS, type CategoryVisualSlug } from '@/constants/category-visuals';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
+import { requestProximityLocationPermissions } from '@/hooks/useProximityAlerts';
 import {
   DEFAULT_PREFERENCES,
   type NotifyFrequency,
@@ -24,8 +27,14 @@ import {
   THEME_CHIP_LABELS,
   type UserPreferences,
 } from '@/services/preferences.service';
+import { ProximityAlertService } from '@/services/proximity-alert.service';
 import { clearHomeLocation, syncHomeLocation } from '@/services/push.service';
+import {
+  startProximityBackgroundAlerts,
+  stopProximityBackgroundAlerts,
+} from '@/tasks/proximity-location';
 import { useAuthStore } from '@/state/auth';
+import { router } from 'expo-router';
 
 const RADIUS_CHOICES = [10, 25, 50, 100];
 const DAILY_BUDGET_CHOICES = [1, 2, 3, 5];
@@ -45,6 +54,7 @@ const QUIET_PRESETS: { label: string; start: string | null; end: string | null }
 
 export default function NotificationsSettingsScreen() {
   const userId = useAuthStore((state) => state.user?.id);
+  const { hasEclaireur, loading: entitlementLoading } = useOfferEntitlements();
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -98,6 +108,35 @@ export default function NotificationsSettingsScreen() {
     } else {
       clearHomeLocation();
     }
+  };
+
+  const handleProximityLiveToggle = async (value: boolean) => {
+    if (value) {
+      const granted = await requestProximityLocationPermissions();
+      if (!granted) {
+        Toast.show({
+          type: 'error',
+          text1: 'Permission requise',
+          text2: 'Autorisez la localisation « Toujours » pour les alertes à proximité.',
+        });
+        return;
+      }
+      await persist({ notify_proximity_live: true });
+      await ProximityAlertService.clearLocalThrottle();
+      try {
+        await startProximityBackgroundAlerts();
+      } catch {
+        Toast.show({
+          type: 'info',
+          text1: 'Build natif requis',
+          text2: 'Les alertes à proximité nécessitent une build iOS/Android (pas Expo Go).',
+        });
+      }
+      return;
+    }
+
+    await persist({ notify_proximity_live: false });
+    await stopProximityBackgroundAlerts();
   };
 
   const toggleTheme = (slug: CategoryVisualSlug) => {
@@ -235,6 +274,27 @@ export default function NotificationsSettingsScreen() {
         )}
 
         <SettingsRow
+          label="Moments en cours / bientôt près de moi"
+          icon={Navigation}
+          right={
+            <Switch
+              value={prefs.notify_proximity_live}
+              onValueChange={handleProximityLiveToggle}
+            />
+          }
+        />
+        {prefs.notify_proximity_live && (
+          <View style={styles.infoBox}>
+            <Info size={16} color={colors.brand.secondary} />
+            <Text style={styles.infoText}>
+              Localisation en arrière-plan (opt-in). On vous prévient quand vous vous
+              approchez d’un moment déjà publié, en cours ou bientôt. Distinct de Discovery
+              et des alertes « nouveaux moments ». Désactivez à tout moment.
+            </Text>
+          </View>
+        )}
+
+        <SettingsRow
           label="Créateurs que je suis"
           icon={Users}
           right={
@@ -293,10 +353,10 @@ export default function NotificationsSettingsScreen() {
         </ChoiceGroup>
       </SettingsSectionCard>
 
-      {DISCOVERY_ENABLED && (
+      {DISCOVERY_ENABLED && !entitlementLoading && hasEclaireur && (
       <SettingsSectionCard
         title="Suggestions Discovery"
-        description="Idées personnalisées selon vos habitudes (Moments Locaux+)."
+        description="Idées personnalisées selon vos habitudes (Éclaireur)."
         icon={Sparkles}
       >
         <SettingsRow
@@ -367,6 +427,21 @@ export default function NotificationsSettingsScreen() {
           </>
         )}
       </SettingsSectionCard>
+      )}
+
+      {DISCOVERY_ENABLED && !entitlementLoading && !hasEclaireur && (
+        <SettingsSectionCard
+          title="Suggestions Discovery"
+          description="Réservé aux Éclaireurs — idées selon vos habitudes de sortie."
+          icon={Sparkles}
+        >
+          <SettingsRow
+            label="Découvrir Éclaireur"
+            icon={Sparkles}
+            onPress={() => router.push('/profile/offers' as any)}
+            noBorder
+          />
+        </SettingsSectionCard>
       )}
 
       <SettingsSectionCard

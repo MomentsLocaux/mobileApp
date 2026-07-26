@@ -321,5 +321,5 @@ Branche Git recommandée: `feat/push-p1-personal-match`
 2. PREF-P0-002 (UI) // PUSH-P0-001 (dispatch) ✅
 3. PREF-P0-003 (onboarding) ✅
 4. PUSH-P0-002 (filtre thèmes nearby publication) ✅
-5. **PUSH-P0-003 (approche live)** — priorité produit
+5. **PUSH-P0-003 (approche live)** — priorité produit — code on `feat/push-p0-live-proximity` ; migration UAT + build natif à valider
 6. PUSH-P1-001 (personal match) ✅ code ; à valider en UAT avec Discovery on

@@ -111,3 +111,26 @@ supabase functions deploy push-dispatch --project-ref <ref>
 ```
 
 Do not apply SQL migrations to production without human validation (project rule).
+
+## PUSH-P0-003 — Live proximity (approach)
+
+Distinct from publish-time `event_nearby_new` (`home_location`) and from Discovery capture.
+
+| Piece | Detail |
+| --- | --- |
+| Pref | `user_preferences.notify_proximity_live` (default **false**) |
+| Type | `event_nearby_live` + `data.source = proximity_live` |
+| Client task | `proximity-live-alerts` (`src/tasks/proximity-location.ts`) — sparse updates |
+| RPC | `report_proximity_live_alerts(lat, lon, radius_m, soon_hours)` — authenticated; does **not** store coords |
+| Gates | Pref off → RPC returns 0; Edge skips OS push if pref ≠ true; budget + quiet hours apply |
+| Anti-dupe | 1 inbox row / event / 24 h (`data.eventId`) |
+| Themes | Same soft filter as nearby publish (`preferred_category_slugs`) |
+
+### UAT smoke
+
+1. Apply migration `20260801_push_p0_live_proximity.sql` on UAT (human-validated).
+2. Redeploy `push-dispatch`.
+3. Native build (not Expo Go) → Settings → enable « Moments en cours / bientôt près de moi » → grant Always.
+4. Publish a public event ~200 m away, live or starting within 3 h.
+5. Move toward it (or call RPC with test coords) → inbox + push → tap → event detail.
+6. Toggle off → background updates stop; RPC no-ops.

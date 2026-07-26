@@ -13,13 +13,16 @@ import { AuthService } from '../src/services/auth.service';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { DISCOVERY_CAPTURE_ENABLED } from '@/config/discovery.flags';
 import { useDiscoveryCapture } from '../src/hooks/useDiscoveryCapture';
+import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
 import { ensureDiscoveryLocationTaskRegistered } from '@/tasks/discovery-location';
+import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 if (DISCOVERY_CAPTURE_ENABLED) {
   ensureDiscoveryLocationTaskRegistered();
 }
+ensureProximityLocationTaskRegistered();
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -30,6 +33,7 @@ export default function RootLayout() {
 
   usePushNotifications(userId);
   useDiscoveryCapture(userId);
+  useProximityAlerts(userId);
 
   useEffect(() => {
     if (fontsLoaded) {
