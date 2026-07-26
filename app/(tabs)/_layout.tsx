@@ -1,6 +1,7 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
+import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import {
   Map,
   Home,
@@ -45,11 +46,11 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
-import Toast from 'react-native-toast-message';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
-  const { canCreateNow, canCreate, accent } = useAccountIdentity();
+  const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode } =
+    useAccountIdentity();
   const canCreateEvents = canCreateNow;
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
@@ -252,35 +253,25 @@ export default function TabsLayout() {
           name="create"
           options={{
             title: '',
-            tabBarButton: () => (
-              <TouchableOpacity
-                style={[
-                  styles.createButton,
-                  canCreateEvents ? { backgroundColor: accent.accent } : null,
-                  (isGuest || !canCreateEvents) && styles.createButtonDisabled,
-                ]}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (isGuest) {
-                    openGuestGate('Créer un événement');
-                    return;
-                  }
-                  if (!canCreateEvents) {
-                    Toast.show({
-                      type: 'info',
-                      text1: canCreate ? 'Passez en mode Créateur' : 'Création non activée',
-                      text2: canCreate
-                        ? 'Utilisez le switch Découvreur / Créateur sur votre profil.'
-                        : 'Votre profil Particulier est en mode découverte uniquement.',
-                    });
-                    return;
-                  }
-                  router.push('/events/create/step-1' as any);
-                }}
-              >
-                <PlusCircle size={28} color="#0f1719" />
-              </TouchableOpacity>
-            ),
+            // ADR_007: no create FAB in Découvreur mode (or discover-only accounts)
+            href: canCreateEvents ? undefined : null,
+            tabBarButton: canCreateEvents
+              ? () => (
+                  <TouchableOpacity
+                    style={[styles.createButton, { backgroundColor: accent.accent }]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      if (isGuest) {
+                        openGuestGate('Créer un événement');
+                        return;
+                      }
+                      router.push('/events/create/step-1' as any);
+                    }}
+                  >
+                    <PlusCircle size={28} color="#0f1719" />
+                  </TouchableOpacity>
+                )
+              : () => null,
           }}
         />
         <Tabs.Screen
@@ -375,6 +366,17 @@ export default function TabsLayout() {
               <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
             </View>
           </View>
+          {showModeSwitch ? (
+            <View style={styles.drawerModeSwitch}>
+              <ModeSwitch
+                mode={activeMode}
+                loading={savingMode}
+                onChange={(mode) => {
+                  void setActiveMode(mode);
+                }}
+              />
+            </View>
+          ) : null}
         </View>
 
         {/* Scrollable Menu Content */}
@@ -758,6 +760,12 @@ const styles = StyleSheet.create({
   drawerEmail: {
     fontSize: 13,
     color: '#587588', // Muted slate blue/grey
+  },
+  drawerModeSwitch: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   drawerPremiumPill: {
     flexDirection: 'row',
