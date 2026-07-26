@@ -24,6 +24,7 @@ import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import {
   buildOperatingHoursPayload,
   deriveScheduleStateFromEvent,
@@ -36,6 +37,7 @@ export default function CreateEventStep1() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { session, user } = useAuth();
+  const { canCreateNow, canCreate } = useAccountIdentity();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
@@ -81,6 +83,14 @@ export default function CreateEventStep1() {
   const isGuest = !session;
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
+
+  const allowCreateFlow = canCreateNow || (Boolean(edit) && canCreate);
+
+  React.useEffect(() => {
+    if (isGuest) return;
+    if (allowCreateFlow) return;
+    router.replace(canCreate ? '/(tabs)/profile' : '/(tabs)/map');
+  }, [isGuest, allowCreateFlow, canCreate, router]);
 
   const extractStoragePath = (url: string | null | undefined) => {
     if (!url) return '';
@@ -352,6 +362,10 @@ export default function CreateEventStep1() {
         />
       </SafeAreaView>
     );
+  }
+
+  if (!allowCreateFlow) {
+    return <SafeAreaView style={{ flex: 1, backgroundColor: colors.brand.primary }} />;
   }
 
   return (

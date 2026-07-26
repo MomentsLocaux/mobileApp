@@ -21,13 +21,25 @@ import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { AppBackground, Button, ScreenHeader } from '../../src/components/ui';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
-import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
+import { getProfileIdentityLabel } from '../../src/utils/roleHelpers';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
+import { ModeSwitch } from '@/components/identity/ModeSwitch';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { profileCanCreate } from '@/utils/accountIdentity';
+import Toast from 'react-native-toast-message';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut, fullSignOut, session } = useAuth();
   const { isPremium } = usePremiumEntitlement();
+  const {
+    showModeSwitch,
+    activeMode,
+    savingMode,
+    setActiveMode,
+    accent,
+    canCreate,
+  } = useAccountIdentity();
   const isGuest = !session;
 
   const handleSignOut = async () => {
@@ -67,6 +79,14 @@ export default function ProfileScreen() {
   };
 
   const handleViewMyEvents = () => {
+    if (!profileCanCreate(profile)) {
+      Toast.show({
+        type: 'info',
+        text1: 'Mes événements',
+        text2: 'Disponible si vous activez la création sur votre profil Particulier.',
+      });
+      return;
+    }
     router.push('/profile/my-events' as any);
   };
 
@@ -134,28 +154,35 @@ export default function ProfileScreen() {
               style={[
                 styles.roleBadge,
                 {
-                  backgroundColor: getRoleBadgeColor(profile.role).bg,
-                  borderColor: getRoleBadgeColor(profile.role).border,
+                  backgroundColor: accent.accentMuted,
+                  borderColor: accent.accentBorder,
                 },
               ]}
             >
-              <Award size={14} color={getRoleBadgeColor(profile.role).text} />
-              <Text
-                style={[
-                  styles.roleText,
-                  { color: getRoleBadgeColor(profile.role).text },
-                ]}
-              >
-                {getRoleLabel(profile.role)}
+              <Award size={14} color={accent.accent} />
+              <Text style={[styles.roleText, { color: accent.accent }]}>
+                {getProfileIdentityLabel(profile)}
               </Text>
             </View>
+
+            {showModeSwitch ? (
+              <ModeSwitch
+                mode={activeMode}
+                loading={savingMode}
+                onChange={(mode) => {
+                  void setActiveMode(mode);
+                }}
+              />
+            ) : null}
 
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => router.push('/profile/edit' as any)}
             >
-              <Settings size={20} color={colors.brand.secondary} />
-              <Text style={styles.editButtonText}>Modifier le profil</Text>
+              <Settings size={20} color={accent.accent} />
+              <Text style={[styles.editButtonText, { color: accent.accent }]}>
+                Modifier le profil
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -164,8 +191,8 @@ export default function ProfileScreen() {
           <PremiumCard isPremium={isPremium}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Rôle</Text>
-              <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
+              <Text style={styles.infoLabel}>Profil</Text>
+              <Text style={styles.infoValue}>{getProfileIdentityLabel(profile)}</Text>
             </View>
             {profile.city ? (
               <View style={styles.infoRow}>
@@ -197,10 +224,12 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
-              <Calendar size={18} color={colors.brand.secondary} />
-              <Text style={styles.linkText}>Mes événements</Text>
-            </TouchableOpacity>
+            {canCreate ? (
+              <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
+                <Calendar size={18} color={accent.accent} />
+                <Text style={[styles.linkText, { color: accent.accent }]}>Mes événements</Text>
+              </TouchableOpacity>
+            ) : null}
             {GAMIFICATION_ENABLED && (
               <>
                 <TouchableOpacity

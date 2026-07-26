@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useLocationStore, useSearchStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
@@ -89,6 +90,7 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { canCreateNow, canCreate, accent } = useAccountIdentity();
   const { currentLocation } = useLocationStore();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
@@ -503,12 +505,18 @@ export default function HomeScreen() {
             item.me ? (
               <TouchableOpacity
                 style={styles.storyItem}
-                onPress={() => router.push('/events/create/step-1' as any)}
+                onPress={() => {
+                  if (!canCreateNow) {
+                    router.push(canCreate ? '/(tabs)/profile' : '/(tabs)/map');
+                    return;
+                  }
+                  router.push('/events/create/step-1' as any);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Créer un événement"
               >
                 <LinearGradient
-                  colors={['#2bbfe3', '#2bbfe3']}
+                  colors={[accent.accent, accent.accent]}
                   style={styles.storyGradientBorder}
                 >
                   <View style={styles.storyInner}>

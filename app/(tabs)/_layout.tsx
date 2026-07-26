@@ -44,12 +44,13 @@ import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
-import { profileCanCreate } from '@/utils/accountIdentity';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import Toast from 'react-native-toast-message';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
-  const canCreateEvents = profileCanCreate(profile);
+  const { canCreateNow, canCreate, accent } = useAccountIdentity();
+  const canCreateEvents = canCreateNow;
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -248,6 +249,7 @@ export default function TabsLayout() {
               <TouchableOpacity
                 style={[
                   styles.createButton,
+                  canCreateEvents ? { backgroundColor: accent.accent } : null,
                   (isGuest || !canCreateEvents) && styles.createButtonDisabled,
                 ]}
                 activeOpacity={0.85}
@@ -259,9 +261,10 @@ export default function TabsLayout() {
                   if (!canCreateEvents) {
                     Toast.show({
                       type: 'info',
-                      text1: 'Création non activée',
-                      text2:
-                        'Votre profil Particulier est en mode découverte. Réactivez la création depuis l’onboarding (bientôt dans les réglages).',
+                      text1: canCreate ? 'Passez en mode Créateur' : 'Création non activée',
+                      text2: canCreate
+                        ? 'Utilisez le switch Découvreur / Créateur sur votre profil.'
+                        : 'Votre profil Particulier est en mode découverte uniquement.',
                     });
                     return;
                   }
@@ -533,7 +536,7 @@ export default function TabsLayout() {
                 router.push('/(tabs)/favorites' as any);
               }}
             />
-            {hasMyEventsShortcut && (
+            {(canCreate || hasMyEventsShortcut) && (
               <DrawerLink
                 icon={MapPinned}
                 label="Mes événements"

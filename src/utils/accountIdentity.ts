@@ -1,6 +1,7 @@
 import type { Profile, UserRole } from '@/types/database';
 import type { AccountKind, ActiveMode, ProSubtype } from '@/constants/accountIdentity';
 import { PRO_SUBTYPE_LABELS } from '@/constants/accountIdentity';
+import { accentForIdentity, type IdentityAccent } from '@/constants/identityTheme';
 
 /** Product audience — never treat institutionnel as a top-level kind. */
 export function getAccountKind(profile: Pick<Profile, 'role'> | null | undefined): AccountKind {
@@ -26,6 +27,30 @@ export function getActiveMode(
   if (profile.role === 'professionnel' || profile.role === 'institutionnel') return 'create';
   if (!profile.can_create) return 'discover';
   return profile.active_mode === 'create' ? 'create' : 'discover';
+}
+
+/** Create FAB / routes — capability + B2C mode create (ADR_007). */
+export function canAccessCreateSurfaces(
+  profile: Pick<Profile, 'role' | 'can_create' | 'active_mode'> | null | undefined,
+): boolean {
+  if (!profile) return false;
+  if (profile.role === 'professionnel' || profile.role === 'institutionnel') return true;
+  if (!profile.can_create) return false;
+  return getActiveMode(profile) === 'create';
+}
+
+export function shouldShowModeSwitch(
+  profile: Pick<Profile, 'role' | 'can_create'> | null | undefined,
+): boolean {
+  if (!profile) return false;
+  if (profile.role === 'professionnel' || profile.role === 'institutionnel') return false;
+  return Boolean(profile.can_create);
+}
+
+export function getIdentityAccent(
+  profile: Pick<Profile, 'role' | 'can_create' | 'active_mode'> | null | undefined,
+): IdentityAccent {
+  return accentForIdentity(getAccountKind(profile), getActiveMode(profile));
 }
 
 /** Persistable role for onboarding — never write institutionnel. */
