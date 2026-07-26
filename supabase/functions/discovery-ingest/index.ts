@@ -241,6 +241,28 @@ Deno.serve(async (req: Request) => {
 
   const userId = userData.user.id;
 
+  const { data: entitlementRows, error: entitlementError } = await admin
+    .from('user_subscriptions')
+    .select('status, expires_at')
+    .eq('user_id', userId)
+    .eq('entitlement', 'moments_locaux_plus')
+    .in('status', ['active', 'grace_period', 'trialing'])
+    .order('updated_at', { ascending: false })
+    .limit(5);
+
+  if (entitlementError) {
+    return json({ success: false, message: 'entitlement_lookup_failed' }, 500);
+  }
+
+  const now = Date.now();
+  const hasEclaireur = (entitlementRows ?? []).some((row) => {
+    if (!row.expires_at) return true;
+    return new Date(row.expires_at).getTime() > now;
+  });
+  if (!hasEclaireur) {
+    return json({ success: false, message: 'eclaireur_required' }, 403);
+  }
+
   const { data: consent, error: consentError } = await admin
     .from('discovery_consents')
     .select('enabled, location_enabled, consent_version')

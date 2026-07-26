@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { AppState, type AppStateStatus } from 'react-native';
 import { DISCOVERY_CAPTURE_ENABLED, DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { useDiscoveryConsent } from '@/hooks/useDiscoveryConsent';
+import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { DiscoverySyncService } from '@/services/discovery/discovery-sync.service';
 import {
   startDiscoveryBackgroundCapture,
@@ -11,12 +12,14 @@ import {
 
 export function useDiscoveryCapture(userId?: string | null) {
   const { consent, isEnabled, refresh } = useDiscoveryConsent();
+  const { hasEclaireur } = useOfferEntitlements();
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const captureAllowed =
     DISCOVERY_ENABLED &&
     DISCOVERY_CAPTURE_ENABLED &&
     !!userId &&
+    hasEclaireur &&
     isEnabled &&
     consent?.location_enabled === true;
 

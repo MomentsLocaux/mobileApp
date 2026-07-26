@@ -4,6 +4,7 @@ export type AppNotificationType =
   | 'event_published'
   | 'event_soon'
   | 'event_nearby_new'
+  | 'event_nearby_live'
   | 'followed_creator_published'
   | 'lumo_reward'
   | 'mission_completed'

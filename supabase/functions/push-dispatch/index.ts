@@ -44,6 +44,7 @@ type PrefRow = {
     notify_social?: boolean;
     notify_rewards?: boolean;
     notify_event_nearby?: boolean;
+    notify_proximity_live?: boolean;
     notify_followed_creator?: boolean;
     notify_event_reminders?: boolean;
     discovery_push_enabled?: boolean;
@@ -135,7 +136,7 @@ Deno.serve(async (req: Request) => {
     const { data: pref } = await admin
         .from("user_preferences")
         .select(
-            "push_enabled, notify_social, notify_rewards, notify_event_nearby, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, max_push_per_day, quiet_hours_start, quiet_hours_end",
+            "push_enabled, notify_social, notify_rewards, notify_event_nearby, notify_proximity_live, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, max_push_per_day, quiet_hours_start, quiet_hours_end",
         )
         .eq("user_id", record.user_id)
         .maybeSingle();
@@ -166,6 +167,12 @@ Deno.serve(async (req: Request) => {
             return json({ skipped: "event_nearby_disabled" }, 200);
         }
         if (
+            type === "event_nearby_live" &&
+            prefs.notify_proximity_live !== true
+        ) {
+            return json({ skipped: "proximity_live_disabled" }, 200);
+        }
+        if (
             type === "followed_creator_published" &&
             prefs.notify_followed_creator === false
         ) {
@@ -187,6 +194,29 @@ Deno.serve(async (req: Request) => {
         if (!prefs || prefs.discovery_push_enabled !== true) {
             return json({ skipped: "discovery_push_disabled" }, 200);
         }
+
+        // Éclaireur entitlement required for all Discovery pushes.
+        const { data: entitlementRows, error: entErr } = await admin
+            .from("user_subscriptions")
+            .select("status, expires_at")
+            .eq("user_id", record.user_id)
+            .eq("entitlement", "moments_locaux_plus")
+            .in("status", ["active", "grace_period", "trialing"])
+            .order("updated_at", { ascending: false })
+            .limit(5);
+        if (entErr) {
+            console.error("eclaireur entitlement lookup error", entErr);
+            return json({ error: "entitlement_lookup_failed" }, 500);
+        }
+        const now = Date.now();
+        const hasEclaireur = (entitlementRows ?? []).some((row) => {
+            if (!row.expires_at) return true;
+            return new Date(row.expires_at).getTime() > now;
+        });
+        if (!hasEclaireur) {
+            return json({ skipped: "eclaireur_required" }, 200);
+        }
+
         if (
             record.type === "discovery_right_now" &&
             prefs?.right_now_push_enabled !== true
@@ -205,7 +235,7 @@ Deno.serve(async (req: Request) => {
         ) {
             return json({ skipped: "life_insight_push_disabled" }, 200);
         }
-        // discovery_personal_match / discovery_new_area: master discovery gate only
+        // discovery_personal_match / discovery_new_area: master discovery + éclaireur gate
     }
 
     const isCritical = CRITICAL_PUSH_TYPES.has(type);

@@ -53,7 +53,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSLocationWhenInUseUsageDescription:
         'Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
-        'Moments Locaux utilise votre position en arrière-plan pour repérer les lieux que vous visitez et enrichir Discovery. Vous pouvez désactiver cette option à tout moment.',
+        'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments en cours ou bientôt près de vous, et — si vous activez Discovery — pour enrichir vos suggestions. Vous pouvez désactiver ces options à tout moment.',
       UIBackgroundModes: ['location', 'remote-notification'],
       NSFaceIDUsageDescription:
         'Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.',
@@ -95,7 +95,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
-          'Moments Locaux utilise votre position en arrière-plan pour repérer les lieux visités et enrichir Discovery. Vous pouvez désactiver cette option à tout moment.',
+          'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments près de vous, et — si vous activez Discovery — pour enrichir vos suggestions. Vous pouvez désactiver ces options à tout moment.',
         isAndroidBackgroundLocationEnabled: true,
         isIosBackgroundLocationEnabled: true,
       },

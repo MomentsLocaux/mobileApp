@@ -11,6 +11,8 @@ export type UserPreferences = {
   push_enabled: boolean;
   email_enabled: boolean;
   notify_event_nearby: boolean;
+  /** PUSH-P0-003: approach alerts near live/soon events (background location). */
+  notify_proximity_live: boolean;
   notify_rewards: boolean;
   notify_social: boolean;
   notify_radius_km: number;
@@ -29,13 +31,14 @@ export type UserPreferences = {
 };
 
 const PREF_FIELDS =
-  'user_id, push_enabled, email_enabled, notify_event_nearby, notify_rewards, notify_social, notify_radius_km, notify_frequency, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, discovery_max_push_per_week, max_push_per_day, quiet_hours_start, quiet_hours_end, preferred_category_slugs';
+  'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_rewards, notify_social, notify_radius_km, notify_frequency, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, discovery_max_push_per_week, max_push_per_day, quiet_hours_start, quiet_hours_end, preferred_category_slugs';
 
 // Mirrors the column defaults so a user without a row still sees sane values.
 export const DEFAULT_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
   push_enabled: true,
   email_enabled: false,
   notify_event_nearby: true,
+  notify_proximity_live: false,
   notify_rewards: true,
   notify_social: true,
   notify_radius_km: 25,

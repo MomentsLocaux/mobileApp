@@ -15,6 +15,7 @@ import {
   Bell,
   CalendarCheck2,
   Image as ImageIcon,
+  MapPin,
   MessageSquareWarning,
   ShieldAlert,
   Trophy,
@@ -101,6 +102,7 @@ const typeLabel: Record<AppNotificationType, string> = {
   event_published: 'Événement',
   event_soon: 'Rappel',
   event_nearby_new: 'Proximité',
+  event_nearby_live: 'À proximité',
   followed_creator_published: 'Abonnement',
   lumo_reward: 'Notification',
   mission_completed: 'Notification',
@@ -127,6 +129,9 @@ const typeLabel: Record<AppNotificationType, string> = {
 const typeIcon = (type: AppNotificationType) => {
   if (type === 'event_published' || type === 'event_refused' || type === 'event_request_changes') {
     return CalendarCheck2;
+  }
+  if (type === 'event_nearby_new' || type === 'event_nearby_live' || type === 'event_soon') {
+    return MapPin;
   }
   if (type === 'media_approved' || type === 'media_rejected') {
     return ImageIcon;
