@@ -60,6 +60,8 @@ Issue is upstream (trigger/SQL prefs). Push dispatch never ran.
 ### 4. Row in `notifications`, no push
 
 - `push_enabled = false` → edge returns `skipped: push_disabled`
+- `skipped: quiet_hours` → Europe/Paris window (`quiet_hours_start` / `end`)
+- `skipped: daily_budget` → `count_user_notifications_today` > `max_push_per_day` (critical types bypass)
 - No token in `device_push_tokens`
 - Wrong `app_config` URL (dispatch hits another project)
 - iOS entitlements / APNs profile mismatch

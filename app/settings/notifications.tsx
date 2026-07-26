@@ -1,26 +1,46 @@
-import { Bell, CalendarClock, Gift, Heart, Info, MapPin, Sparkles, Users } from 'lucide-react-native';
+import {
+  Bell,
+  CalendarClock,
+  Gift,
+  Heart,
+  Info,
+  MapPin,
+  Moon,
+  Sparkles,
+  Users,
+} from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { CATEGORY_VISUAL_SLUGS, type CategoryVisualSlug } from '@/constants/category-visuals';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import {
   DEFAULT_PREFERENCES,
   type NotifyFrequency,
   PreferencesService,
+  THEME_CHIP_LABELS,
   type UserPreferences,
 } from '@/services/preferences.service';
 import { clearHomeLocation, syncHomeLocation } from '@/services/push.service';
 import { useAuthStore } from '@/state/auth';
 
 const RADIUS_CHOICES = [10, 25, 50, 100];
+const DAILY_BUDGET_CHOICES = [1, 2, 3, 5];
 const DISCOVERY_MAX_PUSH_CHOICES = [1, 3, 5, 7, 10];
 const FREQUENCY_CHOICES: { value: NotifyFrequency; label: string }[] = [
   { value: 'instant', label: 'Instantané' },
   { value: 'daily', label: 'Quotidien' },
   { value: 'weekly', label: 'Hebdo' },
+];
+
+const QUIET_PRESETS: { label: string; start: string | null; end: string | null }[] = [
+  { label: 'Off', start: null, end: null },
+  { label: '22h–8h', start: '22:00:00', end: '08:00:00' },
+  { label: '23h–7h', start: '23:00:00', end: '07:00:00' },
+  { label: '21h–9h', start: '21:00:00', end: '09:00:00' },
 ];
 
 export default function NotificationsSettingsScreen() {
@@ -80,6 +100,14 @@ export default function NotificationsSettingsScreen() {
     }
   };
 
+  const toggleTheme = (slug: CategoryVisualSlug) => {
+    if (!prefs) return;
+    const current = new Set(prefs.preferred_category_slugs);
+    if (current.has(slug)) current.delete(slug);
+    else current.add(slug);
+    void persist({ preferred_category_slugs: [...current] });
+  };
+
   if (loading) {
     return (
       <SettingsLayout title="Notifications">
@@ -99,6 +127,10 @@ export default function NotificationsSettingsScreen() {
       </SettingsLayout>
     );
   }
+
+  const quietActive = QUIET_PRESETS.find(
+    (p) => p.start === prefs.quiet_hours_start && p.end === prefs.quiet_hours_end,
+  );
 
   return (
     <SettingsLayout title="Notifications">
@@ -121,12 +153,57 @@ export default function NotificationsSettingsScreen() {
       </SettingsSectionCard>
 
       <SettingsSectionCard
+        title="Combien et quand"
+        description="Pour ne pas être dérangé trop souvent. Les messages importants (refus d’un événement, compte) passent toujours."
+        icon={Moon}
+      >
+        <ChoiceGroup label="Alertes par jour (max)" noBorder>
+          {DAILY_BUDGET_CHOICES.map((count) => (
+            <Chip
+              key={count}
+              label={`${count}`}
+              active={prefs.max_push_per_day === count}
+              onPress={() => persist({ max_push_per_day: count })}
+            />
+          ))}
+        </ChoiceGroup>
+        <View style={styles.infoBox}>
+          <Info size={16} color={colors.brand.secondary} />
+          <Text style={styles.infoText}>
+            Au-delà, l’alerte reste visible dans l’onglet Notifications, sans bannière sur
+            l’écran verrouillé.
+          </Text>
+        </View>
+        <ChoiceGroup label="Ne pas déranger">
+          {QUIET_PRESETS.map((preset) => (
+            <Chip
+              key={preset.label}
+              label={preset.label === 'Off' ? 'Désactivé' : preset.label}
+              active={
+                quietActive
+                  ? quietActive.label === preset.label
+                  : preset.start === null &&
+                    prefs.quiet_hours_start === null &&
+                    prefs.quiet_hours_end === null
+              }
+              onPress={() =>
+                persist({
+                  quiet_hours_start: preset.start,
+                  quiet_hours_end: preset.end,
+                })
+              }
+            />
+          ))}
+        </ChoiceGroup>
+      </SettingsSectionCard>
+
+      <SettingsSectionCard
         title="Types d'alertes"
-        description="Choisissez les événements qui déclenchent une notification."
+        description="Activez seulement ce qui vous intéresse."
         icon={Bell}
       >
         <SettingsRow
-          label="Événements près de chez moi"
+          label="Nouveaux moments près de moi"
           icon={MapPin}
           noBorder
           right={
@@ -139,9 +216,9 @@ export default function NotificationsSettingsScreen() {
             <View style={styles.infoBox}>
               <Info size={16} color={colors.brand.secondary} />
               <Text style={styles.infoText}>
-                Autorisez la localisation « Pendant l'utilisation ». Nous mémorisons votre dernière
-                position à l'ouverture de l'app pour vous alerter — la localisation en arrière-plan
-                n'est pas nécessaire.
+                On utilise votre position quand vous ouvrez l’app (pas de suivi en
+                arrière-plan). Vous êtes alerté quand un nouveau moment est publié dans ce
+                rayon — pas quand vous passez devant en marchant.
               </Text>
             </View>
             <ChoiceGroup label="Rayon">
@@ -158,7 +235,7 @@ export default function NotificationsSettingsScreen() {
         )}
 
         <SettingsRow
-          label="Créateurs suivis"
+          label="Créateurs que je suis"
           icon={Users}
           right={
             <Switch
@@ -168,7 +245,7 @@ export default function NotificationsSettingsScreen() {
           }
         />
         <SettingsRow
-          label="Rappels d'événements"
+          label="Rappels avant le début"
           icon={CalendarClock}
           right={
             <Switch
@@ -178,7 +255,7 @@ export default function NotificationsSettingsScreen() {
           }
         />
         <SettingsRow
-          label="Activité sociale"
+          label="Likes et nouveaux abonnés"
           icon={Heart}
           right={
             <Switch
@@ -188,7 +265,7 @@ export default function NotificationsSettingsScreen() {
           }
         />
         <SettingsRow
-          label="Récompenses"
+          label="Récompenses et missions"
           icon={Gift}
           right={
             <Switch
@@ -199,92 +276,115 @@ export default function NotificationsSettingsScreen() {
         />
       </SettingsSectionCard>
 
-      {DISCOVERY_ENABLED && (
-        <SettingsSectionCard
-          title="Suggestions Discovery"
-          description="Alertes personnalisées basées sur vos habitudes (Moments Locaux+)."
-          icon={Sparkles}
-        >
-          <SettingsRow
-            label="Notifications Discovery"
-            icon={Sparkles}
-            noBorder={!prefs.discovery_push_enabled}
-            right={
-              <Switch
-                value={prefs.discovery_push_enabled}
-                onValueChange={(value) =>
-                  persist({
-                    discovery_push_enabled: value,
-                    ...(value
-                      ? {}
-                      : {
-                          right_now_push_enabled: false,
-                          break_loop_push_enabled: false,
-                          life_insight_push_enabled: false,
-                        }),
-                  })
-                }
-              />
-            }
-          />
+      <SettingsSectionCard
+        title="Mes thèmes"
+        description="Aidez-nous à prioriser les bons moments. Sans choix, on vous propose tout le rayon."
+        icon={Sparkles}
+      >
+        <ChoiceGroup label="Centres d’intérêt" noBorder>
+          {CATEGORY_VISUAL_SLUGS.map((slug) => (
+            <Chip
+              key={slug}
+              label={THEME_CHIP_LABELS[slug]}
+              active={prefs.preferred_category_slugs.includes(slug)}
+              onPress={() => toggleTheme(slug)}
+            />
+          ))}
+        </ChoiceGroup>
+      </SettingsSectionCard>
 
-          {prefs.discovery_push_enabled && (
-            <>
-              <SettingsRow
-                label="Opportunités immédiates"
-                icon={MapPin}
-                right={
-                  <Switch
-                    value={prefs.right_now_push_enabled}
-                    onValueChange={(value) => persist({ right_now_push_enabled: value })}
-                  />
-                }
-              />
-              <SettingsRow
-                label="Sortir de la routine"
-                icon={Heart}
-                right={
-                  <Switch
-                    value={prefs.break_loop_push_enabled}
-                    onValueChange={(value) => persist({ break_loop_push_enabled: value })}
-                  />
-                }
-              />
-              <SettingsRow
-                label="Insights de vie"
-                icon={Info}
-                right={
-                  <Switch
-                    value={prefs.life_insight_push_enabled}
-                    onValueChange={(value) => persist({ life_insight_push_enabled: value })}
-                  />
-                }
-              />
-              <ChoiceGroup label="Maximum par semaine">
-                {DISCOVERY_MAX_PUSH_CHOICES.map((count) => (
-                  <Chip
-                    key={count}
-                    label={`${count}`}
-                    active={prefs.discovery_max_push_per_week === count}
-                    onPress={() => persist({ discovery_max_push_per_week: count })}
-                  />
-                ))}
-              </ChoiceGroup>
-            </>
-          )}
-        </SettingsSectionCard>
+      {DISCOVERY_ENABLED && (
+      <SettingsSectionCard
+        title="Suggestions Discovery"
+        description="Idées personnalisées selon vos habitudes (Moments Locaux+)."
+        icon={Sparkles}
+      >
+        <SettingsRow
+          label="Suggestions personnalisées"
+          icon={Sparkles}
+          noBorder={!prefs.discovery_push_enabled}
+          right={
+            <Switch
+              value={prefs.discovery_push_enabled}
+              onValueChange={(value) =>
+                persist({
+                  discovery_push_enabled: value,
+                  ...(value
+                    ? {}
+                    : {
+                        right_now_push_enabled: false,
+                        break_loop_push_enabled: false,
+                        life_insight_push_enabled: false,
+                      }),
+                })
+              }
+            />
+          }
+        />
+
+        {prefs.discovery_push_enabled && (
+          <>
+            <SettingsRow
+              label="Idées pour maintenant"
+              icon={MapPin}
+              right={
+                <Switch
+                  value={prefs.right_now_push_enabled}
+                  onValueChange={(value) => persist({ right_now_push_enabled: value })}
+                />
+              }
+            />
+            <SettingsRow
+              label="Sortir de la routine"
+              icon={Heart}
+              right={
+                <Switch
+                  value={prefs.break_loop_push_enabled}
+                  onValueChange={(value) => persist({ break_loop_push_enabled: value })}
+                />
+              }
+            />
+            <SettingsRow
+              label="Tendances de vos sorties"
+              icon={Info}
+              right={
+                <Switch
+                  value={prefs.life_insight_push_enabled}
+                  onValueChange={(value) => persist({ life_insight_push_enabled: value })}
+                />
+              }
+            />
+            <ChoiceGroup label="Suggestions max par semaine">
+              {DISCOVERY_MAX_PUSH_CHOICES.map((count) => (
+                <Chip
+                  key={count}
+                  label={`${count}`}
+                  active={prefs.discovery_max_push_per_week === count}
+                  onPress={() => persist({ discovery_max_push_per_week: count })}
+                />
+              ))}
+            </ChoiceGroup>
+          </>
+        )}
+      </SettingsSectionCard>
       )}
 
       <SettingsSectionCard
-        title="Fréquence"
-        description="À quelle cadence souhaitez-vous être notifié ?"
+        title="Rythme des alertes"
+        description="Pour les nouveaux moments près de vous et les publications des créateurs suivis. Les rappels « ça commence bientôt » restent tout de suite."
         icon={CalendarClock}
       >
-        <ChoiceGroup label="Cadence" noBorder>
+        <ChoiceGroup label="Quand m’alerter ?" noBorder>
           {FREQUENCY_CHOICES.map((option) => (
             <Chip
               key={option.value}
-              label={option.label}
+              label={
+                option.value === 'instant'
+                  ? 'Tout de suite'
+                  : option.value === 'daily'
+                    ? 'Une fois par jour'
+                    : 'Une fois par semaine'
+              }
               active={prefs.notify_frequency === option.value}
               onPress={() => persist({ notify_frequency: option.value })}
             />

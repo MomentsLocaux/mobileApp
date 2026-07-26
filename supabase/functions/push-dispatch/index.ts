@@ -1,4 +1,4 @@
-// push-dispatch — Lot 2 (Notifications)
+// push-dispatch — Lot 2 (Notifications) + PREF/PUSH preference center
 //
 // Invoked by a Postgres trigger (pg_net) on every INSERT into public.notifications.
 // Reads the recipient's device push tokens + push preference and forwards the
@@ -8,8 +8,8 @@
 // in the `x-signature` header; this function reads the same secret via the
 // `current_push_dispatch_secret` RPC and rejects mismatches. Hence verify_jwt=false.
 //
-// No Expo access token is required to send to Expo push tokens. Token pruning is
-// performed when Expo reports `DeviceNotRegistered`.
+// PUSH-P0-001: daily budget (count of notifications created today Europe/Paris)
+// and quiet hours. Critical moderation types bypass budget/quiet.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -17,6 +17,18 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const PREF_TZ = "Europe/Paris";
+
+/** Always attempt OS push even under budget / quiet hours. */
+const CRITICAL_PUSH_TYPES = new Set([
+    "user_banned",
+    "warning_received",
+    "event_refused",
+    "event_request_changes",
+    "media_rejected",
+    "contest_entry_refused",
+    "moderation_escalation",
+]);
 
 type NotificationRecord = {
     id?: string;
@@ -27,11 +39,65 @@ type NotificationRecord = {
     data: Record<string, unknown> | null;
 };
 
+type PrefRow = {
+    push_enabled?: boolean;
+    notify_social?: boolean;
+    notify_rewards?: boolean;
+    notify_event_nearby?: boolean;
+    notify_followed_creator?: boolean;
+    notify_event_reminders?: boolean;
+    discovery_push_enabled?: boolean;
+    right_now_push_enabled?: boolean;
+    break_loop_push_enabled?: boolean;
+    life_insight_push_enabled?: boolean;
+    max_push_per_day?: number | null;
+    quiet_hours_start?: string | null;
+    quiet_hours_end?: string | null;
+};
+
 function json(body: unknown, status: number): Response {
     return new Response(JSON.stringify(body), {
         status,
         headers: { "Content-Type": "application/json" },
     });
+}
+
+/** Minutes since local midnight in PREF_TZ. */
+function parisMinutesNow(now = new Date()): number {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: PREF_TZ,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).formatToParts(now);
+    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+    const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+    return hour * 60 + minute;
+}
+
+function parseTimeToMinutes(value: string | null | undefined): number | null {
+    if (!value) return null;
+    const m = String(value).match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Quiet window: if start < end → [start, end); if start > end → spans midnight.
+ * Both null → disabled.
+ */
+function isQuietHours(
+    start: string | null | undefined,
+    end: string | null | undefined,
+    now = new Date(),
+): boolean {
+    const startMin = parseTimeToMinutes(start ?? null);
+    const endMin = parseTimeToMinutes(end ?? null);
+    if (startMin == null || endMin == null) return false;
+    const nowMin = parisMinutesNow(now);
+    if (startMin === endMin) return true;
+    if (startMin < endMin) return nowMin >= startMin && nowMin < endMin;
+    return nowMin >= startMin || nowMin < endMin;
 }
 
 Deno.serve(async (req: Request) => {
@@ -43,7 +109,6 @@ Deno.serve(async (req: Request) => {
         auth: { persistSession: false },
     });
 
-    // --- Custom auth: compare header secret to the Vault-stored secret ---
     const provided = req.headers.get("x-signature") ?? "";
     const { data: expected, error: secretErr } = await admin.rpc(
         "current_push_dispatch_secret",
@@ -56,7 +121,6 @@ Deno.serve(async (req: Request) => {
         return json({ error: "unauthorized" }, 401);
     }
 
-    // --- Parse payload ({ record } from the trigger, or a raw record) ---
     let record: NotificationRecord | null = null;
     try {
         const payload = await req.json();
@@ -68,24 +132,25 @@ Deno.serve(async (req: Request) => {
         return json({ error: "missing_user_id" }, 400);
     }
 
-    // --- Respect user notification preferences (missing row => enabled) ---
     const { data: pref } = await admin
         .from("user_preferences")
         .select(
-            "push_enabled, notify_social, notify_rewards, notify_event_nearby, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled",
+            "push_enabled, notify_social, notify_rewards, notify_event_nearby, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, max_push_per_day, quiet_hours_start, quiet_hours_end",
         )
         .eq("user_id", record.user_id)
         .maybeSingle();
 
-    if (pref && pref.push_enabled === false) {
+    const prefs = pref as PrefRow | null;
+
+    if (prefs && prefs.push_enabled === false) {
         return json({ skipped: "push_disabled" }, 200);
     }
 
     const type = record.type ?? "";
-    if (pref) {
+    if (prefs) {
         if (
             (type === "social_follow" || type === "social_like") &&
-            pref.notify_social === false
+            prefs.notify_social === false
         ) {
             return json({ skipped: "social_disabled" }, 200);
         }
@@ -93,20 +158,20 @@ Deno.serve(async (req: Request) => {
             (type === "mission_completed" ||
                 type === "lumo_reward" ||
                 type === "boost_expired") &&
-            pref.notify_rewards === false
+            prefs.notify_rewards === false
         ) {
             return json({ skipped: "rewards_disabled" }, 200);
         }
-        if (type === "event_nearby_new" && pref.notify_event_nearby === false) {
+        if (type === "event_nearby_new" && prefs.notify_event_nearby === false) {
             return json({ skipped: "event_nearby_disabled" }, 200);
         }
         if (
             type === "followed_creator_published" &&
-            pref.notify_followed_creator === false
+            prefs.notify_followed_creator === false
         ) {
             return json({ skipped: "followed_creator_disabled" }, 200);
         }
-        if (type === "event_soon" && pref.notify_event_reminders === false) {
+        if (type === "event_soon" && prefs.notify_event_reminders === false) {
             return json({ skipped: "event_reminders_disabled" }, 200);
         }
     }
@@ -119,30 +184,58 @@ Deno.serve(async (req: Request) => {
         "discovery_life_insight",
     ]);
     if (record.type && discoveryTypes.has(record.type)) {
-        if (!pref || pref.discovery_push_enabled !== true) {
+        if (!prefs || prefs.discovery_push_enabled !== true) {
             return json({ skipped: "discovery_push_disabled" }, 200);
         }
         if (
             record.type === "discovery_right_now" &&
-            pref?.right_now_push_enabled !== true
+            prefs?.right_now_push_enabled !== true
         ) {
             return json({ skipped: "right_now_push_disabled" }, 200);
         }
         if (
             record.type === "discovery_break_loop" &&
-            pref?.break_loop_push_enabled !== true
+            prefs?.break_loop_push_enabled !== true
         ) {
             return json({ skipped: "break_loop_push_disabled" }, 200);
         }
         if (
             record.type === "discovery_life_insight" &&
-            pref?.life_insight_push_enabled !== true
+            prefs?.life_insight_push_enabled !== true
         ) {
             return json({ skipped: "life_insight_push_disabled" }, 200);
         }
+        // discovery_personal_match / discovery_new_area: master discovery gate only
     }
 
-    // --- Load the recipient's device tokens ---
+    const isCritical = CRITICAL_PUSH_TYPES.has(type);
+    if (!isCritical && prefs) {
+        if (isQuietHours(prefs.quiet_hours_start, prefs.quiet_hours_end)) {
+            return json({ skipped: "quiet_hours" }, 200);
+        }
+
+        const maxPerDay = prefs.max_push_per_day ?? 3;
+        if (maxPerDay > 0) {
+            // Count inbox rows created today Europe/Paris (includes current insert).
+            const { data: todayCount, error: countErr } = await admin.rpc(
+                "count_user_notifications_today",
+                { p_user_id: record.user_id },
+            );
+            if (countErr) {
+                console.error("daily budget count error", countErr);
+            } else if (
+                typeof todayCount === "number" &&
+                todayCount > maxPerDay
+            ) {
+                return json({
+                    skipped: "daily_budget",
+                    count: todayCount,
+                    max_push_per_day: maxPerDay,
+                }, 200);
+            }
+        }
+    }
+
     const { data: tokens, error: tokErr } = await admin
         .from("device_push_tokens")
         .select("token")
@@ -168,7 +261,6 @@ Deno.serve(async (req: Request) => {
         sound: "default",
     }));
 
-    // --- Send to Expo ---
     const res = await fetch(EXPO_PUSH_URL, {
         method: "POST",
         headers: {
@@ -179,7 +271,6 @@ Deno.serve(async (req: Request) => {
     });
     const expo = await res.json().catch(() => null);
 
-    // --- Prune tokens Expo reports as no longer registered ---
     const tickets: Array<{ status?: string; details?: { error?: string } }> =
         expo?.data ?? [];
     const toDelete: string[] = [];
