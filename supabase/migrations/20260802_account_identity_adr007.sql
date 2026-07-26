@@ -8,6 +8,17 @@
 --
 -- Does NOT remove role enum value institutionnel (legacy read); new onboarding
 -- never writes institutionnel (maps to professionnel + pro_subtype).
+--
+-- Verified live DEV 2026-07-26 (project prymkgkafaovhzopslea / moments-locaux-dev):
+--   information_schema.columns on public.profiles — existing columns only:
+--     id, role (role_enum), display_name, avatar_url, created_at, updated_at,
+--     bio, city, region, onboarding_completed, cover_url, facebook_url,
+--     instagram_url, tiktok_url, status (profile_status_mod_enum), ban_until
+--   can_create / active_mode / pro_subtype: ABSENT (safe to add)
+--   role_enum labels: particulier, professionnel, institutionnel, moderateur,
+--     admin, invite (institutionnel kept for legacy reads)
+--   Note: TS Profile.email has no matching profiles.email column on DEV
+--     (pre-existing client/DB drift; out of scope for this migration)
 
 alter table public.profiles
   add column if not exists can_create boolean not null default false;
