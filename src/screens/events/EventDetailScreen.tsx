@@ -514,11 +514,11 @@ export default function EventDetailScreen() {
     }
     if (!hasHabitue) {
       Alert.alert(
-        'Réservé à Habitué',
-        'Le check-in débloque Lumo et votre progression. Passez Habitué (ou Éclaireur) pour valider votre présence.',
+        'Montrez que vous y étiez',
+        'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
         [
-          { text: 'Voir les offres', onPress: () => router.push('/profile/offers' as any) },
-          { text: 'Annuler', style: 'cancel' },
+          { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
+          { text: 'Plus tard', style: 'cancel' },
         ],
       );
       return;
@@ -617,11 +617,11 @@ export default function EventDetailScreen() {
     }
     if (!hasHabitue) {
       Alert.alert(
-        'Réservé à Habitué',
-        'Le check-in débloque Lumo et votre progression. Passez Habitué (ou Éclaireur) pour valider votre présence.',
+        'Montrez que vous y étiez',
+        'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
         [
-          { text: 'Voir les offres', onPress: () => router.push('/profile/offers' as any) },
-          { text: 'Annuler', style: 'cancel' },
+          { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
+          { text: 'Plus tard', style: 'cancel' },
         ],
       );
       return;

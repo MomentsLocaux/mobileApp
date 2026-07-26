@@ -70,7 +70,7 @@ export function PremiumPaywallSheet({ visible, source = 'discovery_home', onClos
             <Benefit text="Carte de votre zone (où vous sortez)" />
             <Benefit text="Recommandations calées sur vos sorties" />
             <Benefit text="Idées hors habitudes + bilans de découverte" />
-            <Benefit text="Inclut Habitué (check-in, Lumo, Pass…)" />
+            <Benefit text="Inclut Habitué (check-in, Lumo, boutique, Pass…)" />
           </View>
 
           <View style={styles.plans}>

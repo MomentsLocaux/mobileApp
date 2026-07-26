@@ -9,11 +9,11 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ShoppingBag, Sparkles, Coins } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { AppBackground, Card, ScreenHeader } from '@/components/ui';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { HabitueGamificationGate } from '@/components/HabitueGamificationGate';
 import { ShopService, type ShopItemRow } from '@/services/shop.service';
 import { LumoService } from '@/services/lumo.service';
 import { CreatorBoostService } from '@/services/creator-boost.service';
@@ -21,10 +21,11 @@ import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function ShopScreen() {
-  if (!GAMIFICATION_ENABLED) {
-    return <Redirect href="/(tabs)/map" />;
-  }
-  return <ShopScreenInner />;
+  return (
+    <HabitueGamificationGate>
+      <ShopScreenInner />
+    </HabitueGamificationGate>
+  );
 }
 
 function ShopScreenInner() {

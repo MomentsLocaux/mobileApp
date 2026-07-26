@@ -7,20 +7,21 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ticket, MapPin } from 'lucide-react-native';
 import { AppBackground, ScreenHeader } from '@/components/ui';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { HabitueGamificationGate } from '@/components/HabitueGamificationGate';
 import { PassService, type PassStatus } from '@/services/pass.service';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function PassScreen() {
-  if (!GAMIFICATION_ENABLED) {
-    return <Redirect href="/(tabs)/map" />;
-  }
-  return <PassScreenInner />;
+  return (
+    <HabitueGamificationGate>
+      <PassScreenInner />
+    </HabitueGamificationGate>
+  );
 }
 
 function PassScreenInner() {

@@ -136,7 +136,7 @@ export default function OffersScreen() {
           </Text>
           <Text style={styles.priceHint}>
             {focus === 'habitue'
-              ? 'Inclut Local + check-in, Lumo, missions, Pass, accès anticipé.'
+              ? 'Inclut Local + check-in, Lumo, boutique, missions, Pass, accès anticipé.'
               : 'Inclut Habitué + idées maintenant, carte de zone, recommandations, bilans.'}
           </Text>
         </View>

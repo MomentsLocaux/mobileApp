@@ -440,7 +440,7 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
-            {GAMIFICATION_ENABLED && (
+            {GAMIFICATION_ENABLED && hasHabitue && (
               <>
                 <DrawerLink
                   icon={Coins}
