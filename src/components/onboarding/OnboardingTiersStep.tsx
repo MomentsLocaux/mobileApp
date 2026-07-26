@@ -37,7 +37,7 @@ const TIERS: Tier[] = [
     icon: Sparkles,
     name: 'Habitué',
     tagline: 'Plus tu sors, plus tu débloques',
-    body: `Local + check-in, Lumo, missions, Pass. ${HABITUE_PLANS.monthly.priceLabel}/mois · ${HABITUE_PLANS.annual.priceLabel}/an.`,
+    body: `Local + check-in, Lumo, boutique, missions, Pass. ${HABITUE_PLANS.monthly.priceLabel}/mois · ${HABITUE_PLANS.annual.priceLabel}/an.`,
     badge: 'Abo',
   },
   {

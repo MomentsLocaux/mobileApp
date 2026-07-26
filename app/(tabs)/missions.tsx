@@ -8,20 +8,21 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Target, Trophy, CheckCircle2 } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { AppBackground, ScreenHeader } from '@/components/ui';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { HabitueGamificationGate } from '@/components/HabitueGamificationGate';
 import { MissionsService, type MissionProgressItem } from '@/services/missions.service';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function MissionsScreen() {
-  if (!GAMIFICATION_ENABLED) {
-    return <Redirect href="/(tabs)/map" />;
-  }
-  return <MissionsScreenInner />;
+  return (
+    <HabitueGamificationGate>
+      <MissionsScreenInner />
+    </HabitueGamificationGate>
+  );
 }
 
 function MissionsScreenInner() {
