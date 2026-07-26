@@ -14,11 +14,13 @@ import {
   RotateCcw,
 } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { hasEclaireur } = useOfferEntitlements();
 
   const handleReplayOnboarding = () => {
     Alert.alert(
@@ -63,7 +65,7 @@ export default function SettingsScreen() {
         />
       </SettingsSectionCard>
 
-      {DISCOVERY_ENABLED && (
+      {DISCOVERY_ENABLED && hasEclaireur && (
         <SettingsSectionCard title="Discovery" icon={Compass}>
           <SettingsRow
             label="Personnalisation Discovery"
