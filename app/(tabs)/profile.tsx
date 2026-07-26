@@ -18,7 +18,8 @@ import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { PremiumCard } from '@/components/premium/PremiumCard';
 import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
 import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
-import { AppBackground, Button, ScreenHeader } from '../../src/components/ui';
+import { Button, ScreenHeader } from '../../src/components/ui';
+import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { getProfileIdentityLabel } from '../../src/utils/roleHelpers';
@@ -101,7 +102,7 @@ export default function ProfileScreen() {
   if (isGuest) {
     return (
       <View style={styles.container}>
-        <AppBackground />
+        <IdentityAppBackground />
         <GuestGateModal
           visible
           title="Accéder à votre profil"
@@ -116,9 +117,9 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <AppBackground />
+        <IdentityAppBackground />
         <View style={styles.fallback}>
-          <ActivityIndicator size="large" color={colors.brand.secondary} />
+          <ActivityIndicator size="large" color={accent.accent} />
           <Text style={styles.loadingText}>Chargement du profil...</Text>
         </View>
       </View>
@@ -127,7 +128,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
+      <IdentityAppBackground />
       <ScrollView style={styles.scroll}>
         <ScreenHeader title="Mon profil" onBack={handleBack} />
         <View style={styles.header}>

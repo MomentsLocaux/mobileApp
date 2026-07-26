@@ -41,6 +41,26 @@ export function useAccountIdentity() {
     [profile?.id, showModeSwitch, activeMode, refreshProfile],
   );
 
+  const enableCreation = useCallback(async () => {
+    if (!profile?.id) return false;
+    if (profile.role !== 'particulier') return false;
+    if (profile.can_create) return true;
+    setSavingMode(true);
+    try {
+      await ProfileService.updateProfile(profile.id, {
+        can_create: true,
+        active_mode: 'discover',
+      });
+      await refreshProfile();
+      return true;
+    } catch (err) {
+      console.warn('Failed to enable creation', err);
+      return false;
+    } finally {
+      setSavingMode(false);
+    }
+  }, [profile?.id, profile?.role, profile?.can_create, refreshProfile]);
+
   return {
     profile,
     accountKind,
@@ -51,5 +71,6 @@ export function useAccountIdentity() {
     accent,
     savingMode,
     setActiveMode,
+    enableCreation,
   };
 }

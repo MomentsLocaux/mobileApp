@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/constants/theme';
-import { AppBackground } from '@/components/ui/AppBackground';
+import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 
 type Props = {
   title: string;
@@ -16,7 +16,7 @@ export const SettingsLayout: React.FC<Props> = ({ title, children }) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <AppBackground />
+      <IdentityAppBackground />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ChevronLeft size={22} color={colors.brand.text} />

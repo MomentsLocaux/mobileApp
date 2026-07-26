@@ -1,6 +1,6 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { AppBackground } from '@/components/ui';
+import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import {
   Map,
   Home,
@@ -129,11 +129,18 @@ export default function TabsLayout() {
 
   const tabIconColor = (focused: boolean, disabled = false) => {
     if (disabled) return colors.brand.textSecondary;
-    return focused ? colors.brand.secondary : colors.brand.textSecondary;
+    return focused ? accent.accent : colors.brand.textSecondary;
   };
 
   const renderTabIconSlot = (focused: boolean, content: React.ReactNode) => (
-    <View style={[styles.tabIconSlot, focused && styles.tabIconSlotActive]}>{content}</View>
+    <View
+      style={[
+        styles.tabIconSlot,
+        focused && { backgroundColor: accent.accentMuted },
+      ]}
+    >
+      {content}
+    </View>
   );
 
   const renderProtectedTabButton = (
@@ -179,8 +186,8 @@ export default function TabsLayout() {
   if (isLoading || (isAuthenticated && !profile)) {
     return (
       <View style={styles.container}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.brand.secondary} />
+        <IdentityAppBackground />
+        <ActivityIndicator size="large" color={accent.accent} />
       </View>
     );
   }
@@ -195,13 +202,13 @@ export default function TabsLayout() {
         initialRouteName="map"
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.brand.secondary,
+          tabBarActiveTintColor: accent.accent,
           tabBarInactiveTintColor: colors.brand.textSecondary,
           tabBarShowLabel: false,
           sceneStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
             backgroundColor: colors.brand.primary,
-            borderTopColor: 'rgba(255,255,255,0.05)',
+            borderTopColor: accent.accentBorder,
             height: 76,
             paddingBottom: 8,
             paddingTop: 8,
