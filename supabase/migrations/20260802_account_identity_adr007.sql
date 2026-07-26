@@ -17,8 +17,8 @@
 --   can_create / active_mode / pro_subtype: ABSENT (safe to add)
 --   role_enum labels: particulier, professionnel, institutionnel, moderateur,
 --     admin, invite (institutionnel kept for legacy reads)
---   Note: TS Profile.email has no matching profiles.email column on DEV
---     (pre-existing client/DB drift; out of scope for this migration)
+--   Email: not on public.profiles — lives in auth.users (expected; client may
+--     join/display via auth session, not a profiles column)
 
 alter table public.profiles
   add column if not exists can_create boolean not null default false;
