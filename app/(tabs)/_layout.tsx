@@ -24,7 +24,7 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -440,22 +440,28 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
-            {GAMIFICATION_ENABLED && hasHabitue && (
+            {GAMIFICATION_ENABLED && (
               <>
                 <DrawerLink
                   icon={Coins}
                   label="Portefeuille Lumo"
                   onPress={() => {
                     toggleDrawer(false);
+                    if (!hasHabitue) {
+                      Alert.alert(
+                        'Gagnez des Lumo en sortant',
+                        'Avec Habitué, chaque présence validée vous rapporte des Lumo à dépenser dans la boutique. Éclaireur inclut Habitué.',
+                        [
+                          {
+                            text: 'Découvrir Habitué',
+                            onPress: () => router.push('/profile/offers' as any),
+                          },
+                          { text: 'Plus tard', style: 'cancel' },
+                        ],
+                      );
+                      return;
+                    }
                     router.push('/profile/wallet' as any);
-                  }}
-                />
-                <DrawerLink
-                  icon={Target}
-                  label="Missions"
-                  onPress={() => {
-                    toggleDrawer(false);
-                    router.push('/(tabs)/missions' as any);
                   }}
                 />
                 <DrawerLink
@@ -463,17 +469,43 @@ export default function TabsLayout() {
                   label="Boutique"
                   onPress={() => {
                     toggleDrawer(false);
+                    if (!hasHabitue) {
+                      Alert.alert(
+                        'La boutique vous attend',
+                        'Boostez vos moments ou personnalisez votre profil avec vos Lumo. Passez Habitué pour y accéder — Éclaireur inclut Habitué.',
+                        [
+                          {
+                            text: 'Découvrir Habitué',
+                            onPress: () => router.push('/profile/offers' as any),
+                          },
+                          { text: 'Plus tard', style: 'cancel' },
+                        ],
+                      );
+                      return;
+                    }
                     router.push('/(tabs)/shop' as any);
                   }}
                 />
-                <DrawerLink
-                  icon={Ticket}
-                  label="Pass quartier"
-                  onPress={() => {
-                    toggleDrawer(false);
-                    router.push('/profile/pass' as any);
-                  }}
-                />
+                {hasHabitue && (
+                  <>
+                    <DrawerLink
+                      icon={Target}
+                      label="Missions"
+                      onPress={() => {
+                        toggleDrawer(false);
+                        router.push('/(tabs)/missions' as any);
+                      }}
+                    />
+                    <DrawerLink
+                      icon={Ticket}
+                      label="Pass quartier"
+                      onPress={() => {
+                        toggleDrawer(false);
+                        router.push('/profile/pass' as any);
+                      }}
+                    />
+                  </>
+                )}
               </>
             )}
             <DrawerLink
