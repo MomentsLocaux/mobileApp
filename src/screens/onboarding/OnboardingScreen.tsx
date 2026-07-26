@@ -30,21 +30,32 @@ import Toast from 'react-native-toast-message';
 import { AppBackground, Button, MotionReveal } from '../../components/ui';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
+import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { Motion } from '@/constants/motion';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
+import { PreferencesService } from '@/services/preferences.service';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 import { setHomeLocationFromCoords } from '@/services/push.service';
 import { PREMIUM_PLANS } from '@/services/subscription.service';
+import type { CategoryVisualSlug } from '@/constants/category-visuals';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { haptics } from '@/utils/haptics';
 
 type RoleValue = 'particulier' | 'professionnel' | 'institutionnel';
-type StepId = 'welcome' | 'identity' | 'location' | 'avatar' | 'creator' | 'tiers' | 'eclairer';
+type StepId =
+  | 'welcome'
+  | 'identity'
+  | 'location'
+  | 'themes'
+  | 'avatar'
+  | 'creator'
+  | 'tiers'
+  | 'eclairer';
 
 const ROLE_OPTIONS: {
   value: RoleValue;
@@ -118,6 +129,7 @@ export default function OnboardingScreen() {
   const [selectedAddress, setSelectedAddress] = useState<GeocodeResult | null>(null);
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [coverUrl, setCoverUrl] = useState(profile?.cover_url || '');
+  const [themeSlugs, setThemeSlugs] = useState<string[]>([]);
   const [facebook, setFacebook] = useState(profile?.facebook_url || '');
   const [instagram, setInstagram] = useState(profile?.instagram_url || '');
   const [tiktok, setTiktok] = useState(profile?.tiktok_url || '');
@@ -136,8 +148,8 @@ export default function OnboardingScreen() {
 
   const steps: StepId[] = useMemo(() => {
     const profileSteps: StepId[] = isCreatorRole
-      ? ['welcome', 'identity', 'location', 'avatar', 'creator']
-      : ['welcome', 'identity', 'location', 'avatar'];
+      ? ['welcome', 'identity', 'location', 'themes', 'avatar', 'creator']
+      : ['welcome', 'identity', 'location', 'themes', 'avatar'];
     return [...profileSteps, 'tiers', 'eclairer'];
   }, [isCreatorRole]);
 
@@ -154,10 +166,28 @@ export default function OnboardingScreen() {
     stepId === 'welcome' ||
     (stepId === 'identity' && !!displayName.trim()) ||
     (stepId === 'location' && !!selectedAddress) ||
+    stepId === 'themes' ||
     stepId === 'avatar' ||
     stepId === 'creator' ||
     stepId === 'tiers' ||
     stepId === 'eclairer';
+
+  const persistThemes = async () => {
+    if (!user?.id) return;
+    try {
+      await PreferencesService.updateMine(user.id, {
+        preferred_category_slugs: themeSlugs,
+      });
+    } catch (err) {
+      console.warn('preferred_category_slugs not saved during onboarding', err);
+    }
+  };
+
+  const toggleThemeSlug = (slug: CategoryVisualSlug) => {
+    setThemeSlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  };
 
   useEffect(() => {
     if (!profile && user) {
@@ -330,6 +360,10 @@ export default function OnboardingScreen() {
       }
     }
 
+    if (stepId === 'themes') {
+      await persistThemes();
+    }
+
     if (stepId === lastProfileStepId) {
       const saved = await persistProfile();
       if (!saved) return;
@@ -370,6 +404,18 @@ export default function OnboardingScreen() {
   /** Skip remaining profile extras and jump to marketing tiers. */
   const skipOptionalToTiers = async () => {
     haptics.selection();
+    if (stepId === 'themes') {
+      setThemeSlugs([]);
+      try {
+        if (user?.id) {
+          await PreferencesService.updateMine(user.id, { preferred_category_slugs: [] });
+        }
+      } catch (err) {
+        console.warn('preferred_category_slugs clear failed', err);
+      }
+      setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+      return;
+    }
     const saved = await persistProfile();
     if (!saved) return;
     const tiersIndex = steps.indexOf('tiers');
@@ -404,7 +450,7 @@ export default function OnboardingScreen() {
           ? 'Déverrouiller Éclaireur'
           : 'Continuer';
 
-  const showSkip = stepId === 'avatar' || stepId === 'creator';
+  const showSkip = stepId === 'themes' || stepId === 'avatar' || stepId === 'creator';
   const showContinueFree = isMarketingStep;
   const activeRoleDescription = ROLE_OPTIONS.find((option) => option.value === role)?.description;
   const showNoResults =
@@ -650,6 +696,12 @@ export default function OnboardingScreen() {
                 </View>
               </View>
             ) : null}
+          </MotionReveal>
+        )}
+
+        {stepId === 'themes' && (
+          <MotionReveal key="themes" style={styles.stepContainer}>
+            <OnboardingThemesStep selected={themeSlugs} onToggle={toggleThemeSlug} />
           </MotionReveal>
         )}
 

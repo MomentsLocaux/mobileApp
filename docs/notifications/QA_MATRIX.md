@@ -18,6 +18,12 @@ Legend: **Push** = device banner; **Inbox** = app Notifications screen; **Route*
 | Followed creator | `notify_followed_creator` | Creator publishes | ✓ | ✓ | Event |
 | Event soon | `notify_event_reminders` | Event starts < 24h (cron) | ✓ | ✓ | Event |
 | Refused event | — | Admin refuses pending event | ✓ | ✓ | My events; body shows `refusal_reason` |
+| Daily budget | `max_push_per_day=1`, already 1 notif today | Non-critical INSERT | ✗ `daily_budget` | ✓ | — |
+| Quiet hours | quiet 22h–8h, now in window | Non-critical INSERT | ✗ `quiet_hours` | ✓ | — |
+| Budget/quiet bypass | same + type `event_refused` | Admin refuse | ✓ | ✓ | My events |
+| Themes nearby | slugs set, event other category | Publish in radius | ✗ (no row) | ✗ | — |
+| Themes empty | slugs `{}` | Publish in radius | ✓ | ✓ | Event |
+| Discovery personal match | discovery master on + `for_you` reco | Cron opportunities | ✓ if prefs | ✓ | Discovery |
 | Discovery right now | discovery flags + consents + reco | Cron / data | ✓ if prefs | ✓ | Discovery |
 | Private invite | — | Creator private invite RPC | ✓ | ✓ | Event (`eventId`) |
 

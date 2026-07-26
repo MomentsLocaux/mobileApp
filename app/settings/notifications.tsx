@@ -1,26 +1,46 @@
-import { Bell, CalendarClock, Gift, Heart, Info, MapPin, Sparkles, Users } from 'lucide-react-native';
+import {
+  Bell,
+  CalendarClock,
+  Gift,
+  Heart,
+  Info,
+  MapPin,
+  Moon,
+  Sparkles,
+  Users,
+} from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { CATEGORY_VISUAL_SLUGS, type CategoryVisualSlug } from '@/constants/category-visuals';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import {
   DEFAULT_PREFERENCES,
   type NotifyFrequency,
   PreferencesService,
+  THEME_CHIP_LABELS,
   type UserPreferences,
 } from '@/services/preferences.service';
 import { clearHomeLocation, syncHomeLocation } from '@/services/push.service';
 import { useAuthStore } from '@/state/auth';
 
 const RADIUS_CHOICES = [10, 25, 50, 100];
+const DAILY_BUDGET_CHOICES = [1, 2, 3, 5];
 const DISCOVERY_MAX_PUSH_CHOICES = [1, 3, 5, 7, 10];
 const FREQUENCY_CHOICES: { value: NotifyFrequency; label: string }[] = [
   { value: 'instant', label: 'Instantané' },
   { value: 'daily', label: 'Quotidien' },
   { value: 'weekly', label: 'Hebdo' },
+];
+
+const QUIET_PRESETS: { label: string; start: string | null; end: string | null }[] = [
+  { label: 'Off', start: null, end: null },
+  { label: '22h–8h', start: '22:00:00', end: '08:00:00' },
+  { label: '23h–7h', start: '23:00:00', end: '07:00:00' },
+  { label: '21h–9h', start: '21:00:00', end: '09:00:00' },
 ];
 
 export default function NotificationsSettingsScreen() {
@@ -80,6 +100,14 @@ export default function NotificationsSettingsScreen() {
     }
   };
 
+  const toggleTheme = (slug: CategoryVisualSlug) => {
+    if (!prefs) return;
+    const current = new Set(prefs.preferred_category_slugs);
+    if (current.has(slug)) current.delete(slug);
+    else current.add(slug);
+    void persist({ preferred_category_slugs: [...current] });
+  };
+
   if (loading) {
     return (
       <SettingsLayout title="Notifications">
@@ -99,6 +127,10 @@ export default function NotificationsSettingsScreen() {
       </SettingsLayout>
     );
   }
+
+  const quietActive = QUIET_PRESETS.find(
+    (p) => p.start === prefs.quiet_hours_start && p.end === prefs.quiet_hours_end,
+  );
 
   return (
     <SettingsLayout title="Notifications">
@@ -121,8 +153,52 @@ export default function NotificationsSettingsScreen() {
       </SettingsSectionCard>
 
       <SettingsSectionCard
+        title="Volume & horaires"
+        description="Limitez le bruit. Les alertes critiques (refus, modération) restent prioritaires."
+        icon={Moon}
+      >
+        <ChoiceGroup label="Maximum par jour" noBorder>
+          {DAILY_BUDGET_CHOICES.map((count) => (
+            <Chip
+              key={count}
+              label={`${count}`}
+              active={prefs.max_push_per_day === count}
+              onPress={() => persist({ max_push_per_day: count })}
+            />
+          ))}
+        </ChoiceGroup>
+        <View style={styles.infoBox}>
+          <Info size={16} color={colors.brand.secondary} />
+          <Text style={styles.infoText}>
+            Au-delà du budget, les notifs restent dans l’inbox sans bannière. Fuseau Europe/Paris.
+          </Text>
+        </View>
+        <ChoiceGroup label="Heures calmes">
+          {QUIET_PRESETS.map((preset) => (
+            <Chip
+              key={preset.label}
+              label={preset.label}
+              active={
+                quietActive
+                  ? quietActive.label === preset.label
+                  : preset.start === null &&
+                    prefs.quiet_hours_start === null &&
+                    prefs.quiet_hours_end === null
+              }
+              onPress={() =>
+                persist({
+                  quiet_hours_start: preset.start,
+                  quiet_hours_end: preset.end,
+                })
+              }
+            />
+          ))}
+        </ChoiceGroup>
+      </SettingsSectionCard>
+
+      <SettingsSectionCard
         title="Types d'alertes"
-        description="Choisissez les événements qui déclenchent une notification."
+        description="Coupez une famille sans tout éteindre."
         icon={Bell}
       >
         <SettingsRow
@@ -197,6 +273,23 @@ export default function NotificationsSettingsScreen() {
             />
           }
         />
+      </SettingsSectionCard>
+
+      <SettingsSectionCard
+        title="Mes thèmes"
+        description="Cold start : affine la proximité et les suggestions. Vide = pas de filtre."
+        icon={Sparkles}
+      >
+        <ChoiceGroup label="Centres d’intérêt" noBorder>
+          {CATEGORY_VISUAL_SLUGS.map((slug) => (
+            <Chip
+              key={slug}
+              label={THEME_CHIP_LABELS[slug]}
+              active={prefs.preferred_category_slugs.includes(slug)}
+              onPress={() => toggleTheme(slug)}
+            />
+          ))}
+        </ChoiceGroup>
       </SettingsSectionCard>
 
       {DISCOVERY_ENABLED && (
@@ -277,7 +370,7 @@ export default function NotificationsSettingsScreen() {
 
       <SettingsSectionCard
         title="Fréquence"
-        description="À quelle cadence souhaitez-vous être notifié ?"
+        description="Concerne uniquement proximité et créateurs suivis (digest). Les rappels restent instantanés."
         icon={CalendarClock}
       >
         <ChoiceGroup label="Cadence" noBorder>
