@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
 import { ProfileService } from '../../services/profile.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getRoleLabel } from '../../utils/roleHelpers';
+import { getProfileIdentityLabel } from '../../utils/roleHelpers';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -272,8 +272,8 @@ export default function ProfileEditScreen() {
         </View>
 
         <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Rôle</Text>
-          <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
+          <Text style={styles.infoLabel}>Profil</Text>
+          <Text style={styles.infoValue}>{getProfileIdentityLabel(profile)}</Text>
         </View>
 
         <Button

@@ -1,0 +1,50 @@
+import type { Profile, UserRole } from '@/types/database';
+import type { AccountKind, ActiveMode, ProSubtype } from '@/constants/accountIdentity';
+import { PRO_SUBTYPE_LABELS } from '@/constants/accountIdentity';
+
+/** Product audience — never treat institutionnel as a top-level kind. */
+export function getAccountKind(profile: Pick<Profile, 'role'> | null | undefined): AccountKind {
+  if (!profile) return 'particulier';
+  if (profile.role === 'professionnel' || profile.role === 'institutionnel') {
+    return 'professionnel';
+  }
+  return 'particulier';
+}
+
+export function profileCanCreate(
+  profile: Pick<Profile, 'role' | 'can_create'> | null | undefined,
+): boolean {
+  if (!profile) return false;
+  if (profile.role === 'professionnel' || profile.role === 'institutionnel') return true;
+  return Boolean(profile.can_create);
+}
+
+export function getActiveMode(
+  profile: Pick<Profile, 'role' | 'can_create' | 'active_mode'> | null | undefined,
+): ActiveMode {
+  if (!profile) return 'discover';
+  if (profile.role === 'professionnel' || profile.role === 'institutionnel') return 'create';
+  if (!profile.can_create) return 'discover';
+  return profile.active_mode === 'create' ? 'create' : 'discover';
+}
+
+/** Persistable role for onboarding — never write institutionnel. */
+export function roleForAccountKind(kind: AccountKind): Extract<UserRole, 'particulier' | 'professionnel'> {
+  return kind === 'professionnel' ? 'professionnel' : 'particulier';
+}
+
+export function getProSubtypeLabel(subtype: ProSubtype | null | undefined): string | null {
+  if (!subtype) return null;
+  return PRO_SUBTYPE_LABELS[subtype] ?? subtype;
+}
+
+export function formatAccountBadge(
+  profile: Pick<Profile, 'role' | 'pro_subtype' | 'can_create'> | null | undefined,
+): string {
+  const kind = getAccountKind(profile);
+  if (kind === 'professionnel') {
+    const sub = getProSubtypeLabel(profile?.pro_subtype ?? undefined);
+    return sub ? `Professionnel · ${sub}` : 'Professionnel';
+  }
+  return profile?.can_create ? 'Particulier · Découvreur & créateur' : 'Particulier';
+}

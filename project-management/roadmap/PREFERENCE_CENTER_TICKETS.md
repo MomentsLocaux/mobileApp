@@ -9,6 +9,7 @@ Références:
 - Proposition canvas : `preference-center-proposal` (Cursor)
 - Vision push : `moments-locaux-push-vision` (Cursor)
 - ADR OT / prefs : `project-management/decisions/ADR_005_OT_CONNECT_APIDAE.md` (§ décision 7)
+- Offre B2B Diffuseur (OT Free sous Acteur local) : `project-management/decisions/ADR_006_DIFFUSEUR_B2B_OFFER.md`
 - ADR Discovery : `ADR_003_DISCOVERY_ENGINE_DOMAIN.md` (prefs Discovery déjà livrées DISC-P0-003)
 - Surface existante : `app/settings/notifications.tsx`, `src/services/preferences.service.ts`
 - Pipeline : `supabase/functions/push-dispatch/index.ts`, fan-out `20260722_notifications_delivery_hardening.sql`

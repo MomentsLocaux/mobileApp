@@ -44,9 +44,12 @@ import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
+import { profileCanCreate } from '@/utils/accountIdentity';
+import Toast from 'react-native-toast-message';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
+  const canCreateEvents = profileCanCreate(profile);
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -243,11 +246,23 @@ export default function TabsLayout() {
             title: '',
             tabBarButton: () => (
               <TouchableOpacity
-                style={[styles.createButton, isGuest && styles.createButtonDisabled]}
+                style={[
+                  styles.createButton,
+                  (isGuest || !canCreateEvents) && styles.createButtonDisabled,
+                ]}
                 activeOpacity={0.85}
                 onPress={() => {
                   if (isGuest) {
                     openGuestGate('Créer un événement');
+                    return;
+                  }
+                  if (!canCreateEvents) {
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Création non activée',
+                      text2:
+                        'Votre profil Particulier est en mode découverte. Réactivez la création depuis l’onboarding (bientôt dans les réglages).',
+                    });
                     return;
                   }
                   router.push('/events/create/step-1' as any);
@@ -379,14 +394,16 @@ export default function TabsLayout() {
                 }}
               />
             )}
-            <DrawerLink
-              icon={PlusCircle}
-              label="Créer un événement"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/events/create/step-1' as any);
-              }}
-            />
+            {canCreateEvents ? (
+              <DrawerLink
+                icon={PlusCircle}
+                label="Créer un événement"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/events/create/step-1' as any);
+                }}
+              />
+            ) : null}
             <DrawerLink
               icon={User}
               label="Mon profil"

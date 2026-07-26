@@ -1,11 +1,13 @@
-import type { UserRole } from '../types/database';
+import type { UserRole, Profile } from '../types/database';
+import { formatAccountBadge, getAccountKind, getProSubtypeLabel } from './accountIdentity';
 
 export const getRoleLabel = (role: UserRole): string => {
   const roleLabels: Record<UserRole, string> = {
     invite: 'Invité',
-    particulier: 'Découvreur',
-    professionnel: 'Organisateur',
-    institutionnel: 'Structure',
+    particulier: 'Particulier',
+    professionnel: 'Professionnel',
+    /** Legacy — prefer formatAccountBadge / pro_subtype in UI. */
+    institutionnel: 'Professionnel',
     moderateur: 'Modérateur',
     admin: 'Administrateur',
   };
@@ -13,9 +15,21 @@ export const getRoleLabel = (role: UserRole): string => {
   return roleLabels[role] || role;
 };
 
+/** Public-facing identity label (ADR_007). */
+export const getProfileIdentityLabel = (
+  profile: Pick<Profile, 'role' | 'pro_subtype' | 'can_create'> | null | undefined,
+): string => {
+  if (!profile) return 'Particulier';
+  if (profile.role === 'invite') return 'Invité';
+  if (profile.role === 'admin' || profile.role === 'moderateur') {
+    return getRoleLabel(profile.role);
+  }
+  return formatAccountBadge(profile);
+};
+
 /**
  * Dark-UI badge palette (semi-transparent tinted bg + light text + subtle border):
- * particulier → cyan brand, professionnel → émeraude, institutionnel → indigo,
+ * particulier → cyan brand, professionnel (+ legacy institutionnel) → émeraude,
  * moderateur → bleu, admin → rouge, invite → neutre ardoise.
  */
 export const getRoleBadgeColor = (role: UserRole) => {
@@ -33,16 +47,11 @@ export const getRoleBadgeColor = (role: UserRole) => {
         border: 'rgba(59, 130, 246, 0.35)',
       };
     case 'professionnel':
+    case 'institutionnel':
       return {
         bg: 'rgba(16, 185, 129, 0.16)',
         text: '#6EE7B7',
         border: 'rgba(16, 185, 129, 0.35)',
-      };
-    case 'institutionnel':
-      return {
-        bg: 'rgba(129, 140, 248, 0.16)',
-        text: '#A5B4FC',
-        border: 'rgba(129, 140, 248, 0.35)',
       };
     case 'invite':
       return {
@@ -59,3 +68,5 @@ export const getRoleBadgeColor = (role: UserRole) => {
       };
   }
 };
+
+export { getAccountKind, getProSubtypeLabel };

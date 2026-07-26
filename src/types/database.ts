@@ -228,6 +228,18 @@ export interface Profile {
   cover_url?: string | null;
   bio: string | null;
   role: UserRole;
+  /** ADR_007 — B2C optional creation; Professionnel treated as true in app. */
+  can_create?: boolean | null;
+  /** ADR_007 — B2C UI mode; Professionnel forced to create. */
+  active_mode?: 'discover' | 'create' | null;
+  /** ADR_007 — typology under Professionnel only. */
+  pro_subtype?:
+    | 'independant'
+    | 'association'
+    | 'lieu'
+    | 'office_tourisme'
+    | 'collectivite'
+    | null;
   onboarding_completed: boolean;
   created_at: string;
   updated_at: string;

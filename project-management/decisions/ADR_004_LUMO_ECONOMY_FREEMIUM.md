@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted — 2026-07-22 (montants P0 et nommage Local → Habitué → Éclaireur validés produit).
+Accepted — 2026-07-22 (montants P0 et nommage Local → Habitué → Éclaireur validés produit).  
+**Amended — 2026-07-26** : couches = engagement *personne* (voisin) ; orthogonales au rôle créateur ; pas de SKU « Organisateur Habitué+ » ; « Pro » réservé à Diffuseur Pro (ADR 006).
 
 ## Context
 
@@ -16,6 +17,8 @@ Il n’existait pas de spec métier unique pour :
 - comment Lumo coexiste avec l’abonnement **Éclaireur**.
 
 Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-POST-004`) risque une gamification vanity (points sans débouché) ou un pay-to-win.
+
+**Contexte amendement 2026-07-26** : le couplage implicite « Organisateur + Habitué+ » et le libellé / code `professionnel` (« Pro ») laissaient croire (a) qu’un créateur doit payer Habitué pour publier ou booster, (b) que tout organisateur est un acteur commercial. Faux : Habitué = couche voisin ; publier est gratuit à Local ; le spectre créateur inclut partage de talent et micro-vente sans bénéfice plateforme.
 
 ## Decision
 
@@ -35,6 +38,14 @@ Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-P
 
 8. **Promesse produit** : *Deviens Habitué de ton quartier. Passe Éclaireur pour découvrir encore mieux — des accès et une réputation réelle, pas juste des points.*
 
+9. **Couches = axe personne (voisin), pas axe rôle créateur** *(amendement 2026-07-26)* : Local / Habitué / Éclaireur s’appliquent à **toute personne** qui vit le quartier, quel que soit le rôle onboarding (`particulier`, `professionnel`, `institutionnel`). Ce ne sont **pas** des upgrades « Découvreur » ni un pack « Organisateur+ ».
+
+10. **Publier ne requiert pas Habitué** *(amendement 2026-07-26)* : création d’événement, profil créateur enrichi et boost **gagné** (M4) sont accessibles sans abo Habitué. Habitué n’est requis que pour *l’usage voisin* (check-in, earn/spend Lumo, Pass, Boutique Lumo y compris M9).
+
+11. **Pas de SKU « Organisateur Habitué+ »** *(amendement 2026-07-26)* : un créateur peut *cumuler* Habitué s’il sort aussi dans le quartier — deux axes empilés, jamais une offre unique créateur. Copy / paywalls / analytics ne doivent pas présenter Habitué comme monétisation créateur.
+
+12. **« Pro » réservé à Diffuseur Pro (ADR 006)** *(amendement 2026-07-26)* : le rôle `professionnel` / UI « Organisateur » n’implique pas un usage commercial. Spectre créateur hors Diffuseur : **partage de talent** (sans bénéfice) → **micro-vente** (ex. produits fait maison, hors ticketing app) → **solo régulier**. Seul **Moments Diffuseur Pro** est le SKU « Pro » commercial structure.
+
 ## Modèle en 3 couches
 
 ```
@@ -43,24 +54,35 @@ Local (gratuit : carte, events, création, social — sans check-in)
     → Éclaireur (abo : Discovery approfondie + tout Habitué)
 ```
 
-Phrase marketing :
+**Orthogonal au rôle créateur / structure** (ne pas fusionner dans le schéma ci-dessus) :
+
+```
+Intention publication (indépendant des couches)
+  → Partage de talent | Micro-vente | Solo régulier | Acteur local (Diffuseur Free/Pro — ADR 006)
+```
+
+Phrase marketing (couches voisin) :
 > Explore ton quartier → Plus tu sors, plus tu débloques → Découvre autrement.
 
-| Couche | Nom marketing | Tagline | Rôle | Monétisation |
-|--------|---------------|---------|------|--------------|
-| 1 | **Local** | Explore ton quartier | Acquisition / boucle locale gratuite | Gratuit |
-| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement + Lumo + Pass + check-in | **0,99 €/mois · 9,99 €/an** (abo) — inclut Local |
+| Couche | Nom marketing | Tagline | Rôle produit | Monétisation |
+|--------|---------------|---------|--------------|--------------|
+| 1 | **Local** | Explore ton quartier | Acquisition / boucle locale gratuite **personne** | Gratuit |
+| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement voisin + Lumo + Pass + check-in | **0,99 €/mois · 9,99 €/an** (abo) — inclut Local |
 | 3 | **Éclaireur** | Découvre autrement | Depth Discovery | **2,99 €/mois · 19,99 €/an** — inclut Habitué + Local |
 
 ### Vocabulaire — ne pas confondre
 
 | Terme | Nature | Usage |
 |-------|--------|--------|
-| **Local** | Couche 1 (tous les comptes) | Gratuit — sans check-in |
-| **Habitué** | Couche 2 / abo engagement | 0,99 €/mois · 9,99 €/an ; inclut Local + check-in / Lumo / Pass |
+| **Local** | Couche 1 (tous les comptes) | Gratuit — sans check-in ; **création autorisée** |
+| **Habitué** | Couche 2 / abo engagement **personne** | 0,99 €/mois · 9,99 €/an ; check-in / Lumo / Pass / Boutique — **pas** un pack créateur |
 | **Lumo** | Monnaie | Earn / spend — jamais le nom d’une couche |
 | **Ambassadeur** | Badge / palier *dans* Habitué (M3) | Statut quartier, pas une 4ᵉ couche |
 | **Éclaireur** | Couche 3 / abo Discovery | 2,99 €/mois · 19,99 €/an ; inclut Habitué ; code = `moments_locaux_plus` |
+| **Organisateur** | Rôle UI (`professionnel`) | Créateur solo — talent / micro-vente / régulier ; **≠ Pro commercial** |
+| **Acteur local / Diffuseur** | Rôle + offre B2B (ADR 006) | Structure ; seul **Diffuseur Pro** porte le libellé « Pro » |
+| **Boost gagné (M4)** | Crédit inventaire créateur | Débloqué par check-ins *des participants* — **sans** Habitué côté organisateur |
+| **Boutique boost (M9)** | Sink Lumo | Réservé Habitué+ qui a aussi un event — sink voisin, pas SKU créateur |
 
 ## Stack minimale (5 mécanismes prioritaires)
 
@@ -89,16 +111,26 @@ Colonnes :
 | M1 | Preuve de présence | Check-in geo/QR validé → +15–25 Lumo ; max 1/event/user ; cap journalier | Accumulation vers Pass / tampon partenaire | Feedback immédiat “+X Lumo · tampon” | Réduction, café offert, file prioritaire, goodie partenaire | Check-ins / user / 30j ; % check-ins → Pass débloqué | P0 |
 | M2 | Early access | Solde Lumo / badge Ambassadeur (Habitué) ou mission hebdo | Dépenser Lumo **ou** statut pour révéler event 24–48h avant public | FOMO, feed “avant tout le monde” | Place limitée, exclusivité sociale locale | Taux d’inscription early vs public ; no-show early | P0 |
 | M3 | Statut quartier (badge Ambassadeur) | Score agrégé (check-ins + events tenus + contributions) sur période / zone — *palier dans Habitué* | Pas un sink monétaire ; seuil de palier | Badge profil, filtre communauté locale | Crédibilité IRL, invitations à co-organiser, confiance inscrits | Users avec badge actif ; follows / event après badge | P0 |
-| M4 | Boost créateur gagné | Event passé avec N check-ins réussis → crédit boost organique (ou Lumo dédiés créateur) | Activer boost 24–48h sur prochain event | Visibilité carte/liste | Remplissage réel de l’événement | Taux de remplissage avant/après boost ; events avec ≥N check-ins | P0 |
+| M4 | Boost créateur gagné | Event passé avec N check-ins réussis (participants Habitués) → crédit boost organique | Activer boost 24–48h sur prochain event | Visibilité carte/liste **sans abo créateur** | Remplissage réel de l’événement | Taux de remplissage avant/après boost ; events avec ≥N check-ins | P0 |
 | M5 | Streak de sorties | 3 check-ins distincts dans le mois (rayon / ville) | Déblocage Pass week-end (auto ou spend symbolique) | Progression mensuelle visible | Pass partenaires week-end / apéro offert | % users atteignant streak ; rétention M1/M2 | P0 |
 | M6 | Mission daily légère | Ex. 1 favori + 1 vue détail event → +10–15 Lumo ; 1/jour | Alimente M1/M2 | Habitude douce sans spam | Indirect (accélère Pass) | Daily active mission completion rate | P1 |
 | M7 | Mission weekly | 3 check-ins **ou** 1 event publié approuvé → +50–80 Lumo | Alimente early access / boost | Objectif semaine clair | Accès / avantages plus rapides | Weekly mission completion ; correlation check-ins | P1 |
 | M8 | Contribution UGC utile | Photo / tip approuvé (modération web) → +20 Lumo | — | Crédit “photo par @x” sur l’event | Preuve sociale pour les suivants ; expo partenaires | % médias approuvés ; views sur events avec UGC | P1 |
-| M9 | Boutique boost payant (Lumo) | — | Spend 80–150 Lumo → `active_boosts` 24h | Contrôle créateur sur la visibilité | Plus d’inscrits IRL | Lumo spent on boosts ; ROAS remplissage | P1 |
+| M9 | Boutique boost payant (Lumo) | Habitué+ **qui a aussi un event** — sink voisin, pas monétisation créateur | Spend 80–150 Lumo → `active_boosts` 24h | Contrôle ponctuel de visibilité | Plus d’inscrits IRL | Lumo spent on boosts ; ROAS remplissage | P1 |
 | M10 | Cosmétiques profil | — | Spend 40–100 Lumo (cadre, badge) | Expression identitaire | Faible IRL ; OK en complément seulement | % spend cosmétique vs boost (cible cosmétique < 30%) | P2 |
 | M11 | Cercles / défis collectifs | Challenge cercle mensuel (ex. 10 check-ins jazz) | Récompense collective (unlock event privé) | Appartenance, feed cercle | Apéro / event privé partenaire | Taille cercles actifs ; participation challenges | P2 |
 | M12 | Parrainage voisin | Filleul actif (check-in ou event sous 14j) → +100 Lumo ; cap mensuel | — | Progression réseau | Élargissement communauté locale réelle | K-factor local ; % filleuls activés | P2 |
-| M13 | Packs Lumo / boost € | Achat IAP (phase 2 seulement) | Crédit wallet ou boost direct | Confort créateurs pro | Visibilité payante assumée | ARPU créateur ; inflation Lumo post-IAP | Phase 2 |
+| M13 | Packs Lumo / boost € | Achat IAP (phase 2 seulement) — **confort Habitué**, pas SKU « créateur Pro » | Crédit wallet ou boost direct | Confort spend sans farm | Visibilité payante assumée | ARPU Habitué ; inflation Lumo post-IAP | Phase 2 |
+
+### Visibilité créateur — qui paie quoi *(amendement 2026-07-26)*
+
+| Levier | Qui en bénéficie | Prérequis Habitué côté organisateur ? | Monnaie |
+|--------|------------------|----------------------------------------|---------|
+| Publication / profil enrichi | Talent, micro-vente, solo régulier, Acteur local | **Non** | — |
+| Boost gagné (M4) | Tout créateur après N check-ins *participants* | **Non** | Crédit inventaire |
+| Boutique boost (M9) | Compte Habitué+ qui publie aussi | **Oui** (sink Habitué) | Lumo |
+| Packs / abo Diffuseur | Acteur local (ADR 006) ; upsell solo si quotas / sièges | **Non** | € web |
+| Packs Lumo € (M13, phase 2) | Habitué confort | **Oui** (toujours Habitué+) | IAP — ≠ packs Diffuseur |
 
 ### Montants indicatifs (à calibrer via `lumo_rules`)
 
@@ -128,6 +160,10 @@ Colonnes :
 - Achat de Lumo trop tôt (casse la confiance “j’ai vraiment gagné”)  
 - Premium qui multiplie fortement les gains Lumo (pay-to-win)  
 - Crédit Lumo décidé côté client mobile  
+- **SKU / copy « Organisateur Habitué+ »** ou paywall créateur qui exige Habitué pour publier *(amendement 2026-07-26)*  
+- **Présenter Habitué comme monétisation créateur** (M9 = sink voisin optionnel, M4 = levier organique) *(amendement 2026-07-26)*  
+- **Appeler « Pro » un Organisateur / talent / micro-vente** — « Pro » = Diffuseur Pro uniquement (ADR 006) *(amendement 2026-07-26)*  
+- Mélanger packs € Diffuseur et Boutique / packs Lumo  
 
 ## Conséquences techniques
 
@@ -180,13 +216,15 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 
 - Spec unique pour product, engagé, backend et admin web.  
 - Aligne gamification sur la promesse “quartier réel”.  
-- Évite de réactiver du code dormant sans règles.
+- Évite de réactiver du code dormant sans règles.  
+- *(2026-07-26)* Clarifie que Lumo/Habitué ne monétisent pas la création ; préserve les usages talent / micro-vente hors “Pro”.
 
 ### Negative / risques
 
 - Dépendance partenaires locaux pour la valeur IRL (sans partenaires, M1/M5 s’affaiblissent).  
 - Complexité anti-fraude check-in / parrainage.  
-- Calibration économique itérative obligatoire.
+- Calibration économique itérative obligatoire.  
+- *(2026-07-26)* Risque UX de re-coller Habitué aux écrans créateur (boutique boost) — copy et gates à surveiller.
 
 ### Follow-ups
 
@@ -198,6 +236,9 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 6. Branches en attente de merge : `feat/post-mvp-lumo-early-access` (009), `feat/post-mvp-lumo-ux-011` (011), `feat/post-mvp-lumo-remaining-010-008-012` (010 + 008 partiel + 012).  
 7. `MVP-LUMO-008` redemption IRL réelle (partenaire pilote + admin web).  
 8. Seed / flags UAT–prod.  
+9. *(2026-07-26)* Aligner copy boutique / paywalls créateur sur décisions 9–12 (pas d’exigence Habitué pour publier ; M9 contextualisé « voisin qui publie »).  
+10. *(2026-07-26)* Optionnel : amendement miroir ADR 006 + ticket rename UI Organisateur → Créateur (enum `professionnel` conservé).  
+11. *(2026-07-26)* Mettre à jour `OFFER_CATALOG_LUMO_SHOP.md` (accès Habitué = personne, pas rôle Découvreur).  
 
 Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-access` (DEV appliqué) — **pas mergé main** tant que non validé.  
 
@@ -212,17 +253,31 @@ Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-acce
 | `media_approved` / `referral_activated` | … | 20 / 100 | false |
 | `MISSION_DAILY` / `CONTEST_WIN` | legacy | 150 / 1200 | false |
 
-Shop ADR : `event_boost_24h` (100), `avatar_frame_local` skin (60).  
+Shop ADR (seed live) : `event_boost_24h` (100), `avatar_frame_local` skin (60) ; early access `early_access_unlock` (40).  
+Catalogue boutique étendu (v1/v2, rayons, caps) : `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md` — ticket `SHOP-V1`.  
 Missions ADR : Sortie du jour (12), Week-end local (60).
 
 RPC live : `earn_lumo(p_amount int, p_reason text, p_metadata jsonb)`, `spend_lumo(p_amount int, p_item_type text, p_item_id uuid, p_metadata jsonb)`, `buy_item(p_item_key text)`.
+
+**Frontière B2B** : packs € / abo **Moments Diffuseur** = ADR 006 — **orthogonal** à cette économie Lumo. Compte Professionnel **sans** Habitué/Lumo (ADR 007 : compte Particulier séparé pour découvrir).
+
+**Frontière rôle créateur** *(amendement 2026-07-26)* : Habitué / Éclaireur restent des couches **personne**. Un Organisateur (talent, micro-vente, solo) ou Acteur local peut les cumuler pour *son* usage voisin — jamais comme condition de publication ni comme libellé d’offre créateur. Renommage UI éventuel `Organisateur` → `Créateur` = ticket produit / `DIFF-RENAME` cousin ; enum `professionnel` inchangé tant que non décidé.
+
+### Amendment log
+
+| Date | Changement |
+|------|------------|
+| 2026-07-26 | Décisions 9–12 : couches = axe personne ; publier sans Habitué ; pas de SKU Organisateur Habitué+ ; « Pro » = Diffuseur Pro. Matrice M4/M9/M13 + table leviers visibilité. Anti-patterns naming. |
 
 ## Related
 
 - `ADR_002_MOBILE_MVP_SCOPE.md` — hors MVP  
 - `ADR_003_DISCOVERY_ENGINE_DOMAIN.md` — Éclaireur / entitlement `moments_locaux_plus` orthogonal  
+- `ADR_006_DIFFUSEUR_B2B_OFFER.md` — offre B2B Professionnel / Diffuseur (orthogonal Lumo)  
+- `ADR_007_ACCOUNT_IDENTITY_MODES.md` — Particulier vs Professionnel ; modes B2C  
+- `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md` — catalogue Boutique Lumo  
 - `project-management/roadmap/POST_MVP.md`  
-- `project-management/roadmap/MVP_TICKETS.md` (`MVP-POST-002`…`004`, `MVP-LUMO-001`…`012`)  
+- `project-management/roadmap/MVP_TICKETS.md` (`MVP-POST-002`…`004`, `MVP-LUMO-001`…`012`, `SHOP-V1`, `ID-*`, `DIFF-*`)  
 - `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`  
 - `MVP_SCOPE.md`  
 - `audits/standalone-audits/RLS_AUDIT.md` (wallets / lumo)  
