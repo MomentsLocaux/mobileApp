@@ -253,8 +253,7 @@ export default function TabsLayout() {
           name="create"
           options={{
             title: '',
-            // ADR_007: no create FAB in Découvreur mode (or discover-only accounts)
-            href: canCreateEvents ? undefined : null,
+            // ADR_007: hide create FAB in Découvreur mode (do not combine with `href`)
             tabBarButton: canCreateEvents
               ? () => (
                   <TouchableOpacity
@@ -271,7 +270,7 @@ export default function TabsLayout() {
                     <PlusCircle size={28} color="#0f1719" />
                   </TouchableOpacity>
                 )
-              : () => null,
+              : () => <View style={styles.createTabHidden} />,
           }}
         />
         <Tabs.Screen
@@ -920,6 +919,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 4,
     borderColor: colors.brand.primary, // Add border to match dark background
+  },
+  createTabHidden: {
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+    opacity: 0,
   },
   createButtonDisabled: {
     backgroundColor: colors.brand.surface,
