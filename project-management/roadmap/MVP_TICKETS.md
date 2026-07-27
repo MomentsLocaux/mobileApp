@@ -1511,6 +1511,18 @@ Notes: **Done on main 2026-07-22** — section CGU §18 affichée uniquement si 
 Spec produit : `ADR_006_DIFFUSEUR_B2B_OFFER.md`, `ADR_007_ACCOUNT_IDENTITY_MODES.md`, `OFFER_CATALOG_LUMO_SHOP.md`.  
 B2C : toujours Découvreur ; création optionnelle + switch. B2B : pas de découverte sur le compte pro ; gamme Diffuseur unique. Pas de quota publications. Pas d’IAP mobile pour Diffuseur.
 
+### Décisions produit figées (2026-07-27)
+
+| # | Décision | Choix |
+|---|----------|--------|
+| 1 | Double compte Pro ↔ Particulier | **V1 = 2 comptes séparés** (ADR 007) |
+| 2 | OT `connect_sit` | **UI + pending/skip** ; sync Apidae réelle = ADR 005 / OT-P0 |
+| 3 | Connecteur custom | **Demande Free** ; priorisation / SLA = Pro |
+| 4 | Libellés boutique | **« Boutique Lumo »** (Particulier) · **« Packs Diffuseur »** (dashboard pro only) |
+| 5 | `create_themes` | **Prérempli** depuis thèmes découverte si déjà choisis, **éditable**, **skip OK** |
+
+Plan détaillé : typologies UX (welcome dual-tone, KPI Free/Pro, connecteurs).
+
 ### ID: SHOP-V1
 
 Titre: Catalogue Boutique Lumo v1 (rayons + sinks)
@@ -1525,9 +1537,9 @@ Type d'action: Feature / seed
 
 Fichiers probablement concernés: `shop_items`, `buy_item`, `active_boosts`, `app/(tabs)/shop.tsx`, `src/services/shop.service.ts`, pass RPC
 
-Description: Seed items v1 (`event_boost_72h` 240, `community_highlight_7d` 60, `pass_extra_stamp` 80, `avatar_frame_eclaireur` 90) ; UX 3 rayons Visibilité / Accès / Style ; CTA event-scoped pour boosts et early access ; caps (2 boosts actifs / user ; 1 tampon Pass bonus / mois). Compte Particulier Habitué+ only (ADR 007).
+Description: Seed items v1 (`event_boost_72h` 240, `community_highlight_7d` 60, `pass_extra_stamp` 80, `avatar_frame_eclaireur` 90) ; UX 3 rayons Visibilité / Accès / Style ; CTA event-scoped pour boosts et early access ; caps (2 boosts actifs / user ; 1 tampon Pass bonus / mois). Compte Particulier Habitué+ only (ADR 007). Libellé UI **Boutique Lumo** — jamais confondre avec Packs Diffuseur.
 
-Critères d'acceptation: items listés achetables sous flag gamification + Habitué ; effets 72h / highlight 7j / tampon appliqués ; cosmétiques sans power-up ranking.
+Critères d'acceptation: items listés achetables sous flag gamification + Habitué ; effets 72h / highlight 7j / tampon appliqués ; cosmétiques sans power-up ranking ; route shop bloquée pour Professionnel.
 
 Commandes de vérification: `npm run typecheck` ; `npm run lint` ; achat DEV + vérif `active_boosts` / Pass.
 
@@ -1537,11 +1549,11 @@ Dépendances: `MVP-LUMO-006` (boost 24h) ; catalogue doc Accepted.
 
 Branche Git recommandée: `feat/post-mvp-shop-v1`
 
-Notes: UAT/prod seed uniquement après validation humaine. Packs Lumo € = M13 phase 2, hors ticket.
+Notes: UAT/prod seed uniquement après validation humaine. Packs Lumo € = M13 phase 2, hors ticket. **DEV 2026-07-27** : seed `20260807` + effets `20260808` (`purchase_event_boost` 24/72h, highlight, pass stamp, caps) appliqués sur `prymkgkafaovhzopslea`.
 
 ### ID: ID-ONBOARD
 
-Titre: Onboarding audience Particulier / Professionnel + intentions
+Titre: Onboarding audience Particulier / Professionnel + intentions + connecteurs
 
 Priorité: Post-MVP
 
@@ -1551,21 +1563,75 @@ Responsable / agent recommandé: UX/UI Guardian + Mobile Reliability Engineer
 
 Type d'action: Feature / schema
 
-Fichiers probablement concernés: `OnboardingScreen.tsx`, `profiles`, `roleHelpers.ts`, WebConsole users
+Fichiers probablement concernés: `OnboardingScreen.tsx`, `components/onboarding/*`, `profiles`, `organizations`, `roleHelpers.ts`
 
-Description: Étape 1 = **Particulier** ou **Professionnel** uniquement (plus de carte Structure / institutionnel). Particulier : toujours Découvreur ; intention Découvrir seul ou Découvrir+Créer (`can_create`) — jamais créateur pur. Professionnel : étape **obligatoire** `pro_subtype` = `independant` | `association` | `lieu` | `office_tourisme` | `collectivite` ; pas de mode découverte. Migration : `institutionnel` → `account_kind=professionnel` + subtype.
+Description: |
+  - `welcome` dual-promesse (ton fun Particulier / formel Professionnel) en **1 écran**.
+  - Audience Particulier | Professionnel uniquement.
+  - Particulier : Découvrir seul **ou** Découvrir+Créer ; steps `create_why` (`talent`|`micro_vente`|`regulier`) + `create_themes` (cats à proposer, prérempli/skip) ; `mode_hint` switch.
+  - Professionnel : `pro_subtype` obligatoire ; step `connector` = `connect_sit` (OT) ou `custom_connector` (autres) ; skip → dashboard OK.
+  - Colonnes : `create_intent`, `creator_category_slugs` ; org `connector_status` / request (migration draft, apply après validation humaine).
+  - Pas de Habitué/Lumo sur compte pro.
 
-Critères d'acceptation: 2 audiences niveau 1 seulement ; subtype pro obligatoire et persisté ; aucun label Structure / Institutionnel en onboarding.
+Critères d'acceptation: welcome dual-tone ; 2 audiences ; subtype pro obligatoire ; create_themes persisté si renseigné ; OT voit Connecter SIT ; autres pros voient demande connecteur ; skip connecteur n’bloque pas la fin ; aucun label Structure / Institutionnel.
 
-Commandes de vérification: `npm run typecheck` ; `npm run lint` ; parcours onboarding DEV.
+Commandes de vérification: `npm run typecheck` ; `npm run lint` ; parcours onboarding DEV (5 branches).
 
-Risques: Migration legacy ; drift WebConsole.
+Risques: Migration legacy ; ADR 005 non finalisé (SIT = pending).
 
-Dépendances: `ADR_007` Accepted.
+Dépendances: `ADR_007` Accepted ; migration identity 20260802.
 
 Branche Git recommandée: `feat/post-mvp-identity-onboard`
 
-Notes: Remplace l’ancien ticket `DIFF-RENAME`.
+Notes: Remplace l’ancien ticket `DIFF-RENAME`. Décisions 2026-07-27 figées ci-dessus.
+
+### ID: DIFF-HOME
+
+Titre: Accueil Professionnel = Dashboard Diffuseur + KPI Free 7j
+
+Priorité: Post-MVP
+
+Source audit: `ADR_006`, `ADR_007`
+
+Responsable / agent recommandé: Mobile Reliability Engineer + UX/UI Guardian
+
+Type d'action: Feature
+
+Fichiers probablement concernés: `app/(tabs)/index.tsx`, `app/(tabs)/_layout.tsx`, `HomeScreen` / nouveau `DiffuseurHomeScreen`, `EventCardStatsService`, redirect `app/creator/*`
+
+Description: Tab Accueil pro = tableau de bord (pas le fil Découvreur). KPI Free 7j : vues, intérêts, check-ins, taux de présence, events à venir ; file draft/pending/published/refused ; widget connecteur ; CTA Packs Diffuseur. Tabs Favoris / Boutique Lumo masqués côté pro. Legacy `/creator/*` → redirect dashboard.
+
+Critères d'acceptation: pro land sur dashboard ; particulier conserve feed (ou hub create si mode) ; KPI 7j visibles Free ; pas de fuite Analytics Pro.
+
+Commandes de vérification: typecheck / lint ; UAT pro vs particulier.
+
+Dépendances: `ID-ONBOARD` ; idéalement `DIFF-ORG` pour org.
+
+Branche Git recommandée: `feat/post-mvp-diffuseur-home`
+
+### ID: DIFF-CONNECTOR-LEAD
+
+Titre: Lead connecteur sur mesure + widget dashboard
+
+Priorité: Post-MVP
+
+Source audit: `ADR_006`, plan typologies UX
+
+Responsable / agent recommandé: Mobile Reliability Engineer
+
+Type d'action: Feature
+
+Fichiers probablement concernés: onboarding connector step, `organizations.connector_*`, WebConsole file leads
+
+Description: Formulaire outil source / contact → `connector_status=custom_requested`. OT : `connect_sit` → `sit_pending` (sync réelle = OT-P0 / ADR 005). Demande Free OK ; priorisation Pro. Ne bloque pas le dashboard.
+
+Critères d'acceptation: lead persisté ; widget dashboard reprend l’état ; OT distinct du lead custom.
+
+Commandes de vérification: typecheck / lint ; insert DEV.
+
+Dépendances: `ID-ONBOARD` ; `DIFF-ORG` ou colonnes org.
+
+Branche Git recommandée: `feat/post-mvp-diffuseur-connector-lead`
 
 ### ID: ID-MODE-SWITCH
 
@@ -1581,7 +1647,7 @@ Type d'action: Feature / design system
 
 Fichiers probablement concernés: tabs/layout, theme tokens, profil, chrome app
 
-Description: Si `can_create`, switch mode `discover` | `create` avec couleurs dédiées Découvreur / Créateur B2C. Persister `active_mode`. Compte pro = teinte Diffuseur, sans switch découverte.
+Description: Si `can_create`, switch mode `discover` | `create` avec couleurs dédiées Découvreur / Créateur B2C. Persister `active_mode`. Compte pro = teinte Diffuseur, sans switch découverte. Mode create → hub créateur B2C (pas dashboard Diffuseur).
 
 Critères d'acceptation: switch visible seulement si `can_create` ; chrome suit le mode ; pro sans switch.
 
@@ -1605,11 +1671,11 @@ Responsable / agent recommandé: Mobile Reliability Engineer
 
 Type d'action: Feature / hardening
 
-Fichiers probablement concernés: FAB create, routes `events/create`, Mes événements, drawer
+Fichiers probablement concernés: FAB create, routes `events/create`, Mes événements, drawer, shop Lumo
 
-Description: Si Particulier sans `can_create` (ou mode Découvreur selon spec UX), masquer / désactiver toute surface de création. Compte Professionnel : création org only, pas de parcours Habitué/Lumo.
+Description: Si Particulier sans `can_create` (ou mode Découvreur selon spec UX), masquer / désactiver toute surface de création. Compte Professionnel : création org only, pas de parcours Habitué/Lumo / Boutique Lumo.
 
-Critères d'acceptation: aucun deep-link create utilisable sans capacité ; CTA « activer création » optionnel en settings.
+Critères d'acceptation: aucun deep-link create utilisable sans capacité ; CTA « activer création » optionnel en settings ; shop Lumo inaccessible pro.
 
 Commandes de vérification: typecheck / lint ; tests nav guest/particulier/pro.
 
@@ -1661,7 +1727,7 @@ Type d'action: Feature
 
 Fichiers probablement concernés: entitlements org, grant crédits boost B2B, analytics créateur, early-access slots, badge vérifié (flag admin)
 
-Description: Capacités Pro (5 sièges, 2× Boost 24h / mois non cumulables > 2 mois, priorité modération soft, 2 early-access slots / mois, analytics 30/90j). Badge Vérifié = validation manuelle WebConsole. Pas de quota publications.
+Description: Capacités Pro (5 sièges, 2× Boost 24h / mois non cumulables > 2 mois, priorité modération soft, 2 early-access slots / mois). Badge Vérifié = validation manuelle WebConsole. Pas de quota publications. **Analytics** (écran dédié) : fenêtres 30/90j + delta N vs N-1 — funnel vues→intérêts→check-ins, taux présence, no-show proxy, top catégories/events, heatmap jour×créneau, % revenants, part early-access, lift post-boost, pubs/siège, délai pending→modéré, répartition POI (OT/collectivité), export CSV/bilan. Free = teaser only (KPI 7j dans DIFF-HOME).
 
 Critères d'acceptation: org Pro reçoit crédits mensuels ; Free n’y a pas accès ; mobile consomme entitlements sans vendre l’abo.
 
@@ -1673,7 +1739,7 @@ Dépendances: `DIFF-ORG` ; admin vérif minimal.
 
 Branche Git recommandée: `feat/post-mvp-diffuseur-pro`
 
-Notes: Canal vente = web — ce ticket = entitlements only.
+Notes: Canal vente = web — ce ticket = entitlements only. Stub livré : `20260805_diffuseur_pro_billing_stub.sql` (grant mensuel + consume) + écran `/profile/diffuseur`. Apply DEV après validation humaine.
 
 ### ID: DIFF-BILL
 
@@ -1701,4 +1767,4 @@ Dépendances: `DIFF-PRO` ; CGU B2B.
 
 Branche Git recommandée: `feat/post-mvp-diffuseur-billing`
 
-Notes: Collectivités / OT = devis annuel possible (mêmes entitlements Pro).
+Notes: Collectivités / OT = devis annuel possible (mêmes entitlements Pro). Stub livré : ledger + RPC `apply_diffuseur_sku` + edge `diffuseur-billing-webhook` + simulation mock mobile. Stripe Checkout = adaptateur futur (mêmes SKUs). Apply DEV après validation humaine.

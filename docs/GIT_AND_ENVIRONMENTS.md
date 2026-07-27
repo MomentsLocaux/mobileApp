@@ -60,3 +60,14 @@ cp .env.example .env   # already filled for DEV
 ```
 
 EAS UAT build: `eas build --profile preview` (secrets must target UAT).
+
+## How to think about it (short)
+
+```text
+                    ┌─ .env              → Supabase DEV
+  mobileApp (Git) ──┼─ .env.uat / EAS preview → Supabase UAT
+                    └─ EAS production    → Supabase PROD (later)
+```
+
+Same code on `main`. You only change **which backend keys** are injected.  
+Public website hostnames (`dev.` / `staging.` / apex) are for the **web** apps; mobile talks to Supabase directly.

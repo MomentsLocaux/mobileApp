@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { RequireCreateAccess } from '@/components/identity/RequireCreateAccess';
 import {
   buildOperatingHoursPayload,
   deriveScheduleStateFromEvent,
@@ -33,7 +34,7 @@ import {
 
 const EDITABLE_EVENT_STATUSES = new Set(['draft', 'refused']);
 
-export default function CreateEventStep1() {
+function CreateEventStep1Inner() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { session, user } = useAuth();
@@ -429,6 +430,15 @@ export default function CreateEventStep1() {
 
       <LocationPickerModal visible={locationModalVisible} onClose={() => setLocationModalVisible(false)} />
     </SafeAreaView>
+  );
+}
+
+export default function CreateEventStep1() {
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  return (
+    <RequireCreateAccess allowIfCanCreate={Boolean(edit)}>
+      <CreateEventStep1Inner />
+    </RequireCreateAccess>
   );
 }
 

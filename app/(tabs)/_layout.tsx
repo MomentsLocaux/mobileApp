@@ -24,6 +24,8 @@ import {
   Ticket,
   Sparkles,
   Briefcase,
+  BarChart3,
+  Package,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
@@ -218,18 +220,29 @@ export default function TabsLayout() {
             paddingBottom: 8,
             paddingTop: 8,
           },
+          tabBarItemStyle: {
+            flex: 1,
+          },
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Accueil',
+            title: isProfessionnelAccount ? 'Tableau de bord' : 'Accueil',
             tabBarIcon: ({ focused, size }) =>
               renderTabIconSlot(
                 focused,
-                <Home size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                isProfessionnelAccount ? (
+                  <Briefcase size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                ) : (
+                  <Home size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                )
               ),
-            tabBarButton: (props) => renderProtectedTabButton(props, "Accéder à l'accueil"),
+            tabBarButton: (props) =>
+              renderProtectedTabButton(
+                props,
+                isProfessionnelAccount ? 'Accéder au tableau de bord' : "Accéder à l'accueil",
+              ),
           }}
         />
         <Tabs.Screen
@@ -255,39 +268,47 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="create"
-          options={{
-            title: '',
-            // ADR_007: hide create FAB in Découvreur mode (do not combine with `href`)
-            tabBarButton: canCreateEvents
-              ? () => (
-                  <TouchableOpacity
-                    style={[styles.createButton, { backgroundColor: accent.accent }]}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      if (isGuest) {
-                        openGuestGate('Créer un événement');
-                        return;
-                      }
-                      router.push('/events/create/step-1' as any);
-                    }}
-                  >
-                    <PlusCircle size={28} color="#0f1719" />
-                  </TouchableOpacity>
-                )
-              : () => <View style={styles.createTabHidden} />,
-          }}
+          options={
+            canCreateEvents
+              ? {
+                  title: '',
+                  tabBarButton: () => (
+                    <TouchableOpacity
+                      style={[styles.createButton, { backgroundColor: accent.accent }]}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        if (isGuest) {
+                          openGuestGate('Créer un événement');
+                          return;
+                        }
+                        router.push('/events/create/step-1' as any);
+                      }}
+                    >
+                      <PlusCircle size={28} color="#0f1719" />
+                    </TouchableOpacity>
+                  ),
+                }
+              : {
+                  // Remove tab slot entirely so remaining icons tighten (ADR_007 Découvreur)
+                  href: null,
+                }
+          }
         />
         <Tabs.Screen
           name="favorites"
-          options={{
-            title: 'Favoris',
-            tabBarIcon: ({ focused, size }) =>
-              renderTabIconSlot(
-                focused,
-                <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
-              ),
-            tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
-          }}
+          options={
+            isProfessionnelAccount
+              ? { href: null }
+              : {
+                  title: 'Favoris',
+                  tabBarIcon: ({ focused, size }) =>
+                    renderTabIconSlot(
+                      focused,
+                      <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                    ),
+                  tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
+                }
+          }
         />
         <Tabs.Screen
           name="profile"
@@ -503,7 +524,7 @@ export default function TabsLayout() {
                 />
                 <DrawerLink
                   icon={ShoppingBag}
-                  label="Boutique"
+                  label="Boutique Lumo"
                   onPress={() => {
                     toggleDrawer(false);
                     if (!hasHabitue) {
@@ -546,24 +567,36 @@ export default function TabsLayout() {
               </>
             )}
             {isProfessionnelAccount ? (
+              <>
+                <DrawerLink
+                  icon={Package}
+                  label="Packs Diffuseur"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/profile/diffuseur' as any);
+                  }}
+                />
+                <DrawerLink
+                  icon={BarChart3}
+                  label="Analytics Pro"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/profile/diffuseur-analytics' as any);
+                  }}
+                />
+              </>
+            ) : null}
+            {!isProfessionnelAccount ? (
               <DrawerLink
-                icon={Briefcase}
-                label="Moments Diffuseur"
+                icon={Heart}
+                label="Mes favoris"
                 onPress={() => {
                   toggleDrawer(false);
-                  router.push('/(tabs)/profile' as any);
+                  router.push('/(tabs)/favorites' as any);
                 }}
               />
             ) : null}
-            <DrawerLink
-              icon={Heart}
-              label="Mes favoris"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/(tabs)/favorites' as any);
-              }}
-            />
-            {(canCreate || hasMyEventsShortcut) && (
+            {(canCreate || hasMyEventsShortcut || isProfessionnelAccount) && (
               <DrawerLink
                 icon={MapPinned}
                 label="Mes événements"
@@ -938,12 +971,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 4,
     borderColor: colors.brand.primary, // Add border to match dark background
-  },
-  createTabHidden: {
-    width: 0,
-    height: 0,
-    overflow: 'hidden',
-    opacity: 0,
   },
   createButtonDisabled: {
     backgroundColor: colors.brand.surface,

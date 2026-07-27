@@ -358,7 +358,7 @@ Statuts de soumission : `pending` \| `approved` \| `rejected` (validation côté
 
 | Domaine | Attente |
 |---|---|
-| Plateformes | iOS et Android (Expo) ; schéma `momentslocaux://` |
+| Plateformes | iOS et Android (Expo) ; schéma `moments-locaux://` |
 | Performance perçue | Retour rapide pour utilisateur connu (objectif design < 10 s vers contenu utile) |
 | Confidentialité | Consentements localisation / push ; pas d’exposition de clés service role |
 | Accessibilité / store | Permissions iOS/Android justifiées ; suppression compte ; politiques légales |

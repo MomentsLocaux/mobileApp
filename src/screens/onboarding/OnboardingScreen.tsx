@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   Building2,
   Compass,
-  Heart,
   ImagePlus,
   Briefcase,
   MapPin,
@@ -31,8 +30,18 @@ import { AppBackground, Button, MotionReveal } from '../../components/ui';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
 import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
+import { OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
+import {
+  OnboardingCreateWhyStep,
+  type CreateIntent,
+} from '@/components/onboarding/OnboardingCreateWhyStep';
+import {
+  OnboardingConnectorStep,
+  type ConnectorDraft,
+} from '@/components/onboarding/OnboardingConnectorStep';
+import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
+import { DiffuseurService } from '@/services/diffuseur.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { Motion } from '@/constants/motion';
 import {
   ACCOUNT_KIND_OPTIONS,
   PRO_SUBTYPE_OPTIONS,
@@ -56,35 +65,21 @@ import { haptics } from '@/utils/haptics';
 type StepId =
   | 'welcome'
   | 'identity'
+  | 'create_why'
+  | 'create_themes'
   | 'location'
   | 'themes'
   | 'avatar'
   | 'creator'
+  | 'connector'
   | 'tiers'
-  | 'eclairer';
+  | 'eclairer'
+  | 'mode_hint';
 
 const ACCOUNT_KIND_ICONS: Record<AccountKind, typeof User> = {
   particulier: User,
   professionnel: Briefcase,
 };
-
-const VALUE_PROPS = [
-  {
-    icon: Compass,
-    title: 'Découvrir',
-    body: 'Les moments près de chez vous, sur la carte et dans le fil.',
-  },
-  {
-    icon: Heart,
-    title: 'Participer',
-    body: 'Favoris, suivi de créateurs et check-in sur place.',
-  },
-  {
-    icon: PlusCircle,
-    title: 'Créer',
-    body: 'Publiez un moment et soumettez-le pour validation.',
-  },
-] as const;
 
 const SEARCH_MIN_CHARS = 2;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -125,6 +120,9 @@ export default function OnboardingScreen() {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [coverUrl, setCoverUrl] = useState(profile?.cover_url || '');
   const [themeSlugs, setThemeSlugs] = useState<string[]>([]);
+  const [createThemeSlugs, setCreateThemeSlugs] = useState<string[]>([]);
+  const [createIntent, setCreateIntent] = useState<CreateIntent | null>(null);
+  const [connectorDraft, setConnectorDraft] = useState<ConnectorDraft>({ status: 'none' });
   const [facebook, setFacebook] = useState(profile?.facebook_url || '');
   const [instagram, setInstagram] = useState(profile?.instagram_url || '');
   const [tiktok, setTiktok] = useState(profile?.tiktok_url || '');
@@ -144,21 +142,40 @@ export default function OnboardingScreen() {
   const isUploading = uploadTarget !== null;
 
   const steps: StepId[] = useMemo(() => {
-    const profileSteps: StepId[] = canCreate
-      ? ['welcome', 'identity', 'location', 'themes', 'avatar', 'creator']
-      : ['welcome', 'identity', 'location', 'themes', 'avatar'];
-    // Habitué / Éclaireur marketing = B2C only (ADR_007)
-    if (isProfessionnel) return profileSteps;
-    return [...profileSteps, 'tiers', 'eclairer'];
-  }, [canCreate, isProfessionnel]);
+    if (isProfessionnel) {
+      return ['welcome', 'identity', 'location', 'avatar', 'creator', 'connector'];
+    }
+    if (particulierAlsoCreates) {
+      return [
+        'welcome',
+        'identity',
+        'create_why',
+        'location',
+        'themes',
+        'create_themes',
+        'avatar',
+        'creator',
+        'tiers',
+        'eclairer',
+        'mode_hint',
+      ];
+    }
+    return ['welcome', 'identity', 'location', 'themes', 'avatar', 'tiers', 'eclairer'];
+  }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
   const totalSteps = steps.length;
   const isLastStep = stepIndex >= totalSteps - 1;
-  const lastProfileStepId: StepId = canCreate ? 'creator' : 'avatar';
-  const isMarketingStep = stepId === 'tiers' || stepId === 'eclairer';
+  const lastProfileStepId: StepId = isProfessionnel
+    ? 'connector'
+    : particulierAlsoCreates
+      ? 'creator'
+      : 'avatar';
+  const isMarketingStep =
+    stepId === 'tiers' || stepId === 'eclairer' || stepId === 'mode_hint';
   const progressSteps = steps.filter(
-    (id) => id !== 'welcome' && id !== 'tiers' && id !== 'eclairer',
+    (id) =>
+      id !== 'welcome' && id !== 'tiers' && id !== 'eclairer' && id !== 'mode_hint',
   );
 
   const identityReady =
@@ -168,12 +185,16 @@ export default function OnboardingScreen() {
   const canContinue =
     stepId === 'welcome' ||
     (stepId === 'identity' && identityReady) ||
+    (stepId === 'create_why' && !!createIntent) ||
+    stepId === 'create_themes' ||
     (stepId === 'location' && !!selectedAddress) ||
     stepId === 'themes' ||
     stepId === 'avatar' ||
     stepId === 'creator' ||
+    stepId === 'connector' ||
     stepId === 'tiers' ||
-    stepId === 'eclairer';
+    stepId === 'eclairer' ||
+    stepId === 'mode_hint';
 
   const persistThemes = async () => {
     if (!user?.id) return;
@@ -188,6 +209,12 @@ export default function OnboardingScreen() {
 
   const toggleThemeSlug = (slug: CategoryVisualSlug) => {
     setThemeSlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  };
+
+  const toggleCreateThemeSlug = (slug: CategoryVisualSlug) => {
+    setCreateThemeSlugs((prev) =>
       prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
     );
   };
@@ -339,11 +366,18 @@ export default function OnboardingScreen() {
         can_create: boolean;
         active_mode: 'discover' | 'create';
         pro_subtype: ProSubtype | null;
+        create_intent?: CreateIntent | null;
+        creator_category_slugs?: string[];
       } = {
         can_create: canCreate,
         active_mode: isProfessionnel ? 'create' : 'discover',
         pro_subtype: isProfessionnel ? proSubtype : null,
       };
+
+      if (!isProfessionnel && particulierAlsoCreates) {
+        identityPayload.create_intent = createIntent;
+        identityPayload.creator_category_slugs = createThemeSlugs;
+      }
 
       try {
         await ProfileService.updateProfile(activeProfile.id, {
@@ -351,12 +385,35 @@ export default function OnboardingScreen() {
           ...identityPayload,
         });
       } catch (identityErr) {
-        // Migration 20260802_account_identity_adr007 not applied yet — persist core fields.
+        // Migration columns may be absent — persist core fields.
         console.warn(
           'Identity columns unavailable; saving profile without can_create/pro_subtype',
           identityErr,
         );
-        await ProfileService.updateProfile(activeProfile.id, basePayload);
+        try {
+          await ProfileService.updateProfile(activeProfile.id, {
+            ...basePayload,
+            can_create: canCreate,
+            active_mode: isProfessionnel ? 'create' : 'discover',
+            pro_subtype: isProfessionnel ? proSubtype : null,
+          });
+        } catch {
+          await ProfileService.updateProfile(activeProfile.id, basePayload);
+        }
+      }
+
+      if (isProfessionnel) {
+        try {
+          const org = await DiffuseurService.ensureMyOrganization({
+            displayName: displayName.trim(),
+            proSubtype,
+          });
+          if (org && connectorDraft.status !== 'none') {
+            await DiffuseurService.updateConnector(org.id, connectorDraft);
+          }
+        } catch (orgErr) {
+          console.warn('Diffuseur org/connector not saved during onboarding', orgErr);
+        }
       }
 
       await refreshProfile();
@@ -389,6 +446,10 @@ export default function OnboardingScreen() {
 
     if (stepId === 'themes') {
       await persistThemes();
+      // Décision 5 : préremplir create_themes depuis thèmes découverte si vide
+      if (particulierAlsoCreates && createThemeSlugs.length === 0 && themeSlugs.length > 0) {
+        setCreateThemeSlugs([...themeSlugs]);
+      }
     }
 
     if (stepId === lastProfileStepId) {
@@ -403,7 +464,12 @@ export default function OnboardingScreen() {
       return;
     }
 
-    if (stepId === 'eclairer') {
+    if (stepId === 'eclairer' || stepId === 'mode_hint') {
+      if (stepId === 'eclairer' && particulierAlsoCreates) {
+        haptics.light();
+        setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+        return;
+      }
       finishToHome();
       return;
     }
@@ -432,7 +498,7 @@ export default function OnboardingScreen() {
     router.replace('/(tabs)');
   };
 
-  /** Skip remaining profile extras and jump to marketing tiers. */
+  /** Skip remaining profile extras and jump to marketing tiers (or finish pro). */
   const skipOptionalToTiers = async () => {
     haptics.selection();
     if (stepId === 'themes') {
@@ -447,8 +513,22 @@ export default function OnboardingScreen() {
       setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
       return;
     }
+    if (stepId === 'create_themes') {
+      setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+      return;
+    }
+    if (stepId === 'connector') {
+      const saved = await persistProfile();
+      if (!saved) return;
+      finishToHome();
+      return;
+    }
     const saved = await persistProfile();
     if (!saved) return;
+    if (isProfessionnel) {
+      finishToHome();
+      return;
+    }
     const tiersIndex = steps.indexOf('tiers');
     setStepIndex(tiersIndex >= 0 ? tiersIndex : totalSteps - 1);
   };
@@ -474,14 +554,25 @@ export default function OnboardingScreen() {
 
   const primaryTitle =
     stepId === 'welcome'
-      ? 'Personnaliser mon profil'
-      : stepId === 'tiers'
-        ? 'Voir l’offre Éclaireur'
-        : stepId === 'eclairer'
-          ? 'Déverrouiller Éclaireur'
-          : 'Continuer';
+      ? 'Continuer'
+      : stepId === 'connector'
+        ? connectorDraft.status === 'none'
+          ? 'Continuer sans connecteur'
+          : 'Terminer'
+        : stepId === 'mode_hint'
+          ? 'Entrer dans Moments Locaux'
+          : stepId === 'tiers'
+            ? 'Voir l’offre Éclaireur'
+            : stepId === 'eclairer'
+              ? 'Déverrouiller Éclaireur'
+              : 'Continuer';
 
-  const showSkip = stepId === 'themes' || stepId === 'avatar' || stepId === 'creator';
+  const showSkip =
+    stepId === 'themes' ||
+    stepId === 'create_themes' ||
+    stepId === 'avatar' ||
+    stepId === 'creator' ||
+    stepId === 'connector';
   const showContinueFree = isMarketingStep;
   const activeKindDescription = ACCOUNT_KIND_OPTIONS.find(
     (option) => option.value === accountKind,
@@ -594,24 +685,19 @@ export default function OnboardingScreen() {
         )}
 
         {stepId === 'welcome' && (
-          <View style={styles.stepContainer}>
-            {VALUE_PROPS.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <MotionReveal key={item.title} delay={idx * Motion.stagger.content}>
-                  <View style={styles.valueCard}>
-                    <View style={styles.valueIcon}>
-                      <Icon size={22} color={colors.brand.secondary} strokeWidth={2.2} />
-                    </View>
-                    <View style={styles.valueCopy}>
-                      <Text style={styles.valueTitle}>{item.title}</Text>
-                      <Text style={styles.valueBody}>{item.body}</Text>
-                    </View>
-                  </View>
-                </MotionReveal>
-              );
-            })}
-          </View>
+          <MotionReveal key="welcome" style={styles.stepContainer}>
+            <OnboardingWelcomeStep
+              preferredKind={accountKind}
+              onSelectKind={(kind) => {
+                setAccountKind(kind);
+                if (kind === 'particulier') {
+                  setProSubtype(null);
+                } else if (!proSubtype) {
+                  setProSubtype('independant');
+                }
+              }}
+            />
+          </MotionReveal>
         )}
 
         {stepId === 'identity' && (
@@ -796,6 +882,12 @@ export default function OnboardingScreen() {
           </MotionReveal>
         )}
 
+        {stepId === 'create_why' && (
+          <MotionReveal key="create_why" style={styles.stepContainer}>
+            <OnboardingCreateWhyStep value={createIntent} onChange={setCreateIntent} />
+          </MotionReveal>
+        )}
+
         {stepId === 'location' && (
           <MotionReveal key="location" style={styles.stepContainer}>
             <Text style={styles.stepTitle}>
@@ -863,7 +955,23 @@ export default function OnboardingScreen() {
 
         {stepId === 'themes' && (
           <MotionReveal key="themes" style={styles.stepContainer}>
-            <OnboardingThemesStep selected={themeSlugs} onToggle={toggleThemeSlug} />
+            <OnboardingThemesStep
+              selected={themeSlugs}
+              onToggle={toggleThemeSlug}
+              title="Ce que tu aimes découvrir"
+              subtitle="Ces thèmes nourrissent ton fil et tes notifs. Tu pourras les modifier plus tard. Tu peux passer."
+            />
+          </MotionReveal>
+        )}
+
+        {stepId === 'create_themes' && (
+          <MotionReveal key="create_themes" style={styles.stepContainer}>
+            <OnboardingThemesStep
+              selected={createThemeSlugs}
+              onToggle={toggleCreateThemeSlug}
+              title="Ce que tu vas proposer"
+              subtitle="Catégories de tes futurs moments (préremplies depuis ce que tu aimes découvrir). Différent de tes goûts perso — tu peux ajuster ou passer."
+            />
           </MotionReveal>
         )}
 
@@ -987,11 +1095,27 @@ export default function OnboardingScreen() {
           </MotionReveal>
         )}
 
+        {stepId === 'connector' && (
+          <MotionReveal key="connector" style={styles.stepContainer}>
+            <OnboardingConnectorStep
+              proSubtype={proSubtype}
+              value={connectorDraft}
+              onChange={setConnectorDraft}
+            />
+          </MotionReveal>
+        )}
+
         {stepId === 'tiers' ? <OnboardingTiersStep /> : null}
 
         {stepId === 'eclairer' ? (
           <OnboardingEclaireurCtaStep onUnlock={handleUnlockTease} />
         ) : null}
+
+        {stepId === 'mode_hint' && (
+          <MotionReveal key="mode_hint" style={styles.stepContainer}>
+            <OnboardingModeHintStep />
+          </MotionReveal>
+        )}
 
         {error ? (
           <Text style={styles.errorText} accessibilityRole="alert">

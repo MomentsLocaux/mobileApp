@@ -4,6 +4,7 @@ import { ProfileService } from '@/services/profile.service';
 import type { ActiveMode } from '@/constants/accountIdentity';
 import {
   canAccessCreateSurfaces,
+  canOptInToCreation,
   getAccountKind,
   getActiveMode,
   getIdentityAccent,
@@ -41,10 +42,14 @@ export function useAccountIdentity() {
     [profile?.id, showModeSwitch, activeMode, refreshProfile],
   );
 
-  const enableCreation = useCallback(async () => {
-    if (!profile?.id) return false;
-    if (profile.role !== 'particulier') return false;
-    if (profile.can_create) return true;
+  const enableCreation = useCallback(async (): Promise<{ ok: boolean; reason?: string }> => {
+    if (!profile?.id) return { ok: false, reason: 'not_authenticated' };
+    if (profile.can_create) return { ok: true };
+    if (profile.role === 'invite') return { ok: false, reason: 'invite' };
+    // Particulier product surface includes staff (admin/moderateur) testing mobile
+    if (getAccountKind(profile) !== 'particulier') {
+      return { ok: false, reason: 'not_particulier' };
+    }
     setSavingMode(true);
     try {
       await ProfileService.updateProfile(profile.id, {
@@ -52,14 +57,17 @@ export function useAccountIdentity() {
         active_mode: 'discover',
       });
       await refreshProfile();
-      return true;
+      return { ok: true };
     } catch (err) {
       console.warn('Failed to enable creation', err);
-      return false;
+      return {
+        ok: false,
+        reason: err instanceof Error ? err.message : 'update_failed',
+      };
     } finally {
       setSavingMode(false);
     }
-  }, [profile?.id, profile?.role, profile?.can_create, refreshProfile]);
+  }, [profile, refreshProfile]);
 
   return {
     profile,
@@ -72,5 +80,6 @@ export function useAccountIdentity() {
     savingMode,
     setActiveMode,
     enableCreation,
+    canOptInToCreation: canOptInToCreation(profile),
   };
 }

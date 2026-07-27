@@ -25,6 +25,20 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="diffuseur"
+        options={{
+          title: 'Moments Diffuseur',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="diffuseur-analytics"
+        options={{
+          title: 'Analytics Diffuseur',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="offers"
         options={{
           title: 'Offres & abonnements',

@@ -222,7 +222,7 @@ export default function ProfileScreen() {
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Organisation</Text>
                     <Text style={styles.infoValue}>
-                      {organization?.name || 'Sera créée après migration orgs'}
+                      {organization?.name || 'Création automatique…'}
                     </Text>
                   </View>
                   <View style={styles.infoRow}>
@@ -233,6 +233,14 @@ export default function ProfileScreen() {
                         : `1 / ${entitlements.seatLimit} (Free)`}
                     </Text>
                   </View>
+                  {organization ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Crédits boost</Text>
+                      <Text style={styles.infoValue}>
+                        {organization.boost_credits_balance ?? 0}
+                      </Text>
+                    </View>
+                  ) : null}
                   {organization?.verified_at ? (
                     <View style={styles.infoRow}>
                       <Text style={styles.infoLabel}>Badge</Text>
@@ -244,6 +252,14 @@ export default function ProfileScreen() {
                       Facturation web — pas d’achat in-app.
                     </Text>
                   )}
+                  <TouchableOpacity
+                    style={[styles.linkButton, { marginTop: spacing.sm }]}
+                    onPress={() => router.push('/profile/diffuseur' as any)}
+                  >
+                    <Text style={[styles.linkText, { color: accent.accent }]}>
+                      Gérer l’offre & packs
+                    </Text>
+                  </TouchableOpacity>
                 </>
               )}
             </PremiumCard>

@@ -24,10 +24,8 @@ import { SettingsSectionCard, SettingsRow } from '@/components/settings/Settings
 export default function SettingsScreen() {
   const router = useRouter();
   const { hasEclaireur } = useOfferEntitlements();
-  const { profile, canCreate, accountKind, enableCreation, savingMode, showModeSwitch } =
+  const { enableCreation, savingMode, showModeSwitch, canOptInToCreation } =
     useAccountIdentity();
-
-  const canEnableCreation = accountKind === 'particulier' && !canCreate && Boolean(profile);
 
   const handleReplayOnboarding = () => {
     Alert.alert(
@@ -52,8 +50,8 @@ export default function SettingsScreen() {
         {
           text: 'Activer',
           onPress: async () => {
-            const ok = await enableCreation();
-            if (ok) {
+            const result = await enableCreation();
+            if (result.ok) {
               Toast.show({
                 type: 'success',
                 text1: 'Création activée',
@@ -61,10 +59,16 @@ export default function SettingsScreen() {
               });
               router.push('/(tabs)/profile' as any);
             } else {
+              const detail =
+                result.reason === 'invite'
+                  ? 'Compte invité : créez un compte Particulier.'
+                  : result.reason === 'not_particulier'
+                    ? 'Réservé aux comptes Particulier.'
+                    : 'Réessayez dans un instant.';
               Toast.show({
                 type: 'error',
                 text1: 'Impossible d’activer',
-                text2: 'Réessayez dans un instant.',
+                text2: detail,
               });
             }
           },
@@ -86,7 +90,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/profile/edit' as any)}
           noBorder
         />
-        {canEnableCreation ? (
+        {canOptInToCreation ? (
           <SettingsRow
             label={savingMode ? 'Activation…' : 'Activer la création de moments'}
             icon={PlusCircle}

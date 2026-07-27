@@ -90,7 +90,7 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
-  const { canCreateNow, canCreate, accent } = useAccountIdentity();
+  const { canCreateNow, accent } = useAccountIdentity();
   const { currentLocation } = useLocationStore();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
@@ -497,7 +497,7 @@ export default function HomeScreen() {
         </View>
         <FlatList
           horizontal
-          data={[{ me: true }, ...stories]}
+          data={canCreateNow ? [{ me: true as const }, ...stories] : stories}
           keyExtractor={(item: any, index) => (item.me ? 'me' : item.creatorId || String(index))}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.storiesContent}
@@ -505,13 +505,7 @@ export default function HomeScreen() {
             item.me ? (
               <TouchableOpacity
                 style={styles.storyItem}
-                onPress={() => {
-                  if (!canCreateNow) {
-                    router.push(canCreate ? '/(tabs)/profile' : '/(tabs)/map');
-                    return;
-                  }
-                  router.push('/events/create/step-1' as any);
-                }}
+                onPress={() => router.push('/events/create/step-1' as any)}
                 accessibilityRole="button"
                 accessibilityLabel="Créer un événement"
               >

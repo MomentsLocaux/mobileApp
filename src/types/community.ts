@@ -13,6 +13,8 @@ export type CommunityMember = {
   is_following?: boolean;
   is_ambassadeur?: boolean;
   local_tier?: 'local' | 'habitue' | 'ambassadeur';
+  is_community_highlighted?: boolean;
+  community_highlighted_until?: string | null;
 };
 
 export type LeaderboardEntry = {

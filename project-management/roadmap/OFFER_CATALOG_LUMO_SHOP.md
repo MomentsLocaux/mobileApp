@@ -98,6 +98,15 @@ Packs IAP Lumo / boost € pour confort créateurs — **après** stabilisation 
 3. RPC / effets : durée 72h sur `active_boosts` / `boosted_until` ; highlight 7j ; grant tampon Pass avec cap mensuel.
 4. Ne pas activer sur UAT/prod sans validation humaine (règle migrations).
 
+### Migrations DEV
+
+| Fichier | Contenu |
+|---------|---------|
+| `20260807_shop_v1_catalog_rayons.sql` | Seed catalogue + métadonnées rayon |
+| `20260808_shop_v1_effects_caps.sql` | Effets RPC : `purchase_event_boost(event, item_key)`, `buy_item` highlight/pass, cap 2 boosts, `bonus_stamps`, views communauté |
+
+DEV (`prymkgkafaovhzopslea`) : appliquer après validation. UAT/prod : **pas** sans OK humain.
+
 ## Related
 
 - `project-management/decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md`
@@ -106,3 +115,4 @@ Packs IAP Lumo / boost € pour confort créateurs — **après** stabilisation 
 - `app/(tabs)/shop.tsx`
 - `src/services/shop.service.ts`
 - Seed DEV : `supabase/migrations/20260722_lumo_economy_adr004_seed.sql`
+- Effets DEV : `supabase/migrations/20260808_shop_v1_effects_caps.sql`

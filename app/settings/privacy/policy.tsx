@@ -11,7 +11,7 @@ export default function PrivacyPolicyScreen() {
       <SettingsSectionCard title="Politique de confidentialité" icon={FileText}>
         <View style={styles.block}>
           <Text style={styles.text}>
-            Cette politique explique comment Moments Locaux collecte, utilise et protège vos données. Contact privacy : contact@momentslocaux.app
+            Cette politique explique comment Moments Locaux collecte, utilise et protège vos données. Contact privacy : contact@moments-locaux.com
           </Text>
           <Text style={styles.heading}>1. Données collectées</Text>
           <Text style={styles.text}>
@@ -35,7 +35,7 @@ export default function PrivacyPolicyScreen() {
           </Text>
           <Text style={styles.heading}>6. Vos droits</Text>
           <Text style={styles.text}>
-            Vous pouvez demander l’accès, la rectification ou la suppression de vos données depuis l’application ou en contactant contact@momentslocaux.app.
+            Vous pouvez demander l’accès, la rectification ou la suppression de vos données depuis l’application ou en contactant contact@moments-locaux.com.
           </Text>
         </View>
       </SettingsSectionCard>

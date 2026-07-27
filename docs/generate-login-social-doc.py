@@ -75,8 +75,8 @@ def build() -> None:
             ["Slug Expo", "moments-locaux", "app.config.ts → slug", "Identifiant projet Expo"],
             ["Bundle ID iOS", "com.momentslocs.app", "app.config.ts → ios.bundleIdentifier", "Identifiant unique App Store / Apple"],
             ["Package Android", "com.momentslocs.app", "app.config.ts → android.package", "Identifiant unique Play Store"],
-            ["URL scheme (deep link)", "momentslocaux", "app.config.ts → scheme", "Retour OAuth dans l'app"],
-            ["Redirect app OAuth", "momentslocaux://auth/callback", "oauth.service.ts", "URL de retour après login social"],
+            ["URL scheme (deep link)", "moments-locaux", "app.config.ts → scheme", "Retour OAuth dans l'app"],
+            ["Redirect app OAuth", "moments-locaux://auth/callback", "oauth.service.ts", "URL de retour après login social"],
             ["Version", "1.0.0", "app.config.ts", "Version marketing"],
             ["iOS buildNumber", "1", "app.config.ts", "Numéro de build iOS"],
             ["Android versionCode", "1", "app.config.ts", "Numéro de build Android"],
@@ -105,7 +105,7 @@ def build() -> None:
             "L'utilisateur appuie sur Google ou Facebook dans l'app.",
             "Un navigateur in-app s'ouvre (expo-web-browser, PKCE).",
             "Le provider redirige vers Supabase : https://prymkgkafaovhzopslea.supabase.co/auth/v1/callback",
-            "Supabase crée la session et redirige vers l'app : momentslocaux://auth/callback",
+            "Supabase crée la session et redirige vers l'app : moments-locaux://auth/callback",
             "L'app échange le code OAuth contre une session Supabase.",
             "Redirection vers la carte ou l'onboarding selon le profil.",
         ],
@@ -145,15 +145,15 @@ def build() -> None:
         [
             ["URL projet", "https://prymkgkafaovhzopslea.supabase.co"],
             ["Callback OAuth (providers)", "https://prymkgkafaovhzopslea.supabase.co/auth/v1/callback"],
-            ["Site URL (dashboard Auth)", "momentslocaux://auth/callback (ou URL de prod)"],
+            ["Site URL (dashboard Auth)", "moments-locaux://auth/callback (ou URL de prod)"],
         ],
     )
     add_h(doc, "3.1 Redirect URLs (Authentication → URL Configuration)", level=2)
     add_bullets(
         doc,
         [
-            "momentslocaux://auth/callback",
-            "momentslocaux://**",
+            "moments-locaux://auth/callback",
+            "moments-locaux://**",
         ],
     )
     add_p(doc, "Important : avec un dev build Expo, pas besoin d'URLs exp:// (Expo Go).")

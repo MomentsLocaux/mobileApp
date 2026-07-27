@@ -12,6 +12,16 @@ export function getAccountKind(profile: Pick<Profile, 'role'> | null | undefined
   return 'particulier';
 }
 
+/** Roles that may opt into B2C creation (Découvreur + créateur). */
+export function canOptInToCreation(
+  profile: Pick<Profile, 'role' | 'can_create'> | null | undefined,
+): boolean {
+  if (!profile) return false;
+  if (getAccountKind(profile) !== 'particulier') return false;
+  if (profile.role === 'invite') return false;
+  return !Boolean(profile.can_create);
+}
+
 export function profileCanCreate(
   profile: Pick<Profile, 'role' | 'can_create'> | null | undefined,
 ): boolean {

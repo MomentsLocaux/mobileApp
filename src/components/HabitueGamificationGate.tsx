@@ -2,6 +2,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { colors } from '@/constants/theme';
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
 
 /**
  * Lumo / boutique / missions / Pass: Habitué+ only (Éclaireur includes Habitué).
- * Local must not access these surfaces even when GAMIFICATION_ENABLED is on.
+ * Professionnel accounts never access Boutique Lumo (ADR_007 / ID-GUARDS).
  */
 export function HabitueGamificationGate({
   children,
@@ -37,7 +38,12 @@ function HabitueGamificationGateInner({
   children: React.ReactNode;
   localHref: string;
 }) {
+  const { accountKind } = useAccountIdentity();
   const { hasHabitue, loading } = useOfferEntitlements();
+
+  if (accountKind === 'professionnel') {
+    return <Redirect href={'/(tabs)' as any} />;
+  }
 
   if (loading) {
     return (

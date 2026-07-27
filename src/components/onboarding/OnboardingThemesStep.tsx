@@ -7,19 +7,24 @@ import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 type Props = {
   selected: string[];
   onToggle: (slug: CategoryVisualSlug) => void;
+  /** Override copy — discover vs create_themes. */
+  title?: string;
+  subtitle?: string;
 };
 
 /** PREF-P0-003 — cold-start theme declaration (skip = empty selection OK). */
-export function OnboardingThemesStep({ selected, onToggle }: Props) {
+export function OnboardingThemesStep({
+  selected,
+  onToggle,
+  title = 'Qu’est-ce qui te tente ?',
+  subtitle = 'Choisis quelques thèmes pour démarrer. Tu pourras les modifier dans Paramètres → Notifications. Tu peux aussi passer cette étape.',
+}: Props) {
   const selectedSet = new Set(selected);
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>Qu’est-ce qui te tente ?</Text>
-      <Text style={styles.subtitle}>
-        Choisis quelques thèmes pour démarrer. Tu pourras les modifier dans Paramètres →
-        Notifications. Tu peux aussi passer cette étape.
-      </Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
       <View style={styles.chipRow}>
         {CATEGORY_VISUAL_SLUGS.map((slug) => {
           const active = selectedSet.has(slug);
