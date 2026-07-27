@@ -1,6 +1,7 @@
 import { Tabs, Redirect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { AppBackground } from '@/components/ui';
+import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
+import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import {
   Map,
   Home,
@@ -22,6 +23,9 @@ import {
   Coins,
   Ticket,
   Sparkles,
+  Briefcase,
+  BarChart3,
+  Package,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
@@ -44,9 +48,16 @@ import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
+  const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
+    useAccountIdentity();
+  const canCreateEvents = canCreateNow;
+  const isProfessionnelAccount = accountKind === 'professionnel';
+  /** B2C Habitué/Lumo surfaces — never on Professionnel accounts (ADR_007). */
+  const showB2cGamification = GAMIFICATION_ENABLED && !isProfessionnelAccount;
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -125,11 +136,18 @@ export default function TabsLayout() {
 
   const tabIconColor = (focused: boolean, disabled = false) => {
     if (disabled) return colors.brand.textSecondary;
-    return focused ? colors.brand.secondary : colors.brand.textSecondary;
+    return focused ? accent.accent : colors.brand.textSecondary;
   };
 
   const renderTabIconSlot = (focused: boolean, content: React.ReactNode) => (
-    <View style={[styles.tabIconSlot, focused && styles.tabIconSlotActive]}>{content}</View>
+    <View
+      style={[
+        styles.tabIconSlot,
+        focused && { backgroundColor: accent.accentMuted },
+      ]}
+    >
+      {content}
+    </View>
   );
 
   const renderProtectedTabButton = (
@@ -175,8 +193,8 @@ export default function TabsLayout() {
   if (isLoading || (isAuthenticated && !profile)) {
     return (
       <View style={styles.container}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.brand.secondary} />
+        <IdentityAppBackground />
+        <ActivityIndicator size="large" color={accent.accent} />
       </View>
     );
   }
@@ -191,29 +209,40 @@ export default function TabsLayout() {
         initialRouteName="map"
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.brand.secondary,
+          tabBarActiveTintColor: accent.accent,
           tabBarInactiveTintColor: colors.brand.textSecondary,
           tabBarShowLabel: false,
           sceneStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
             backgroundColor: colors.brand.primary,
-            borderTopColor: 'rgba(255,255,255,0.05)',
+            borderTopColor: accent.accentBorder,
             height: 76,
             paddingBottom: 8,
             paddingTop: 8,
+          },
+          tabBarItemStyle: {
+            flex: 1,
           },
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Accueil',
+            title: isProfessionnelAccount ? 'Tableau de bord' : 'Accueil',
             tabBarIcon: ({ focused, size }) =>
               renderTabIconSlot(
                 focused,
-                <Home size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                isProfessionnelAccount ? (
+                  <Briefcase size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                ) : (
+                  <Home size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                )
               ),
-            tabBarButton: (props) => renderProtectedTabButton(props, "Accéder à l'accueil"),
+            tabBarButton: (props) =>
+              renderProtectedTabButton(
+                props,
+                isProfessionnelAccount ? 'Accéder au tableau de bord' : "Accéder à l'accueil",
+              ),
           }}
         />
         <Tabs.Screen
@@ -239,36 +268,47 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="create"
-          options={{
-            title: '',
-            tabBarButton: () => (
-              <TouchableOpacity
-                style={[styles.createButton, isGuest && styles.createButtonDisabled]}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (isGuest) {
-                    openGuestGate('Créer un événement');
-                    return;
-                  }
-                  router.push('/events/create/step-1' as any);
-                }}
-              >
-                <PlusCircle size={28} color="#0f1719" />
-              </TouchableOpacity>
-            ),
-          }}
+          options={
+            canCreateEvents
+              ? {
+                  title: '',
+                  tabBarButton: () => (
+                    <TouchableOpacity
+                      style={[styles.createButton, { backgroundColor: accent.accent }]}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        if (isGuest) {
+                          openGuestGate('Créer un événement');
+                          return;
+                        }
+                        router.push('/events/create/step-1' as any);
+                      }}
+                    >
+                      <PlusCircle size={28} color="#0f1719" />
+                    </TouchableOpacity>
+                  ),
+                }
+              : {
+                  // Remove tab slot entirely so remaining icons tighten (ADR_007 Découvreur)
+                  href: null,
+                }
+          }
         />
         <Tabs.Screen
           name="favorites"
-          options={{
-            title: 'Favoris',
-            tabBarIcon: ({ focused, size }) =>
-              renderTabIconSlot(
-                focused,
-                <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
-              ),
-            tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
-          }}
+          options={
+            isProfessionnelAccount
+              ? { href: null }
+              : {
+                  title: 'Favoris',
+                  tabBarIcon: ({ focused, size }) =>
+                    renderTabIconSlot(
+                      focused,
+                      <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                    ),
+                  tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
+                }
+          }
         />
         <Tabs.Screen
           name="profile"
@@ -336,20 +376,36 @@ export default function TabsLayout() {
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-              {hasEclaireur ? (
+              {!isProfessionnelAccount && hasEclaireur ? (
                 <View style={styles.drawerPremiumPill}>
                   <Crown size={12} color={colors.brand.primary} strokeWidth={2.5} />
                   <Text style={styles.drawerPremiumText}>Éclaireur</Text>
                 </View>
-              ) : hasHabitue ? (
+              ) : !isProfessionnelAccount && hasHabitue ? (
                 <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
                   <Sparkles size={12} color={colors.brand.primary} strokeWidth={2.5} />
                   <Text style={styles.drawerPremiumText}>Habitué</Text>
+                </View>
+              ) : isProfessionnelAccount ? (
+                <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
+                  <Briefcase size={12} color={colors.brand.primary} strokeWidth={2.5} />
+                  <Text style={styles.drawerPremiumText}>Diffuseur</Text>
                 </View>
               ) : null}
               <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
             </View>
           </View>
+          {showModeSwitch ? (
+            <View style={styles.drawerModeSwitch}>
+              <ModeSwitch
+                mode={activeMode}
+                loading={savingMode}
+                onChange={(mode) => {
+                  void setActiveMode(mode);
+                }}
+              />
+            </View>
+          ) : null}
         </View>
 
         {/* Scrollable Menu Content */}
@@ -379,14 +435,16 @@ export default function TabsLayout() {
                 }}
               />
             )}
-            <DrawerLink
-              icon={PlusCircle}
-              label="Créer un événement"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/events/create/step-1' as any);
-              }}
-            />
+            {canCreateEvents ? (
+              <DrawerLink
+                icon={PlusCircle}
+                label="Créer un événement"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/events/create/step-1' as any);
+                }}
+              />
+            ) : null}
             <DrawerLink
               icon={User}
               label="Mon profil"
@@ -440,7 +498,7 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
-            {GAMIFICATION_ENABLED && (
+            {showB2cGamification && (
               <>
                 <DrawerLink
                   icon={Coins}
@@ -466,7 +524,7 @@ export default function TabsLayout() {
                 />
                 <DrawerLink
                   icon={ShoppingBag}
-                  label="Boutique"
+                  label="Boutique Lumo"
                   onPress={() => {
                     toggleDrawer(false);
                     if (!hasHabitue) {
@@ -508,15 +566,37 @@ export default function TabsLayout() {
                 )}
               </>
             )}
-            <DrawerLink
-              icon={Heart}
-              label="Mes favoris"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/(tabs)/favorites' as any);
-              }}
-            />
-            {hasMyEventsShortcut && (
+            {isProfessionnelAccount ? (
+              <>
+                <DrawerLink
+                  icon={Package}
+                  label="Packs Diffuseur"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/profile/diffuseur' as any);
+                  }}
+                />
+                <DrawerLink
+                  icon={BarChart3}
+                  label="Analytics Pro"
+                  onPress={() => {
+                    toggleDrawer(false);
+                    router.push('/profile/diffuseur-analytics' as any);
+                  }}
+                />
+              </>
+            ) : null}
+            {!isProfessionnelAccount ? (
+              <DrawerLink
+                icon={Heart}
+                label="Mes favoris"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/(tabs)/favorites' as any);
+                }}
+              />
+            ) : null}
+            {(canCreate || hasMyEventsShortcut || isProfessionnelAccount) && (
               <DrawerLink
                 icon={MapPinned}
                 label="Mes événements"
@@ -731,6 +811,12 @@ const styles = StyleSheet.create({
   drawerEmail: {
     fontSize: 13,
     color: '#587588', // Muted slate blue/grey
+  },
+  drawerModeSwitch: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   drawerPremiumPill: {
     flexDirection: 'row',

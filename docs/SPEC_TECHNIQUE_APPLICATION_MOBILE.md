@@ -58,7 +58,7 @@ Boucle MVP : découvrir → consulter → créer/soumettre → interagir → che
 | Identifiant | Valeur |
 |---|---|
 | Bundle / package | `com.momentslocs.app` |
-| Scheme | `momentslocaux` |
+| Scheme | `moments-locaux` |
 | New Architecture | `newArchEnabled: true` |
 | Entry | `expo-router/entry` |
 | Config runtime | `app.config.ts` (enrichit `app.json`) |
@@ -129,7 +129,7 @@ Façade Supabase côté client (clé **anon** uniquement). Check-in legacy HTTP 
 | Email / password | `src/services/auth.service.ts` |
 | OAuth | `src/services/oauth.service.ts` + `SocialLoginButtons` ; providers `google` \| `apple` \| `facebook` |
 | Callback | `app/auth/callback.tsx` → `completeAuthRedirectFromUrl` |
-| Redirect URI | `Linking.createURL('auth/callback' \| 'auth/reset-password')` → `momentslocaux://…` |
+| Redirect URI | `Linking.createURL('auth/callback' \| 'auth/reset-password')` → `moments-locaux://…` |
 | Biométrie | SecureStore + Face ID / équivalent |
 | Invité | Accès carte ; actions protégées → GuestGate |
 

@@ -5,7 +5,7 @@ import { Send } from 'lucide-react-native';
 import { AppBackground, Card, Button, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
-const DEFAULT_SHARE_URL = 'https://momentslocaux.app';
+const DEFAULT_SHARE_URL = 'https://moments-locaux.com';
 
 export default function InviteFriendsScreen() {
   const router = useRouter();

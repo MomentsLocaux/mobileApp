@@ -12,15 +12,20 @@ import {
   BookOpenCheck,
   Compass,
   RotateCcw,
+  PlusCircle,
 } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { hasEclaireur } = useOfferEntitlements();
+  const { enableCreation, savingMode, showModeSwitch, canOptInToCreation } =
+    useAccountIdentity();
 
   const handleReplayOnboarding = () => {
     Alert.alert(
@@ -31,6 +36,42 @@ export default function SettingsScreen() {
         {
           text: 'Rejouer',
           onPress: () => router.push('/onboarding?replay=1' as any),
+        },
+      ],
+    );
+  };
+
+  const handleEnableCreation = () => {
+    Alert.alert(
+      'Activer la création',
+      'Vous resterez Découvreur, avec la possibilité de publier des moments. Un switch Découvreur / Créateur apparaîtra sur votre profil.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Activer',
+          onPress: async () => {
+            const result = await enableCreation();
+            if (result.ok) {
+              Toast.show({
+                type: 'success',
+                text1: 'Création activée',
+                text2: 'Passez en mode Créateur depuis votre profil pour publier.',
+              });
+              router.push('/(tabs)/profile' as any);
+            } else {
+              const detail =
+                result.reason === 'invite'
+                  ? 'Compte invité : créez un compte Particulier.'
+                  : result.reason === 'not_particulier'
+                    ? 'Réservé aux comptes Particulier.'
+                    : 'Réessayez dans un instant.';
+              Toast.show({
+                type: 'error',
+                text1: 'Impossible d’activer',
+                text2: detail,
+              });
+            }
+          },
         },
       ],
     );
@@ -49,6 +90,21 @@ export default function SettingsScreen() {
           onPress={() => router.push('/profile/edit' as any)}
           noBorder
         />
+        {canOptInToCreation ? (
+          <SettingsRow
+            label={savingMode ? 'Activation…' : 'Activer la création de moments'}
+            icon={PlusCircle}
+            onPress={savingMode ? undefined : handleEnableCreation}
+            disabled={savingMode}
+          />
+        ) : null}
+        {showModeSwitch ? (
+          <SettingsRow
+            label="Changer de mode (Découvreur / Créateur)"
+            icon={Compass}
+            onPress={() => router.push('/(tabs)/profile' as any)}
+          />
+        ) : null}
         <SettingsRow
           label="Rejouer l’onboarding"
           icon={RotateCcw}

@@ -14,10 +14,12 @@ import { ShoppingBag, Sparkles, Coins } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { AppBackground, Card, ScreenHeader } from '@/components/ui';
 import { HabitueGamificationGate } from '@/components/HabitueGamificationGate';
-import { ShopService, type ShopItemRow } from '@/services/shop.service';
+import { ShopService, SHOP_RAYON_LABELS, type ShopItemRow, type ShopRayon } from '@/services/shop.service';
 import { LumoService } from '@/services/lumo.service';
 import { CreatorBoostService } from '@/services/creator-boost.service';
 import { useAuth } from '@/hooks';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 
 export default function ShopScreen() {
@@ -31,6 +33,8 @@ export default function ShopScreen() {
 function ShopScreenInner() {
   const router = useRouter();
   const { session, profile } = useAuth();
+  const { canCreate } = useAccountIdentity();
+  const { hasEclaireur } = useOfferEntitlements();
   const userId = profile?.id || session?.user?.id;
   const isGuest = !session;
   const [loading, setLoading] = useState(true);
@@ -86,10 +90,10 @@ function ShopScreenInner() {
       setGuestGate(true);
       return;
     }
-    if (item.key === 'event_boost_24h') {
+    if (item.key === 'event_boost_24h' || item.key === 'event_boost_72h' || item.key === 'early_access_unlock') {
       Alert.alert(
-        'Boost événement',
-        'Ouvre un de tes événements publiés et utilise « Booster 24h » sur la fiche.',
+        item.key.includes('early') ? 'Accès anticipé' : 'Boost événement',
+        'Choisis un de tes événements publiés pour l’appliquer depuis la fiche.',
         [
           { text: 'OK', style: 'cancel' },
           { text: 'Mes événements', onPress: () => router.push('/profile/my-events' as any) },
@@ -106,10 +110,21 @@ function ShopScreenInner() {
           setBusyKey(item.key);
           try {
             await ShopService.buyItem(item.key);
-            Alert.alert('Achat confirmé', `${item.title} ajouté à ton inventaire.`);
+            const effectHint =
+              item.key === 'community_highlight_7d'
+                ? 'Mise en avant communauté 7j activée.'
+                : item.key === 'pass_extra_stamp'
+                  ? 'Tampon Pass bonus ajouté (max 1 / mois).'
+                  : `${item.title} ajouté à ton inventaire.`;
+            Alert.alert('Achat confirmé', effectHint);
             await load();
           } catch (e: any) {
-            Alert.alert('Achat', e?.message || 'Impossible pour le moment');
+            const msg = String(e?.message || '');
+            if (msg.includes('PASS_STAMP_CAP_REACHED')) {
+              Alert.alert('Achat', 'Tu as déjà utilisé ton tampon Pass bonus ce mois-ci.');
+            } else {
+              Alert.alert('Achat', msg || 'Impossible pour le moment');
+            }
           } finally {
             setBusyKey(null);
           }
@@ -118,11 +133,24 @@ function ShopScreenInner() {
     ]);
   };
 
+  const visibleItems = items.filter((item) => {
+    if (item.requiresCanCreate && !canCreate) return false;
+    if (item.minEntitlement === 'eclaireur' && !hasEclaireur) return false;
+    return true;
+  });
+
+  const byRayon = (['visibility', 'access', 'style'] as ShopRayon[])
+    .map((rayon) => ({
+      rayon,
+      items: visibleItems.filter((i) => i.rayon === rayon),
+    }))
+    .filter((g) => g.items.length > 0);
+
   return (
     <View style={styles.wrapper}>
       <AppBackground />
       <ScreenHeader
-        title="Boutique"
+        title="Boutique Lumo"
         onBack={() => {
           if (router.canGoBack()) router.back();
           else router.replace('/(tabs)/map');
@@ -147,7 +175,9 @@ function ShopScreenInner() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Boutique Lumo</Text>
-            <Text style={styles.subtitle}>Dépenses utiles : boosts & cosmétiques</Text>
+            <Text style={styles.subtitle}>
+              Visibilité · Accès · Style — ~{CHECKIN_HINT} Lumo / sortie
+            </Text>
           </View>
         </View>
 
@@ -160,7 +190,8 @@ function ShopScreenInner() {
           <Card style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Boosts gagnés : {earnedBoosts}</Text>
             <Text style={styles.emptyBody}>
-              Utilise-les gratuitement depuis la fiche d’un de tes événements publiés.
+              Utilise-les gratuitement depuis la fiche d’un de tes événements publiés (pas un achat
+              Lumo).
             </Text>
             <TouchableOpacity style={styles.buyBtn} onPress={() => router.push('/profile/my-events' as any)}>
               <Text style={styles.buyBtnText}>Mes événements</Text>
@@ -168,44 +199,56 @@ function ShopScreenInner() {
           </Card>
         ) : null}
 
+        {!canCreate ? (
+          <Text style={styles.hintDiscover}>
+            Les items Visibilité s’affichent si tu actives aussi la création (Particulier).
+          </Text>
+        ) : null}
+
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.brand.primary} />
           </View>
-        ) : items.length === 0 ? (
+        ) : byRayon.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Aucun article</Text>
             <Text style={styles.emptyBody}>La boutique sera alimentée bientôt.</Text>
           </Card>
         ) : (
-          items.map((item) => (
-            <Card key={item.id} style={styles.itemCard}>
-              <View style={styles.itemHeader}>
-                <View style={styles.itemTypeWrap}>
-                  <Sparkles size={14} color={colors.brand.secondary} />
-                  <Text style={styles.itemType}>{item.type}</Text>
-                </View>
-                <View style={styles.priceWrap}>
-                  <Coins size={14} color={colors.brand.secondary} />
-                  <Text style={styles.priceText}>{item.price}</Text>
-                </View>
-              </View>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemDescription}>{item.description || 'Aucune description.'}</Text>
-              <TouchableOpacity
-                style={styles.buyBtn}
-                disabled={busyKey === item.key}
-                onPress={() => void onBuy(item)}
-              >
-                <Text style={styles.buyBtnText}>
-                  {busyKey === item.key
-                    ? '…'
-                    : item.key === 'event_boost_24h'
-                      ? 'Utiliser sur un event'
-                      : 'Acheter'}
-                </Text>
-              </TouchableOpacity>
-            </Card>
+          byRayon.map((group) => (
+            <View key={group.rayon} style={styles.rayonBlock}>
+              <Text style={styles.rayonTitle}>{SHOP_RAYON_LABELS[group.rayon]}</Text>
+              {group.items.map((item) => (
+                <Card key={item.id} style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <View style={styles.itemTypeWrap}>
+                      <Sparkles size={14} color={colors.brand.secondary} />
+                      <Text style={styles.itemType}>{item.type}</Text>
+                    </View>
+                    <View style={styles.priceWrap}>
+                      <Coins size={14} color={colors.brand.secondary} />
+                      <Text style={styles.priceText}>{item.price}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemDescription}>{item.description || 'Aucune description.'}</Text>
+                  <Text style={styles.sortiesHint}>≈ {item.sortiesEstimate} sorties</Text>
+                  <TouchableOpacity
+                    style={styles.buyBtn}
+                    disabled={busyKey === item.key}
+                    onPress={() => void onBuy(item)}
+                  >
+                    <Text style={styles.buyBtnText}>
+                      {busyKey === item.key
+                        ? '…'
+                        : item.key.startsWith('event_boost') || item.key === 'early_access_unlock'
+                          ? 'Choisir un événement'
+                          : 'Acheter'}
+                    </Text>
+                  </TouchableOpacity>
+                </Card>
+              ))}
+            </View>
           ))
         )}
       </ScrollView>
@@ -223,6 +266,8 @@ function ShopScreenInner() {
     </View>
   );
 }
+
+const CHECKIN_HINT = 20;
 
 const styles = StyleSheet.create({
   container: {
@@ -249,6 +294,24 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+  },
+  hintDiscover: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    lineHeight: 18,
+  },
+  rayonBlock: {
+    gap: spacing.sm,
+  },
+  rayonTitle: {
+    ...typography.h5,
+    color: colors.brand.text,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
+  sortiesHint: {
+    ...typography.caption,
     color: colors.brand.textSecondary,
   },
   balancePill: {

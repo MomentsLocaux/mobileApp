@@ -30,7 +30,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="momentslocaux"/>
+        <data android:scheme="moments-locaux"/>
         <data android:scheme="exp+moments-locaux"/>
       </intent-filter>
     </activity>

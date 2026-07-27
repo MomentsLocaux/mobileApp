@@ -29,7 +29,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>momentslocaux</string>
+          <string>moments-locaux</string>
           <string>com.momentslocs.app</string>
         </array>
       </dict>
@@ -63,7 +63,7 @@
     <key>NSFaceIDUsageDescription</key>
     <string>Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <string>Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments près de vous, et — si vous activez Discovery — pour enrichir vos suggestions. Vous pouvez désactiver ces options à tout moment.</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
@@ -80,13 +80,14 @@
     </array>
     <key>RCTNewArchEnabled</key>
     <true/>
-    <key>UILaunchStoryboardName</key>
-    <string>SplashScreen</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>location</string>
       <string>remote-notification</string>
+      <string>fetch</string>
     </array>
+    <key>UILaunchStoryboardName</key>
+    <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
       <string>arm64</string>

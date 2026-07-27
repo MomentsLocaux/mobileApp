@@ -19,6 +19,21 @@ Secrets live in Bitwarden / local `.env*` (gitignored). Templates: `.env.example
 | `.env.uat` | UAT (copy from `.env.uat.example`) | No |
 | `.env.example` / `.env.uat.example` | Templates only | Yes |
 
+## Public web URLs (site + admin) — target
+
+One Git repo per app; environment is chosen by **env files / EAS**, not by separate mobile repos.
+
+| Env | Site vitrine | Console admin | Mobile points to |
+| --- | ------------ | ------------- | ---------------- |
+| **DEV** | `https://dev.moments-locaux.com` | `https://admin.dev.moments-locaux.com` | Supabase DEV |
+| **UAT** | `https://staging.moments-locaux.com` | `https://admin.staging.moments-locaux.com` | Supabase UAT |
+| **PROD** | `https://moments-locaux.com` | `https://admin.moments-locaux.com` | Supabase PROD |
+
+Other TLDs (`.fr` / `.app` / `.net`) redirect to **PROD** only.
+
+Mobile does **not** load via those hostnames. It uses Supabase URLs + deep link scheme `moments-locaux://`.  
+Optional public links inside the app (`EXPO_PUBLIC_APP_SHARE_URL`, QR web base) should match the env above once DNS is live.
+
 ## Mobile EAS profiles
 
 | Profile | `APP_ENV` | Backend |
@@ -44,8 +59,22 @@ See `infra/runbooks/PUSH_NOTIFICATIONS.md`.
 
 | Value | Purpose |
 | --- | --- |
-| `momentslocaux://auth/callback` | Site URL + OAuth / email confirm |
-| `momentslocaux://auth/reset-password` | Password recovery deep link |
+| `moments-locaux://auth/callback` | Site URL + OAuth / email confirm |
+| `moments-locaux://auth/reset-password` | Password recovery deep link |
+| `moments-locaux://**` | Wildcard deep links |
 | `exp://**` | Expo Go / local Metro |
 
 Password recovery is enabled with Email provider (default). Custom SMTP required for reliable delivery.
+
+## PROD reminder — Auth UX (iOS OAuth sheet)
+
+iOS shows the **real Auth host** in the system dialog  
+(“MomentsLocaux souhaite utiliser …”).
+
+- Today (DEV/UAT): ugly `https://<project-ref>.supabase.co` — acceptable for internal testing.
+- **Before public / store PROD:** enable a **Supabase Auth custom domain** (e.g. `auth.moments-locaux.com`) so the sheet shows a clean brand host instead of the project ref.
+- Requires Supabase plan that supports custom domains + DNS CNAME on `moments-locaux.com`.
+- Native Apple Sign In does not use that sheet; Google/Facebook browser OAuth does.
+
+Do not consider PROD “store-ready” until this is done (or explicitly accepted as known UX debt).
+

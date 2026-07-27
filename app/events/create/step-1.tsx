@@ -24,6 +24,8 @@ import { EventsService } from '@/services/events.service';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { RequireCreateAccess } from '@/components/identity/RequireCreateAccess';
 import {
   buildOperatingHoursPayload,
   deriveScheduleStateFromEvent,
@@ -32,10 +34,11 @@ import {
 
 const EDITABLE_EVENT_STATUSES = new Set(['draft', 'refused']);
 
-export default function CreateEventStep1() {
+function CreateEventStep1Inner() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { session, user } = useAuth();
+  const { canCreateNow, canCreate } = useAccountIdentity();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const title = useCreateEventStore((s) => s.title);
   const startDate = useCreateEventStore((s) => s.startDate);
@@ -81,6 +84,14 @@ export default function CreateEventStep1() {
   const isGuest = !session;
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
+
+  const allowCreateFlow = canCreateNow || (Boolean(edit) && canCreate);
+
+  React.useEffect(() => {
+    if (isGuest) return;
+    if (allowCreateFlow) return;
+    router.replace(canCreate ? '/(tabs)/profile' : '/(tabs)/map');
+  }, [isGuest, allowCreateFlow, canCreate, router]);
 
   const extractStoragePath = (url: string | null | undefined) => {
     if (!url) return '';
@@ -354,6 +365,10 @@ export default function CreateEventStep1() {
     );
   }
 
+  if (!allowCreateFlow) {
+    return <SafeAreaView style={{ flex: 1, backgroundColor: colors.brand.primary }} />;
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.backgroundContainer}>
@@ -415,6 +430,15 @@ export default function CreateEventStep1() {
 
       <LocationPickerModal visible={locationModalVisible} onClose={() => setLocationModalVisible(false)} />
     </SafeAreaView>
+  );
+}
+
+export default function CreateEventStep1() {
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  return (
+    <RequireCreateAccess allowIfCanCreate={Boolean(edit)}>
+      <CreateEventStep1Inner />
+    </RequireCreateAccess>
   );
 }
 

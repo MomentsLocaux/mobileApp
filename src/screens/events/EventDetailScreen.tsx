@@ -98,7 +98,7 @@ const BOTTOM_BAR_HEIGHT = 104;
 const EVENT_QR_APP_BASE_URL =
   typeof process.env.EXPO_PUBLIC_EVENT_QR_APP_BASE_URL === 'string'
     ? process.env.EXPO_PUBLIC_EVENT_QR_APP_BASE_URL.trim()
-    : 'momentslocaux://events';
+    : 'moments-locaux://events';
 
 const SHOULD_USE_APP_SCHEME = process.env.EXPO_PUBLIC_EVENT_QR_USE_APP_SCHEME === 'true';
 
@@ -233,6 +233,34 @@ export default function EventDetailScreen() {
       },
     ]);
   }, [event?.id]);
+
+  const purchaseBoost = useCallback(
+    async (itemKey: 'event_boost_24h' | 'event_boost_72h') => {
+      if (!event?.id || boostBusy) return;
+      setBoostBusy(true);
+      try {
+        const res = await ShopService.purchaseEventBoost(event.id, itemKey);
+        setEvent((prev) =>
+          prev ? { ...prev, boosted_until: res.expires_at || prev.boosted_until } : prev,
+        );
+        Toast.show({
+          type: 'success',
+          text1: `Boost ${res.duration_hours || (itemKey === 'event_boost_72h' ? 72 : 24)}h activé`,
+          text2: res.price ? `−${res.price} Lumo` : undefined,
+        });
+      } catch (e: any) {
+        const msg = String(e?.message || '');
+        if (msg.includes('BOOST_CAP_REACHED')) {
+          Alert.alert('Boost', 'Tu as déjà 2 boosts actifs. Attends l’expiration.');
+        } else {
+          Alert.alert('Boost', msg || 'Achat impossible');
+        }
+      } finally {
+        setBoostBusy(false);
+      }
+    },
+    [event?.id, boostBusy],
+  );
 
   const trackEventView = useCallback(
     async (eventId: string) => {
@@ -1418,33 +1446,26 @@ export default function EventDetailScreen() {
                     ? 'Boost actif'
                     : boostBusy
                       ? 'Boost…'
-                      : 'Booster 24h (Lumo)'
+                      : 'Booster (Lumo)'
                 }
                 variant="outline"
                 disabled={
                   boostBusy ||
                   !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
                 }
-                onPress={async () => {
+                onPress={() => {
                   if (boostBusy) return;
-                  setBoostBusy(true);
-                  try {
-                    const res = await ShopService.purchaseEventBoost(event.id);
-                    setEvent((prev) =>
-                      prev
-                        ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
-                        : prev,
-                    );
-                    Toast.show({
-                      type: 'success',
-                      text1: 'Boost activé',
-                      text2: res.price ? `−${res.price} Lumo` : undefined,
-                    });
-                  } catch (e: any) {
-                    Alert.alert('Boost', e?.message || 'Achat impossible');
-                  } finally {
-                    setBoostBusy(false);
-                  }
+                  Alert.alert('Boost événement', 'Choisis la durée (cap 2 boosts actifs).', [
+                    { text: 'Annuler', style: 'cancel' },
+                    {
+                      text: '24h · 100 Lumo',
+                      onPress: () => void purchaseBoost('event_boost_24h'),
+                    },
+                    {
+                      text: '72h · 240 Lumo',
+                      onPress: () => void purchaseBoost('event_boost_72h'),
+                    },
+                  ]);
                 }}
               />
               {event.visibility === 'public' ? (

@@ -18,16 +18,34 @@ import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { PremiumCard } from '@/components/premium/PremiumCard';
 import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
 import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
-import { AppBackground, Button, ScreenHeader } from '../../src/components/ui';
+import { Button, ScreenHeader } from '../../src/components/ui';
+import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
-import { getRoleLabel, getRoleBadgeColor } from '../../src/utils/roleHelpers';
+import { getProfileIdentityLabel } from '../../src/utils/roleHelpers';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
+import { ModeSwitch } from '@/components/identity/ModeSwitch';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { useDiffuseur } from '@/hooks/useDiffuseur';
+import { profileCanCreate } from '@/utils/accountIdentity';
+import { DIFFUSEUR_PLANS } from '@/constants/diffuseur';
+import Toast from 'react-native-toast-message';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut, fullSignOut, session } = useAuth();
   const { isPremium } = usePremiumEntitlement();
+  const {
+    showModeSwitch,
+    activeMode,
+    savingMode,
+    setActiveMode,
+    accent,
+    canCreate,
+    accountKind,
+  } = useAccountIdentity();
+  const { organization, entitlements, plan, memberCount, loading: diffuseurLoading } = useDiffuseur();
+  const isProfessionnelAccount = accountKind === 'professionnel';
   const isGuest = !session;
 
   const handleSignOut = async () => {
@@ -67,6 +85,14 @@ export default function ProfileScreen() {
   };
 
   const handleViewMyEvents = () => {
+    if (!profileCanCreate(profile)) {
+      Toast.show({
+        type: 'info',
+        text1: 'Mes événements',
+        text2: 'Disponible si vous activez la création sur votre profil Particulier.',
+      });
+      return;
+    }
     router.push('/profile/my-events' as any);
   };
 
@@ -81,7 +107,7 @@ export default function ProfileScreen() {
   if (isGuest) {
     return (
       <View style={styles.container}>
-        <AppBackground />
+        <IdentityAppBackground />
         <GuestGateModal
           visible
           title="Accéder à votre profil"
@@ -96,9 +122,9 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <AppBackground />
+        <IdentityAppBackground />
         <View style={styles.fallback}>
-          <ActivityIndicator size="large" color={colors.brand.secondary} />
+          <ActivityIndicator size="large" color={accent.accent} />
           <Text style={styles.loadingText}>Chargement du profil...</Text>
         </View>
       </View>
@@ -107,7 +133,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBackground />
+      <IdentityAppBackground />
       <ScrollView style={styles.scroll}>
         <ScreenHeader title="Mon profil" onBack={handleBack} />
         <View style={styles.header}>
@@ -134,28 +160,35 @@ export default function ProfileScreen() {
               style={[
                 styles.roleBadge,
                 {
-                  backgroundColor: getRoleBadgeColor(profile.role).bg,
-                  borderColor: getRoleBadgeColor(profile.role).border,
+                  backgroundColor: accent.accentMuted,
+                  borderColor: accent.accentBorder,
                 },
               ]}
             >
-              <Award size={14} color={getRoleBadgeColor(profile.role).text} />
-              <Text
-                style={[
-                  styles.roleText,
-                  { color: getRoleBadgeColor(profile.role).text },
-                ]}
-              >
-                {getRoleLabel(profile.role)}
+              <Award size={14} color={accent.accent} />
+              <Text style={[styles.roleText, { color: accent.accent }]}>
+                {getProfileIdentityLabel(profile)}
               </Text>
             </View>
+
+            {showModeSwitch ? (
+              <ModeSwitch
+                mode={activeMode}
+                loading={savingMode}
+                onChange={(mode) => {
+                  void setActiveMode(mode);
+                }}
+              />
+            ) : null}
 
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => router.push('/profile/edit' as any)}
             >
-              <Settings size={20} color={colors.brand.secondary} />
-              <Text style={styles.editButtonText}>Modifier le profil</Text>
+              <Settings size={20} color={accent.accent} />
+              <Text style={[styles.editButtonText, { color: accent.accent }]}>
+                Modifier le profil
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -164,8 +197,8 @@ export default function ProfileScreen() {
           <PremiumCard isPremium={isPremium}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Rôle</Text>
-              <Text style={styles.infoValue}>{getRoleLabel(profile.role)}</Text>
+              <Text style={styles.infoLabel}>Profil</Text>
+              <Text style={styles.infoValue}>{getProfileIdentityLabel(profile)}</Text>
             </View>
             {profile.city ? (
               <View style={styles.infoRow}>
@@ -175,9 +208,66 @@ export default function ProfileScreen() {
             ) : null}
           </PremiumCard>
 
+          {isProfessionnelAccount ? (
+            <PremiumCard isPremium={false} style={styles.actionCard}>
+              <Text style={styles.sectionTitle}>Moments Diffuseur</Text>
+              {diffuseurLoading ? (
+                <ActivityIndicator color={accent.accent} />
+              ) : (
+                <>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Offre</Text>
+                    <Text style={styles.infoValue}>{DIFFUSEUR_PLANS[plan].label}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Organisation</Text>
+                    <Text style={styles.infoValue}>
+                      {organization?.name || 'Création automatique…'}
+                    </Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Sièges</Text>
+                    <Text style={styles.infoValue}>
+                      {organization
+                        ? `${memberCount} / ${organization.seat_limit}`
+                        : `1 / ${entitlements.seatLimit} (Free)`}
+                    </Text>
+                  </View>
+                  {organization ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Crédits boost</Text>
+                      <Text style={styles.infoValue}>
+                        {organization.boost_credits_balance ?? 0}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {organization?.verified_at ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Badge</Text>
+                      <Text style={styles.infoValue}>Vérifié</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.diffuseurHint}>
+                      Pro (29 € HT/mois) : 5 sièges, crédits boost, analytics, badge Vérifié.
+                      Facturation web — pas d’achat in-app.
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.linkButton, { marginTop: spacing.sm }]}
+                    onPress={() => router.push('/profile/diffuseur' as any)}
+                  >
+                    <Text style={[styles.linkText, { color: accent.accent }]}>
+                      Gérer l’offre & packs
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </PremiumCard>
+          ) : null}
+
           <PremiumCard isPremium={isPremium} style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
-            {DISCOVERY_ENABLED && (
+            {!isProfessionnelAccount && DISCOVERY_ENABLED && (
               <TouchableOpacity
                 style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/discovery' as any)}
@@ -186,7 +276,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.linkText, isPremium && styles.linkTextPremium]}>Discovery</Text>
               </TouchableOpacity>
             )}
-            {DISCOVERY_ENABLED && (
+            {!isProfessionnelAccount && DISCOVERY_ENABLED && (
               <TouchableOpacity
                 style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/profile/subscription' as any)}
@@ -197,11 +287,13 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
-              <Calendar size={18} color={colors.brand.secondary} />
-              <Text style={styles.linkText}>Mes événements</Text>
-            </TouchableOpacity>
-            {GAMIFICATION_ENABLED && (
+            {canCreate ? (
+              <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
+                <Calendar size={18} color={accent.accent} />
+                <Text style={[styles.linkText, { color: accent.accent }]}>Mes événements</Text>
+              </TouchableOpacity>
+            ) : null}
+            {GAMIFICATION_ENABLED && !isProfessionnelAccount && (
               <>
                 <TouchableOpacity
                   style={styles.linkButton}
@@ -356,6 +448,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  diffuseurHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 18,
   },
   infoLabel: {
     ...typography.bodySmall,

@@ -21,8 +21,9 @@ import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { RequireCreateAccess } from '@/components/identity/RequireCreateAccess';
 
-export default function CreateEventStep2() {
+function CreateEventStep2Inner() {
   const router = useRouter();
   const { session } = useAuth();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
@@ -195,6 +196,14 @@ export default function CreateEventStep2() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+export default function CreateEventStep2() {
+  return (
+    <RequireCreateAccess>
+      <CreateEventStep2Inner />
+    </RequireCreateAccess>
   );
 }
 

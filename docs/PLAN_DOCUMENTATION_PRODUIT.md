@@ -67,7 +67,7 @@ Décrire **comment** le mobile est construit et intègre Supabase / Mapbox / pus
 ### 3.3 Sommaire détaillé prévu
 
 1. **Stack & runtime**  
-   Expo SDK, RN, TypeScript, Expo Router, Mapbox, Sentry, schémas URL `momentslocaux://`
+   Expo SDK, RN, TypeScript, Expo Router, Mapbox, Sentry, schémas URL `moments-locaux://`
 2. **Architecture applicative**  
    `app/` (routes), `src/services`, `src/state`, feature flags (`src/config/*.flags.ts`), data provider Supabase
 3. **Auth & session**  

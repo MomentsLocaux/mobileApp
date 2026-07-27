@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks';
+import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useLocationStore, useSearchStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
@@ -89,6 +90,7 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { canCreateNow, accent } = useAccountIdentity();
   const { currentLocation } = useLocationStore();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
@@ -495,7 +497,7 @@ export default function HomeScreen() {
         </View>
         <FlatList
           horizontal
-          data={[{ me: true }, ...stories]}
+          data={canCreateNow ? [{ me: true as const }, ...stories] : stories}
           keyExtractor={(item: any, index) => (item.me ? 'me' : item.creatorId || String(index))}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.storiesContent}
@@ -508,7 +510,7 @@ export default function HomeScreen() {
                 accessibilityLabel="Créer un événement"
               >
                 <LinearGradient
-                  colors={['#2bbfe3', '#2bbfe3']}
+                  colors={[accent.accent, accent.accent]}
                   style={styles.storyGradientBorder}
                 >
                   <View style={styles.storyInner}>

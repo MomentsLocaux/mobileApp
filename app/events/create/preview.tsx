@@ -29,13 +29,14 @@ import {
 } from '@/utils/event-schedule';
 import MapboxGL from '@rnmapbox/maps';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { RequireCreateAccess } from '@/components/identity/RequireCreateAccess';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 const EDITABLE_EVENT_STATUSES = new Set(['draft', 'refused']);
 
-export default function CreateEventPreview() {
+function CreateEventPreviewInner() {
   const router = useRouter();
   const { user } = useAuth();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
@@ -471,6 +472,14 @@ export default function CreateEventPreview() {
         />
       ) : null}
     </SafeAreaView>
+  );
+}
+
+export default function CreateEventPreview() {
+  return (
+    <RequireCreateAccess>
+      <CreateEventPreviewInner />
+    </RequireCreateAccess>
   );
 }
 

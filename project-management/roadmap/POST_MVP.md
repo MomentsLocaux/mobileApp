@@ -15,8 +15,10 @@
 ### Boutique
 
 - Shop.
-- Purchase flows.
-- Produits premium.
+- Purchase flows (Lumo).
+- Produits premium / cosmétiques.
+- Catalogue étendu : `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md`
+- Ticket : `SHOP-V1` dans `MVP_TICKETS.md`
 
 ### Missions
 
@@ -26,9 +28,11 @@
 
 ### Offres
 
-- Subscriptions.
-- Offers.
-- Plans premium.
+- Subscriptions B2C : Local → Habitué → Éclaireur (ADR 004).
+- Offers / plans premium Discovery.
+- **Moments Diffuseur** (B2B Professionnel) : Free + Pro + packs € — `ADR_006_DIFFUSEUR_B2B_OFFER.md` (pas de quota publications ; découverte hors compte pro)
+- Identité comptes / modes B2C : `ADR_007_ACCOUNT_IDENTITY_MODES.md`
+- Tickets B2B : `DIFF-ORG`, `DIFF-PRO`, `DIFF-BILL` ; identité : `ID-ONBOARD`, `ID-MODE-SWITCH`, `ID-GUARDS`
 
 ### Wallet / Lumo Avancé
 

@@ -15,12 +15,11 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ChevronLeft,
+  Building2,
   Compass,
-  Heart,
   ImagePlus,
-  Landmark,
+  Briefcase,
   MapPin,
-  Megaphone,
   PlusCircle,
   SearchX,
   User,
@@ -31,8 +30,25 @@ import { AppBackground, Button, MotionReveal } from '../../components/ui';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
 import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
+import { OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
+import {
+  OnboardingCreateWhyStep,
+  type CreateIntent,
+} from '@/components/onboarding/OnboardingCreateWhyStep';
+import {
+  OnboardingConnectorStep,
+  type ConnectorDraft,
+} from '@/components/onboarding/OnboardingConnectorStep';
+import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
+import { DiffuseurService } from '@/services/diffuseur.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { Motion } from '@/constants/motion';
+import {
+  ACCOUNT_KIND_OPTIONS,
+  PRO_SUBTYPE_OPTIONS,
+  type AccountKind,
+  type ProSubtype,
+} from '@/constants/accountIdentity';
+import { roleForAccountKind } from '@/utils/accountIdentity';
 import { useAuth } from '../../hooks';
 import { ProfileService } from '@/services/profile.service';
 import { PreferencesService } from '@/services/preferences.service';
@@ -46,60 +62,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { haptics } from '@/utils/haptics';
 
-type RoleValue = 'particulier' | 'professionnel' | 'institutionnel';
 type StepId =
   | 'welcome'
   | 'identity'
+  | 'create_why'
+  | 'create_themes'
   | 'location'
   | 'themes'
   | 'avatar'
   | 'creator'
+  | 'connector'
   | 'tiers'
-  | 'eclairer';
+  | 'eclairer'
+  | 'mode_hint';
 
-const ROLE_OPTIONS: {
-  value: RoleValue;
-  label: string;
-  description: string;
-  icon: typeof User;
-}[] = [
-  {
-    value: 'particulier',
-    label: 'Découvreur',
-    description: 'Vous explorez et participez aux moments près de chez vous.',
-    icon: User,
-  },
-  {
-    value: 'professionnel',
-    label: 'Organisateur',
-    description: 'Vous proposez des moments à votre public.',
-    icon: Megaphone,
-  },
-  {
-    value: 'institutionnel',
-    label: 'Structure',
-    description: 'Mairie, association, lieu culturel…',
-    icon: Landmark,
-  },
-];
-
-const VALUE_PROPS = [
-  {
-    icon: Compass,
-    title: 'Découvrir',
-    body: 'Les moments près de chez vous, sur la carte et dans le fil.',
-  },
-  {
-    icon: Heart,
-    title: 'Participer',
-    body: 'Favoris, suivi de créateurs et check-in sur place.',
-  },
-  {
-    icon: PlusCircle,
-    title: 'Créer',
-    body: 'Publiez un moment et soumettez-le pour validation.',
-  },
-] as const;
+const ACCOUNT_KIND_ICONS: Record<AccountKind, typeof User> = {
+  particulier: User,
+  professionnel: Briefcase,
+};
 
 const SEARCH_MIN_CHARS = 2;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -121,8 +101,18 @@ export default function OnboardingScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
-  const [role, setRole] = useState<RoleValue>(
-    (profile?.role as RoleValue) || 'particulier',
+  const [accountKind, setAccountKind] = useState<AccountKind>(() => {
+    if (profile?.role === 'professionnel' || profile?.role === 'institutionnel') {
+      return 'professionnel';
+    }
+    return 'particulier';
+  });
+  const [proSubtype, setProSubtype] = useState<ProSubtype | null>(
+    (profile?.pro_subtype as ProSubtype | null | undefined) ?? null,
+  );
+  /** B2C only: discover + create. Never créateur pur. */
+  const [particulierAlsoCreates, setParticulierAlsoCreates] = useState(
+    Boolean(profile?.can_create) && profile?.role === 'particulier',
   );
   const [addressSearch, setAddressSearch] = useState('');
   const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
@@ -130,6 +120,9 @@ export default function OnboardingScreen() {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [coverUrl, setCoverUrl] = useState(profile?.cover_url || '');
   const [themeSlugs, setThemeSlugs] = useState<string[]>([]);
+  const [createThemeSlugs, setCreateThemeSlugs] = useState<string[]>([]);
+  const [createIntent, setCreateIntent] = useState<CreateIntent | null>(null);
+  const [connectorDraft, setConnectorDraft] = useState<ConnectorDraft>({ status: 'none' });
   const [facebook, setFacebook] = useState(profile?.facebook_url || '');
   const [instagram, setInstagram] = useState(profile?.instagram_url || '');
   const [tiktok, setTiktok] = useState(profile?.tiktok_url || '');
@@ -143,34 +136,65 @@ export default function OnboardingScreen() {
   const searchSeq = useRef(0);
   const profilePersisted = useRef(false);
 
-  const isCreatorRole = role === 'professionnel' || role === 'institutionnel';
+  const isProfessionnel = accountKind === 'professionnel';
+  const canCreate =
+    isProfessionnel || (accountKind === 'particulier' && particulierAlsoCreates);
   const isUploading = uploadTarget !== null;
 
   const steps: StepId[] = useMemo(() => {
-    const profileSteps: StepId[] = isCreatorRole
-      ? ['welcome', 'identity', 'location', 'themes', 'avatar', 'creator']
-      : ['welcome', 'identity', 'location', 'themes', 'avatar'];
-    return [...profileSteps, 'tiers', 'eclairer'];
-  }, [isCreatorRole]);
+    if (isProfessionnel) {
+      return ['welcome', 'identity', 'location', 'avatar', 'creator', 'connector'];
+    }
+    if (particulierAlsoCreates) {
+      return [
+        'welcome',
+        'identity',
+        'create_why',
+        'location',
+        'themes',
+        'create_themes',
+        'avatar',
+        'creator',
+        'tiers',
+        'eclairer',
+        'mode_hint',
+      ];
+    }
+    return ['welcome', 'identity', 'location', 'themes', 'avatar', 'tiers', 'eclairer'];
+  }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
   const totalSteps = steps.length;
   const isLastStep = stepIndex >= totalSteps - 1;
-  const lastProfileStepId: StepId = isCreatorRole ? 'creator' : 'avatar';
-  const isMarketingStep = stepId === 'tiers' || stepId === 'eclairer';
+  const lastProfileStepId: StepId = isProfessionnel
+    ? 'connector'
+    : particulierAlsoCreates
+      ? 'creator'
+      : 'avatar';
+  const isMarketingStep =
+    stepId === 'tiers' || stepId === 'eclairer' || stepId === 'mode_hint';
   const progressSteps = steps.filter(
-    (id) => id !== 'welcome' && id !== 'tiers' && id !== 'eclairer',
+    (id) =>
+      id !== 'welcome' && id !== 'tiers' && id !== 'eclairer' && id !== 'mode_hint',
   );
+
+  const identityReady =
+    !!displayName.trim() &&
+    (accountKind === 'particulier' || (accountKind === 'professionnel' && !!proSubtype));
 
   const canContinue =
     stepId === 'welcome' ||
-    (stepId === 'identity' && !!displayName.trim()) ||
+    (stepId === 'identity' && identityReady) ||
+    (stepId === 'create_why' && !!createIntent) ||
+    stepId === 'create_themes' ||
     (stepId === 'location' && !!selectedAddress) ||
     stepId === 'themes' ||
     stepId === 'avatar' ||
     stepId === 'creator' ||
+    stepId === 'connector' ||
     stepId === 'tiers' ||
-    stepId === 'eclairer';
+    stepId === 'eclairer' ||
+    stepId === 'mode_hint';
 
   const persistThemes = async () => {
     if (!user?.id) return;
@@ -185,6 +209,12 @@ export default function OnboardingScreen() {
 
   const toggleThemeSlug = (slug: CategoryVisualSlug) => {
     setThemeSlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  };
+
+  const toggleCreateThemeSlug = (slug: CategoryVisualSlug) => {
+    setCreateThemeSlugs((prev) =>
       prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
     );
   };
@@ -318,19 +348,73 @@ export default function OnboardingScreen() {
         '';
       const resolvedRegion = selectedAddress?.region || profile?.region || 'France';
 
-      await ProfileService.updateProfile(activeProfile.id, {
+      const basePayload = {
         display_name: displayName.trim(),
-        bio: isCreatorRole ? bio.trim() || null : null,
-        role,
+        bio: canCreate ? bio.trim() || null : null,
+        role: roleForAccountKind(accountKind),
         city: resolvedCity,
         region: resolvedRegion,
         avatar_url: avatarUrl || null,
-        cover_url: isCreatorRole ? coverUrl || null : null,
-        facebook_url: isCreatorRole ? facebook.trim() || null : null,
-        instagram_url: isCreatorRole ? instagram.trim() || null : null,
-        tiktok_url: isCreatorRole ? tiktok.trim() || null : null,
+        cover_url: canCreate ? coverUrl || null : null,
+        facebook_url: canCreate ? facebook.trim() || null : null,
+        instagram_url: canCreate ? instagram.trim() || null : null,
+        tiktok_url: canCreate ? tiktok.trim() || null : null,
         onboarding_completed: true,
-      });
+      };
+
+      const identityPayload: {
+        can_create: boolean;
+        active_mode: 'discover' | 'create';
+        pro_subtype: ProSubtype | null;
+        create_intent?: CreateIntent | null;
+        creator_category_slugs?: string[];
+      } = {
+        can_create: canCreate,
+        active_mode: isProfessionnel ? 'create' : 'discover',
+        pro_subtype: isProfessionnel ? proSubtype : null,
+      };
+
+      if (!isProfessionnel && particulierAlsoCreates) {
+        identityPayload.create_intent = createIntent;
+        identityPayload.creator_category_slugs = createThemeSlugs;
+      }
+
+      try {
+        await ProfileService.updateProfile(activeProfile.id, {
+          ...basePayload,
+          ...identityPayload,
+        });
+      } catch (identityErr) {
+        // Migration columns may be absent — persist core fields.
+        console.warn(
+          'Identity columns unavailable; saving profile without can_create/pro_subtype',
+          identityErr,
+        );
+        try {
+          await ProfileService.updateProfile(activeProfile.id, {
+            ...basePayload,
+            can_create: canCreate,
+            active_mode: isProfessionnel ? 'create' : 'discover',
+            pro_subtype: isProfessionnel ? proSubtype : null,
+          });
+        } catch {
+          await ProfileService.updateProfile(activeProfile.id, basePayload);
+        }
+      }
+
+      if (isProfessionnel) {
+        try {
+          const org = await DiffuseurService.ensureMyOrganization({
+            displayName: displayName.trim(),
+            proSubtype,
+          });
+          if (org && connectorDraft.status !== 'none') {
+            await DiffuseurService.updateConnector(org.id, connectorDraft);
+          }
+        } catch (orgErr) {
+          console.warn('Diffuseur org/connector not saved during onboarding', orgErr);
+        }
+      }
 
       await refreshProfile();
       profilePersisted.current = true;
@@ -362,17 +446,30 @@ export default function OnboardingScreen() {
 
     if (stepId === 'themes') {
       await persistThemes();
+      // Décision 5 : préremplir create_themes depuis thèmes découverte si vide
+      if (particulierAlsoCreates && createThemeSlugs.length === 0 && themeSlugs.length > 0) {
+        setCreateThemeSlugs([...themeSlugs]);
+      }
     }
 
     if (stepId === lastProfileStepId) {
       const saved = await persistProfile();
       if (!saved) return;
+      if (isProfessionnel) {
+        finishToHome();
+        return;
+      }
       haptics.light();
       setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
       return;
     }
 
-    if (stepId === 'eclairer') {
+    if (stepId === 'eclairer' || stepId === 'mode_hint') {
+      if (stepId === 'eclairer' && particulierAlsoCreates) {
+        haptics.light();
+        setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+        return;
+      }
       finishToHome();
       return;
     }
@@ -401,7 +498,7 @@ export default function OnboardingScreen() {
     router.replace('/(tabs)');
   };
 
-  /** Skip remaining profile extras and jump to marketing tiers. */
+  /** Skip remaining profile extras and jump to marketing tiers (or finish pro). */
   const skipOptionalToTiers = async () => {
     haptics.selection();
     if (stepId === 'themes') {
@@ -416,8 +513,22 @@ export default function OnboardingScreen() {
       setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
       return;
     }
+    if (stepId === 'create_themes') {
+      setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
+      return;
+    }
+    if (stepId === 'connector') {
+      const saved = await persistProfile();
+      if (!saved) return;
+      finishToHome();
+      return;
+    }
     const saved = await persistProfile();
     if (!saved) return;
+    if (isProfessionnel) {
+      finishToHome();
+      return;
+    }
     const tiersIndex = steps.indexOf('tiers');
     setStepIndex(tiersIndex >= 0 ? tiersIndex : totalSteps - 1);
   };
@@ -443,16 +554,32 @@ export default function OnboardingScreen() {
 
   const primaryTitle =
     stepId === 'welcome'
-      ? 'Personnaliser mon profil'
-      : stepId === 'tiers'
-        ? 'Voir l’offre Éclaireur'
-        : stepId === 'eclairer'
-          ? 'Déverrouiller Éclaireur'
-          : 'Continuer';
+      ? 'Continuer'
+      : stepId === 'connector'
+        ? connectorDraft.status === 'none'
+          ? 'Continuer sans connecteur'
+          : 'Terminer'
+        : stepId === 'mode_hint'
+          ? 'Entrer dans Moments Locaux'
+          : stepId === 'tiers'
+            ? 'Voir l’offre Éclaireur'
+            : stepId === 'eclairer'
+              ? 'Déverrouiller Éclaireur'
+              : 'Continuer';
 
-  const showSkip = stepId === 'themes' || stepId === 'avatar' || stepId === 'creator';
+  const showSkip =
+    stepId === 'themes' ||
+    stepId === 'create_themes' ||
+    stepId === 'avatar' ||
+    stepId === 'creator' ||
+    stepId === 'connector';
   const showContinueFree = isMarketingStep;
-  const activeRoleDescription = ROLE_OPTIONS.find((option) => option.value === role)?.description;
+  const activeKindDescription = ACCOUNT_KIND_OPTIONS.find(
+    (option) => option.value === accountKind,
+  )?.description;
+  const activeSubtypeDescription = PRO_SUBTYPE_OPTIONS.find(
+    (option) => option.value === proSubtype,
+  )?.description;
   const showNoResults =
     stepId === 'location' &&
     !locationLoading &&
@@ -558,30 +685,27 @@ export default function OnboardingScreen() {
         )}
 
         {stepId === 'welcome' && (
-          <View style={styles.stepContainer}>
-            {VALUE_PROPS.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <MotionReveal key={item.title} delay={idx * Motion.stagger.content}>
-                  <View style={styles.valueCard}>
-                    <View style={styles.valueIcon}>
-                      <Icon size={22} color={colors.brand.secondary} strokeWidth={2.2} />
-                    </View>
-                    <View style={styles.valueCopy}>
-                      <Text style={styles.valueTitle}>{item.title}</Text>
-                      <Text style={styles.valueBody}>{item.body}</Text>
-                    </View>
-                  </View>
-                </MotionReveal>
-              );
-            })}
-          </View>
+          <MotionReveal key="welcome" style={styles.stepContainer}>
+            <OnboardingWelcomeStep
+              preferredKind={accountKind}
+              onSelectKind={(kind) => {
+                setAccountKind(kind);
+                if (kind === 'particulier') {
+                  setProSubtype(null);
+                } else if (!proSubtype) {
+                  setProSubtype('independant');
+                }
+              }}
+            />
+          </MotionReveal>
         )}
 
         {stepId === 'identity' && (
           <MotionReveal key="identity" style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Qui êtes-vous ?</Text>
-            <Text style={styles.helper}>Votre nom et la façon dont vous vous présentez.</Text>
+            <Text style={styles.helper}>
+              Particulier ou Professionnel — puis, si besoin, votre typologie.
+            </Text>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nom d&apos;affichage</Text>
@@ -600,18 +724,23 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Je souhaite me présenter en tant que :</Text>
+              <Text style={styles.label}>Je suis :</Text>
               <View style={styles.roleChips}>
-                {ROLE_OPTIONS.map((option) => {
-                  const Icon = option.icon;
-                  const active = role === option.value;
+                {ACCOUNT_KIND_OPTIONS.map((option) => {
+                  const Icon = ACCOUNT_KIND_ICONS[option.value];
+                  const active = accountKind === option.value;
                   return (
                     <TouchableOpacity
                       key={option.value}
                       style={[styles.roleChip, active && styles.roleChipActive]}
                       onPress={() => {
                         haptics.selection();
-                        setRole(option.value);
+                        setAccountKind(option.value);
+                        if (option.value === 'particulier') {
+                          setProSubtype(null);
+                        } else if (!proSubtype) {
+                          setProSubtype('independant');
+                        }
                       }}
                       accessibilityRole="button"
                       accessibilityState={{ selected: active }}
@@ -629,21 +758,146 @@ export default function OnboardingScreen() {
                   );
                 })}
               </View>
-              {activeRoleDescription ? (
-                <Text style={styles.roleHint}>{activeRoleDescription}</Text>
+              {activeKindDescription ? (
+                <Text style={styles.roleHint}>{activeKindDescription}</Text>
               ) : null}
-              <Text style={styles.roleNote}>
-                Quel que soit votre choix, vous pouvez tout faire : découvrir, participer et
-                créer des moments. Ce choix personnalise simplement votre profil.
-              </Text>
             </View>
+
+            {accountKind === 'particulier' ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Sur Moments Locaux, je veux :</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.intentRow,
+                    !particulierAlsoCreates && styles.intentRowActive,
+                  ]}
+                  onPress={() => {
+                    haptics.selection();
+                    setParticulierAlsoCreates(false);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !particulierAlsoCreates }}
+                >
+                  <Compass
+                    size={18}
+                    color={
+                      !particulierAlsoCreates
+                        ? colors.brand.primary
+                        : colors.brand.textSecondary
+                    }
+                  />
+                  <View style={styles.intentCopy}>
+                    <Text
+                      style={[
+                        styles.intentTitle,
+                        !particulierAlsoCreates && styles.intentTitleActive,
+                      ]}
+                    >
+                      Découvrir uniquement
+                    </Text>
+                    <Text style={styles.roleHint}>
+                      Carte, fil, favoris — sans créer d&apos;événements.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.intentRow,
+                    particulierAlsoCreates && styles.intentRowActive,
+                  ]}
+                  onPress={() => {
+                    haptics.selection();
+                    setParticulierAlsoCreates(true);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: particulierAlsoCreates }}
+                >
+                  <PlusCircle
+                    size={18}
+                    color={
+                      particulierAlsoCreates
+                        ? colors.brand.primary
+                        : colors.brand.textSecondary
+                    }
+                  />
+                  <View style={styles.intentCopy}>
+                    <Text
+                      style={[
+                        styles.intentTitle,
+                        particulierAlsoCreates && styles.intentTitleActive,
+                      ]}
+                    >
+                      Découvrir et créer
+                    </Text>
+                    <Text style={styles.roleHint}>
+                      Vous restez découvreur, avec la possibilité de publier des moments.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.roleNote}>
+                  Pas de profil « créateur seul » : la découverte reste toujours disponible.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Type de professionnel</Text>
+                <View style={styles.roleChips}>
+                  {PRO_SUBTYPE_OPTIONS.map((option) => {
+                    const active = proSubtype === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.roleChip, active && styles.roleChipActive]}
+                        onPress={() => {
+                          haptics.selection();
+                          setProSubtype(option.value);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={`${option.label}. ${option.description}`}
+                      >
+                        <Building2
+                          size={15}
+                          color={active ? colors.brand.primary : colors.brand.textSecondary}
+                          strokeWidth={2.2}
+                        />
+                        <Text
+                          style={[styles.roleChipLabel, active && styles.roleChipLabelActive]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {activeSubtypeDescription ? (
+                  <Text style={styles.roleHint}>{activeSubtypeDescription}</Text>
+                ) : null}
+                <Text style={styles.roleNote}>
+                  Pour découvrir et check-in en tant que participant, créez un compte
+                  Particulier séparé. Ce compte Professionnel sert à diffuser.
+                </Text>
+              </View>
+            )}
+          </MotionReveal>
+        )}
+
+        {stepId === 'create_why' && (
+          <MotionReveal key="create_why" style={styles.stepContainer}>
+            <OnboardingCreateWhyStep value={createIntent} onChange={setCreateIntent} />
           </MotionReveal>
         )}
 
         {stepId === 'location' && (
           <MotionReveal key="location" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Où voulez-vous explorer ?</Text>
-            <Text style={styles.helper}>Pour afficher les moments autour de vous.</Text>
+            <Text style={styles.stepTitle}>
+              {isProfessionnel ? 'Où êtes-vous basé ?' : 'Où voulez-vous explorer ?'}
+            </Text>
+            <Text style={styles.helper}>
+              {isProfessionnel
+                ? 'Pour ancrer vos publications sur le territoire.'
+                : 'Pour afficher les moments autour de vous.'}
+            </Text>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Ville ou quartier</Text>
               <TextInput
@@ -701,7 +955,23 @@ export default function OnboardingScreen() {
 
         {stepId === 'themes' && (
           <MotionReveal key="themes" style={styles.stepContainer}>
-            <OnboardingThemesStep selected={themeSlugs} onToggle={toggleThemeSlug} />
+            <OnboardingThemesStep
+              selected={themeSlugs}
+              onToggle={toggleThemeSlug}
+              title="Ce que tu aimes découvrir"
+              subtitle="Ces thèmes nourrissent ton fil et tes notifs. Tu pourras les modifier plus tard. Tu peux passer."
+            />
+          </MotionReveal>
+        )}
+
+        {stepId === 'create_themes' && (
+          <MotionReveal key="create_themes" style={styles.stepContainer}>
+            <OnboardingThemesStep
+              selected={createThemeSlugs}
+              onToggle={toggleCreateThemeSlug}
+              title="Ce que tu vas proposer"
+              subtitle="Catégories de tes futurs moments (préremplies depuis ce que tu aimes découvrir). Différent de tes goûts perso — tu peux ajuster ou passer."
+            />
           </MotionReveal>
         )}
 
@@ -825,11 +1095,27 @@ export default function OnboardingScreen() {
           </MotionReveal>
         )}
 
+        {stepId === 'connector' && (
+          <MotionReveal key="connector" style={styles.stepContainer}>
+            <OnboardingConnectorStep
+              proSubtype={proSubtype}
+              value={connectorDraft}
+              onChange={setConnectorDraft}
+            />
+          </MotionReveal>
+        )}
+
         {stepId === 'tiers' ? <OnboardingTiersStep /> : null}
 
         {stepId === 'eclairer' ? (
           <OnboardingEclaireurCtaStep onUnlock={handleUnlockTease} />
         ) : null}
+
+        {stepId === 'mode_hint' && (
+          <MotionReveal key="mode_hint" style={styles.stepContainer}>
+            <OnboardingModeHintStep />
+          </MotionReveal>
+        )}
 
         {error ? (
           <Text style={styles.errorText} accessibilityRole="alert">
@@ -1067,6 +1353,34 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     lineHeight: 18,
     fontStyle: 'italic',
+  },
+  intentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginTop: spacing.sm,
+  },
+  intentRowActive: {
+    borderColor: 'rgba(43,191,227,0.45)',
+    backgroundColor: 'rgba(43,191,227,0.12)',
+  },
+  intentCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  intentTitle: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.brand.text,
+  },
+  intentTitleActive: {
+    color: colors.brand.primary,
+    fontWeight: '700',
   },
   buttonGroup: {
     flexDirection: 'row',

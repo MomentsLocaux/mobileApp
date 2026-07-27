@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: APP_VERSION,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'momentslocaux',
+  scheme: 'moments-locaux',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   extra: {

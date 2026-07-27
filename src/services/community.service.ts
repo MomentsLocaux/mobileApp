@@ -26,7 +26,7 @@ export const CommunityService = {
     const { query, city, limit = 12 } = options;
     let db = supabase
       .from('community_profile_stats')
-      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier')
+      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier, is_community_highlighted, community_highlighted_until')
       .limit(limit);
 
     if (query && query.trim()) {
@@ -62,11 +62,15 @@ export const CommunityService = {
       followers_count,
       following_count,
       is_ambassadeur,
-      local_tier
+      local_tier,
+      is_community_highlighted,
+      community_highlighted_until
     `);
     if (city) {
       query = query.eq('city', city);
     }
+    // Highlighted profiles float to the top of community lists
+    query = query.order('is_community_highlighted', { ascending: false });
     if (sort === 'followers') {
       query = query.order('followers_count', { ascending: false });
     } else if (sort === 'events') {
@@ -110,7 +114,7 @@ export const CommunityService = {
   async getMember(userId: string): Promise<CommunityMember | null> {
     const { data, error } = await supabase
       .from('community_profile_stats')
-      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier')
+      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier, is_community_highlighted, community_highlighted_until')
       .eq('user_id', userId)
       .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
