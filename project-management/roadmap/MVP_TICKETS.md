@@ -1645,7 +1645,7 @@ Dépendances: `ID-ONBOARD`.
 
 Branche Git recommandée: `feat/post-mvp-diffuseur-org`
 
-Notes: Ne pas livrer multi-tenant complet avant intention Pro payant.
+Notes: Ne pas livrer multi-tenant complet avant intention Pro payant. Migration versionnée `20260804_diffuseur_organizations.sql` — apply DEV après validation humaine.
 
 ### ID: DIFF-PRO
 

@@ -26,7 +26,9 @@ import { getProfileIdentityLabel } from '../../src/utils/roleHelpers';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { useDiffuseur } from '@/hooks/useDiffuseur';
 import { profileCanCreate } from '@/utils/accountIdentity';
+import { DIFFUSEUR_PLANS } from '@/constants/diffuseur';
 import Toast from 'react-native-toast-message';
 
 export default function ProfileScreen() {
@@ -40,7 +42,10 @@ export default function ProfileScreen() {
     setActiveMode,
     accent,
     canCreate,
+    accountKind,
   } = useAccountIdentity();
+  const { organization, entitlements, plan, memberCount, loading: diffuseurLoading } = useDiffuseur();
+  const isProfessionnelAccount = accountKind === 'professionnel';
   const isGuest = !session;
 
   const handleSignOut = async () => {
@@ -203,9 +208,50 @@ export default function ProfileScreen() {
             ) : null}
           </PremiumCard>
 
+          {isProfessionnelAccount ? (
+            <PremiumCard isPremium={false} style={styles.actionCard}>
+              <Text style={styles.sectionTitle}>Moments Diffuseur</Text>
+              {diffuseurLoading ? (
+                <ActivityIndicator color={accent.accent} />
+              ) : (
+                <>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Offre</Text>
+                    <Text style={styles.infoValue}>{DIFFUSEUR_PLANS[plan].label}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Organisation</Text>
+                    <Text style={styles.infoValue}>
+                      {organization?.name || 'Sera créée après migration orgs'}
+                    </Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Sièges</Text>
+                    <Text style={styles.infoValue}>
+                      {organization
+                        ? `${memberCount} / ${organization.seat_limit}`
+                        : `1 / ${entitlements.seatLimit} (Free)`}
+                    </Text>
+                  </View>
+                  {organization?.verified_at ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Badge</Text>
+                      <Text style={styles.infoValue}>Vérifié</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.diffuseurHint}>
+                      Pro (29 € HT/mois) : 5 sièges, crédits boost, analytics, badge Vérifié.
+                      Facturation web — pas d’achat in-app.
+                    </Text>
+                  )}
+                </>
+              )}
+            </PremiumCard>
+          ) : null}
+
           <PremiumCard isPremium={isPremium} style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
-            {DISCOVERY_ENABLED && (
+            {!isProfessionnelAccount && DISCOVERY_ENABLED && (
               <TouchableOpacity
                 style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/discovery' as any)}
@@ -214,7 +260,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.linkText, isPremium && styles.linkTextPremium]}>Discovery</Text>
               </TouchableOpacity>
             )}
-            {DISCOVERY_ENABLED && (
+            {!isProfessionnelAccount && DISCOVERY_ENABLED && (
               <TouchableOpacity
                 style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/profile/subscription' as any)}
@@ -231,7 +277,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.linkText, { color: accent.accent }]}>Mes événements</Text>
               </TouchableOpacity>
             ) : null}
-            {GAMIFICATION_ENABLED && (
+            {GAMIFICATION_ENABLED && !isProfessionnelAccount && (
               <>
                 <TouchableOpacity
                   style={styles.linkButton}
@@ -386,6 +432,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  diffuseurHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 18,
   },
   infoLabel: {
     ...typography.bodySmall,

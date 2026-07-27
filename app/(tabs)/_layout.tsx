@@ -23,6 +23,7 @@ import {
   Coins,
   Ticket,
   Sparkles,
+  Briefcase,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
@@ -49,9 +50,12 @@ import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
-  const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode } =
+  const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
   const canCreateEvents = canCreateNow;
+  const isProfessionnelAccount = accountKind === 'professionnel';
+  /** B2C Habitué/Lumo surfaces — never on Professionnel accounts (ADR_007). */
+  const showB2cGamification = GAMIFICATION_ENABLED && !isProfessionnelAccount;
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -351,15 +355,20 @@ export default function TabsLayout() {
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-              {hasEclaireur ? (
+              {!isProfessionnelAccount && hasEclaireur ? (
                 <View style={styles.drawerPremiumPill}>
                   <Crown size={12} color={colors.brand.primary} strokeWidth={2.5} />
                   <Text style={styles.drawerPremiumText}>Éclaireur</Text>
                 </View>
-              ) : hasHabitue ? (
+              ) : !isProfessionnelAccount && hasHabitue ? (
                 <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
                   <Sparkles size={12} color={colors.brand.primary} strokeWidth={2.5} />
                   <Text style={styles.drawerPremiumText}>Habitué</Text>
+                </View>
+              ) : isProfessionnelAccount ? (
+                <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
+                  <Briefcase size={12} color={colors.brand.primary} strokeWidth={2.5} />
+                  <Text style={styles.drawerPremiumText}>Diffuseur</Text>
                 </View>
               ) : null}
               <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
@@ -468,7 +477,7 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
-            {GAMIFICATION_ENABLED && (
+            {showB2cGamification && (
               <>
                 <DrawerLink
                   icon={Coins}
@@ -536,6 +545,16 @@ export default function TabsLayout() {
                 )}
               </>
             )}
+            {isProfessionnelAccount ? (
+              <DrawerLink
+                icon={Briefcase}
+                label="Moments Diffuseur"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/(tabs)/profile' as any);
+                }}
+              />
+            ) : null}
             <DrawerLink
               icon={Heart}
               label="Mes favoris"
