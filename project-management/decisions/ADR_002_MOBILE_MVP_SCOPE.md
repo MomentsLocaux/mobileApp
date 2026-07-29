@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted — amended 2026-06-08 and 2026-07-29.
 
 ## Context
 
@@ -12,24 +12,20 @@ The MVP mobile app must be credible, focused and store-ready. The goal is not to
 
 ## Decision
 
-The mobile MVP is limited to user-facing local event discovery and creation flows.
+The mobile MVP is limited to **local event discovery** (browse / social / trust / notifications). Event creation and freemium surfaces are deferred behind feature flags (Amendment 2026-07-29). Supply for MVP comes from OpenAgenda ingestion; moderation ops live on the web console.
 
 ## Visible In Mobile MVP
 
 - Register, login, logout.
 - Social login (OAuth, e.g. Facebook). [Amendment 2026-06-08]
-- Onboarding.
+- Onboarding (Particulier / discovery identity — no Professionnel when Diffuseur flag off).
 - Map discovery.
 - Search and basic filters.
-- Event list and event detail.
-- Event creation with cover, location, date, category and submission.
-- Creator event statuses: `draft`, `pending`, `published`, `refused`, `archived`.
-- Refusal reason when available.
+- Event list and event detail (published supply).
 - Favorites.
 - Like/interest if stable.
 - Follow creator/member.
 - Community profile basics.
-- QR/location check-in.
 - Notifications: inbox + push delivery + preferences center (per-type, geolocated radius/frequency) + triggers for new nearby events and followed-creator publications. [Amendment 2026-06-08]
 - Report event.
 - Report comment.
@@ -40,36 +36,25 @@ The mobile MVP is limited to user-facing local event discovery and creation flow
 - CGU and privacy policy.
 - Bug/support contact.
 
-## Hidden Or Guarded In Mobile MVP
+## Hidden Or Guarded In Mobile MVP (flags default off — code retained)
 
-- Admin moderation dashboard.
-- Moderation queues.
-- Approve/reject actions.
-- Ban/warn/lift restriction actions.
-- Media review admin.
-- User risk dashboard.
-- Shop.
-- Missions.
-- Offers.
-- Wallet/Lumo advanced views.
-- Deep gamification.
-- Creator analytics dashboard.
-- Fan segmentation tools.
-- Placeholder settings.
-- Legacy event creation routes not part of current flow.
+- Event creation, mes events, ModeSwitch (`FEATURE_EVENT_CREATE` → V1).
+- QR/location check-in (`FEATURE_CHECKIN` → V1).
+- Nos offres / Habitué upsells (`FEATURE_OFFERS` → V1).
+- Professionnel onboarding, Diffuseur packs/analytics (`FEATURE_DIFFUSEUR` → V1).
+- Shop, missions, wallet/Lumo, pass (`FEATURE_GAMIFICATION` → V2).
+- Discovery Engine (`FEATURE_DISCOVERY` → V2).
+- Contests (`FEATURE_CONTESTS` → V2).
+- Admin moderation dashboard / queues / approve-reject / ban / media review / risk (web console only — ADR 001).
+- Placeholder settings, journey, invite, legacy create routes.
 
-## Post-MVP
+## Post-MVP / Phased
 
-- Web admin app.
-- Shop.
-- Missions.
-- Offers/subscriptions.
-- Wallet/Lumo advanced.
-- Advanced gamification.
-- Creator analytics.
-- Advanced notification analytics / segmentation (basic push + preferences are now MVP — see Amendment 2026-06-08).
-- Advanced analytics.
-- Advanced offline mode.
+- **V1**: event create, check-in, offers/IAP, Diffuseur.
+- **V2**: shop, missions, wallet/Lumo, Discovery Engine, contests, advanced gamification.
+- Web admin app (beyond minimal console already in MVP).
+- Advanced notification analytics / segmentation.
+- Advanced analytics / offline mode.
 
 ## Decision Principles
 
@@ -94,6 +79,39 @@ Product decision to bring two areas into the mobile MVP:
 2. **Notification system (basic)** — beyond the inbox: device push delivery, a preferences center (per-type toggles + geolocated radius/frequency, GDPR-consented), and new triggers for "new nearby event" and "followed creator published". Advanced notification analytics/segmentation stays post-MVP.
 
 Rationale: these directly serve user retention and the core local-event loop, and the backend foundations (notifications table + trigger framework, PostGIS for geo) already exist in Supabase.
+
+## Amendment 2026-07-29 — Discovery-only MVP + feature flags
+
+Product decision during store stabilization:
+
+### Mobile MVP visible scope (narrowed)
+
+- Discovery loop only: auth, onboarding Particulier, map/search/filters, event detail, social basics, notifications, reporting, settings/legal/delete.
+- Event **supply** = OpenAgenda scraper (not mobile creation).
+- Companion web: moderation console + marketing vitrine only.
+
+### Explicitly deferred behind flags (`src/config/features.ts`, default off)
+
+| Flag | Phase | Surfaces |
+|---|---|---|
+| `FEATURE_EVENT_CREATE` | V1 | Create flow, mes events, ModeSwitch, creator hub |
+| `FEATURE_CHECKIN` | V1 | QR / geo check-in |
+| `FEATURE_OFFERS` | V1 | Nos offres / Habitué upsells |
+| `FEATURE_DIFFUSEUR` | V1 | Professionnel onboarding, Diffuseur packs/analytics |
+| `FEATURE_GAMIFICATION` | V2 | Lumo wallet, shop, missions, pass |
+| `FEATURE_DISCOVERY` (+ capture) | V2 | Discovery Engine |
+| `FEATURE_CONTESTS` | V2 | Concours |
+
+Code remains in the repo; navigation, deep links, and notification routing must no-op or redirect when flags are off. UI hiding alone is insufficient.
+
+### Supersedes for MVP
+
+- Mobile event creation is **not** required for the store-ready MVP (moved to V1).
+- Creator/Discoverer mode switch is **not** MVP.
+- Offers / check-in / Diffuseur are **not** MVP (V1).
+- This does **not** remove social login or basic push from MVP (Amendment 2026-06-08 still stands).
+
+See `MVP_SCOPE.md` for the live matrix and env keys.
 
 ## Related Audits
 

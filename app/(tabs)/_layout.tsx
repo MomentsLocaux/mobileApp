@@ -270,7 +270,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="create"
           options={
-            canCreateEvents
+            features.eventCreate && canCreateEvents
               ? {
                   title: '',
                   tabBarButton: () => (

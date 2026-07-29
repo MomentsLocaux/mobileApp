@@ -1,4 +1,5 @@
 import type { AppNotificationType } from '@/services/notifications.service';
+import { features } from '@/config/features';
 
 type RouteTarget =
   | { href: `/events/${string}` }
@@ -22,6 +23,8 @@ const pickString = (data: Record<string, unknown>, ...keys: string[]): string | 
   }
   return undefined;
 };
+
+const inbox = (): RouteTarget => ({ href: '/notifications' });
 
 /** Resolves in-app navigation for a notification payload (push tap or inbox). */
 export function resolveNotificationRoute(
@@ -50,19 +53,19 @@ export function resolveNotificationRoute(
   }
 
   if (type === 'mission_completed') {
-    return { href: '/missions' };
+    return features.gamification ? { href: '/missions' } : inbox();
   }
 
   if (typeof type === 'string' && type.startsWith('discovery_')) {
-    return { href: '/discovery' };
+    return features.discovery ? { href: '/discovery' } : inbox();
   }
 
   if (pickString(d, 'kind') === 'notification_digest') {
-    return { href: '/notifications' };
+    return inbox();
   }
 
   if (type === 'event_refused' || type === 'event_request_changes' || type === 'event_published') {
-    return { href: '/profile/my-events' };
+    return features.eventCreate ? { href: '/profile/my-events' } : inbox();
   }
 
   if (
@@ -71,6 +74,7 @@ export function resolveNotificationRoute(
     || type === 'contest_ending_soon'
     || type === 'contest_results'
   ) {
+    if (!features.contests) return inbox();
     const contestId = pickString(d, 'contestId', 'contest_id');
     if (contestId) {
       return { href: `/contests/${contestId}` };
@@ -78,5 +82,5 @@ export function resolveNotificationRoute(
     return { href: '/contests' };
   }
 
-  return { href: '/notifications' };
+  return inbox();
 }

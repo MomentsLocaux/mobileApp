@@ -198,7 +198,10 @@ export default function EventDetailScreen() {
   const isGuest = !session;
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
-  const canEditEvent = isOwner && (event?.status === 'draft' || event?.status === 'refused');
+  const canEditEvent =
+    features.eventCreate &&
+    isOwner &&
+    (event?.status === 'draft' || event?.status === 'refused');
   const isEventLiked = event ? isLiked(event.id) : false;
   const isEventFavorited = event ? isFavorite(event.id) : false;
   const isEventHearted = isEventLiked || isEventFavorited;

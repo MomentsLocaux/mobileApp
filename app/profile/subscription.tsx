@@ -93,7 +93,7 @@ function SubscriptionContent() {
 
 export default function SubscriptionScreen() {
   if (!DISCOVERY_ENABLED) {
-    return <Redirect href="/(tabs)/profile" />;
+    return <Redirect href="/(tabs)/map" />;
   }
 
   return <SubscriptionContent />;

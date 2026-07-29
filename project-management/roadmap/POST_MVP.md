@@ -1,79 +1,41 @@
 # Post-MVP
 
-## Explicitement Hors MVP Mobile
+Phased against mobile feature flags (`src/config/features.ts`). See ADR_002 Amendment 2026-07-29 and `MVP_SCOPE.md`.
 
-### Web App Admin Complète
+## V1 (flags off in MVP — flip when ready)
 
-- Dashboard admin.
-- Files de modération.
-- Approve/reject.
-- Ban/warn/lift restriction.
-- Media review.
-- User risk dashboard.
-- Analytics modération.
+- `FEATURE_EVENT_CREATE` — création mobile, mes events, ModeSwitch.
+- `FEATURE_CHECKIN` — QR / géoloc.
+- `FEATURE_OFFERS` — Nos offres / Habitué–Éclaireur (IAP).
+- `FEATURE_DIFFUSEUR` — Professionnel + packs / analytics.
 
-### Boutique
+## V2 / plus tard
+
+### Boutique / Lumo / Missions (`FEATURE_GAMIFICATION`)
 
 - Shop.
 - Purchase flows (Lumo).
 - Produits premium / cosmétiques.
 - Catalogue étendu : `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md`
 - Ticket : `SHOP-V1` dans `MVP_TICKETS.md`
+- Missions, Pass quartier, wallet / transactions.
 
-### Missions
+### Discovery / Concours
 
-- Missions utilisateur.
-- Quêtes avancées.
-- Récompenses complexes.
+- Discovery Engine (`FEATURE_DISCOVERY`).
+- Contests (`FEATURE_CONTESTS`).
 
-### Offres
+### Offres / identité (détail)
 
 - Subscriptions B2C : Local → Habitué → Éclaireur (ADR 004).
-- Offers / plans premium Discovery.
-- **Moments Diffuseur** (B2B Professionnel) : Free + Pro + packs € — `ADR_006_DIFFUSEUR_B2B_OFFER.md` (pas de quota publications ; découverte hors compte pro)
-- Identité comptes / modes B2C : `ADR_007_ACCOUNT_IDENTITY_MODES.md`
+- **Moments Diffuseur** (B2B) : ADR_006 ; identité ADR_007.
 - Tickets B2B : `DIFF-ORG`, `DIFF-PRO`, `DIFF-BILL` ; identité : `ID-ONBOARD`, `ID-MODE-SWITCH`, `ID-GUARDS`
 
-### Wallet / Lumo Avancé
+### Web hors MVP produit
 
-- Wallet.
-- Transactions.
-- Classements Lumo.
-- Économie virtuelle.
-- Spec : `project-management/decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md`
-- Couches marketing : **Local → Habitué → Éclaireur** (monnaie **Lumo**)
-- Tickets : `MVP-LUMO-001` … `MVP-LUMO-012` dans `MVP_TICKETS.md`
-- Seed proposé (non appliqué) : `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`
-
-### Gamification Avancée
-
-- Badges avancés.
-- Leaderboards locaux / statut quartier (pas national — ADR 004).
-- XP visible complexe.
-- Missions profondes.
-- Pass partenaires / early access / boost créateur gagné (matrice ADR 004).
-
-### Creator Analytics Avancés
-
-- Dashboard créateur.
-- Fans segmentation.
-- Stats détaillées.
-- Actions reward.
-
-### Analytics Avancées
-
-- Cohortes.
-- Rétention avancée.
-- A/B testing.
-- Data warehouse.
-
-### Automatisations Avancées
-
-- Purges automatiques complexes.
-- Trust score automatique.
-- Détection spam ML/rules avancées.
-- Offline queue complète.
+- Portail partenaires / création web (console modération + vitrine restent MVP).
+- Analytics avancés, offline, ML trust.
 
 ## Principe
 
-Ces sujets peuvent rester dans le repo comme code dormant seulement s'ils sont invisibles, guardés et sans risque RLS/store. Ils ne doivent pas être exposés dans le mobile MVP.
+Ces sujets peuvent rester dans le repo comme code dormant seulement s'ils sont invisibles, guardés (feature flags + redirects) et sans risque RLS/store. Ils ne doivent pas être exposés dans le mobile MVP.
