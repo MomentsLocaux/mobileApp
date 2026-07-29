@@ -210,4 +210,52 @@ export const CommunityService = {
     if (error) throw error;
     return !!data && data.length > 0;
   },
+
+  /**
+   * Peers who liked or favorited this event among accounts the current user follows.
+   */
+  async listEventEngagedByFollowing(
+    eventId: string,
+    options?: { limit?: number },
+  ): Promise<Array<{ id: string; display_name: string; avatar_url: string | null }>> {
+    const limit = options?.limit ?? 6;
+    const currentUser = (await supabase.auth.getUser()).data.user?.id;
+    if (!currentUser || !eventId) return [];
+
+    const followingIds = await CommunityService.getFollowingIds(currentUser);
+    if (!followingIds.length) return [];
+
+    const chunk = followingIds.slice(0, 80);
+    const [likesRes, favRes] = await Promise.all([
+      supabase.from('event_likes').select('user_id').eq('event_id', eventId).in('user_id', chunk),
+      supabase.from('favorites').select('user_id').eq('event_id', eventId).in('user_id', chunk),
+    ]);
+
+    if (likesRes.error) console.warn('listEventEngagedByFollowing likes', likesRes.error);
+    if (favRes.error) console.warn('listEventEngagedByFollowing favorites', favRes.error);
+
+    const peerIds = [
+      ...new Set([
+        ...(likesRes.data || []).map((r: { user_id: string }) => r.user_id),
+        ...(favRes.data || []).map((r: { user_id: string }) => r.user_id),
+      ]),
+    ].slice(0, limit);
+
+    if (!peerIds.length) return [];
+
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', peerIds);
+    if (error) {
+      console.warn('listEventEngagedByFollowing profiles', error);
+      return [];
+    }
+
+    return (profiles || []).map((p: any) => ({
+      id: p.id,
+      display_name: p.display_name || 'Membre',
+      avatar_url: p.avatar_url || null,
+    }));
+  },
 };

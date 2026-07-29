@@ -24,7 +24,7 @@ import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
-import { CommunityService } from '@/services/community.service';
+import { features } from '@/config/features';
 import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
@@ -41,14 +41,6 @@ import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { AppBackground, EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
-
-type StoryItem = {
-  creatorId: string;
-  name: string;
-  avatar?: string | null;
-  cover?: string | null;
-  lastEventDate: Date;
-};
 
 type HomeFeedEventItemProps = {
   event: EventWithCreator;
@@ -97,7 +89,6 @@ export default function HomeScreen() {
   const searchState = useSearchStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
   const [refreshing, setRefreshing] = useState(false);
-  const [stories, setStories] = useState<StoryItem[]>([]);
   const searchApplied = searchState.searchApplied;
   const setSearchApplied = searchState.setSearchApplied;
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
@@ -317,57 +308,6 @@ export default function HomeScreen() {
     }
   }, [loadMetaFeed, reload, showSearchResults]);
 
-  const buildStories = useCallback(
-    async (events: EventWithCreator[]) => {
-      const currentUserId = profile?.id;
-      if (!currentUserId) {
-        setStories([]);
-        return;
-      }
-      const followingIds = await CommunityService.getFollowingIds(currentUserId);
-      if (!followingIds.length) {
-        setStories([]);
-        return;
-      }
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const sorted = [...events]
-        .filter((e) => {
-          if (!followingIds.includes(e.creator_id)) return false;
-          const created = e.created_at ? new Date(e.created_at) : null;
-          if (created && created < sevenDaysAgo) return false;
-          return true;
-        })
-        .sort((a, b) => {
-          const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const db = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return db - da;
-        });
-
-      const byCreator = new Map<string, StoryItem>();
-      sorted.forEach((e) => {
-        if (byCreator.has(e.creator_id)) return;
-        const createdAt = e.created_at ? new Date(e.created_at) : new Date();
-        byCreator.set(e.creator_id, {
-          creatorId: e.creator_id,
-          name: e.creator?.display_name || 'Créateur',
-          avatar: e.creator?.avatar_url || null,
-          cover: e.creator?.cover_url || e.cover_url || null,
-          lastEventDate: createdAt,
-        });
-      });
-      setStories(Array.from(byCreator.values()));
-    },
-    [profile?.id]
-  );
-
-  useEffect(() => {
-    if (fetchedEvents) {
-      buildStories(fetchedEvents);
-    }
-  }, [fetchedEvents, buildStories]);
-
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
@@ -487,22 +427,24 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Stories / Creators */}
+      {/* Create shortcut only when EVENT_CREATE; peer members via header link */}
+      {canCreateNow ? (
       <View style={styles.storiesContainer}>
         <View style={styles.storiesHeader}>
           <Text style={styles.sectionTitle}>En ce moment</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
-            <Text style={styles.seeAllText}>Tout voir</Text>
-          </TouchableOpacity>
+          {features.socialPeers ? (
+            <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+              <Text style={styles.seeAllText}>Membres</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
         <FlatList
           horizontal
-          data={canCreateNow ? [{ me: true as const }, ...stories] : stories}
-          keyExtractor={(item: any, index) => (item.me ? 'me' : item.creatorId || String(index))}
+          data={[{ me: true as const }]}
+          keyExtractor={() => 'me'}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.storiesContent}
-          renderItem={({ item }: any) =>
-            item.me ? (
+          renderItem={() => (
               <TouchableOpacity
                 style={styles.storyItem}
                 onPress={() => router.push('/events/create/step-1' as any)}
@@ -528,33 +470,19 @@ export default function HomeScreen() {
                   Créer
                 </Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.storyItem}
-                onPress={() => router.push(`/community/${item.creatorId}` as any)}
-                accessibilityRole="button"
-                accessibilityLabel={`Profil de ${item.name}`}
-              >
-                <LinearGradient
-                  colors={['#8b5cf6', '#2bbfe3']} // Purple to Cyan gradient
-                  style={styles.storyGradientBorder}
-                >
-                  <View style={styles.storyInner}>
-                    {item.avatar ? (
-                      <Image source={{ uri: item.avatar }} style={styles.storyAvatar} />
-                    ) : (
-                      <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
-                    )}
-                  </View>
-                </LinearGradient>
-                <Text style={styles.storyLabel} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            )
-          }
+          )}
         />
       </View>
+      ) : features.socialPeers ? (
+        <View style={styles.storiesContainer}>
+          <View style={styles.storiesHeader}>
+            <Text style={styles.sectionTitle}>Autour de vous</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+              <Text style={styles.seeAllText}>Membres</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
 
       {/* Filters */}
       <View style={styles.metaFilterRow}>

@@ -56,6 +56,11 @@ export function resolveNotificationRoute(
     return features.gamification ? { href: '/missions' } : inbox();
   }
 
+  if (type === 'followed_creator_published') {
+    // Scraper MVP: no creator-follow loop — open the event when present, else inbox.
+    return inbox();
+  }
+
   if (typeof type === 'string' && type.startsWith('discovery_')) {
     return features.discovery ? { href: '/discovery' } : inbox();
   }

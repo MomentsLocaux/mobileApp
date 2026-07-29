@@ -43,6 +43,7 @@ import {
   FloatingPressable,
   EventDetailSkeleton,
 } from '../../components/ui';
+import { features } from '@/config/features';
 import {
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
@@ -80,7 +81,6 @@ import { ShopService } from '@/services/shop.service';
 import { CreatorBoostService } from '@/services/creator-boost.service';
 import { EarlyAccessService, type EarlyAccessTeaser } from '@/services/early-access.service';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
-import { features } from '@/config/features';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
@@ -165,8 +165,9 @@ export default function EventDetailScreen() {
   const [communityPhotos, setCommunityPhotos] = useState<EventMediaSubmission[]>([]);
   const [loadingCommunityPhotos, setLoadingCommunityPhotos] = useState(false);
   const [contribModalVisible, setContribModalVisible] = useState(false);
-  const [isFollowingCreator, setIsFollowingCreator] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
+  const [peersEngaged, setPeersEngaged] = useState<
+    Array<{ id: string; display_name: string; avatar_url: string | null }>
+  >([]);
   const [attendees, setAttendees] = useState<AttendeePreview[]>([]);
   const [totalAttendees, setTotalAttendees] = useState(0);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
@@ -437,22 +438,23 @@ export default function EventDetailScreen() {
   useEffect(() => {
     let mounted = true;
     const run = async () => {
-      if (!event?.creator_id || !profile?.id || isGuest || profile.id === event.creator_id) {
-        if (mounted) setIsFollowingCreator(false);
+      if (!features.socialPeers || !event?.id || !profile?.id || isGuest) {
+        if (mounted) setPeersEngaged([]);
         return;
       }
       try {
-        const following = await CommunityService.isFollowing(event.creator_id);
-        if (mounted) setIsFollowingCreator(following);
+        const peers = await CommunityService.listEventEngagedByFollowing(event.id, { limit: 6 });
+        if (mounted) setPeersEngaged(peers);
       } catch (e) {
-        console.warn('check following creator', e);
+        console.warn('peers engaged', e);
+        if (mounted) setPeersEngaged([]);
       }
     };
-    run();
+    void run();
     return () => {
       mounted = false;
     };
-  }, [event?.creator_id, profile?.id, isGuest]);
+  }, [event?.id, profile?.id, isGuest, isLiked, isFavorite]);
 
   useEffect(() => {
     let mounted = true;
@@ -514,28 +516,6 @@ export default function EventDetailScreen() {
       await loadEventStats(event.id);
     } catch (error) {
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
-    }
-  };
-
-  const handleToggleFollowCreator = async () => {
-    if (isGuest) {
-      openGuestGate('Suivre ce créateur');
-      return;
-    }
-    if (!event?.creator_id || !profile?.id || profile.id === event.creator_id || followLoading) return;
-    setFollowLoading(true);
-    try {
-      if (isFollowingCreator) {
-        await CommunityService.unfollow(event.creator_id);
-        setIsFollowingCreator(false);
-      } else {
-        await CommunityService.follow(event.creator_id);
-        setIsFollowingCreator(true);
-      }
-    } catch (e) {
-      Alert.alert('Erreur', 'Impossible de mettre à jour le suivi pour le moment.');
-    } finally {
-      setFollowLoading(false);
     }
   };
 
@@ -1736,46 +1716,63 @@ export default function EventDetailScreen() {
 
           <Card padding="md" style={styles.creatorCard}>
             <View style={styles.creatorCardRow}>
-              <TouchableOpacity
-                style={styles.creatorMain}
-                activeOpacity={0.8}
-                onPress={() => {
-                  if (!event.creator) return;
-                  if (isGuest) {
-                    openGuestGate('Accéder à la communauté');
-                    return;
-                  }
-                  router.push(`/community/${event.creator.id}` as any);
-                }}
-              >
+              <View style={styles.creatorMain}>
                 {event.creator?.avatar_url ? (
                   <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
-                ) : !event.creator && MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
+                ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
                   <Image
                     source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
                     defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
                     style={styles.creatorCardAvatar}
                   />
-                ) : !event.creator ? (
-                  <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 ) : (
-                  <View style={[styles.creatorCardAvatar, styles.creatorCardAvatarFallback]} />
+                  <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 )}
                 <View style={styles.creatorCardInfo}>
                   <Text style={styles.creatorCardName}>
                     {event.creator?.display_name || MOMENTS_LOCAUX_ORGANIZER_NAME}
                   </Text>
-                  <Text style={styles.creatorCardMeta}>{event.creator?.city || 'Organisateur'}</Text>
+                  <Text style={styles.creatorCardMeta}>Source · OpenAgenda</Text>
                 </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.followButton} onPress={handleToggleFollowCreator}>
-                <Text style={styles.followButtonText}>
-                  {isOwner ? 'Vous' : followLoading ? '...' : isFollowingCreator ? 'Suivi' : 'Suivre'}
-                </Text>
-              </TouchableOpacity>
+              </View>
             </View>
           </Card>
+
+          {features.socialPeers && peersEngaged.length > 0 ? (
+            <Card padding="md" style={[styles.creatorCard, { marginTop: spacing.sm }]}>
+              <Text style={styles.practicalTitle}>Aimé par vos suivis</Text>
+              <View style={styles.peersRow}>
+                {peersEngaged.map((peer) => (
+                  <TouchableOpacity
+                    key={peer.id}
+                    style={styles.peerChip}
+                    onPress={() => {
+                      if (isGuest) {
+                        openGuestGate('Voir un profil');
+                        return;
+                      }
+                      router.push(`/community/${peer.id}` as any);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Profil de ${peer.display_name}`}
+                  >
+                    {peer.avatar_url ? (
+                      <Image source={{ uri: peer.avatar_url }} style={styles.peerAvatar} />
+                    ) : (
+                      <View style={[styles.peerAvatar, styles.peerAvatarFallback]}>
+                        <Text style={styles.peerAvatarInitial}>
+                          {(peer.display_name || '?').slice(0, 1).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.peerName} numberOfLines={1}>
+                      {peer.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Card>
+          ) : null}
 
           <View style={styles.echoesHeader}>
             <Text style={styles.echoesTitle}>Echos de la communauté</Text>
@@ -2374,6 +2371,44 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     marginTop: spacing.xs,
+  },
+  peersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  peerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    maxWidth: '48%',
+    paddingRight: spacing.sm,
+    paddingVertical: 4,
+    paddingLeft: 4,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  peerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  peerAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(43, 191, 227, 0.2)',
+  },
+  peerAvatarInitial: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+  },
+  peerName: {
+    ...typography.caption,
+    color: colors.brand.text,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   followButton: {
     borderRadius: borderRadius.full,

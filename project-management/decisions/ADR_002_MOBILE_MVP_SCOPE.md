@@ -24,9 +24,9 @@ The mobile MVP is limited to **local event discovery** (browse / social / trust 
 - Event list and event detail (published supply).
 - Favorites.
 - Like/interest if stable.
-- Follow creator/member.
-- Community profile basics.
-- Notifications: inbox + push delivery + preferences center (per-type, geolocated radius/frequency) + triggers for new nearby events and followed-creator publications. [Amendment 2026-06-08]
+- **Peer social**: Membres (search/follow), peer profiles, “aimé par vos suivis” on events (`FEATURE_SOCIAL_PEERS`, default on).
+- Comments.
+- Notifications: inbox + push delivery + preferences center (per-type, geolocated radius/frequency) + triggers for new nearby events. [Amendment 2026-06-08] — not followed-creator-published.
 - Report event.
 - Report comment.
 - Report profile/user.
@@ -86,23 +86,19 @@ Product decision during store stabilization:
 
 ### Mobile MVP visible scope (narrowed)
 
-- Discovery loop only: auth, onboarding Particulier, map/search/filters, event detail, social basics, notifications, reporting, settings/legal/delete.
-- Event **supply** = OpenAgenda scraper (not mobile creation).
+- Discovery loop: auth, onboarding Particulier, map/search/filters, event detail, favorites/likes/comments, notifications, reporting, settings/legal/delete.
+- **Peer social**: find/follow members + “aimé par vos suivis” on events (`FEATURE_SOCIAL_PEERS`, default on).
+- Event **supply** = OpenAgenda scraper (organizer Moments Locaux — no creator-follow).
 - Companion web: moderation console + marketing vitrine only.
 
-### Explicitly deferred behind flags (`src/config/features.ts`, default off)
+### Explicitly out / deferred
 
-| Flag | Phase | Surfaces |
-|---|---|---|
-| `FEATURE_EVENT_CREATE` | V1 | Create flow, mes events, ModeSwitch, creator hub |
-| `FEATURE_CHECKIN` | V1 | QR / geo check-in |
-| `FEATURE_OFFERS` | V1 | Nos offres / Habitué upsells |
-| `FEATURE_DIFFUSEUR` | V1 | Professionnel onboarding, Diffuseur packs/analytics |
-| `FEATURE_GAMIFICATION` | V2 | Lumo wallet, shop, missions, pass |
-| `FEATURE_DISCOVERY` (+ capture) | V2 | Discovery Engine |
-| `FEATURE_CONTESTS` | V2 | Concours |
-
-Code remains in the repo; navigation, deep links, and notification routing must no-op or redirect when flags are off. UI hiding alone is insufficient.
+| Item | Phase |
+|---|---|
+| Creator-follow / followed-creator-published notifs / creator rankings | Out (scraper) |
+| `FEATURE_EVENT_CREATE` | V1 |
+| `FEATURE_CHECKIN` / `FEATURE_OFFERS` / `FEATURE_DIFFUSEUR` | V1 |
+| `FEATURE_GAMIFICATION` / Discovery Engine / contests | V2 |
 
 ### Supersedes for MVP
 

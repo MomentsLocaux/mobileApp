@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,69 +8,93 @@ import {
   RefreshControl,
   Alert,
   Image,
-  ScrollView,
+  TextInput,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, Users } from 'lucide-react-native';
+import { Search, Users } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
 import type { CommunityMember } from '../../types/community';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { AppBackground, EmptyState, SkeletonBlock } from '@/components/ui';
 import { haptics } from '@/utils/haptics';
+import { features } from '@/config/features';
+import { MOMENTS_LOCAUX_ORGANIZER_NAME } from '@/constants/branding';
 
-type SortKey = 'followers' | 'events' | 'lumo';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'followers', label: 'Abonnés' },
-  { key: 'events', label: 'Événements' },
-  ...(GAMIFICATION_ENABLED ? [{ key: 'lumo' as const, label: 'Engagement' }] : []),
-];
-
+/**
+ * MVP peer social — find / follow members (not creator rankings).
+ */
 export default function CommunityScreen() {
+  if (!features.socialPeers) {
+    return <Redirect href="/(tabs)/map" />;
+  }
+
+  return <PeersMembersScreen />;
+}
+
+function PeersMembersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile, user, session } = useAuth();
+  const [query, setQuery] = useState('');
   const [members, setMembers] = useState<CommunityMember[]>([]);
-  const [sort, setSort] = useState<SortKey>('followers');
-  const [cityOnly, setCityOnly] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followPendingId, setFollowPendingId] = useState<string | null>(null);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
+  const searchSeq = useRef(0);
 
   const currentUserId = user?.id || session?.user?.id || profile?.id;
-  const profileCity = profile?.city?.trim() || null;
-  const cityFilter = cityOnly && profileCity ? profileCity : null;
 
-  const loadMembers = useCallback(async () => {
+  const load = useCallback(async (search: string) => {
+    const seq = ++searchSeq.current;
     try {
       setLoadingMembers(true);
       if (currentUserId) {
         const ids = await CommunityService.getFollowingIds(currentUserId);
+        if (seq !== searchSeq.current) return;
         setFollowingIds(ids);
       } else {
         setFollowingIds([]);
       }
-      const data = await CommunityService.listMembers({
-        city: cityFilter,
-        sort,
-        limit: 50,
+
+      const trimmed = search.trim();
+      const data = trimmed
+        ? await CommunityService.searchMembers({
+            query: trimmed,
+            city: profile?.city || undefined,
+            limit: 40,
+          })
+        : await CommunityService.listMembers({
+            city: profile?.city || null,
+            sort: 'followers',
+            limit: 40,
+          });
+
+      if (seq !== searchSeq.current) return;
+
+      const filtered = (data || []).filter((m) => {
+        if (!m.user_id || m.user_id === currentUserId) return false;
+        const name = (m.display_name || '').trim();
+        if (name.toLowerCase() === MOMENTS_LOCAUX_ORGANIZER_NAME.toLowerCase()) return false;
+        return true;
       });
-      setMembers(data);
+      setMembers(filtered);
     } catch (e) {
-      console.warn('loadMembers error', e);
+      console.warn('load peers error', e);
       Alert.alert('Erreur', 'Impossible de charger les membres');
     } finally {
-      setLoadingMembers(false);
+      if (seq === searchSeq.current) setLoadingMembers(false);
     }
-  }, [cityFilter, sort, currentUserId]);
+  }, [currentUserId, profile?.city]);
 
   useEffect(() => {
-    void loadMembers();
-  }, [loadMembers]);
+    const t = setTimeout(() => {
+      void load(query);
+    }, 280);
+    return () => clearTimeout(t);
+  }, [load, query]);
 
   const toggleFollow = async (memberId: string, current: boolean) => {
     if (!currentUserId) {
@@ -82,11 +106,12 @@ export default function CommunityScreen() {
     try {
       if (current) {
         await CommunityService.unfollow(memberId);
+        setFollowingIds((prev) => prev.filter((id) => id !== memberId));
       } else {
         await CommunityService.follow(memberId);
         haptics.success();
+        setFollowingIds((prev) => (prev.includes(memberId) ? prev : [...prev, memberId]));
       }
-      await loadMembers();
     } catch (e) {
       console.warn('follow/unfollow error', e);
       Alert.alert('Erreur', 'Action impossible pour le moment');
@@ -97,15 +122,23 @@ export default function CommunityScreen() {
 
   const followingSet = useMemo(() => new Set(followingIds), [followingIds]);
 
+  const sortedMembers = useMemo(() => {
+    return [...members].sort((a, b) => {
+      const af = followingSet.has(a.user_id) ? 0 : 1;
+      const bf = followingSet.has(b.user_id) ? 0 : 1;
+      if (af !== bf) return af - bf;
+      return (a.display_name || '').localeCompare(b.display_name || '', 'fr');
+    });
+  }, [members, followingSet]);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMembers();
+    await load(query);
     setRefreshing(false);
   };
 
   const renderMemberItem = ({ item }: { item: CommunityMember }) => {
     const isFollowing = followingSet.has(item.user_id);
-    const isSelf = item.user_id === currentUserId;
     const initial = (item.display_name || '?').slice(0, 1).toUpperCase();
 
     return (
@@ -130,42 +163,25 @@ export default function CommunityScreen() {
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {item.city || 'Ville non renseignée'}
-            {item.is_ambassadeur ? ' · Ambassadeur' : ''}
+            {isFollowing ? ' · Suivi' : ''}
           </Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statPill}>
-              <Users size={12} color={colors.brand.textSecondary} />
-              <Text style={styles.statText}>{item.followers_count || 0}</Text>
-            </View>
-            <View style={styles.statPill}>
-              <Text style={styles.statText}>{item.events_created_count || 0} événements</Text>
-            </View>
-          </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.followBtn, isFollowing && styles.followingBtn, isSelf && styles.selfBtn]}
-          disabled={isSelf || followPendingId === item.user_id}
+          style={[styles.followBtn, isFollowing && styles.followingBtn]}
+          disabled={followPendingId === item.user_id}
           onPress={() => toggleFollow(item.user_id, isFollowing)}
           accessibilityRole="button"
-          accessibilityLabel={isSelf ? 'Votre profil' : isFollowing ? 'Ne plus suivre' : 'Suivre'}
+          accessibilityLabel={isFollowing ? 'Ne plus suivre' : 'Suivre'}
           hitSlop={8}
         >
-          <Text style={[styles.followText, isFollowing && styles.followingText, isSelf && styles.selfText]}>
-            {isSelf ? 'Vous' : isFollowing ? 'Suivi' : 'Suivre'}
+          <Text style={[styles.followText, isFollowing && styles.followingText]}>
+            {isFollowing ? 'Suivi' : 'Suivre'}
           </Text>
         </TouchableOpacity>
       </TouchableOpacity>
     );
   };
-
-  const listHeader = (
-    <View style={styles.listHeaderBlock}>
-      <Text style={styles.countLabel}>
-        {loadingMembers ? 'Chargement…' : `${members.length} MEMBRE${members.length === 1 ? '' : 'S'}`}
-      </Text>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
@@ -173,57 +189,43 @@ export default function CommunityScreen() {
 
       <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Communauté</Text>
-          <Text style={styles.subtitle}>Découvrez et suivez les créateurs près de chez vous</Text>
+          <Text style={styles.title}>Membres</Text>
+          <Text style={styles.subtitle}>
+            Suivez des personnes de l’app pour voir quand elles aiment un moment près de chez vous.
+          </Text>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-          style={styles.chipsScroll}
-        >
-          {SORT_OPTIONS.map((opt) => {
-            const active = sort === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.chip, active && styles.chipActive]}
-                onPress={() => {
-                  haptics.selection();
-                  setSort(opt.key);
-                }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-          {profileCity ? (
-            <TouchableOpacity
-              style={[styles.chip, cityOnly && styles.chipActive]}
-              onPress={() => {
-                haptics.selection();
-                setCityOnly((v) => !v);
-              }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: cityOnly }}
-            >
-              <MapPin size={14} color={cityOnly ? colors.brand.primary : colors.brand.textSecondary} />
-              <Text style={[styles.chipText, cityOnly && styles.chipTextActive]}>{profileCity}</Text>
-            </TouchableOpacity>
-          ) : null}
-        </ScrollView>
+        <View style={styles.searchRow}>
+          <Search size={18} color={colors.brand.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Rechercher un prénom ou pseudo"
+            placeholderTextColor={colors.brand.textSecondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            accessibilityLabel="Rechercher un membre"
+          />
+        </View>
 
         {loadingMembers && !refreshing ? (
           <MembersListSkeleton />
         ) : (
           <FlatList
-            data={members}
+            data={sortedMembers}
             keyExtractor={(item) => item.user_id}
             renderItem={renderMemberItem}
-            ListHeaderComponent={listHeader}
+            ListHeaderComponent={
+              <View style={styles.listHeaderBlock}>
+                <Text style={styles.countLabel}>
+                  {followingIds.length > 0
+                    ? `${followingIds.length} suivi${followingIds.length > 1 ? 's' : ''} · ${sortedMembers.length} résultat${sortedMembers.length > 1 ? 's' : ''}`
+                    : `${sortedMembers.length} MEMBRE${sortedMembers.length === 1 ? '' : 'S'}`}
+                </Text>
+              </View>
+            }
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />
@@ -231,14 +233,12 @@ export default function CommunityScreen() {
             ListEmptyComponent={
               <EmptyState
                 icon={Users}
-                title="Aucun membre pour le moment"
+                title={query.trim() ? 'Aucun résultat' : 'Aucun membre pour le moment'}
                 subtitle={
-                  cityFilter
-                    ? `Personne à ${cityFilter} pour ce tri. Essayez sans filtre ville.`
-                    : 'Revenez bientôt — de nouveaux profils apparaissent au fil des publications.'
+                  query.trim()
+                    ? 'Essayez un autre nom, ou invitez vos proches à rejoindre l’app.'
+                    : 'Dès que d’autres personnes s’inscrivent près de chez vous, vous pourrez les suivre ici.'
                 }
-                ctaLabel={cityFilter ? 'Voir partout' : undefined}
-                onCtaPress={cityFilter ? () => setCityOnly(false) : undefined}
               />
             }
           />
@@ -257,7 +257,6 @@ function MembersListSkeleton() {
           <View style={{ flex: 1, gap: 8 }}>
             <SkeletonBlock height={14} width="55%" />
             <SkeletonBlock height={11} width="40%" />
-            <SkeletonBlock height={22} width="70%" radius={borderRadius.full} />
           </View>
           <SkeletonBlock height={36} width={72} radius={borderRadius.full} />
         </View>
@@ -289,39 +288,22 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     lineHeight: 20,
   },
-  chipsScroll: {
-    flexGrow: 0,
-  },
-  chipsRow: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: borderRadius.full,
+    minHeight: 48,
+    borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    minHeight: 40,
   },
-  chipActive: {
-    backgroundColor: colors.brand.secondary,
-    borderColor: colors.brand.secondary,
-  },
-  chipText: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-    fontWeight: '700',
-  },
-  chipTextActive: {
-    color: colors.brand.primary,
+  searchInput: {
+    flex: 1,
+    ...typography.body,
+    color: colors.brand.text,
+    paddingVertical: spacing.sm,
   },
   listHeaderBlock: {
     marginBottom: spacing.sm,
@@ -387,26 +369,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
   },
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: 4,
-  },
-  statPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  statText: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    fontWeight: '600',
-  },
   followBtn: {
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
@@ -420,11 +382,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  selfBtn: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-  },
   followText: {
     ...typography.bodySmall,
     color: colors.brand.primary,
@@ -432,8 +389,5 @@ const styles = StyleSheet.create({
   },
   followingText: {
     color: colors.brand.text,
-  },
-  selfText: {
-    color: colors.brand.textSecondary,
   },
 });

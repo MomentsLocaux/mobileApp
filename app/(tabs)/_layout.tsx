@@ -455,14 +455,16 @@ export default function TabsLayout() {
                 router.push('/(tabs)/profile' as any);
               }}
             />
-            <DrawerLink
-              icon={Users}
-              label="Communauté"
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/(tabs)/community' as any);
-              }}
-            />
+            {features.socialPeers && (
+              <DrawerLink
+                icon={Users}
+                label="Membres"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/(tabs)/community' as any);
+                }}
+              />
+            )}
           </View>
 
           {/* Section: Compte */}

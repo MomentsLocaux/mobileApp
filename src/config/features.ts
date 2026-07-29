@@ -1,16 +1,21 @@
 /**
  * Mobile feature flags — single source of truth for MVP / V1 / V2 surface gates.
  *
- * Convention: EXPO_PUBLIC_FEATURE_<NAME>=true
- * Default: all post-MVP flags false (code stays, nav + deep links hidden).
- *
- * Legacy env aliases remain accepted for Discovery / Gamification / Contests.
+ * Convention: EXPO_PUBLIC_FEATURE_<NAME>=true (or =false to force off when default-on).
  * Restart Metro after changing any flag.
  */
 
 const on = (key: string): boolean => process.env[key] === 'true';
+/** Default-on MVP flags: only disable with EXPO_PUBLIC_FEATURE_<NAME>=false */
+const onUnlessFalse = (key: string): boolean => process.env[key] !== 'false';
 
 export const features = {
+  /**
+   * MVP — peer social: find/follow members + “aimé par mes suivis” on events.
+   * Default ON. Set EXPO_PUBLIC_FEATURE_SOCIAL_PEERS=false to hide.
+   * Not creator-follow / not creator directory rankings.
+   */
+  socialPeers: onUnlessFalse('EXPO_PUBLIC_FEATURE_SOCIAL_PEERS'),
   /** V1 — event creation, ModeSwitch, mes events, create hub */
   eventCreate: on('EXPO_PUBLIC_FEATURE_EVENT_CREATE'),
   /** V1 — QR / geo check-in + creator QR share */
