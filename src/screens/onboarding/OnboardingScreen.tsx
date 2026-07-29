@@ -61,6 +61,7 @@ import type { CategoryVisualSlug } from '@/constants/category-visuals';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { haptics } from '@/utils/haptics';
+import { features } from '@/config/features';
 
 type StepId =
   | 'welcome'
@@ -102,7 +103,10 @@ export default function OnboardingScreen() {
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
   const [accountKind, setAccountKind] = useState<AccountKind>(() => {
-    if (profile?.role === 'professionnel' || profile?.role === 'institutionnel') {
+    if (
+      features.diffuseur &&
+      (profile?.role === 'professionnel' || profile?.role === 'institutionnel')
+    ) {
       return 'professionnel';
     }
     return 'particulier';
@@ -110,9 +114,11 @@ export default function OnboardingScreen() {
   const [proSubtype, setProSubtype] = useState<ProSubtype | null>(
     (profile?.pro_subtype as ProSubtype | null | undefined) ?? null,
   );
-  /** B2C only: discover + create. Never créateur pur. */
+  /** B2C only: discover + create. Never créateur pur. Gated by FEATURE_EVENT_CREATE. */
   const [particulierAlsoCreates, setParticulierAlsoCreates] = useState(
-    Boolean(profile?.can_create) && profile?.role === 'particulier',
+    features.eventCreate &&
+      Boolean(profile?.can_create) &&
+      profile?.role === 'particulier',
   );
   const [addressSearch, setAddressSearch] = useState('');
   const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
@@ -136,16 +142,30 @@ export default function OnboardingScreen() {
   const searchSeq = useRef(0);
   const profilePersisted = useRef(false);
 
-  const isProfessionnel = accountKind === 'professionnel';
+  const isProfessionnel = features.diffuseur && accountKind === 'professionnel';
   const canCreate =
-    isProfessionnel || (accountKind === 'particulier' && particulierAlsoCreates);
+    features.eventCreate &&
+    (isProfessionnel || (accountKind === 'particulier' && particulierAlsoCreates));
   const isUploading = uploadTarget !== null;
+
+  const visibleAccountKinds = useMemo(
+    () =>
+      features.diffuseur
+        ? ACCOUNT_KIND_OPTIONS
+        : ACCOUNT_KIND_OPTIONS.filter((o) => o.value === 'particulier'),
+    [],
+  );
 
   const steps: StepId[] = useMemo(() => {
     if (isProfessionnel) {
       return ['welcome', 'identity', 'location', 'avatar', 'creator', 'connector'];
     }
-    if (particulierAlsoCreates) {
+    const marketingTail: StepId[] = features.offers
+      ? ['tiers', 'eclairer']
+      : features.eventCreate
+        ? []
+        : [];
+    if (particulierAlsoCreates && features.eventCreate) {
       return [
         'welcome',
         'identity',
@@ -155,12 +175,10 @@ export default function OnboardingScreen() {
         'create_themes',
         'avatar',
         'creator',
-        'tiers',
-        'eclairer',
-        'mode_hint',
+        ...(features.offers ? (['tiers', 'eclairer', 'mode_hint'] as StepId[]) : (['mode_hint'] as StepId[])),
       ];
     }
-    return ['welcome', 'identity', 'location', 'themes', 'avatar', 'tiers', 'eclairer'];
+    return ['welcome', 'identity', 'location', 'themes', 'avatar', ...marketingTail];
   }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
@@ -689,6 +707,7 @@ export default function OnboardingScreen() {
             <OnboardingWelcomeStep
               preferredKind={accountKind}
               onSelectKind={(kind) => {
+                if (!features.diffuseur && kind === 'professionnel') return;
                 setAccountKind(kind);
                 if (kind === 'particulier') {
                   setProSubtype(null);
@@ -696,6 +715,7 @@ export default function OnboardingScreen() {
                   setProSubtype('independant');
                 }
               }}
+              showProfessionnel={features.diffuseur}
             />
           </MotionReveal>
         )}
@@ -704,7 +724,9 @@ export default function OnboardingScreen() {
           <MotionReveal key="identity" style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Qui êtes-vous ?</Text>
             <Text style={styles.helper}>
-              Particulier ou Professionnel — puis, si besoin, votre typologie.
+              {features.diffuseur
+                ? 'Particulier ou Professionnel — puis, si besoin, votre typologie.'
+                : 'Quelques infos pour personnaliser votre découverte locale.'}
             </Text>
 
             <View style={styles.inputGroup}>
@@ -726,7 +748,7 @@ export default function OnboardingScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Je suis :</Text>
               <View style={styles.roleChips}>
-                {ACCOUNT_KIND_OPTIONS.map((option) => {
+                {visibleAccountKinds.map((option) => {
                   const Icon = ACCOUNT_KIND_ICONS[option.value];
                   const active = accountKind === option.value;
                   return (
@@ -763,7 +785,7 @@ export default function OnboardingScreen() {
               ) : null}
             </View>
 
-            {accountKind === 'particulier' ? (
+            {accountKind === 'particulier' && features.eventCreate ? (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Sur Moments Locaux, je veux :</Text>
                 <TouchableOpacity

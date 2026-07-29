@@ -18,6 +18,7 @@ import { SettingsRow, SettingsSectionCard } from '@/components/settings/Settings
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { CATEGORY_VISUAL_SLUGS, type CategoryVisualSlug } from '@/constants/category-visuals';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { features } from '@/config/features';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { requestProximityLocationPermissions } from '@/hooks/useProximityAlerts';
 import {
@@ -429,7 +430,7 @@ export default function NotificationsSettingsScreen() {
       </SettingsSectionCard>
       )}
 
-      {DISCOVERY_ENABLED && !entitlementLoading && !hasEclaireur && (
+      {DISCOVERY_ENABLED && features.offers && !entitlementLoading && !hasEclaireur && (
         <SettingsSectionCard
           title="Suggestions Discovery"
           description="Réservé aux Éclaireurs — idées selon vos habitudes de sortie."

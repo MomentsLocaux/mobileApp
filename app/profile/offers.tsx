@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, ChevronLeft, Crown, Sparkles, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -23,10 +23,18 @@ import {
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { ActivityLogService } from '@/services/activity-log.service';
 import { haptics } from '@/utils/haptics';
+import { features } from '@/config/features';
 
 type PlanFocus = 'habitue' | 'eclaireur';
 
 export default function OffersScreen() {
+  if (!features.offers) {
+    return <Redirect href="/(tabs)/map" />;
+  }
+  return <OffersScreenContent />;
+}
+
+function OffersScreenContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { hasHabitue, hasEclaireur } = useOfferEntitlements();
@@ -37,7 +45,6 @@ export default function OffersScreen() {
       () => undefined,
     );
   }, []);
-
   const plans = focus === 'habitue' ? HABITUE_PLANS : ECLAIREUR_PLANS;
   const focusLabel = focus === 'habitue' ? 'Habitué' : 'Éclaireur';
 

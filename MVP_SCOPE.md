@@ -1,95 +1,93 @@
 # MVP Scope
 
-This branch prepares a tighter store-ready MVP for Moments Locaux. The goal is to keep the public app focused on reliable local-event discovery, creation, interaction, check-in, user reporting, and creator-facing publication statuses.
+Store-ready **discovery-only** mobile MVP for Moments Locaux. Supply comes from OpenAgenda (scraper). Creation, freemium IAP, Diffuseur, and gamification stay in the codebase behind feature flags (default off).
 
-## Visible MVP Features
+Companion surfaces in MVP: **moderation WebConsole** + **marketing site vitrine** (not this repo).
 
-- Authentication: register, login, logout, persisted session, and social login (OAuth, e.g. Facebook) — see scope amendment 2026-06-08.
-- Onboarding: profile identity, role, location, avatar; soft presentation tiers; skippable offers CTA.
-- Offers: drawer entry **Nos offres** with incremental Local ⊂ Habitué ⊂ Éclaireur matrix (IAP stub until store integration).
+## Visible MVP Features (flags off)
+
+- Authentication: register, login, logout, persisted session, social login (OAuth).
+- Onboarding: Particulier only (no Professionnel), location, avatar, themes — no create intent, no offers CTA.
 - Map discovery: Mapbox map, visible-area event loading, search, filters, event preview, event details.
-- Event browsing: home/list results, detail page, creator profile links, sharing.
-- Event creation: multi-step creation, cover upload, location, date, category, media, draft/edit, publication status.
-- Social basics: favorites, likes/interests, follow creator/member, community profiles.
-- Check-in: QR/location check-in through the Supabase Edge Function — **reserved to Habitué+** (Éclaireur includes Habitué). Local users are directed to Nos offres.
-- Notifications: inbox, unread badge, notification routing, push delivery (device notifications), and a notification preferences center (per-type granularity, plus geolocated radius/frequency) — see scope amendment 2026-06-08.
-- User reporting: report an event, comment, media, or profile.
-- Creator publication status: view created event statuses (`draft`, `pending`, `published`, `refused`, `archived`) and refusal reasons when available.
-- Profile basics: edit profile, my events, settings, bug report.
+- Event browsing: home/list results, detail page, community profile links, sharing.
+- Social basics: favorites, likes/interests, follow creator/member, community profiles, comments.
+- Notifications: inbox, unread badge, notification routing, push delivery, preferences center.
+- User reporting: report an event, comment, or profile (media report UI still a gap).
+- Profile basics: edit profile, settings, bug report, account deletion, CGU / privacy.
+
+## Feature flags (`src/config/features.ts`)
+
+All post-MVP flags default **false**. Set `EXPO_PUBLIC_FEATURE_<NAME>=true` and restart Metro.
+
+| Flag | Phase | Surfaces |
+|---|---|---|
+| *(none)* | MVP | Auth, onboarding léger, carte, social, notifs, report, settings légal/delete |
+| `FEATURE_EVENT_CREATE` | V1 | Tab +, create flow, mes events, ModeSwitch, creator hub |
+| `FEATURE_CHECKIN` | V1 | QR / geo check-in + creator QR share |
+| `FEATURE_OFFERS` | V1 | Nos offres, Habitué upsells |
+| `FEATURE_DIFFUSEUR` | V1 | Professionnel onboarding, packs, analytics pro |
+| `FEATURE_GAMIFICATION` | V2 | Wallet, shop, missions, pass (alias: `EXPO_PUBLIC_GAMIFICATION_ENABLED`) |
+| `FEATURE_DISCOVERY` | V2 | Discovery Engine (alias: `EXPO_PUBLIC_DISCOVERY_ENABLED`) |
+| `FEATURE_DISCOVERY_CAPTURE` | V2 | Background capture |
+| `FEATURE_CONTESTS` | V2 | Concours |
+
+Code stays in the repo; nav + deep links + services early-return when flags are off.
+
+## Scope Amendment 2026-07-29 (discovery-only MVP)
+
+Product decision during stabilization:
+
+- Event creation + Créateur/Découvreur mode switch → **V1** (not MVP).
+- Check-in, Nos offres / IAP, Diffuseur B2B → **V1**.
+- Lumo / shop / missions / Discovery Engine / contests → **V2** (flags already off).
+- Cold start: OpenAgenda scraper (thousands of events).
+- Web MVP: moderation console + site vitrine only.
 
 ## Scope Amendment 2026-06-08
 
-Following a product decision, the following items move INTO the mobile MVP (previously deferred / post-MVP):
+- Social login (OAuth) and basic push + notification preferences remain in MVP.
 
-- **Social login (OAuth)** on the auth screen (e.g. Facebook), in addition to email/password.
-- **Notifications system** beyond the inbox: device push delivery, triggers for new nearby events and followed-creator publications, and a notification preferences center (per-type toggles + geolocated radius/frequency). This supersedes the "Advanced notifications/push" post-MVP line in ADR_002 for the basic push + preferences scope (advanced analytics/segmentation remains post-MVP).
+## Hidden When Flags Off (code retained)
 
-See `project-management/decisions/ADR_002_MOBILE_MVP_SCOPE.md` (Amendment 2026-06-08).
-
-## Temporarily Hidden From Public Navigation
-
-- Shop and purchase flows.
-- Missions and deep gamification.
-- Offers/subscriptions.
-- Wallet and advanced Lumo display.
-- Creator analytics dashboard and fan tools.
-- Admin moderation dashboard, queues, approve/reject actions, ban/warn/lift restriction actions, media review, and user risk dashboard.
-- Advanced settings placeholders: email/auth management, preferences, sessions, security, password change, data export.
-- Journey/progression screen.
-
-The route files remain in the repository for future work, but they are not exposed from the MVP drawer/settings/profile surfaces.
-
-Admin moderation is explicitly out of the mobile MVP. It will be handled in a separate web admin app, as defined in `project-management/decisions/ADR_001_ADMIN_MODERATION_WEB_APP.md`. The mobile app only keeps user-facing reporting flows and creator-facing publication statuses.
+- Event creation stepper, mes events, ModeSwitch.
+- Check-in / QR share.
+- Nos offres / Habitué paywall.
+- Diffuseur packs / analytics / Professionnel onboarding.
+- Shop, missions, wallet Lumo, pass, contests, Discovery Engine.
+- Admin moderation routes (redirect to map — ops on WebConsole).
+- Advanced settings placeholders, journey, invite.
 
 ## Dormant Or Deferred Code
 
-- `src/screens/events/EventCreateScreen.tsx` appears unreferenced by the current Expo Router flow. The active event creation flow lives under `app/events/create/*`.
-- `src/store/authStore.ts` is exported from `src/store/index.ts`, but the active auth flow imports `src/state/auth.ts`.
-- `ShopService.purchase`, `LumoService`, and `offersStore` are retained for post-MVP work. Legacy HTTP API calls are disabled in the mobile provider; MVP check-in uses the Supabase `event-checkin` Edge Function.
+- `src/screens/events/EventCreateScreen.tsx` unreferenced by Expo Router.
+- Duplicate auth store (`src/store/authStore.ts` vs `src/state/auth.ts`).
+- Shop EUR purchase disabled in mobile provider.
 
-## Critical Manual Test Matrix
+## Critical Manual Test Matrix (MVP)
 
-- Create an account.
-- Log in and log out.
-- Complete onboarding.
-- Search for an address.
-- Display the map and nearby events.
-- Search/filter events.
-- Open an event detail page.
-- Create an event with a cover image.
-- Upload additional event media.
-- Submit an event for publication review.
-- See the submitted event as `pending` in my events.
-- See a `refused` event and its refusal reason when available.
-- See the published event on map/list/detail.
-- Add/remove favorite.
-- Like/mark interest.
-- Follow/unfollow a creator or member.
-- Perform QR/location check-in.
-- Report an event, comment, media, or profile.
-- Receive/open a notification.
-- Open settings and edit profile.
-- Trigger account deletion flow.
+- Create an account / login / logout / OAuth.
+- Complete onboarding (Particulier).
+- Map + search + filters + event detail.
+- Favorite, like, follow, community profile.
+- Report event / comment / profile.
+- Notifications inbox + preferences.
+- Settings, legal, account deletion, bug report.
+- Deep links to `/events/create/*`, `/profile/offers`, `/profile/wallet` redirect away when flags off.
+- Guest map browse still works (anon RLS).
 
-Run the matrix on iOS and Android real devices before store submission.
+Run on iOS and Android real devices before store submission.
 
 ## Store Readiness Prerequisites
 
-- Confirm final App Store / Play Store name, subtitle, screenshots, and descriptions.
-- Confirm bundle/package identifiers and app ownership.
-- Validate icons, splash, and store artwork.
-- Verify iOS permission copy in a production build.
-- Verify Android permissions shown in Play Console.
-- Configure production Supabase, Mapbox, and Sentry public values. Do not configure a mobile public API base URL for MVP.
-- Confirm account deletion is functional enough for store review.
-- Run `npm run typecheck` and `npm run lint`.
-- Build and smoke-test release/dev-client builds on iOS and Android.
+- App Store / Play copy aligned on **découverte locale** (no création promise).
+- Production Supabase, Mapbox, Sentry public values.
+- Account deletion functional for store review.
+- `npm run typecheck` and `npm run lint`.
+- Release/dev-client smoke on iOS and Android.
 
 ## Post-MVP TODO
 
-- Decide whether to delete or revive the legacy `EventCreateScreen`.
-- Consolidate the duplicate auth store situation.
-- Finish or remove placeholder settings screens.
-- Reintroduce shop, missions, offers, wallet, and creator analytics only when the data and UX are production-ready.
-- Build the admin moderation experience in a separate web app, not in the mobile app.
-- Add automated tests around auth, event creation, map search, reporting, publication statuses, and check-in.
+- Flip `FEATURE_EVENT_CREATE` (+ check-in / offers) for V1.
+- IAP StoreKit / Play Billing when `FEATURE_OFFERS` on.
+- Diffuseur Stripe when `FEATURE_DIFFUSEUR` on.
+- Reintroduce gamification / Discovery / contests via V2 flags when density justifies it.

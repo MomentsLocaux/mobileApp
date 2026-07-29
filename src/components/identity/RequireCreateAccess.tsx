@@ -1,5 +1,6 @@
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
+import { features } from '@/config/features';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { colors } from '@/constants/theme';
 
@@ -15,7 +16,10 @@ type Props = {
 export function RequireCreateAccess({ children, allowIfCanCreate = false }: Props) {
   const { canCreateNow, canCreate, accountKind } = useAccountIdentity();
 
-  // Hook may briefly resolve from profile — treat missing profile as loading via canCreate false+undefined
+  if (!features.eventCreate) {
+    return <Redirect href="/(tabs)/map" />;
+  }
+
   if (accountKind === 'professionnel') {
     return <>{children}</>;
   }

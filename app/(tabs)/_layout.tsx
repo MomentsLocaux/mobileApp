@@ -41,6 +41,7 @@ import { haptics } from '@/utils/haptics';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { features } from '@/config/features';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAuth } from '../../src/hooks';
@@ -102,7 +103,7 @@ export default function TabsLayout() {
   }, [loadUnreadNotifications]);
 
   const loadMyEventsShortcut = useCallback(async () => {
-    if (!profile?.id || isGuest) {
+    if (!features.eventCreate || !profile?.id || isGuest) {
       setHasMyEventsShortcut(false);
       return;
     }
@@ -467,15 +468,17 @@ export default function TabsLayout() {
           {/* Section: Compte */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>COMPTE</Text>
-            <DrawerLink
-              icon={Sparkles}
-              label="Nos offres"
-              iconColor={colors.brand.premiumLight}
-              onPress={() => {
-                toggleDrawer(false);
-                router.push('/profile/offers' as any);
-              }}
-            />
+            {features.offers ? (
+              <DrawerLink
+                icon={Sparkles}
+                label="Nos offres"
+                iconColor={colors.brand.premiumLight}
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/profile/offers' as any);
+                }}
+              />
+            ) : null}
             <DrawerLink
               icon={Settings}
               label="Paramètres"
@@ -506,15 +509,22 @@ export default function TabsLayout() {
                   onPress={() => {
                     toggleDrawer(false);
                     if (!hasHabitue) {
+                      const upsellHref = features.offers ? '/profile/offers' : '/(tabs)/map';
                       Alert.alert(
                         'Gagnez des Lumo en sortant',
-                        'Avec Habitué, chaque présence validée vous rapporte des Lumo à dépenser dans la boutique. Éclaireur inclut Habitué.',
+                        features.offers
+                          ? 'Avec Habitué, chaque présence validée vous rapporte des Lumo à dépenser dans la boutique. Éclaireur inclut Habitué.'
+                          : 'Le portefeuille Lumo sera disponible avec l’offre Habitué.',
                         [
-                          {
-                            text: 'Découvrir Habitué',
-                            onPress: () => router.push('/profile/offers' as any),
-                          },
-                          { text: 'Plus tard', style: 'cancel' },
+                          ...(features.offers
+                            ? [
+                                {
+                                  text: 'Découvrir Habitué',
+                                  onPress: () => router.push(upsellHref as any),
+                                },
+                              ]
+                            : []),
+                          { text: 'Plus tard', style: 'cancel' as const },
                         ],
                       );
                       return;
@@ -528,15 +538,22 @@ export default function TabsLayout() {
                   onPress={() => {
                     toggleDrawer(false);
                     if (!hasHabitue) {
+                      const upsellHref = features.offers ? '/profile/offers' : '/(tabs)/map';
                       Alert.alert(
                         'La boutique vous attend',
-                        'Boostez vos moments ou personnalisez votre profil avec vos Lumo. Passez Habitué pour y accéder — Éclaireur inclut Habitué.',
+                        features.offers
+                          ? 'Boostez vos moments ou personnalisez votre profil avec vos Lumo. Passez Habitué pour y accéder — Éclaireur inclut Habitué.'
+                          : 'La boutique Lumo sera disponible avec l’offre Habitué.',
                         [
-                          {
-                            text: 'Découvrir Habitué',
-                            onPress: () => router.push('/profile/offers' as any),
-                          },
-                          { text: 'Plus tard', style: 'cancel' },
+                          ...(features.offers
+                            ? [
+                                {
+                                  text: 'Découvrir Habitué',
+                                  onPress: () => router.push(upsellHref as any),
+                                },
+                              ]
+                            : []),
+                          { text: 'Plus tard', style: 'cancel' as const },
                         ],
                       );
                       return;
@@ -566,7 +583,7 @@ export default function TabsLayout() {
                 )}
               </>
             )}
-            {isProfessionnelAccount ? (
+            {features.diffuseur && isProfessionnelAccount ? (
               <>
                 <DrawerLink
                   icon={Package}
@@ -596,7 +613,8 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
-            {(canCreate || hasMyEventsShortcut || isProfessionnelAccount) && (
+            {features.eventCreate &&
+              (canCreate || hasMyEventsShortcut || isProfessionnelAccount) && (
               <DrawerLink
                 icon={MapPinned}
                 label="Mes événements"

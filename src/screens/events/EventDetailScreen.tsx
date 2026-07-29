@@ -80,6 +80,7 @@ import { ShopService } from '@/services/shop.service';
 import { CreatorBoostService } from '@/services/creator-boost.service';
 import { EarlyAccessService, type EarlyAccessTeaser } from '@/services/early-access.service';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { features } from '@/config/features';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
@@ -536,19 +537,27 @@ export default function EventDetailScreen() {
   };
 
   const executeCheckIn = useCallback(async (options?: { qrToken?: string; source?: 'mobile' | 'qr_scan'; successTitle?: string }) => {
+    if (!features.checkin) return;
     if (isGuest) {
       openGuestGate('Faire un check-in');
       return;
     }
     if (!hasHabitue) {
-      Alert.alert(
-        'Montrez que vous y étiez',
-        'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
-        [
-          { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
-          { text: 'Plus tard', style: 'cancel' },
-        ],
-      );
+      if (features.offers) {
+        Alert.alert(
+          'Montrez que vous y étiez',
+          'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
+          [
+            { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
+            { text: 'Plus tard', style: 'cancel' },
+          ],
+        );
+      } else {
+        Alert.alert(
+          'Check-in bientôt disponible',
+          'La validation de présence arrivera avec les offres Habitué.',
+        );
+      }
       return;
     }
     if (!profile || !event || !session?.access_token) return;
@@ -635,6 +644,7 @@ export default function EventDetailScreen() {
   ]);
 
   const handleCheckIn = () => {
+    if (!features.checkin) return;
     if (isOwner) {
       Alert.alert('Check-in', 'L’organisateur ne peut pas valider sa présence sur son propre événement.');
       return;
@@ -644,14 +654,21 @@ export default function EventDetailScreen() {
       return;
     }
     if (!hasHabitue) {
-      Alert.alert(
-        'Montrez que vous y étiez',
-        'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
-        [
-          { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
-          { text: 'Plus tard', style: 'cancel' },
-        ],
-      );
+      if (features.offers) {
+        Alert.alert(
+          'Montrez que vous y étiez',
+          'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
+          [
+            { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
+            { text: 'Plus tard', style: 'cancel' },
+          ],
+        );
+      } else {
+        Alert.alert(
+          'Check-in bientôt disponible',
+          'La validation de présence arrivera avec les offres Habitué.',
+        );
+      }
       return;
     }
     Alert.alert(
@@ -1586,7 +1603,7 @@ export default function EventDetailScreen() {
           </Card>
           </MotionReveal>
 
-          {event.status === 'published' && (isOwner || isAdmin) ? (
+          {features.checkin && event.status === 'published' && (isOwner || isAdmin) ? (
             <Card padding="md" style={[styles.qrCard, { marginTop: spacing.md }]}>
               <View style={styles.qrHeader}>
                 <Text style={styles.qrTitle}>QR code de l’événement</Text>
@@ -1782,6 +1799,7 @@ export default function EventDetailScreen() {
       </ScrollView>
       </Animated.View>
 
+      {features.checkin ? (
       <Animated.View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }, bottomBarStyle]}> 
         <View style={styles.bottomBarContent}>
           <TouchableOpacity style={[styles.bottomBarCta, styles.bottomSecondary, styles.bottomCheckInFull]} onPress={handleCheckIn}>
@@ -1792,6 +1810,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
+      ) : null}
 
       <NavigationOptionsSheet
         visible={navSheetVisible}

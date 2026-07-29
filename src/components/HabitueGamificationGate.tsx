@@ -1,6 +1,7 @@
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { features } from '@/config/features';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { colors } from '@/constants/theme';
@@ -16,18 +17,22 @@ type Props = {
 /**
  * Lumo / boutique / missions / Pass: Habitué+ only (Éclaireur includes Habitué).
  * Professionnel accounts never access Boutique Lumo (ADR_007 / ID-GUARDS).
+ * When FEATURE_OFFERS is off, Local users bounce to map (never /profile/offers).
  */
 export function HabitueGamificationGate({
   children,
   flagOffHref = '/(tabs)/map',
-  localHref = '/profile/offers',
+  localHref,
 }: Props) {
   if (!GAMIFICATION_ENABLED) {
     return <Redirect href={flagOffHref as any} />;
   }
 
+  const resolvedLocalHref =
+    localHref ?? (features.offers ? '/profile/offers' : '/(tabs)/map');
+
   return (
-    <HabitueGamificationGateInner localHref={localHref}>{children}</HabitueGamificationGateInner>
+    <HabitueGamificationGateInner localHref={resolvedLocalHref}>{children}</HabitueGamificationGateInner>
   );
 }
 

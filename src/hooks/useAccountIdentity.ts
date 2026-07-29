@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks';
 import { ProfileService } from '@/services/profile.service';
 import type { ActiveMode } from '@/constants/accountIdentity';
+import { features } from '@/config/features';
 import {
   canAccessCreateSurfaces,
   canOptInToCreation,
@@ -11,21 +12,46 @@ import {
   profileCanCreate,
   shouldShowModeSwitch,
 } from '@/utils/accountIdentity';
+import { accentForIdentity } from '@/constants/identityTheme';
 
 export function useAccountIdentity() {
   const { profile, refreshProfile } = useAuth();
   const [savingMode, setSavingMode] = useState(false);
 
-  const accountKind = useMemo(() => getAccountKind(profile), [profile]);
-  const activeMode = useMemo(() => getActiveMode(profile), [profile]);
-  const canCreate = useMemo(() => profileCanCreate(profile), [profile]);
-  const canCreateNow = useMemo(() => canAccessCreateSurfaces(profile), [profile]);
-  const showModeSwitch = useMemo(() => shouldShowModeSwitch(profile), [profile]);
-  const accent = useMemo(() => getIdentityAccent(profile), [profile]);
+  /** When Diffuseur is off, treat pro accounts as B2C for mobile chrome (MVP discovery-only). */
+  const accountKind = useMemo(() => {
+    const kind = getAccountKind(profile);
+    if (kind === 'professionnel' && !features.diffuseur) return 'particulier';
+    return kind;
+  }, [profile]);
+
+  const activeMode = useMemo(() => {
+    if (!features.eventCreate) return 'discover';
+    return getActiveMode(profile);
+  }, [profile]);
+
+  const canCreate = useMemo(
+    () => features.eventCreate && profileCanCreate(profile),
+    [profile],
+  );
+  const canCreateNow = useMemo(
+    () => features.eventCreate && canAccessCreateSurfaces(profile),
+    [profile],
+  );
+  const showModeSwitch = useMemo(
+    () => features.eventCreate && shouldShowModeSwitch(profile),
+    [profile],
+  );
+  const accent = useMemo(() => {
+    if (!features.eventCreate || !features.diffuseur) {
+      return accentForIdentity(accountKind, 'discover');
+    }
+    return getIdentityAccent(profile);
+  }, [profile, accountKind]);
 
   const setActiveMode = useCallback(
     async (mode: ActiveMode) => {
-      if (!profile?.id || !showModeSwitch) return false;
+      if (!features.eventCreate || !profile?.id || !showModeSwitch) return false;
       if (mode === activeMode) return true;
       setSavingMode(true);
       try {
@@ -43,6 +69,7 @@ export function useAccountIdentity() {
   );
 
   const enableCreation = useCallback(async (): Promise<{ ok: boolean; reason?: string }> => {
+    if (!features.eventCreate) return { ok: false, reason: 'feature_disabled' };
     if (!profile?.id) return { ok: false, reason: 'not_authenticated' };
     if (profile.can_create) return { ok: true };
     if (profile.role === 'invite') return { ok: false, reason: 'invite' };
@@ -80,6 +107,6 @@ export function useAccountIdentity() {
     savingMode,
     setActiveMode,
     enableCreation,
-    canOptInToCreation: canOptInToCreation(profile),
+    canOptInToCreation: features.eventCreate && canOptInToCreation(profile),
   };
 }

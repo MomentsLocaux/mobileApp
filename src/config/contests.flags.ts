@@ -1,2 +1,4 @@
-/** Contests module — post-MVP, off by default. */
-export const CONTESTS_ENABLED = process.env.EXPO_PUBLIC_FEATURE_CONTESTS === 'true';
+import { features } from '@/config/features';
+
+/** Contests module (V2). EXPO_PUBLIC_FEATURE_CONTESTS. */
+export const CONTESTS_ENABLED = features.contests;

@@ -1,5 +1,7 @@
-/** Discovery module feature flags — default off until Phase B rollout. */
-export const DISCOVERY_ENABLED = process.env.EXPO_PUBLIC_DISCOVERY_ENABLED === 'true';
+import { features } from '@/config/features';
 
-export const DISCOVERY_CAPTURE_ENABLED =
-  process.env.EXPO_PUBLIC_DISCOVERY_CAPTURE_ENABLED === 'true';
+/** Discovery Engine (V2). Prefer EXPO_PUBLIC_FEATURE_DISCOVERY. */
+export const DISCOVERY_ENABLED = features.discovery;
+
+/** Background capture — requires discovery. Prefer EXPO_PUBLIC_FEATURE_DISCOVERY_CAPTURE. */
+export const DISCOVERY_CAPTURE_ENABLED = features.discoveryCapture;

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { features } from '@/config/features';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
@@ -90,7 +91,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/profile/edit' as any)}
           noBorder
         />
-        {canOptInToCreation ? (
+        {features.eventCreate && canOptInToCreation ? (
           <SettingsRow
             label={savingMode ? 'Activation…' : 'Activer la création de moments'}
             icon={PlusCircle}
@@ -98,7 +99,7 @@ export default function SettingsScreen() {
             disabled={savingMode}
           />
         ) : null}
-        {showModeSwitch ? (
+        {features.eventCreate && showModeSwitch ? (
           <SettingsRow
             label="Changer de mode (Découvreur / Créateur)"
             icon={Compass}

@@ -22,6 +22,7 @@ import {
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useDiffuseur } from '@/hooks/useDiffuseur';
 import { DiffuseurService } from '@/services/diffuseur.service';
+import { features } from '@/config/features';
 
 function formatEurHt(cents: number | null): string {
   if (cents == null) return '—';
@@ -273,8 +274,8 @@ function DiffuseurBillingContent() {
 
 export default function DiffuseurBillingScreen() {
   const { accountKind } = useAccountIdentity();
-  if (accountKind !== 'professionnel') {
-    return <Redirect href="/(tabs)/profile" />;
+  if (!features.diffuseur || accountKind !== 'professionnel') {
+    return <Redirect href="/(tabs)/map" />;
   }
   return <DiffuseurBillingContent />;
 }
