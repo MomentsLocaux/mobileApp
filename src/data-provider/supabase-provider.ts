@@ -148,6 +148,52 @@ const resolveEventMarkerIcon = (categoryMetaValue: any): string => {
   return resolveMarkerIconFromSlug(slug);
 };
 
+const mapViewportRowToEvent = (row: Record<string, unknown>): EventWithCreator => {
+  const categorySlug = typeof row.category_slug === 'string' ? row.category_slug : null;
+  const categoryIcon = typeof row.category_icon === 'string' ? row.category_icon : null;
+  const creatorId = row.creator_id ? String(row.creator_id) : null;
+  return {
+    id: String(row.id),
+    creator_id: creatorId,
+    title: (row.title as string) || '',
+    description: null,
+    category: row.category ? String(row.category) : null,
+    subcategory: row.subcategory ? String(row.subcategory) : null,
+    tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
+    starts_at: row.starts_at ? String(row.starts_at) : null,
+    ends_at: row.ends_at ? String(row.ends_at) : null,
+    schedule_mode: (row.schedule_mode as string) || null,
+    latitude: row.latitude != null ? Number(row.latitude) : null,
+    longitude: row.longitude != null ? Number(row.longitude) : null,
+    address: (row.address as string) || null,
+    city: (row.city as string) || null,
+    postal_code: (row.postal_code as string) || null,
+    venue_name: (row.venue_name as string) || null,
+    cover_url: (row.cover_url as string) || null,
+    is_free: Boolean(row.is_free),
+    price: row.price != null ? Number(row.price) : null,
+    boosted_until: row.boosted_until ? String(row.boosted_until) : null,
+    early_access_until: row.early_access_until ? String(row.early_access_until) : null,
+    status: (row.status as string) || 'published',
+    visibility: (row.visibility as string) || 'public',
+    comments_count: row.comments_count != null ? Number(row.comments_count) : 0,
+    media_count: row.media_count != null ? Number(row.media_count) : 0,
+    operating_hours: row.operating_hours ?? null,
+    media: [],
+    category_meta:
+      categorySlug || categoryIcon
+        ? { slug: categorySlug || undefined, icon: categoryIcon || undefined }
+        : null,
+    creator: creatorId
+      ? {
+          id: creatorId,
+          display_name: (row.creator_display_name as string) || null,
+          avatar_url: (row.creator_avatar_url as string) || null,
+        }
+      : null,
+  } as unknown as EventWithCreator;
+};
+
 const isRlsError = (error: any) => {
   const code = String(error?.code || '');
   const message = String(error?.message || '').toLowerCase();
@@ -241,6 +287,7 @@ export const supabaseProvider: (Pick<
   | 'uploadAvatar'
   | 'uploadEventCover'
   | 'listEventsByBBox'
+  | 'listMapViewport'
   | 'getEventsByIds'
 > &
   IBugsProvider) = {
@@ -386,6 +433,78 @@ export const supabaseProvider: (Pick<
       type: 'FeatureCollection',
       features,
     } as FeatureCollection;
+  },
+
+  async listMapViewport(params: {
+    ne: [number, number];
+    sw: [number, number];
+    limit?: number;
+    timeScope?: EventTimeScope;
+    mergeUpcoming?: boolean;
+  }) {
+    const { ne, sw, limit = 1000, timeScope = 'current', mergeUpcoming = false } = params || {};
+    const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
+    const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
+    const minLat = Math.min(ne?.[1] ?? 0, sw?.[1] ?? 0);
+    const maxLat = Math.max(ne?.[1] ?? 0, sw?.[1] ?? 0);
+
+    const { data, error } = await supabase.rpc('list_map_viewport', {
+      p_min_lon: minLon,
+      p_min_lat: minLat,
+      p_max_lon: maxLon,
+      p_max_lat: maxLat,
+      p_time_scope: timeScope,
+      p_limit: limit,
+      p_merge_upcoming: mergeUpcoming,
+    });
+
+    if (error) {
+      if (isMissingFunctionError(error)) {
+        throw Object.assign(formatSupabaseError(error, 'listMapViewport'), { code: 'PGRST202' });
+      }
+      throw formatSupabaseError(error, 'listMapViewport');
+    }
+
+    const now = Date.now();
+    const rows = (data || []) as Record<string, unknown>[];
+    const events = rows.map((row) => mapViewportRowToEvent(row));
+
+    const features = events
+      .filter(
+        (e) =>
+          typeof e.longitude === 'number' &&
+          typeof e.latitude === 'number' &&
+          !(e.latitude === 0 && e.longitude === 0),
+      )
+      .sort((a, b) => {
+        const aBoost = a.boosted_until && new Date(a.boosted_until).getTime() > now ? 1 : 0;
+        const bBoost = b.boosted_until && new Date(b.boosted_until).getTime() > now ? 1 : 0;
+        return bBoost - aBoost;
+      })
+      .map((e) => {
+        const icon = resolveEventMarkerIcon(
+          (e as EventWithCreator & { category_meta?: unknown }).category_meta,
+        );
+        return {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [e.longitude as number, e.latitude as number],
+          },
+          properties: {
+            id: e.id,
+            icon: icon || 'category-marker-default',
+          },
+        };
+      });
+
+    return {
+      events,
+      featureCollection: {
+        type: 'FeatureCollection',
+        features,
+      } as FeatureCollection,
+    };
   },
 
   async createEvent(payload: Partial<Event>) {

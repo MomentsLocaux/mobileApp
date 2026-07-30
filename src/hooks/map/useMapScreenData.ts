@@ -37,6 +37,7 @@ export function useMapScreenData(params: Params) {
     viewportFrozenRef,
     frozenViewportBoundsRef,
     isProgrammaticMoveRef: programmatic.isProgrammaticMoveRef,
+    zoomRef: params.zoomRef,
     metaFilter: params.metaFilter,
     searchApplied: params.searchApplied,
     hasSearchCriteria: params.hasSearchCriteria,

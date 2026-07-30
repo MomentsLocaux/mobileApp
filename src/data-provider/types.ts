@@ -87,6 +87,13 @@ export interface IDataProvider {
     includePast?: boolean;
     timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
   }): Promise<FeatureCollection>;
+  listMapViewport?(params: {
+    ne: [number, number];
+    sw: [number, number];
+    limit?: number;
+    timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
+    mergeUpcoming?: boolean;
+  }): Promise<{ events: EventWithCreator[]; featureCollection: FeatureCollection }>;
   getEventsByIds?(ids: string[]): Promise<EventWithCreator[]>;
 }
 

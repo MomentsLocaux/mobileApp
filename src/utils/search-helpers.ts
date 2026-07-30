@@ -1,10 +1,31 @@
 import type { SearchState } from '@/store/searchStore';
 
+/** Home / search list fetches (non-map). */
 export const SEARCH_FETCH_LIMIT = 300;
+
+/**
+ * Map viewport marker caps — adaptive to zoom.
+ * Mapbox clusters pins; sheet list is capped separately in the fetch hook.
+ */
+export const MAP_VIEWPORT_LIMIT_MAX = 1500;
+export const MAP_SHEET_LIST_LIMIT = 120;
+
 export const DEFAULT_SEARCH_RADIUS_KM = 10;
 export const PROXIMITY_RADIUS_KM = 40;
 
 type Coords = { latitude: number; longitude: number };
+
+/**
+ * How many events to pull for the visible map bbox.
+ * Zoomed-in → denser fetch; country zoom → lower cap (clustering covers density).
+ */
+export const resolveMapViewportLimit = (zoom?: number | null): number => {
+  const z = typeof zoom === 'number' && Number.isFinite(zoom) ? zoom : 12;
+  if (z >= 13) return MAP_VIEWPORT_LIMIT_MAX; // neighborhood / city streets
+  if (z >= 11) return 1000; // agglomeration
+  if (z >= 9) return 700; // region
+  return 500; // country / wide
+};
 
 export const hasSearchCriteria = (search: Pick<SearchState, 'where' | 'when' | 'what'>): boolean => {
   const includePast = search.when.includePast ?? false;

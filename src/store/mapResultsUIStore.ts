@@ -20,7 +20,7 @@ interface MapResultsUIState {
   setBottomSheetIndex: (index: number) => void;
   setStatus: (status: SheetStatus) => void;
   setViewportFetchError: (message: string | null) => void;
-  displayViewportResults: (events: EventWithCreator[]) => void;
+  displayViewportResults: (events: EventWithCreator[], options?: { totalCount?: number }) => void;
   highlightViewportEvent: (event: EventWithCreator) => void;
   selectSingleEvent: (event: EventWithCreator, snapIndex?: number) => void;
   freezeViewportResults: () => void;
@@ -42,14 +42,14 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
   setBottomSheetIndex: (index) => set({ bottomSheetIndex: index }),
   setStatus: (status) => set({ sheetStatus: status }),
   setViewportFetchError: (message) => set({ viewportFetchError: message }),
-  displayViewportResults: (events) => {
+  displayViewportResults: (events, options) => {
     const { activeEventId } = get();
     const keepHighlight =
       !!activeEventId && events.some((event) => event.id === activeEventId);
     set({
       sheetStatus: 'viewportResults',
       sheetEvents: events,
-      visibleEventCount: events.length,
+      visibleEventCount: options?.totalCount ?? events.length,
       activeEventId: keepHighlight ? activeEventId : undefined,
     });
   },

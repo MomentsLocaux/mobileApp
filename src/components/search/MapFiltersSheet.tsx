@@ -10,7 +10,6 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Animated, {
-  Easing,
   Extrapolate,
   interpolate,
   useAnimatedStyle,
@@ -23,6 +22,8 @@ import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
+import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 const META_FILTERS: { key: EventMetaFilter; label: string }[] = [
   { key: 'all', label: 'Tous' },
@@ -53,6 +54,8 @@ const SORT_LABELS: Record<SortOption, string> = {
 
 const SORT_OPTIONS: SortOption[] = ['triage', 'date', 'endDate', 'created', 'distance', 'popularity'];
 
+const withAlpha = (hexColor: string, alphaHex: string) => `${hexColor}${alphaHex}`;
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -69,6 +72,9 @@ interface Props {
   hasLocation: boolean;
   whenPreset?: 'today' | 'tomorrow' | 'weekend';
   onWhenPresetChange: (preset?: 'today' | 'tomorrow' | 'weekend') => void;
+  selectedCategories: string[];
+  selectedSubcategories: string[];
+  onCategoriesChange: (categories: string[], subcategories: string[]) => void;
   resultCount: number;
   isLoadingResults?: boolean;
 }
@@ -84,18 +90,44 @@ function FilterChip({
   label,
   active,
   onPress,
+  tone,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  tone?: {
+    inactiveBackgroundColor: string;
+    inactiveBorderColor: string;
+    inactiveTextColor: string;
+    activeBackgroundColor: string;
+    activeBorderColor: string;
+    activeTextColor: string;
+  };
 }) {
   return (
     <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
+      style={[
+        styles.chip,
+        active && styles.chipActive,
+        tone
+          ? {
+              backgroundColor: active ? tone.activeBackgroundColor : tone.inactiveBackgroundColor,
+              borderColor: active ? tone.activeBorderColor : tone.inactiveBorderColor,
+            }
+          : null,
+      ]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      <Text
+        style={[
+          styles.chipText,
+          active && styles.chipTextActive,
+          tone ? { color: active ? tone.activeTextColor : tone.inactiveTextColor } : null,
+        ]}
+      >
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -116,6 +148,9 @@ export function MapFiltersSheet({
   hasLocation,
   whenPreset,
   onWhenPresetChange,
+  selectedCategories,
+  selectedSubcategories,
+  onCategoriesChange,
   resultCount,
   isLoadingResults = false,
 }: Props) {
@@ -128,8 +163,14 @@ export function MapFiltersSheet({
   const fromW = useSharedValue(44);
   const fromH = useSharedValue(44);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
 
   const showSortOrder = sortBy === 'date' || sortBy === 'endDate' || sortBy === 'created';
+  const visibleSubcategories = useMemo(
+    () => subcategories.filter((sub) => selectedCategories.includes(sub.category_id)),
+    [selectedCategories, subcategories]
+  );
 
   const resultsButtonLabel = useMemo(
     () => formatResultsButtonLabel(resultCount, isLoadingResults),
@@ -142,10 +183,51 @@ export function MapFiltersSheet({
     if (metaLabel && metaFilter !== 'all') parts.push(metaLabel);
     const dateLabel = DATE_PRESETS.find((item) => item.key === whenPreset)?.label;
     if (dateLabel) parts.push(dateLabel);
+    if (selectedCategories.length === 1) {
+      const label = categories.find((c) => c.id === selectedCategories[0])?.label;
+      if (label) parts.push(label);
+    } else if (selectedCategories.length > 1) {
+      parts.push(`${selectedCategories.length} catégories`);
+    }
+    if (selectedSubcategories.length > 0) {
+      parts.push(
+        selectedSubcategories.length === 1
+          ? '1 sous-catégorie'
+          : `${selectedSubcategories.length} sous-catégories`
+      );
+    }
     if (mapMode === 'satellite') parts.push('Satellite');
     if (sortBy !== 'triage') parts.push(SORT_LABELS[sortBy]);
     return parts.length ? parts.join(' · ') : 'Aucun filtre actif';
-  }, [mapMode, metaFilter, sortBy, whenPreset]);
+  }, [
+    categories,
+    mapMode,
+    metaFilter,
+    selectedCategories,
+    selectedSubcategories,
+    sortBy,
+    whenPreset,
+  ]);
+
+  const toggleCategory = (categoryId: string) => {
+    const exists = selectedCategories.includes(categoryId);
+    const nextCategories = exists
+      ? selectedCategories.filter((id) => id !== categoryId)
+      : [...selectedCategories, categoryId];
+    const nextSubcategories = selectedSubcategories.filter((subId) => {
+      const sub = subcategories.find((item) => item.id === subId);
+      return sub ? nextCategories.includes(sub.category_id) : false;
+    });
+    onCategoriesChange(nextCategories, nextSubcategories);
+  };
+
+  const toggleSubcategory = (subcategoryId: string) => {
+    const exists = selectedSubcategories.includes(subcategoryId);
+    const nextSubcategories = exists
+      ? selectedSubcategories.filter((id) => id !== subcategoryId)
+      : [...selectedSubcategories, subcategoryId];
+    onCategoriesChange(selectedCategories, nextSubcategories);
+  };
 
   useEffect(() => {
     if (visible) {
@@ -289,6 +371,58 @@ export function MapFiltersSheet({
                 ))}
               </View>
 
+              <Text style={styles.sectionTitle}>Catégories</Text>
+              <View style={styles.chipRow}>
+                {categories.map((cat) => {
+                  const categoryColor = getCategoryColor(cat.id);
+                  const categoryTextColor = getCategoryTextColor(cat.id);
+                  return (
+                    <FilterChip
+                      key={cat.id}
+                      label={cat.label}
+                      active={selectedCategories.includes(cat.id)}
+                      tone={{
+                        inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                        inactiveBorderColor: withAlpha(categoryColor, '33'),
+                        inactiveTextColor: categoryColor,
+                        activeBackgroundColor: categoryColor,
+                        activeBorderColor: categoryColor,
+                        activeTextColor: categoryTextColor,
+                      }}
+                      onPress={() => toggleCategory(cat.id)}
+                    />
+                  );
+                })}
+              </View>
+
+              {selectedCategories.length > 0 && visibleSubcategories.length > 0 ? (
+                <>
+                  <Text style={styles.sectionTitle}>Sous-catégories</Text>
+                  <View style={styles.chipRow}>
+                    {visibleSubcategories.map((sub) => {
+                      const categoryColor = getCategoryColor(sub.category_id);
+                      const categoryTextColor = getCategoryTextColor(sub.category_id);
+                      return (
+                        <FilterChip
+                          key={sub.id}
+                          label={sub.label}
+                          active={selectedSubcategories.includes(sub.id)}
+                          tone={{
+                            inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
+                            inactiveBorderColor: withAlpha(categoryColor, '33'),
+                            inactiveTextColor: categoryColor,
+                            activeBackgroundColor: categoryColor,
+                            activeBorderColor: categoryColor,
+                            activeTextColor: categoryTextColor,
+                          }}
+                          onPress={() => toggleSubcategory(sub.id)}
+                        />
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+
               <Text style={styles.sectionTitle}>Style de carte</Text>
               <View style={styles.chipRow}>
                 {MAP_MODES.map((item) => (
@@ -305,53 +439,53 @@ export function MapFiltersSheet({
               {!searchActive ? (
                 <Text style={styles.sectionHint}>
                   {metaFilter !== 'all'
-                    ? 'Les critères de recherche sont actifs uniquement avec le statut « Tous ».'
-                    : 'Lancez une recherche via la barre du haut pour filtrer par lieu, date, catégorie, etc.'}
+                    ? 'Les critères de recherche avancés sont actifs uniquement avec le statut « Tous ».'
+                    : 'Pour lieu, dates précises ou texte libre, utilisez la barre de recherche.'}
                 </Text>
               ) : null}
               <View style={styles.sortList}>
-                    {SORT_OPTIONS.map((option) => {
-                      const disabled = option === 'distance' && !hasLocation;
-                      return (
-                        <TouchableOpacity
-                          key={option}
-                          style={[styles.sortOption, disabled && styles.sortOptionDisabled]}
-                          onPress={() => {
-                            if (disabled) return;
-                            onSortByChange(option);
-                            if (
-                              (option === 'date' || option === 'endDate' || option === 'created') &&
-                              !sortOrder
-                            ) {
-                              onSortOrderChange(option === 'created' ? 'desc' : 'asc');
-                            }
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.sortOptionText,
-                              sortBy === option && styles.sortOptionTextActive,
-                              disabled && styles.sortOptionTextDisabled,
-                            ]}
-                          >
-                            {SORT_LABELS[option]}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                  {showSortOrder ? (
-                    <View style={styles.chipRow}>
-                      {(['asc', 'desc'] as const).map((order) => (
-                        <FilterChip
-                          key={order}
-                          label={order === 'asc' ? 'Ascendant' : 'Descendant'}
-                          active={sortOrder === order}
-                          onPress={() => onSortOrderChange(order)}
-                        />
-                      ))}
-                    </View>
-                  ) : null}
+                {SORT_OPTIONS.map((option) => {
+                  const disabled = option === 'distance' && !hasLocation;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[styles.sortOption, disabled && styles.sortOptionDisabled]}
+                      onPress={() => {
+                        if (disabled) return;
+                        onSortByChange(option);
+                        if (
+                          (option === 'date' || option === 'endDate' || option === 'created') &&
+                          !sortOrder
+                        ) {
+                          onSortOrderChange(option === 'created' ? 'desc' : 'asc');
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.sortOptionText,
+                          sortBy === option && styles.sortOptionTextActive,
+                          disabled && styles.sortOptionTextDisabled,
+                        ]}
+                      >
+                        {SORT_LABELS[option]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {showSortOrder ? (
+                <View style={styles.chipRow}>
+                  {(['asc', 'desc'] as const).map((order) => (
+                    <FilterChip
+                      key={order}
+                      label={order === 'asc' ? 'Ascendant' : 'Descendant'}
+                      active={sortOrder === order}
+                      onPress={() => onSortOrderChange(order)}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </ScrollView>
 
             <TouchableOpacity style={styles.doneButton} onPress={onClose} activeOpacity={0.9}>
@@ -368,10 +502,14 @@ export function hasMapActiveFilters(
   metaFilter: EventMetaFilter,
   mapMode: 'standard' | 'satellite',
   sortBy: SortOption,
-  whenPreset?: 'today' | 'tomorrow' | 'weekend'
+  whenPreset?: 'today' | 'tomorrow' | 'weekend',
+  categoryIds?: string[],
+  subcategoryIds?: string[]
 ) {
   if (metaFilter !== 'all') return true;
   if (whenPreset) return true;
+  if (categoryIds && categoryIds.length > 0) return true;
+  if (subcategoryIds && subcategoryIds.length > 0) return true;
   if (mapMode !== 'standard') return true;
   if (sortBy !== 'triage') return true;
   return false;

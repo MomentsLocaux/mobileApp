@@ -32,12 +32,18 @@ type CategoryMarkerVisual = {
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
 
+/** Always-mounted sources — avoids Mapbox "Layer … is not in style" when filters change icon buckets. */
+const STABLE_EVENT_ICON_KEYS: string[] = [
+  ...CATEGORY_VISUAL_SLUGS.map((slug) => categoryMarkerImageKey(slug)),
+  DEFAULT_MAP_MARKER,
+];
+
 const normalizeEventIconKey = (feature: Feature): string => {
   const rawIcon = (feature.properties as Record<string, unknown> | null)?.icon;
   if (typeof rawIcon !== 'string') return DEFAULT_MAP_MARKER;
   const icon = rawIcon.trim();
   if (!icon) return DEFAULT_MAP_MARKER;
-  return icon;
+  return STABLE_EVENT_ICON_KEYS.includes(icon) ? icon : DEFAULT_MAP_MARKER;
 };
 
 const toSourceId = (iconKey: string) => `events-source-${iconKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
@@ -146,7 +152,13 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const lastMarkerPressAtRef = useRef(0);
   const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
   const [selectedIconSize, setSelectedIconSize] = useState(1.45);
+  const [styleReady, setStyleReady] = useState(false);
   const selectedIconScale = useSharedValue(1.45);
+
+  // Style reload (standard ↔ satellite) remounts native layers — wait before attaching ours.
+  useEffect(() => {
+    setStyleReady(false);
+  }, [styleURL]);
 
   useEffect(() => {
     if (!activeEventId) {
@@ -281,21 +293,21 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
   const groupedEventSources = useMemo(() => {
     const featuresByIcon: Record<string, Feature[]> = {};
+    for (const key of STABLE_EVENT_ICON_KEYS) {
+      featuresByIcon[key] = [];
+    }
     (eventsShape.features || []).forEach((feature) => {
       const iconKey = normalizeEventIconKey(feature);
-      if (!featuresByIcon[iconKey]) {
-        featuresByIcon[iconKey] = [];
-      }
       featuresByIcon[iconKey].push(feature);
     });
 
-    return Object.entries(featuresByIcon).map(([iconKey, features]) => ({
+    return STABLE_EVENT_ICON_KEYS.map((iconKey) => ({
       iconKey,
       clusterIconKey: toClusterMarkerImageKey(iconKey),
       sourceId: toSourceId(iconKey),
       shape: {
         type: 'FeatureCollection',
-        features,
+        features: featuresByIcon[iconKey],
       } as FeatureCollection,
     }));
   }, [eventsShape]);
@@ -471,6 +483,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         style={styles.map}
         styleURL={styleURL || Mapbox.StyleURL.Street}
         onDidFinishLoadingMap={() => {
+          setStyleReady(true);
           onMapReady?.();
         }}
         onPress={(feature) => {
@@ -517,60 +530,63 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
         <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />
 
-        {groupedEventSources.map(({ sourceId, iconKey, clusterIconKey, shape }) => (
-          <Mapbox.ShapeSource
-            key={sourceId}
-            id={sourceId}
-            ref={(sourceRef) => setShapeSourceRef(sourceId, sourceRef)}
-            shape={shape}
-            cluster
-            clusterRadius={42}
-            clusterMaxZoomLevel={15}
-            onPress={(pressEvent) => {
-              void handlePress(pressEvent, sourceId);
-            }}
-          >
-            <Mapbox.SymbolLayer
-              id={`${sourceId}-cluster-icon`}
-              filter={['has', 'point_count']}
-              style={{
-                iconImage: clusterIconKey || DEFAULT_CLUSTER_MAP_MARKER,
-                iconSize: ['step', ['get', 'point_count'], 1, 10, 1.08, 25, 1.16],
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
-                iconAnchor: 'center',
-              }}
-            />
-            <Mapbox.SymbolLayer
-              id={`${sourceId}-cluster-count`}
-              filter={['has', 'point_count']}
-              style={{
-                textField: ['to-string', ['get', 'point_count']],
-                textSize: ['step', ['get', 'point_count'], 12, 10, 11, 25, 10, 100, 9],
-                textColor: colors.neutral[0],
-                textHaloColor: 'rgba(15, 23, 25, 0.45)',
-                textHaloWidth: 0.6,
-                textAnchor: 'center',
-                textOffset: [0, 0],
-                textAllowOverlap: true,
-                textIgnorePlacement: true,
-              }}
-            />
-            <Mapbox.SymbolLayer
-              id={`${sourceId}-event-markers`}
-              filter={unselectedEventMarkerFilter as any}
-              style={{
-                iconImage: iconKey || DEFAULT_MAP_MARKER,
-                iconSize: 1,
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
-                iconAnchor: 'bottom',
-                iconOffset: [0, 2],
-              }}
-            />
-          </Mapbox.ShapeSource>
-        ))}
+        {styleReady
+          ? groupedEventSources.map(({ sourceId, iconKey, clusterIconKey, shape }) => (
+              <Mapbox.ShapeSource
+                key={sourceId}
+                id={sourceId}
+                ref={(sourceRef) => setShapeSourceRef(sourceId, sourceRef)}
+                shape={shape}
+                cluster
+                clusterRadius={42}
+                clusterMaxZoomLevel={15}
+                onPress={(pressEvent) => {
+                  void handlePress(pressEvent, sourceId);
+                }}
+              >
+                <Mapbox.SymbolLayer
+                  id={`${sourceId}-cluster-icon`}
+                  filter={['has', 'point_count']}
+                  style={{
+                    iconImage: clusterIconKey || DEFAULT_CLUSTER_MAP_MARKER,
+                    iconSize: ['step', ['get', 'point_count'], 1, 10, 1.08, 25, 1.16],
+                    iconAllowOverlap: true,
+                    iconIgnorePlacement: true,
+                    iconAnchor: 'center',
+                  }}
+                />
+                <Mapbox.SymbolLayer
+                  id={`${sourceId}-cluster-count`}
+                  filter={['has', 'point_count']}
+                  style={{
+                    textField: ['to-string', ['get', 'point_count']],
+                    textSize: ['step', ['get', 'point_count'], 12, 10, 11, 25, 10, 100, 9],
+                    textColor: colors.neutral[0],
+                    textHaloColor: 'rgba(15, 23, 25, 0.45)',
+                    textHaloWidth: 0.6,
+                    textAnchor: 'center',
+                    textOffset: [0, 0],
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
+                  }}
+                />
+                <Mapbox.SymbolLayer
+                  id={`${sourceId}-event-markers`}
+                  filter={unselectedEventMarkerFilter as any}
+                  style={{
+                    iconImage: iconKey || DEFAULT_MAP_MARKER,
+                    iconSize: 1,
+                    iconAllowOverlap: true,
+                    iconIgnorePlacement: true,
+                    iconAnchor: 'bottom',
+                    iconOffset: [0, 2],
+                  }}
+                />
+              </Mapbox.ShapeSource>
+            ))
+          : null}
 
+        {styleReady ? (
         <Mapbox.ShapeSource id="selected-event-source" shape={selectedEventShape}>
           <Mapbox.CircleLayer
             id="selected-event-halo"
@@ -599,6 +615,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             }}
           />
         </Mapbox.ShapeSource>
+        ) : null}
 
         {children}
       </Mapbox.MapView>

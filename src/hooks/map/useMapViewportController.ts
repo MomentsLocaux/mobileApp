@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { MapWrapperHandle } from '@/components/map';
+import { useMapResultsUIStore } from '@/store';
 import { MAP_CAMERA_ANIMATION_MS, SHEET_LAYOUT_TIMING } from '@/utils/map-sheet-layout';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { getBoundsFromRadiusKm } from '@/utils/search-helpers';
@@ -38,6 +39,8 @@ export function useMapViewportController({
   onUnlockViewport,
 }: Params) {
   const initialViewportLoadInFlightRef = useRef(false);
+  /** True after the first real viewport fetch was queued — avoids focus+ready+recenter triple load. */
+  const viewportBootstrappedRef = useRef(false);
   const {
     isProgrammaticMoveRef,
     pendingProgrammaticRefreshRef,
@@ -47,6 +50,10 @@ export function useMapViewportController({
     withProgrammaticMove,
     startProgrammaticMove,
   } = programmatic;
+
+  const markViewportBootstrapped = useCallback(() => {
+    viewportBootstrappedRef.current = true;
+  }, []);
 
   const handleUserMapGestureStart = useCallback(() => {
     clearProgrammaticMoveState();
@@ -76,9 +83,11 @@ export function useMapViewportController({
         programmatic.suppressBoundsRecalcUntilRef.current = 0;
         if (viewportFrozenRef.current) {
           unlockViewportFromUserPan(bounds);
+          markViewportBootstrapped();
           return;
         }
         frozenViewportBoundsRef.current = bounds;
+        markViewportBootstrapped();
         queueViewportFetch(bounds, { immediate: true, force: true });
         return;
       }
@@ -88,6 +97,7 @@ export function useMapViewportController({
         mapRef.current?.clearBoundsCache?.();
         if (pendingProgrammaticRefreshRef.current) {
           pendingProgrammaticRefreshRef.current = false;
+          markViewportBootstrapped();
           queueViewportFetch(bounds, { immediate: true, force: true });
         }
         return;
@@ -97,6 +107,7 @@ export function useMapViewportController({
       if (isSheetDraggingRef.current || isBoundsRecalcSuppressed()) return;
 
       frozenViewportBoundsRef.current = bounds;
+      markViewportBootstrapped();
       queueViewportFetch(bounds);
     },
     [
@@ -105,6 +116,7 @@ export function useMapViewportController({
       isProgrammaticMoveRef,
       isSheetDraggingRef,
       mapRef,
+      markViewportBootstrapped,
       pendingProgrammaticRefreshRef,
       programmatic.suppressBoundsRecalcUntilRef,
       queueViewportFetch,
@@ -115,23 +127,32 @@ export function useMapViewportController({
 
   const ensureInitialViewportLoad = useCallback(async () => {
     traceMapSheetPerf('ensureInitialViewportLoad');
+    if (viewportBootstrappedRef.current) return;
     if (initialViewportLoadInFlightRef.current) return;
     initialViewportLoadInFlightRef.current = true;
+    useMapResultsUIStore.getState().setStatus('loading');
 
     try {
       for (let attempt = 0; attempt < 16; attempt += 1) {
+        if (viewportBootstrappedRef.current) return;
         await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 500 : 350));
+        if (viewportBootstrappedRef.current) return;
         isProgrammaticMoveRef.current = false;
         mapRef.current?.clearBoundsCache?.();
         const bounds = await mapRef.current?.getVisibleBounds?.();
         if (!bounds) continue;
+        markViewportBootstrapped();
         queueViewportFetch(bounds, { immediate: true, force: true });
         return;
       }
+      useMapResultsUIStore.getState().setStatus('browsing');
+      useMapResultsUIStore
+        .getState()
+        .setViewportFetchError('Impossible de lire la zone visible de la carte.');
     } finally {
       initialViewportLoadInFlightRef.current = false;
     }
-  }, [isProgrammaticMoveRef, mapRef, queueViewportFetch]);
+  }, [isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
 
   const refreshBounds = useCallback(async (options?: Pick<ViewportFetchOptions, 'metaFilter'>) => {
     traceMapSheetPerf('refreshBounds');
@@ -143,8 +164,9 @@ export function useMapViewportController({
     isProgrammaticMoveRef.current = false;
     mapRef.current?.clearBoundsCache?.();
     frozenViewportBoundsRef.current = bounds;
+    markViewportBootstrapped();
     queueViewportFetch(bounds, { immediate: true, force: true, metaFilter: options?.metaFilter });
-  }, [clearFrozenViewport, isProgrammaticMoveRef, mapRef, queueViewportFetch]);
+  }, [clearFrozenViewport, isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
 
   const refitMapToFrozenViewport = useCallback(
     (
@@ -240,5 +262,6 @@ export function useMapViewportController({
     fitToRadius,
     focusOnEvent,
     unlockViewportFromUserPan,
+    viewportBootstrappedRef,
   };
 }

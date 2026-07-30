@@ -161,23 +161,38 @@ export function getEventDescriptionPreview(description?: string | null, maxLengt
   return `${normalized.slice(0, maxLength - 1).trim()}…`;
 }
 
-const CARD_HIDDEN_TAG_RE = /^(#?)(datatourisme(_api)?|data_tourisme(_api)?)$/i;
+const CARD_HIDDEN_TAG_RE =
+  /^(#?)(datatourisme(_api)?|data_tourisme(_api)?|openagenda(_api)?(_\d+)?|vide_greniers(_org)?|\d+)$/i;
+
+export function isIngestProvenanceTag(tag: string): boolean {
+  return CARD_HIDDEN_TAG_RE.test(tag.trim());
+}
 
 export function getEventContextTags(event: Pick<EventWithCreator, 'tags' | 'ambiance'>): string[] {
   const tags = (Array.isArray(event.tags) ? event.tags : [])
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
-    .filter((tag) => !CARD_HIDDEN_TAG_RE.test(tag.trim()))
+    .filter((tag) => !isIngestProvenanceTag(tag))
     .map((tag) => (tag.startsWith('#') ? tag : `#${tag.trim()}`))
     .slice(0, 2);
 
   if (!tags.length && event.ambiance?.trim()) {
     const ambiance = event.ambiance.trim();
-    if (!CARD_HIDDEN_TAG_RE.test(ambiance)) {
+    if (!isIngestProvenanceTag(ambiance)) {
       tags.push(ambiance.startsWith('#') ? ambiance : `#${ambiance}`);
     }
   }
 
   return tags;
+}
+
+/** User-facing tags for detail / cards — strips scraper provenance slugs. */
+export function getVisibleEventTags(tags?: string[] | null): string[] {
+  if (!Array.isArray(tags) || tags.length === 0) return [];
+  return tags
+    .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+    .filter((tag) => !isIngestProvenanceTag(tag))
+    .map((tag) => tag.replace(/^#/, '').trim())
+    .filter(Boolean);
 }
 
 export function formatDistanceLabel(distanceKm?: number | null, distanceLabel?: string | null): string | null {

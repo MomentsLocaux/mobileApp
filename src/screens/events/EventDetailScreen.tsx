@@ -90,6 +90,7 @@ import { getEventLiveWindow } from '@/utils/event-status';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { getDistanceText } from '@/utils/sort-events';
+import { getVisibleEventTags } from '@/utils/event-card-display';
 import MapboxGL from '@rnmapbox/maps';
 
 const { width } = Dimensions.get('window');
@@ -1167,6 +1168,8 @@ export default function EventDetailScreen() {
     [event?.starts_at, event?.ends_at, event?.operating_hours, now],
   );
 
+  const visibleEventTags = useMemo(() => getVisibleEventTags(event?.tags), [event?.tags]);
+
   const practicalInfoRows = useMemo(() => {
     if (!event) return [] as Array<{ label: string; value: string; action?: () => void }>;
     const rows: Array<{ label: string; value: string; action?: () => void }> = [];
@@ -1691,9 +1694,9 @@ export default function EventDetailScreen() {
           </View>
           ) : null}
 
-          {event.tags?.length ? (
+          {visibleEventTags.length ? (
             <View style={styles.tagsContainer}>
-              {event.tags.map((tag, index) => (
+              {visibleEventTags.map((tag, index) => (
                 <View key={`${tag}-${index}`} style={styles.tag}>
                   <Text style={styles.tagText}>#{tag}</Text>
                 </View>

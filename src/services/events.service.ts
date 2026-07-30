@@ -28,6 +28,21 @@ export const EventsService = {
     (dataProvider as any).listEventsByBBox
       ? (dataProvider as any).listEventsByBBox(params)
       : Promise.resolve({ type: 'FeatureCollection', features: [] }),
+  listMapViewport: (params: {
+    ne: [number, number];
+    sw: [number, number];
+    limit?: number;
+    timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
+    mergeUpcoming?: boolean;
+  }) => {
+    if (!(dataProvider as any).listMapViewport) {
+      // Missing wiring must not look like a successful empty viewport.
+      throw Object.assign(new Error('listMapViewport not implemented on dataProvider'), {
+        code: 'PGRST202',
+      });
+    }
+    return (dataProvider as any).listMapViewport(params);
+  },
   uploadEventCover: (userId: string, uri: string): Promise<string | null> =>
     (dataProvider as any).uploadEventCover ? (dataProvider as any).uploadEventCover(userId, uri) : Promise.resolve(null),
   getEventsByIds: async (ids: string[]): Promise<EventWithCreator[]> => {

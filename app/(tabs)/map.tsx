@@ -35,7 +35,7 @@ import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../sr
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { buildFiltersFromSearch } from '../../src/utils/search-filters';
-import { filterEventsByMetaStatus, type EventMetaFilter } from '../../src/utils/filter-events';
+import type { EventMetaFilter } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import {
@@ -90,7 +90,6 @@ export default function MapScreen() {
     closeSheet,
     syncViewportEvents,
     restoreViewportFromFrozen,
-    displayViewportResults,
   } = useMapResultsUIStore();
 
   const insets = useSafeAreaInsets();
@@ -175,26 +174,17 @@ export default function MapScreen() {
   const sortOrder = searchState.sortOrder;
   const whenPreset = searchState.when.preset;
   const setWhen = searchState.setWhen;
-  const filtersActive = hasMapActiveFilters(metaFilter, mapMode, sortBy, whenPreset);
-
-  // Default map date filter: "Aujourd'hui" (map-only seed, once per session).
-  // Kept out of searchStore initialState so Home list stays unfiltered until the user searches.
-  const didSeedDefaultTodayRef = useRef(false);
-  useEffect(() => {
-    if (didSeedDefaultTodayRef.current) return;
-    didSeedDefaultTodayRef.current = true;
-    const currentWhen = useSearchStore.getState().when;
-    if (currentWhen.preset || currentWhen.startDate || currentWhen.endDate || currentWhen.includePast) {
-      return;
-    }
-    setWhen({
-      preset: 'today',
-      startDate: undefined,
-      endDate: undefined,
-      includePast: false,
-    });
-  }, [setWhen]);
-
+  const setWhat = searchState.setWhat;
+  const selectedCategories = searchState.what.categories;
+  const selectedSubcategories = searchState.what.subcategories;
+  const filtersActive = hasMapActiveFilters(
+    metaFilter,
+    mapMode,
+    sortBy,
+    whenPreset,
+    selectedCategories,
+    selectedSubcategories
+  );
   const sortCenter = useMemo(
     () =>
       searchState.where.location
@@ -225,6 +215,7 @@ export default function MapScreen() {
     cancelAllMapRequests,
     nextMarkerRequestId,
     isMarkerRequestCurrent,
+    reapplyClientFilters,
   } = fetch;
 
   const {
@@ -237,6 +228,7 @@ export default function MapScreen() {
     lockViewportForSheet,
     fitToRadius,
     focusOnEvent,
+    viewportBootstrappedRef,
   } = viewport;
 
   const { applySearch } = useMapSearchApply({
@@ -534,18 +526,29 @@ export default function MapScreen() {
     [cancelViewportFetch, refreshBounds, setWhen]
   );
 
+  const handleCategoriesChange = useCallback(
+    (categories: string[], subcategories: string[]) => {
+      setWhat({ categories, subcategories });
+      const nextFilters = buildFiltersFromSearch(useSearchStore.getState(), userLocation);
+      if (!reapplyClientFilters({ searchFilters: nextFilters })) {
+        cancelViewportFetch();
+        void refreshBounds();
+      }
+    },
+    [cancelViewportFetch, reapplyClientFilters, refreshBounds, setWhat, userLocation]
+  );
+
   const handleMetaFilterChange = useCallback(
     (next: EventMetaFilter) => {
       setMetaFilter(next);
       clearFrozenViewport();
-      const uiState = useMapResultsUIStore.getState();
-      if (uiState.sheetStatus !== 'singleEvent' && uiState.sheetEvents.length > 0) {
-        displayViewportResults(filterEventsByMetaStatus(uiState.sheetEvents, next));
+      // Past needs a broader server timeScope than the usual "current" cache.
+      if (next === 'past' || !reapplyClientFilters({ metaFilter: next })) {
+        cancelViewportFetch();
+        void refreshBounds({ metaFilter: next });
       }
-      cancelViewportFetch();
-      void refreshBounds({ metaFilter: next });
     },
-    [cancelViewportFetch, clearFrozenViewport, displayViewportResults, refreshBounds]
+    [cancelViewportFetch, clearFrozenViewport, reapplyClientFilters, refreshBounds]
   );
 
   const reapplyViewportOrdering = useCallback(
@@ -592,16 +595,32 @@ export default function MapScreen() {
         restoreViewportFromFrozen({ keepHighlight: true });
       }
 
-      if (!searchApplied || !hasSearchCriteria) {
-        setStatus('browsing');
-        resultsSheetRef.current?.collapseToPeek();
+      // Clear stale date presets left by Fast Refresh / previous map sessions so browse
+      // is not silently filtered to "today" with zero local events.
+      const when = useSearchStore.getState().when;
+      if (when.preset || when.startDate || when.endDate) {
+        useSearchStore.getState().setWhen({
+          preset: undefined,
+          startDate: undefined,
+          endDate: undefined,
+          includePast: false,
+        });
       }
+
       if (searchApplied && hasSearchCriteria) {
         void refreshBounds();
         return;
       }
-      const { visibleEventCount: count, sheetStatus: status } = useMapResultsUIStore.getState();
-      if (count === 0 && status !== 'singleEvent') {
+
+      if (uiState.sheetStatus !== 'loading') {
+        setStatus('browsing');
+      }
+      resultsSheetRef.current?.collapseToPeek();
+      // First open: onMapReady / location recenter own the bootstrap fetch.
+      // Re-focus only: refresh the visible bbox.
+      if (viewportBootstrappedRef.current) {
+        void refreshBounds();
+      } else {
         void ensureInitialViewportLoad();
       }
     }, [
@@ -611,6 +630,7 @@ export default function MapScreen() {
       restoreViewportFromFrozen,
       searchApplied,
       setStatus,
+      viewportBootstrappedRef,
     ])
   );
 
@@ -646,7 +666,9 @@ export default function MapScreen() {
     if (locationLoading) return;
     if (userLocation && !hasCenteredOnUserRef.current) {
       hasCenteredOnUserRef.current = true;
+      // Camera move triggers one programmatic viewport fetch — skip ensureInitial here.
       recenterToUser();
+      return;
     }
     void ensureInitialViewportLoad();
   }, [ensureInitialViewportLoad, locationLoading, recenterToUser, userLocation]);
@@ -834,7 +856,10 @@ export default function MapScreen() {
         hasLocation={!!userLocation}
         whenPreset={whenPreset}
         onWhenPresetChange={handleWhenPresetChange}
-        resultCount={displaySheetEvents.length}
+        selectedCategories={selectedCategories}
+        selectedSubcategories={selectedSubcategories}
+        onCategoriesChange={handleCategoriesChange}
+        resultCount={displayPeekCount}
         isLoadingResults={sheetStatus === 'loading'}
       />
 

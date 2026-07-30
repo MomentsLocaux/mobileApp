@@ -5,11 +5,11 @@ import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
 import type { SearchState } from '@/store/searchStore';
 import type { EventWithCreator } from '@/types/database';
-import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
+import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 
 type Coords = { latitude: number; longitude: number };
 
-/** Fetch + filter events for SearchBar preview count (aligned with map/home search). */
+/** Fetch + filter events for SearchBar preview count (aligned with map viewport RPC). */
 export async function fetchSearchPreviewEvents(
   search: Pick<SearchState, 'where' | 'when' | 'what'>,
   options: {
@@ -41,15 +41,12 @@ export async function fetchSearchPreviewEvents(
       options.searchCenter.latitude - latDelta,
     ];
 
-    const featureCollection = await listEventsByBBoxForMap(
+    const viewport = await listMapViewportForMap(
       { ne, sw, limit: SEARCH_FETCH_LIMIT },
       timeScope,
       { mergeUpcomingForDatePreset: timeScope === 'current' && !!search.when.preset }
     );
-    const ids =
-      featureCollection?.features?.map((f: any) => f?.properties?.id).filter(Boolean) || [];
-    const uniqueIds = Array.from(new Set(ids)) as string[];
-    events = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
+    events = viewport.events || [];
   } else {
     events = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
   }

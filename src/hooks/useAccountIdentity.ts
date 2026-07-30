@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useAuth } from '@/hooks';
+import { useAuth } from '@/hooks/useAuth';
 import { ProfileService } from '@/services/profile.service';
 import type { ActiveMode } from '@/constants/accountIdentity';
 import { features } from '@/config/features';

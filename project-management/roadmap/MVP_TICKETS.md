@@ -732,7 +732,71 @@ Dépendances: P1 media/map.
 
 Branche Git recommandée: `perf/p2-mobile-performance`
 
-Notes:
+Notes: **Phase 1 in progress** on `perf/p1-map-viewport` — RPC `list_map_viewport` + indexes (1-hop card-lite). Follow-ups below.
+
+### ID: MVP-P2-004a
+
+Titre: Cache map viewport stale-while-revalidate
+
+Priorité: P2
+
+Source: plan map viewport perf Phase 2
+
+Responsable / agent recommandé: Mobile Reliability Engineer
+
+Type d'action: Performance client
+
+Fichiers probablement concernés: `src/hooks/map/useViewportEventsFetch.ts`, éventuel `src/utils/map-viewport-cache.ts`
+
+Description: Cache mémoire (puis option AsyncStorage) par clé bbox arrondie + time_scope + fingerprint filtres. Servir stale immédiatement au pan, refetch en fond, invalider sur commitSearch / metaFilter.
+
+Critères d'acceptation: pan répété sur même zone sans spinner systématique ; données à jour après recherche appliquée.
+
+Branche Git recommandée: `perf/p1-map-viewport-swr`
+
+Dépendances: MVP-P2-004 Phase 1 (RPC viewport).
+
+### ID: MVP-P2-004b
+
+Titre: Alléger Home listEvents (card-lite)
+
+Priorité: P2
+
+Source: plan map viewport perf Phase 2
+
+Responsable / agent recommandé: Mobile Reliability Engineer + Supabase Security Architect
+
+Type d'action: Performance / SQL
+
+Fichiers probablement concernés: `src/data-provider/supabase-provider.ts`, `src/screens/home/HomeScreen.tsx`, éventuelle RPC `list_home_feed`
+
+Description: Remplacer `EVENT_FULL_SELECT` du feed Home par le même contrat card-lite que la map (sans description / media[] / geography). Détail via `getEventById` full.
+
+Critères d'acceptation: Home charge plus vite ; EventCard compact OK ; détail event inchangé.
+
+Branche Git recommandée: `perf/p1-home-feed-lite`
+
+Dépendances: MVP-P2-004 Phase 1 (colonnes card-lite stabilisées).
+
+### ID: MVP-P2-004c
+
+Titre: Edge cache bbox / read replica Pro (mesures)
+
+Priorité: P2
+
+Source: plan map viewport perf Phase 3
+
+Responsable / agent recommandé: Supabase Security Architect / Release Manager
+
+Type d'action: Infra scale
+
+Description: Après Phase 1, mesurer p95 `list_map_viewport`. Si lecture saturée : Edge Function cache TTL court par tile bbox et/ou évaluation read replica Supabase Pro. Décision chiffrée avant activation.
+
+Critères d'acceptation: rapport mesures avant/après ; pas d’activation replica sans justification.
+
+Branche Git recommandée: `perf/p2-map-edge-replica`
+
+Dépendances: MVP-P2-004 Phase 1 déployée DEV+UAT.
 
 ### ID: MVP-P2-005
 

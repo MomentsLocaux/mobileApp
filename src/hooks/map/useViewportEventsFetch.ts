@@ -1,23 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { FeatureCollection } from 'geojson';
-import { EventsService } from '@/services/events.service';
+import type { MapWrapperHandle } from '@/components/map';
 import { useMapResultsUIStore } from '@/store';
 import type { EventWithCreator } from '@/types/database';
-import {
-  extractEventIdsFromFeatureCollection,
-  filterFeatureCollectionByEventIds,
-  type EventMapFeatureCollection,
-  type MapBounds,
-} from '@/types/map-events';
-import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
+import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
+import { filterFeatureCollectionByEventIds, type EventMapFeatureCollection, type MapBounds } from '@/types/map-events';
+import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
-import { SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
+import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit } from '@/utils/search-helpers';
 import { sortEvents } from '@/utils/sort-events';
-import type { SortOption, SortOrder } from '@/types/filters';
-import type { EventFilters } from '@/types/filters';
 
 const hasWhenFilters = (filters: EventFilters) =>
   !!(filters.time || filters.startDate || filters.endDate);
@@ -28,7 +22,23 @@ const pickWhenFilters = (filters: EventFilters): EventFilters => ({
   startDate: filters.startDate,
   endDate: filters.endDate,
 });
-import type { MapWrapperHandle } from '@/components/map';
+
+const hasWhatFilters = (filters: EventFilters) =>
+  !!(
+    (filters.categories && filters.categories.length > 0) ||
+    (filters.subcategories && filters.subcategories.length > 0) ||
+    (filters.tags && filters.tags.length > 0) ||
+    filters.name
+  );
+
+const pickWhatFilters = (filters: EventFilters): EventFilters => ({
+  categories: filters.categories,
+  subcategories: filters.subcategories,
+  tags: filters.tags,
+  name: filters.name,
+});
+
+const hasBrowseFilters = (filters: EventFilters) => hasWhenFilters(filters) || hasWhatFilters(filters);
 
 export type ViewportFetchOptions = {
   immediate?: boolean;
@@ -36,11 +46,18 @@ export type ViewportFetchOptions = {
   metaFilter?: EventMetaFilter;
 };
 
+type RawViewportCache = {
+  events: EventWithCreator[];
+  featureCollection: EventMapFeatureCollection;
+  timeScope: ReturnType<typeof resolveEventTimeScope>;
+};
+
 type Params = {
   mapRef: RefObject<MapWrapperHandle | null>;
   viewportFrozenRef: RefObject<boolean>;
   frozenViewportBoundsRef: RefObject<MapBounds | null>;
   isProgrammaticMoveRef: RefObject<boolean>;
+  zoomRef: RefObject<number>;
   metaFilter: EventMetaFilter;
   searchApplied: boolean;
   hasSearchCriteria: boolean;
@@ -56,6 +73,7 @@ export function useViewportEventsFetch({
   viewportFrozenRef,
   frozenViewportBoundsRef,
   isProgrammaticMoveRef,
+  zoomRef,
   metaFilter,
   searchApplied,
   hasSearchCriteria,
@@ -76,6 +94,7 @@ export function useViewportEventsFetch({
   const sortByRef = useRef(sortBy);
   const sortOrderRef = useRef(sortOrder);
   const sortCenterRef = useRef(sortCenter);
+  const lastViewportRawRef = useRef<RawViewportCache | null>(null);
   const { setStatus, setViewportFetchError, displayViewportResults } = useMapResultsUIStore();
 
   metaFilterRef.current = metaFilter;
@@ -130,6 +149,81 @@ export function useViewportEventsFetch({
     };
   }, [cancelAllMapRequests]);
 
+  const publishFilteredViewport = useCallback(
+    (
+      events: EventWithCreator[],
+      featureCollection: EventMapFeatureCollection | FeatureCollection | null,
+      options?: { metaFilter?: EventMetaFilter; searchFilters?: EventFilters }
+    ) => {
+      const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
+      const currentSearchApplied = searchAppliedRef.current;
+      const currentHasSearchCriteria = hasSearchCriteriaRef.current;
+      const currentSearchFilters = options?.searchFilters ?? searchFiltersRef.current;
+      const currentSortBy = sortByRef.current;
+      const currentSortOrder = sortOrderRef.current;
+      const currentSortCenter = sortCenterRef.current;
+
+      const effectiveSearchActive =
+        currentMetaFilter === 'all' && currentSearchApplied && currentHasSearchCriteria;
+      const effectiveFilters = effectiveSearchActive ? currentSearchFilters : {};
+      const browseFilters: EventFilters = {
+        ...pickWhenFilters(currentSearchFilters),
+        ...pickWhatFilters(currentSearchFilters),
+      };
+
+      let filteredEvents = events;
+      if (effectiveSearchActive) {
+        filteredEvents = filterEvents(events, effectiveFilters, null);
+      } else if (hasBrowseFilters(browseFilters)) {
+        filteredEvents = filterEvents(events, browseFilters, null);
+      }
+
+      const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, currentMetaFilter);
+      const sortedEvents =
+        currentSortBy !== 'triage'
+          ? sortEvents(metaFilteredEvents, currentSortBy, currentSortCenter, currentSortOrder)
+          : metaFilteredEvents;
+      const dedupedEvents = Array.from(
+        new Map(sortedEvents.map((event) => [event.id, event])).values()
+      );
+
+      const filteredIds = new Set(dedupedEvents.map((event) => event.id));
+      const filteredFeatures = featureCollection
+        ? filterFeatureCollectionByEventIds(
+            featureCollection as EventMapFeatureCollection,
+            filteredIds
+          )
+        : { type: 'FeatureCollection' as const, features: [] };
+
+      mapRef.current?.setShape(filteredFeatures as FeatureCollection);
+
+      const currentUiState = useMapResultsUIStore.getState();
+      if (currentUiState.sheetStatus === 'singleEvent') return;
+      if (viewportFrozenRef.current) return;
+
+      const sheetEvents = dedupedEvents.slice(0, MAP_SHEET_LIST_LIMIT);
+      displayViewportResults(sheetEvents, { totalCount: dedupedEvents.length });
+    },
+    [displayViewportResults, mapRef, viewportFrozenRef]
+  );
+
+  /** Re-run client filters/sort on the last RPC payload — no network, no loading flash. */
+  const reapplyClientFilters = useCallback(
+    (options?: { metaFilter?: EventMetaFilter; searchFilters?: EventFilters }) => {
+      const raw = lastViewportRawRef.current;
+      if (!raw) return false;
+      if (options?.searchFilters) {
+        searchFiltersRef.current = options.searchFilters;
+      }
+      if (options?.metaFilter) {
+        metaFilterRef.current = options.metaFilter;
+      }
+      publishFilteredViewport(raw.events, raw.featureCollection, options);
+      return true;
+    },
+    [publishFilteredViewport]
+  );
+
   const runViewportFetch = useCallback(
     async (bounds: MapBounds, requestId: number, options?: ViewportFetchOptions) => {
       if (!isViewportRequestCurrent(requestId)) return;
@@ -145,9 +239,6 @@ export function useViewportEventsFetch({
         const currentHasSearchCriteria = hasSearchCriteriaRef.current;
         const currentIncludePast = includePastRef.current;
         const currentSearchFilters = searchFiltersRef.current;
-        const currentSortBy = sortByRef.current;
-        const currentSortOrder = sortOrderRef.current;
-        const currentSortCenter = sortCenterRef.current;
 
         const effectiveSearchActive =
           currentMetaFilter === 'all' && currentSearchApplied && currentHasSearchCriteria;
@@ -156,87 +247,58 @@ export function useViewportEventsFetch({
           searchActive: effectiveSearchActive,
           includePast: currentIncludePast,
         });
-        const effectiveFilters = effectiveSearchActive ? currentSearchFilters : {};
         const whenOnlyFilters = pickWhenFilters(currentSearchFilters);
 
-        const bboxParams = { ne: bounds.ne, sw: bounds.sw, limit: SEARCH_FETCH_LIMIT };
+        const bboxParams = {
+          ne: bounds.ne,
+          sw: bounds.sw,
+          limit: resolveMapViewportLimit(zoomRef.current),
+        };
         const mergeUpcomingForDatePreset =
           currentMetaFilter === 'all' &&
           hasWhenFilters(whenOnlyFilters) &&
           bboxTimeScope === 'current';
 
-        const fetchBBox = async (timeScope: typeof bboxTimeScope) =>
-          listEventsByBBoxForMap(bboxParams, timeScope, {
+        const fetchViewport = async (timeScope: typeof bboxTimeScope) =>
+          listMapViewportForMap(bboxParams, timeScope, {
             mergeUpcomingForDatePreset: mergeUpcomingForDatePreset && timeScope === 'current',
           });
 
-        let featureCollection = await fetchBBox(bboxTimeScope);
+        let viewport = await fetchViewport(bboxTimeScope);
 
         if (!isViewportRequestCurrent(requestId)) return;
 
-        let uniqueIds = extractEventIdsFromFeatureCollection(featureCollection);
-        let events: EventWithCreator[] = uniqueIds.length
-          ? await EventsService.getEventsByIds(uniqueIds)
-          : [];
-
-        if (!isViewportRequestCurrent(requestId)) return;
+        let featureCollection = viewport.featureCollection;
+        let events: EventWithCreator[] = viewport.events;
 
         if (
           events.length === 0 &&
           (currentMetaFilter === 'upcoming' || currentMetaFilter === 'live') &&
           bboxTimeScope !== 'all'
         ) {
-          const fallbackCollection = await fetchBBox('all');
+          const fallback = await fetchViewport('all');
           if (!isViewportRequestCurrent(requestId)) return;
 
-          const fallbackIds = extractEventIdsFromFeatureCollection(fallbackCollection);
-          const fallbackEvents: EventWithCreator[] = fallbackIds.length
-            ? await EventsService.getEventsByIds(fallbackIds)
-            : [];
-
-          if (!isViewportRequestCurrent(requestId)) return;
-
-          const fallbackMatches = filterEventsByMetaStatus(fallbackEvents, currentMetaFilter);
+          const fallbackMatches = filterEventsByMetaStatus(fallback.events, currentMetaFilter);
           if (fallbackMatches.length > 0) {
-            featureCollection = fallbackCollection;
-            uniqueIds = fallbackIds;
-            events = fallbackEvents;
+            featureCollection = fallback.featureCollection;
+            events = fallback.events;
           }
         }
 
-        let filteredEvents = events;
-        if (effectiveSearchActive) {
-          filteredEvents = filterEvents(events, effectiveFilters, null);
-        } else if (hasWhenFilters(whenOnlyFilters)) {
-          filteredEvents = filterEvents(events, whenOnlyFilters, null);
-        }
-        const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, currentMetaFilter);
-        const sortedEvents =
-          currentSortBy !== 'triage'
-            ? sortEvents(metaFilteredEvents, currentSortBy, currentSortCenter, currentSortOrder)
-            : metaFilteredEvents;
-        const dedupedEvents = Array.from(
-          new Map(sortedEvents.map((event) => [event.id, event])).values()
-        );
-
-        const filteredIds = new Set(dedupedEvents.map((event) => event.id));
-        const filteredFeatures = featureCollection
-          ? filterFeatureCollectionByEventIds(featureCollection, filteredIds)
-          : { type: 'FeatureCollection' as const, features: [] };
-
-        if (!isViewportRequestCurrent(requestId)) return;
+        lastViewportRawRef.current = {
+          events,
+          featureCollection: featureCollection as EventMapFeatureCollection,
+          timeScope: bboxTimeScope,
+        };
 
         if (!viewportFrozenRef.current) {
           frozenViewportBoundsRef.current = bounds;
         }
 
-        mapRef.current?.setShape(filteredFeatures as FeatureCollection);
+        if (!isViewportRequestCurrent(requestId)) return;
 
-        const currentUiState = useMapResultsUIStore.getState();
-        if (currentUiState.sheetStatus === 'singleEvent') return;
-        if (viewportFrozenRef.current) return;
-
-        displayViewportResults(dedupedEvents);
+        publishFilteredViewport(events, featureCollection, { metaFilter: currentMetaFilter });
       } catch (error) {
         if (!isViewportRequestCurrent(requestId)) return;
         console.warn('bbox fetch error', error);
@@ -245,21 +307,13 @@ export function useViewportEventsFetch({
       }
     },
     [
-      displayViewportResults,
       frozenViewportBoundsRef,
-      hasSearchCriteria,
-      includePast,
       isViewportRequestCurrent,
-      mapRef,
-      metaFilter,
-      searchApplied,
-      searchFilters,
+      publishFilteredViewport,
       setStatus,
       setViewportFetchError,
-      sortBy,
-      sortCenter,
-      sortOrder,
       viewportFrozenRef,
+      zoomRef,
     ]
   );
 
@@ -273,7 +327,12 @@ export function useViewportEventsFetch({
       const uiState = useMapResultsUIStore.getState();
       const shouldShowLoading =
         uiState.bottomSheetIndex === 0 && uiState.sheetStatus !== 'singleEvent';
-      if ((options?.immediate || options?.force) && shouldShowLoading) {
+      // Avoid loading→loading flicker when bootstrap triggers several overlapping fetches.
+      if (
+        (options?.immediate || options?.force) &&
+        shouldShowLoading &&
+        uiState.sheetStatus !== 'loading'
+      ) {
         setStatus('loading');
       } else if (!options?.immediate && !options?.force) {
         setStatus('browsing');
@@ -304,6 +363,7 @@ export function useViewportEventsFetch({
     clearDebouncedViewportFetch,
     queueViewportFetch,
     runViewportFetch,
+    reapplyClientFilters,
     cancelViewportFetch,
     cancelMarkerFetch,
     cancelAllMapRequests,
