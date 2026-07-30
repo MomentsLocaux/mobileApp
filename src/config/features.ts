@@ -1,13 +1,26 @@
 /**
  * Mobile feature flags — single source of truth for MVP / V1 / V2 surface gates.
  *
- * Convention: EXPO_PUBLIC_FEATURE_<NAME>=true (or =false to force off when default-on).
+ * Store-ready MVP defaults (when env unset):
+ * - socialPeers ON
+ * - eventCreate / checkin / offers / diffuseur OFF (V1)
+ * - gamification / discovery / contests OFF (V2)
+ *
+ * Convention:
+ * - EXPO_PUBLIC_FEATURE_<NAME>=true to enable
+ * - EXPO_PUBLIC_FEATURE_<NAME>=false to force off (wins over legacy aliases)
  * Restart Metro after changing any flag.
  */
 
-const on = (key: string): boolean => process.env[key] === 'true';
-/** Default-on MVP flags: only disable with EXPO_PUBLIC_FEATURE_<NAME>=false */
-const onUnlessFalse = (key: string): boolean => process.env[key] !== 'false';
+/** Prefer FEATURE_* ; legacy only if FEATURE_* unset. Explicit false always wins. */
+const featureOrLegacy = (
+  featureValue: string | undefined,
+  legacyValue: string | undefined,
+): boolean => {
+  if (featureValue === 'true') return true;
+  if (featureValue === 'false') return false;
+  return legacyValue === 'true';
+};
 
 export const features = {
   /**
@@ -15,27 +28,32 @@ export const features = {
    * Default ON. Set EXPO_PUBLIC_FEATURE_SOCIAL_PEERS=false to hide.
    * Not creator-follow / not creator directory rankings.
    */
-  socialPeers: onUnlessFalse('EXPO_PUBLIC_FEATURE_SOCIAL_PEERS'),
+  socialPeers: process.env.EXPO_PUBLIC_FEATURE_SOCIAL_PEERS !== 'false',
   /** V1 — event creation, ModeSwitch, mes events, create hub */
-  eventCreate: on('EXPO_PUBLIC_FEATURE_EVENT_CREATE'),
+  eventCreate: process.env.EXPO_PUBLIC_FEATURE_EVENT_CREATE === 'true',
   /** V1 — QR / geo check-in + creator QR share */
-  checkin: on('EXPO_PUBLIC_FEATURE_CHECKIN'),
+  checkin: process.env.EXPO_PUBLIC_FEATURE_CHECKIN === 'true',
   /** V1 — Nos offres / Habitué–Éclaireur paywall surfaces */
-  offers: on('EXPO_PUBLIC_FEATURE_OFFERS'),
+  offers: process.env.EXPO_PUBLIC_FEATURE_OFFERS === 'true',
   /** V1 — Professionnel onboarding + Diffuseur packs / analytics */
-  diffuseur: on('EXPO_PUBLIC_FEATURE_DIFFUSEUR'),
+  diffuseur: process.env.EXPO_PUBLIC_FEATURE_DIFFUSEUR === 'true',
   /** V2 — Lumo wallet, shop, missions, pass */
-  gamification:
-    on('EXPO_PUBLIC_FEATURE_GAMIFICATION') || on('EXPO_PUBLIC_GAMIFICATION_ENABLED'),
+  gamification: featureOrLegacy(
+    process.env.EXPO_PUBLIC_FEATURE_GAMIFICATION,
+    process.env.EXPO_PUBLIC_GAMIFICATION_ENABLED,
+  ),
   /** V2 — Discovery Engine module */
-  discovery:
-    on('EXPO_PUBLIC_FEATURE_DISCOVERY') || on('EXPO_PUBLIC_DISCOVERY_ENABLED'),
+  discovery: featureOrLegacy(
+    process.env.EXPO_PUBLIC_FEATURE_DISCOVERY,
+    process.env.EXPO_PUBLIC_DISCOVERY_ENABLED,
+  ),
   /** V2 — background capture (requires discovery) */
-  discoveryCapture:
-    on('EXPO_PUBLIC_FEATURE_DISCOVERY_CAPTURE') ||
-    on('EXPO_PUBLIC_DISCOVERY_CAPTURE_ENABLED'),
+  discoveryCapture: featureOrLegacy(
+    process.env.EXPO_PUBLIC_FEATURE_DISCOVERY_CAPTURE,
+    process.env.EXPO_PUBLIC_DISCOVERY_CAPTURE_ENABLED,
+  ),
   /** V2 — contests */
-  contests: on('EXPO_PUBLIC_FEATURE_CONTESTS'),
+  contests: process.env.EXPO_PUBLIC_FEATURE_CONTESTS === 'true',
 } as const;
 
 export type FeatureFlag = keyof typeof features;

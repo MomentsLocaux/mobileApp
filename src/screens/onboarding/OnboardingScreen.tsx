@@ -473,7 +473,9 @@ export default function OnboardingScreen() {
     if (stepId === lastProfileStepId) {
       const saved = await persistProfile();
       if (!saved) return;
-      if (isProfessionnel) {
+      // MVP: avatar is often the last step (no offers/marketing tail).
+      // Advancing stepIndex would clamp to the same page and look like Continuer is broken.
+      if (isProfessionnel || isLastStep) {
         finishToHome();
         return;
       }
@@ -583,7 +585,9 @@ export default function OnboardingScreen() {
             ? 'Voir l’offre Éclaireur'
             : stepId === 'eclairer'
               ? 'Déverrouiller Éclaireur'
-              : 'Continuer';
+              : isLastStep
+                ? 'C’est parti'
+                : 'Continuer';
 
   const showSkip =
     stepId === 'themes' ||
@@ -646,7 +650,9 @@ export default function OnboardingScreen() {
             <Text style={styles.welcomeSubtitle}>
               {isReplay
                 ? 'Reprenez les étapes de configuration de votre profil'
-                : 'Pour vous montrer ce qui se passe près de vous'}
+                : features.diffuseur
+                  ? 'Pour vous montrer ce qui se passe près de vous'
+                  : 'Ici on ne vend pas de ticket, on crée du lien avec le monde qui nous entoure'}
             </Text>
           </MotionReveal>
         ) : isMarketingStep ? (
@@ -722,11 +728,13 @@ export default function OnboardingScreen() {
 
         {stepId === 'identity' && (
           <MotionReveal key="identity" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Qui êtes-vous ?</Text>
+            <Text style={styles.stepTitle}>
+              {features.diffuseur ? 'Qui êtes-vous ?' : 'Comment vous appeler ?'}
+            </Text>
             <Text style={styles.helper}>
               {features.diffuseur
                 ? 'Particulier ou Professionnel — puis, si besoin, votre typologie.'
-                : 'Quelques infos pour personnaliser votre découverte locale.'}
+                : 'Ce nom apparaît auprès des autres membres.'}
             </Text>
 
             <View style={styles.inputGroup}>
@@ -745,45 +753,47 @@ export default function OnboardingScreen() {
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Je suis :</Text>
-              <View style={styles.roleChips}>
-                {visibleAccountKinds.map((option) => {
-                  const Icon = ACCOUNT_KIND_ICONS[option.value];
-                  const active = accountKind === option.value;
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[styles.roleChip, active && styles.roleChipActive]}
-                      onPress={() => {
-                        haptics.selection();
-                        setAccountKind(option.value);
-                        if (option.value === 'particulier') {
-                          setProSubtype(null);
-                        } else if (!proSubtype) {
-                          setProSubtype('independant');
-                        }
-                      }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      accessibilityLabel={`${option.label}. ${option.description}`}
-                    >
-                      <Icon
-                        size={15}
-                        color={active ? colors.brand.primary : colors.brand.textSecondary}
-                        strokeWidth={2.2}
-                      />
-                      <Text style={[styles.roleChipLabel, active && styles.roleChipLabelActive]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+            {features.diffuseur ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Je suis :</Text>
+                <View style={styles.roleChips}>
+                  {visibleAccountKinds.map((option) => {
+                    const Icon = ACCOUNT_KIND_ICONS[option.value];
+                    const active = accountKind === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.roleChip, active && styles.roleChipActive]}
+                        onPress={() => {
+                          haptics.selection();
+                          setAccountKind(option.value);
+                          if (option.value === 'particulier') {
+                            setProSubtype(null);
+                          } else if (!proSubtype) {
+                            setProSubtype('independant');
+                          }
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={`${option.label}. ${option.description}`}
+                      >
+                        <Icon
+                          size={15}
+                          color={active ? colors.brand.primary : colors.brand.textSecondary}
+                          strokeWidth={2.2}
+                        />
+                        <Text style={[styles.roleChipLabel, active && styles.roleChipLabelActive]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {activeKindDescription ? (
+                  <Text style={styles.roleHint}>{activeKindDescription}</Text>
+                ) : null}
               </View>
-              {activeKindDescription ? (
-                <Text style={styles.roleHint}>{activeKindDescription}</Text>
-              ) : null}
-            </View>
+            ) : null}
 
             {accountKind === 'particulier' && features.eventCreate ? (
               <View style={styles.inputGroup}>
@@ -860,7 +870,9 @@ export default function OnboardingScreen() {
                   Pas de profil « créateur seul » : la découverte reste toujours disponible.
                 </Text>
               </View>
-            ) : (
+            ) : null}
+
+            {features.diffuseur && accountKind === 'professionnel' ? (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Type de professionnel</Text>
                 <View style={styles.roleChips}>
@@ -900,7 +912,7 @@ export default function OnboardingScreen() {
                   Particulier séparé. Ce compte Professionnel sert à diffuser.
                 </Text>
               </View>
-            )}
+            ) : null}
           </MotionReveal>
         )}
 

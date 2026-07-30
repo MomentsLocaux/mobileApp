@@ -103,5 +103,58 @@ export function getEventCardSchedule(
   };
 }
 
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const formatTimeOnly = (date: Date) =>
+  date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+const formatDateOnly = (date: Date, style: EventCardDateStyle): string => {
+  if (style === 'compact') {
+    return capitalizeFirst(
+      date.toLocaleDateString('fr-FR', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      }),
+    );
+  }
+  return capitalizeFirst(
+    date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }),
+  );
+};
+
+/**
+ * Single readable schedule line for compact / map-preview cards.
+ * - same day: `Ven. 15 août · 18:00 – 22:00`
+ * - multi-day: `Ven. 15 août · 18:00 → Dim. 17 août · 20:00`
+ * - no end: start only
+ */
+export function formatEventCardRangeLine(
+  event: EventLike,
+  style: EventCardDateStyle = 'compact',
+): string {
+  const startDate = parseDate(event.starts_at);
+  const endDate = parseDate(event.ends_at);
+
+  if (!startDate) {
+    return endDate ? `Jusqu’au ${formatDateTime(endDate, style)}` : 'Date à confirmer';
+  }
+
+  if (!endDate || endDate.getTime() < startDate.getTime()) {
+    return formatDateTime(startDate, style);
+  }
+
+  const sameDay = startOfDay(startDate).getTime() === startOfDay(endDate).getTime();
+  if (sameDay) {
+    return `${formatDateOnly(startDate, style)} · ${formatTimeOnly(startDate)} – ${formatTimeOnly(endDate)}`;
+  }
+
+  return `${formatDateTime(startDate, style)} → ${formatDateTime(endDate, style)}`;
+}
+
 export const formatEventCardStartLine = (schedule: EventCardSchedule) => `Début · ${schedule.start}`;
 export const formatEventCardEndLine = (schedule: EventCardSchedule) => `Fin · ${schedule.end}`;

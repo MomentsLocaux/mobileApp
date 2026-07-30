@@ -5,7 +5,6 @@ import {
   Heart,
   Info,
   MapPin,
-  Moon,
   Navigation,
   Sparkles,
   Users,
@@ -172,11 +171,16 @@ export default function NotificationsSettingsScreen() {
     (p) => p.start === prefs.quiet_hours_start && p.end === prefs.quiet_hours_end,
   );
 
+  const showFollowedCreator = features.eventCreate;
+  const showRewards = features.gamification;
+  const showSocial = features.socialPeers;
+
   return (
     <SettingsLayout title="Notifications">
+      {/* 1. Push master + budget + quiet */}
       <SettingsSectionCard
         title="Notifications push"
-        description="Recevez les alertes directement sur votre téléphone."
+        description="Recevez les alertes sur votre téléphone, sans être dérangé trop souvent."
         icon={Bell}
       >
         <SettingsRow
@@ -190,14 +194,7 @@ export default function NotificationsSettingsScreen() {
             />
           }
         />
-      </SettingsSectionCard>
-
-      <SettingsSectionCard
-        title="Combien et quand"
-        description="Pour ne pas être dérangé trop souvent. Les messages importants (refus d’un événement, compte) passent toujours."
-        icon={Moon}
-      >
-        <ChoiceGroup label="Alertes par jour (max)" noBorder>
+        <ChoiceGroup label="Alertes par jour (max)">
           {DAILY_BUDGET_CHOICES.map((count) => (
             <Chip
               key={count}
@@ -211,7 +208,7 @@ export default function NotificationsSettingsScreen() {
           <Info size={16} color={colors.brand.secondary} />
           <Text style={styles.infoText}>
             Au-delà, l’alerte reste visible dans l’onglet Notifications, sans bannière sur
-            l’écran verrouillé.
+            l’écran verrouillé. Les messages importants (compte) passent toujours.
           </Text>
         </View>
         <ChoiceGroup label="Ne pas déranger">
@@ -237,10 +234,11 @@ export default function NotificationsSettingsScreen() {
         </ChoiceGroup>
       </SettingsSectionCard>
 
+      {/* 2. Local alerts + frequency */}
       <SettingsSectionCard
-        title="Types d'alertes"
-        description="Activez seulement ce qui vous intéresse."
-        icon={Bell}
+        title="Près de moi"
+        description="Nouveaux moments dans votre rayon, ou quand vous vous en approchez."
+        icon={MapPin}
       >
         <SettingsRow
           label="Nouveaux moments près de moi"
@@ -256,9 +254,8 @@ export default function NotificationsSettingsScreen() {
             <View style={styles.infoBox}>
               <Info size={16} color={colors.brand.secondary} />
               <Text style={styles.infoText}>
-                On utilise votre position quand vous ouvrez l’app (pas de suivi en
-                arrière-plan). Vous êtes alerté quand un nouveau moment est publié dans ce
-                rayon — pas quand vous passez devant en marchant.
+                Position utilisée à l’ouverture de l’app (pas de suivi en arrière-plan). Alerte
+                quand un nouveau moment est publié dans le rayon.
               </Text>
             </View>
             <ChoiceGroup label="Rayon">
@@ -268,6 +265,22 @@ export default function NotificationsSettingsScreen() {
                   label={`${km} km`}
                   active={prefs.notify_radius_km === km}
                   onPress={() => persist({ notify_radius_km: km })}
+                />
+              ))}
+            </ChoiceGroup>
+            <ChoiceGroup label="Rythme de ces alertes">
+              {FREQUENCY_CHOICES.map((option) => (
+                <Chip
+                  key={option.value}
+                  label={
+                    option.value === 'instant'
+                      ? 'Tout de suite'
+                      : option.value === 'daily'
+                        ? 'Une fois par jour'
+                        : 'Une fois par semaine'
+                  }
+                  active={prefs.notify_frequency === option.value}
+                  onPress={() => persist({ notify_frequency: option.value })}
                 />
               ))}
             </ChoiceGroup>
@@ -288,26 +301,23 @@ export default function NotificationsSettingsScreen() {
           <View style={styles.infoBox}>
             <Info size={16} color={colors.brand.secondary} />
             <Text style={styles.infoText}>
-              Localisation en arrière-plan (opt-in). On vous prévient quand vous vous
-              approchez d’un moment déjà publié, en cours ou bientôt. Distinct de Discovery
-              et des alertes « nouveaux moments ». Désactivez à tout moment.
+              Opt-in localisation en arrière-plan. Préviens quand vous vous approchez d’un
+              moment déjà publié (en cours ou bientôt). Désactivable à tout moment.
             </Text>
           </View>
         )}
+      </SettingsSectionCard>
 
-        <SettingsRow
-          label="Créateurs que je suis"
-          icon={Users}
-          right={
-            <Switch
-              value={prefs.notify_followed_creator}
-              onValueChange={(value) => persist({ notify_followed_creator: value })}
-            />
-          }
-        />
+      {/* 3. Social & reminders */}
+      <SettingsSectionCard
+        title="Social & rappels"
+        description="Activité autour de vous et rappels avant un moment."
+        icon={Heart}
+      >
         <SettingsRow
           label="Rappels avant le début"
           icon={CalendarClock}
+          noBorder={!showSocial && !showFollowedCreator && !showRewards}
           right={
             <Switch
               value={prefs.notify_event_reminders}
@@ -315,31 +325,51 @@ export default function NotificationsSettingsScreen() {
             />
           }
         />
-        <SettingsRow
-          label="Likes et nouveaux abonnés"
-          icon={Heart}
-          right={
-            <Switch
-              value={prefs.notify_social}
-              onValueChange={(value) => persist({ notify_social: value })}
-            />
-          }
-        />
-        <SettingsRow
-          label="Récompenses et missions"
-          icon={Gift}
-          right={
-            <Switch
-              value={prefs.notify_rewards}
-              onValueChange={(value) => persist({ notify_rewards: value })}
-            />
-          }
-        />
+        {showSocial ? (
+          <SettingsRow
+            label="Activité sociale (likes, nouveaux abonnés)"
+            icon={Heart}
+            noBorder={!showFollowedCreator && !showRewards}
+            right={
+              <Switch
+                value={prefs.notify_social}
+                onValueChange={(value) => persist({ notify_social: value })}
+              />
+            }
+          />
+        ) : null}
+        {showFollowedCreator ? (
+          <SettingsRow
+            label="Créateurs que je suis"
+            icon={Users}
+            noBorder={!showRewards}
+            right={
+              <Switch
+                value={prefs.notify_followed_creator}
+                onValueChange={(value) => persist({ notify_followed_creator: value })}
+              />
+            }
+          />
+        ) : null}
+        {showRewards ? (
+          <SettingsRow
+            label="Récompenses et missions"
+            icon={Gift}
+            noBorder
+            right={
+              <Switch
+                value={prefs.notify_rewards}
+                onValueChange={(value) => persist({ notify_rewards: value })}
+              />
+            }
+          />
+        ) : null}
       </SettingsSectionCard>
 
+      {/* 4. Themes */}
       <SettingsSectionCard
         title="Mes thèmes"
-        description="Aidez-nous à prioriser les bons moments. Sans choix, on vous propose tout le rayon."
+        description="Priorisez les bons moments près de vous. Sans choix, tout le rayon est proposé."
         icon={Sparkles}
       >
         <ChoiceGroup label="Centres d’intérêt" noBorder>
@@ -354,80 +384,81 @@ export default function NotificationsSettingsScreen() {
         </ChoiceGroup>
       </SettingsSectionCard>
 
+      {/* Discovery — V2 / offers gated */}
       {DISCOVERY_ENABLED && !entitlementLoading && hasEclaireur && (
-      <SettingsSectionCard
-        title="Suggestions Discovery"
-        description="Idées personnalisées selon vos habitudes (Éclaireur)."
-        icon={Sparkles}
-      >
-        <SettingsRow
-          label="Suggestions personnalisées"
+        <SettingsSectionCard
+          title="Suggestions Discovery"
+          description="Idées personnalisées selon vos habitudes (Éclaireur)."
           icon={Sparkles}
-          noBorder={!prefs.discovery_push_enabled}
-          right={
-            <Switch
-              value={prefs.discovery_push_enabled}
-              onValueChange={(value) =>
-                persist({
-                  discovery_push_enabled: value,
-                  ...(value
-                    ? {}
-                    : {
-                        right_now_push_enabled: false,
-                        break_loop_push_enabled: false,
-                        life_insight_push_enabled: false,
-                      }),
-                })
-              }
-            />
-          }
-        />
+        >
+          <SettingsRow
+            label="Suggestions personnalisées"
+            icon={Sparkles}
+            noBorder={!prefs.discovery_push_enabled}
+            right={
+              <Switch
+                value={prefs.discovery_push_enabled}
+                onValueChange={(value) =>
+                  persist({
+                    discovery_push_enabled: value,
+                    ...(value
+                      ? {}
+                      : {
+                          right_now_push_enabled: false,
+                          break_loop_push_enabled: false,
+                          life_insight_push_enabled: false,
+                        }),
+                  })
+                }
+              />
+            }
+          />
 
-        {prefs.discovery_push_enabled && (
-          <>
-            <SettingsRow
-              label="Idées pour maintenant"
-              icon={MapPin}
-              right={
-                <Switch
-                  value={prefs.right_now_push_enabled}
-                  onValueChange={(value) => persist({ right_now_push_enabled: value })}
-                />
-              }
-            />
-            <SettingsRow
-              label="Sortir de la routine"
-              icon={Heart}
-              right={
-                <Switch
-                  value={prefs.break_loop_push_enabled}
-                  onValueChange={(value) => persist({ break_loop_push_enabled: value })}
-                />
-              }
-            />
-            <SettingsRow
-              label="Tendances de vos sorties"
-              icon={Info}
-              right={
-                <Switch
-                  value={prefs.life_insight_push_enabled}
-                  onValueChange={(value) => persist({ life_insight_push_enabled: value })}
-                />
-              }
-            />
-            <ChoiceGroup label="Suggestions max par semaine">
-              {DISCOVERY_MAX_PUSH_CHOICES.map((count) => (
-                <Chip
-                  key={count}
-                  label={`${count}`}
-                  active={prefs.discovery_max_push_per_week === count}
-                  onPress={() => persist({ discovery_max_push_per_week: count })}
-                />
-              ))}
-            </ChoiceGroup>
-          </>
-        )}
-      </SettingsSectionCard>
+          {prefs.discovery_push_enabled && (
+            <>
+              <SettingsRow
+                label="Idées pour maintenant"
+                icon={MapPin}
+                right={
+                  <Switch
+                    value={prefs.right_now_push_enabled}
+                    onValueChange={(value) => persist({ right_now_push_enabled: value })}
+                  />
+                }
+              />
+              <SettingsRow
+                label="Sortir de la routine"
+                icon={Heart}
+                right={
+                  <Switch
+                    value={prefs.break_loop_push_enabled}
+                    onValueChange={(value) => persist({ break_loop_push_enabled: value })}
+                  />
+                }
+              />
+              <SettingsRow
+                label="Tendances de vos sorties"
+                icon={Info}
+                right={
+                  <Switch
+                    value={prefs.life_insight_push_enabled}
+                    onValueChange={(value) => persist({ life_insight_push_enabled: value })}
+                  />
+                }
+              />
+              <ChoiceGroup label="Suggestions max par semaine">
+                {DISCOVERY_MAX_PUSH_CHOICES.map((count) => (
+                  <Chip
+                    key={count}
+                    label={`${count}`}
+                    active={prefs.discovery_max_push_per_week === count}
+                    onPress={() => persist({ discovery_max_push_per_week: count })}
+                  />
+                ))}
+              </ChoiceGroup>
+            </>
+          )}
+        </SettingsSectionCard>
       )}
 
       {DISCOVERY_ENABLED && features.offers && !entitlementLoading && !hasEclaireur && (
@@ -444,29 +475,6 @@ export default function NotificationsSettingsScreen() {
           />
         </SettingsSectionCard>
       )}
-
-      <SettingsSectionCard
-        title="Rythme des alertes"
-        description="Pour les nouveaux moments près de vous et les publications des créateurs suivis. Les rappels « ça commence bientôt » restent tout de suite."
-        icon={CalendarClock}
-      >
-        <ChoiceGroup label="Quand m’alerter ?" noBorder>
-          {FREQUENCY_CHOICES.map((option) => (
-            <Chip
-              key={option.value}
-              label={
-                option.value === 'instant'
-                  ? 'Tout de suite'
-                  : option.value === 'daily'
-                    ? 'Une fois par jour'
-                    : 'Une fois par semaine'
-              }
-              active={prefs.notify_frequency === option.value}
-              onPress={() => persist({ notify_frequency: option.value })}
-            />
-          ))}
-        </ChoiceGroup>
-      </SettingsSectionCard>
     </SettingsLayout>
   );
 }

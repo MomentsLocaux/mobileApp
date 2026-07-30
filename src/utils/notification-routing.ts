@@ -7,6 +7,7 @@ type RouteTarget =
   | { href: '/missions' }
   | { href: '/discovery' }
   | { href: `/creator/${string}` }
+  | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
   | { href: `/contests/${string}` }
   | { href: '/contests' };
@@ -48,7 +49,11 @@ export function resolveNotificationRoute(
   if (type === 'social_follow') {
     const follower = pickString(d, 'follower', 'followerId', 'follower_id');
     if (follower) {
-      return { href: `/creator/${follower}` };
+      // Peer social MVP uses /community/[id]; creator hub is out of MVP.
+      if (features.socialPeers) {
+        return { href: `/community/${follower}` };
+      }
+      return inbox();
     }
   }
 
@@ -57,7 +62,7 @@ export function resolveNotificationRoute(
   }
 
   if (type === 'followed_creator_published') {
-    // Scraper MVP: no creator-follow loop — open the event when present, else inbox.
+    // Scraper MVP: no creator-follow loop. eventId already handled above.
     return inbox();
   }
 

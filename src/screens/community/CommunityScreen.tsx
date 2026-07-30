@@ -60,14 +60,15 @@ function PeersMembersScreen() {
       }
 
       const trimmed = search.trim();
+      // Peer discovery is global by default (city filter was opt-in on main).
+      // Hard-filtering by profile.city emptied the list for most users.
       const data = trimmed
         ? await CommunityService.searchMembers({
             query: trimmed,
-            city: profile?.city || undefined,
             limit: 40,
           })
         : await CommunityService.listMembers({
-            city: profile?.city || null,
+            city: null,
             sort: 'followers',
             limit: 40,
           });
@@ -77,6 +78,7 @@ function PeersMembersScreen() {
       const filtered = (data || []).filter((m) => {
         if (!m.user_id || m.user_id === currentUserId) return false;
         const name = (m.display_name || '').trim();
+        if (!name) return false;
         if (name.toLowerCase() === MOMENTS_LOCAUX_ORGANIZER_NAME.toLowerCase()) return false;
         return true;
       });
@@ -87,7 +89,7 @@ function PeersMembersScreen() {
     } finally {
       if (seq === searchSeq.current) setLoadingMembers(false);
     }
-  }, [currentUserId, profile?.city]);
+  }, [currentUserId]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -123,13 +125,21 @@ function PeersMembersScreen() {
   const followingSet = useMemo(() => new Set(followingIds), [followingIds]);
 
   const sortedMembers = useMemo(() => {
+    const profileCity = (profile?.city || '').trim().toLowerCase();
     return [...members].sort((a, b) => {
       const af = followingSet.has(a.user_id) ? 0 : 1;
       const bf = followingSet.has(b.user_id) ? 0 : 1;
       if (af !== bf) return af - bf;
+      if (profileCity) {
+        const ac = (a.city || '').trim().toLowerCase().includes(profileCity) ? 0 : 1;
+        const bc = (b.city || '').trim().toLowerCase().includes(profileCity) ? 0 : 1;
+        if (ac !== bc) return ac - bc;
+      }
+      const followersDelta = (b.followers_count || 0) - (a.followers_count || 0);
+      if (followersDelta !== 0) return followersDelta;
       return (a.display_name || '').localeCompare(b.display_name || '', 'fr');
     });
-  }, [members, followingSet]);
+  }, [members, followingSet, profile?.city]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -237,8 +247,10 @@ function PeersMembersScreen() {
                 subtitle={
                   query.trim()
                     ? 'Essayez un autre nom, ou invitez vos proches à rejoindre l’app.'
-                    : 'Dès que d’autres personnes s’inscrivent près de chez vous, vous pourrez les suivre ici.'
+                    : 'Recherchez un prénom ou parcourez les membres pour les suivre.'
                 }
+                ctaLabel="Inviter des amis"
+                onCtaPress={() => router.push('/profile/invite' as any)}
               />
             }
           />

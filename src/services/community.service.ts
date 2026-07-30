@@ -26,7 +26,9 @@ export const CommunityService = {
     const { query, city, limit = 12 } = options;
     let db = supabase
       .from('community_profile_stats')
-      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier, is_community_highlighted, community_highlighted_until')
+      .select(
+        'user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, followers_count, following_count',
+      )
       .limit(limit);
 
     if (query && query.trim()) {
@@ -57,26 +59,20 @@ export const CommunityService = {
       city,
       bio,
       events_created_count,
-      lumo_total,
-      lumo_month,
       followers_count,
-      following_count,
-      is_ambassadeur,
-      local_tier,
-      is_community_highlighted,
-      community_highlighted_until
+      following_count
     `);
     if (city) {
       query = query.eq('city', city);
     }
-    // Highlighted profiles float to the top of community lists
-    query = query.order('is_community_highlighted', { ascending: false });
     if (sort === 'followers') {
       query = query.order('followers_count', { ascending: false });
     } else if (sort === 'events') {
       query = query.order('events_created_count', { ascending: false });
     } else if (sort === 'lumo') {
       query = query.order('lumo_total', { ascending: false });
+    } else {
+      query = query.order('followers_count', { ascending: false });
     }
     query = query.limit(limit).range(offset, offset + limit - 1);
     const { data, error } = await query;
@@ -213,49 +209,29 @@ export const CommunityService = {
 
   /**
    * Peers who liked or favorited this event among accounts the current user follows.
+   * Uses SECURITY DEFINER RPC (owner-only RLS on event_likes / favorites).
    */
   async listEventEngagedByFollowing(
     eventId: string,
     options?: { limit?: number },
   ): Promise<Array<{ id: string; display_name: string; avatar_url: string | null }>> {
     const limit = options?.limit ?? 6;
-    const currentUser = (await supabase.auth.getUser()).data.user?.id;
-    if (!currentUser || !eventId) return [];
+    if (!eventId) return [];
 
-    const followingIds = await CommunityService.getFollowingIds(currentUser);
-    if (!followingIds.length) return [];
+    const { data, error } = await supabase.rpc('list_event_engaged_by_following', {
+      p_event_id: eventId,
+      p_limit: limit,
+    });
 
-    const chunk = followingIds.slice(0, 80);
-    const [likesRes, favRes] = await Promise.all([
-      supabase.from('event_likes').select('user_id').eq('event_id', eventId).in('user_id', chunk),
-      supabase.from('favorites').select('user_id').eq('event_id', eventId).in('user_id', chunk),
-    ]);
-
-    if (likesRes.error) console.warn('listEventEngagedByFollowing likes', likesRes.error);
-    if (favRes.error) console.warn('listEventEngagedByFollowing favorites', favRes.error);
-
-    const peerIds = [
-      ...new Set([
-        ...(likesRes.data || []).map((r: { user_id: string }) => r.user_id),
-        ...(favRes.data || []).map((r: { user_id: string }) => r.user_id),
-      ]),
-    ].slice(0, limit);
-
-    if (!peerIds.length) return [];
-
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('id, display_name, avatar_url')
-      .in('id', peerIds);
     if (error) {
-      console.warn('listEventEngagedByFollowing profiles', error);
+      console.warn('listEventEngagedByFollowing', error);
       return [];
     }
 
-    return (profiles || []).map((p: any) => ({
-      id: p.id,
-      display_name: p.display_name || 'Membre',
-      avatar_url: p.avatar_url || null,
+    return (data || []).map((row: { user_id: string; display_name: string; avatar_url: string | null }) => ({
+      id: row.user_id,
+      display_name: row.display_name || 'Membre',
+      avatar_url: row.avatar_url || null,
     }));
   },
 };

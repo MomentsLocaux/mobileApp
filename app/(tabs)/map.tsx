@@ -176,6 +176,25 @@ export default function MapScreen() {
   const whenPreset = searchState.when.preset;
   const setWhen = searchState.setWhen;
   const filtersActive = hasMapActiveFilters(metaFilter, mapMode, sortBy, whenPreset);
+
+  // Default map date filter: "Aujourd'hui" (map-only seed, once per session).
+  // Kept out of searchStore initialState so Home list stays unfiltered until the user searches.
+  const didSeedDefaultTodayRef = useRef(false);
+  useEffect(() => {
+    if (didSeedDefaultTodayRef.current) return;
+    didSeedDefaultTodayRef.current = true;
+    const currentWhen = useSearchStore.getState().when;
+    if (currentWhen.preset || currentWhen.startDate || currentWhen.endDate || currentWhen.includePast) {
+      return;
+    }
+    setWhen({
+      preset: 'today',
+      startDate: undefined,
+      endDate: undefined,
+      includePast: false,
+    });
+  }, [setWhen]);
+
   const sortCenter = useMemo(
     () =>
       searchState.where.location

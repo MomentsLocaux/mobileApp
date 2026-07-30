@@ -188,7 +188,7 @@ export default function CommunityProfileScreen() {
         <Stat label="Événements" value={member.events_created_count} />
         <Stat label="Followers" value={member.followers_count} />
         <Stat label="Suivis" value={member.following_count || 0} />
-        {GAMIFICATION_ENABLED ? <Stat label="Engagement" value={member.lumo_total} /> : null}
+        {GAMIFICATION_ENABLED ? <Stat label="Engagement" value={member.lumo_total ?? 0} /> : null}
       </View>
 
       <View style={styles.eventsSection}>

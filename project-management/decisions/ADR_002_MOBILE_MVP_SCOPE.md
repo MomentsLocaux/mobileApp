@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — amended 2026-06-08 and 2026-07-29.
+Accepted — amended 2026-06-08 and 2026-07-29 (peer social + share-invite; contact matching deferred).
 
 ## Context
 
@@ -25,8 +25,9 @@ The mobile MVP is limited to **local event discovery** (browse / social / trust 
 - Favorites.
 - Like/interest if stable.
 - **Peer social**: Membres (search/follow), peer profiles, “aimé par vos suivis” on events (`FEATURE_SOCIAL_PEERS`, default on).
+- Invite friends via system share link (`/profile/invite`) — no contacts permission, no phone at signup.
 - Comments.
-- Notifications: inbox + push delivery + preferences center (per-type, geolocated radius/frequency) + triggers for new nearby events. [Amendment 2026-06-08] — not followed-creator-published.
+- Notifications: inbox + push delivery + preferences center (nearby radius/frequency, proximity live, reminders, peer social activity, themes, daily budget / quiet hours). [Amendment 2026-06-08] — not followed-creator-published, not rewards/missions when gamification off.
 - Report event.
 - Report comment.
 - Report profile/user.
@@ -46,7 +47,8 @@ The mobile MVP is limited to **local event discovery** (browse / social / trust 
 - Discovery Engine (`FEATURE_DISCOVERY` → V2).
 - Contests (`FEATURE_CONTESTS` → V2).
 - Admin moderation dashboard / queues / approve-reject / ban / media review / risk (web console only — ADR 001).
-- Placeholder settings, journey, invite, legacy create routes.
+- Placeholder settings, journey, legacy create routes.
+- Contact-book discovery / hashed phone matching (V1+; phone never required at signup).
 
 ## Post-MVP / Phased
 
@@ -88,6 +90,7 @@ Product decision during store stabilization:
 
 - Discovery loop: auth, onboarding Particulier, map/search/filters, event detail, favorites/likes/comments, notifications, reporting, settings/legal/delete.
 - **Peer social**: find/follow members + “aimé par vos suivis” on events (`FEATURE_SOCIAL_PEERS`, default on).
+- **Invite growth**: share-sheet + deep/app link only. No address-book scan in MVP. Signup stays email/OAuth-light (no phone required).
 - Event **supply** = OpenAgenda scraper (organizer Moments Locaux — no creator-follow).
 - Companion web: moderation console + marketing vitrine only.
 
@@ -98,6 +101,7 @@ Product decision during store stabilization:
 | Creator-follow / followed-creator-published notifs / creator rankings | Out (scraper) |
 | `FEATURE_EVENT_CREATE` | V1 |
 | `FEATURE_CHECKIN` / `FEATURE_OFFERS` / `FEATURE_DIFFUSEUR` | V1 |
+| Contact matching (“who’s on the app”) via hashed emails/phones | V1+ (opt-in identifiers; never gate signup on phone) |
 | `FEATURE_GAMIFICATION` / Discovery Engine / contests | V2 |
 
 ### Supersedes for MVP

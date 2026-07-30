@@ -6,7 +6,8 @@ export type CommunityMember = {
   city?: string | null;
   bio?: string | null;
   events_created_count: number;
-  lumo_total: number;
+  /** Present when gamification surfaces select it; optional for MVP peer lists. */
+  lumo_total?: number;
   lumo_month?: number;
   followers_count: number;
   following_count?: number;

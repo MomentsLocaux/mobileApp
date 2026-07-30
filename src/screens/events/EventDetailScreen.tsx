@@ -350,6 +350,12 @@ export default function EventDetailScreen() {
 
   const loadAttendeesAndCheckin = useCallback(
     async (eventId: string) => {
+      if (!features.checkin) {
+        setAttendees([]);
+        setTotalAttendees(0);
+        setHasCheckedIn(false);
+        return;
+      }
       try {
         const [previewResp, mineResp] = await Promise.all([
           supabase.rpc('get_event_checkin_preview', { p_event_id: eventId, p_limit: 12 }),
@@ -1348,7 +1354,8 @@ export default function EventDetailScreen() {
                   <Text style={[styles.heroBadgeText, styles.heroBadgeTextLive]}>EN DIRECT</Text>
                 </View>
               )}
-              {EarlyAccessService.isWindowActive(event.early_access_until) ? (
+              {GAMIFICATION_ENABLED &&
+              EarlyAccessService.isWindowActive(event.early_access_until) ? (
                 <View style={[styles.heroBadge, styles.heroBadgeEarly]}>
                   <Text style={styles.heroBadgeText}>ACCÈS ANTICIPÉ</Text>
                 </View>
@@ -1643,7 +1650,10 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
             <View style={styles.statBox}>
               <Users size={20} color={colors.brand.secondary} style={{ marginBottom: 4 }} />
-              <Text style={styles.statBoxValue}>{eventStats.checkins + (event.interests_count || eventStats.interests || 0)}</Text>
+              <Text style={styles.statBoxValue}>
+                {(features.checkin ? eventStats.checkins : 0) +
+                  (event.interests_count || eventStats.interests || 0)}
+              </Text>
             </View>
             <TouchableOpacity style={styles.statBox} onPress={handleGoToEchoes} activeOpacity={0.85}>
               <Star size={20} color="#FBBF24" fill="#FBBF24" style={{ marginBottom: 4 }} />
@@ -1652,6 +1662,7 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           </View>
 
+          {features.checkin ? (
           <View style={styles.facepileSection}>
             <View style={styles.facepileRow}>
               {attendees.slice(0, 3).map((attendee, i) => (
@@ -1678,6 +1689,7 @@ export default function EventDetailScreen() {
                 : `${Math.max(event.interests_count || 0, totalAttendees)} ami${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''} intéressé${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''}`}
             </Text>
           </View>
+          ) : null}
 
           {event.tags?.length ? (
             <View style={styles.tagsContainer}>

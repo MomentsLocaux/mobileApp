@@ -10,10 +10,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { features } from '@/config/features';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { PremiumCard } from '@/components/premium/PremiumCard';
 import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
@@ -267,6 +268,15 @@ export default function ProfileScreen() {
 
           <PremiumCard isPremium={isPremium} style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
+            {features.socialPeers ? (
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => router.push('/profile/invite' as any)}
+              >
+                <Send size={18} color={accent.accent} />
+                <Text style={[styles.linkText, { color: accent.accent }]}>Inviter des amis</Text>
+              </TouchableOpacity>
+            ) : null}
             {!isProfessionnelAccount && DISCOVERY_ENABLED && (
               <TouchableOpacity
                 style={[styles.linkButton, isPremium && styles.linkButtonPremium]}

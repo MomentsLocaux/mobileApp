@@ -1,5 +1,5 @@
 import type { EventWithCreator } from '@/types/database';
-import { getEventCardSchedule, getEventCardCity } from './event-card-meta';
+import { formatEventCardRangeLine, getEventCardSchedule, getEventCardCity } from './event-card-meta';
 
 export type EventTemporalState = 'upcoming' | 'live' | 'past' | 'cancelled';
 
@@ -86,10 +86,11 @@ export function getHumanizedDate(event: Pick<EventWithCreator, 'starts_at' | 'en
   }
 
   const schedule = getEventCardSchedule(event, 'compact');
+  const rangeLine = formatEventCardRangeLine(event, 'compact');
 
   return {
     headline,
-    startLine: schedule.start,
+    startLine: rangeLine,
     endLine: schedule.end,
     startDate: start ? formatShortDate(start) : 'Date à confirmer',
     startTime: start ? formatTime(start) : '--:--',

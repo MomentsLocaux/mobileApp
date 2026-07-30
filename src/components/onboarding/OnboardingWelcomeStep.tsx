@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Briefcase, Compass, Heart, Sparkles } from 'lucide-react-native';
 import type { AccountKind } from '@/constants/accountIdentity';
@@ -8,20 +8,20 @@ import { haptics } from '@/utils/haptics';
 type Props = {
   preferredKind: AccountKind | null;
   onSelectKind: (kind: AccountKind) => void;
-  /** When false (MVP), only Particulier is offered. */
+  /** When false (MVP / FEATURE_DIFFUSEUR off), single discovery pitch — no Particulier/Pro choice. */
   showProfessionnel?: boolean;
 };
+
+const MVP_NEXT = [
+  'Choisir où tu traines',
+  'Dire ce que tu aimes',
+  'Explorer les moments près de toi',
+];
 
 const PARTICULIER_NEXT = [
   'Choisir où tu traines',
   'Dire ce que tu aimes (et ce que tu proposes)',
   'Explorer — Habitué si tu sors vraiment',
-];
-
-const PARTICULIER_NEXT_MVP = [
-  'Choisir où tu traines',
-  'Dire ce que tu aimes',
-  'Explorer les moments près de toi',
 ];
 
 const PROFESSIONNEL_NEXT = [
@@ -30,25 +30,54 @@ const PROFESSIONNEL_NEXT = [
   'Accéder à votre tableau de bord de présence',
 ];
 
+const MVP_PROMISE =
+  'Ici on ne vend pas de ticket, on crée du lien avec le monde qui nous entoure.';
+
 /**
- * Welcome dual-promesse — 1 écran, ton fun (Particulier) vs formel (Professionnel).
- * Ticket ID-ONBOARD / décisions 2026-07-27.
+ * Welcome — dual door when Diffuseur is on; single discovery pitch otherwise (MVP).
  */
 export function OnboardingWelcomeStep({
   preferredKind,
   onSelectKind,
   showProfessionnel = true,
 }: Props) {
-  const particulierBullets = showProfessionnel ? PARTICULIER_NEXT : PARTICULIER_NEXT_MVP;
+  useEffect(() => {
+    if (!showProfessionnel) {
+      onSelectKind('particulier');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lock MVP identity once
+  }, [showProfessionnel]);
+
+  if (!showProfessionnel) {
+    return (
+      <View style={styles.wrap}>
+        <View style={[styles.panel, styles.panelFun, styles.panelActive]}>
+          <View style={styles.bullets}>
+            {MVP_NEXT.map((line) => (
+              <View key={line} style={styles.bulletRow}>
+                <Sparkles size={14} color={colors.brand.secondary} />
+                <Text style={styles.bulletFun}>{line}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.chipRow}>
+            <View style={styles.miniChip}>
+              <Heart size={12} color={colors.brand.primary} />
+              <Text style={styles.miniChipText}>Découvrir</Text>
+            </View>
+            <View style={styles.miniChip}>
+              <Text style={styles.miniChipText}>Participer</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.hero}>Moments Locaux</Text>
-      <Text style={styles.lead}>
-        {showProfessionnel
-          ? 'Deux portes d’entrée — choisis celle qui te ressemble.'
-          : 'Découvre les moments près de toi.'}
-      </Text>
+      <Text style={styles.lead}>Deux portes d’entrée — choisis celle qui te ressemble.</Text>
 
       <TouchableOpacity
         style={[styles.panel, styles.panelFun, preferredKind === 'particulier' && styles.panelActive]}
@@ -63,11 +92,9 @@ export function OnboardingWelcomeStep({
           <Compass size={22} color={colors.brand.secondary} strokeWidth={2.2} />
           <Text style={styles.panelTitleFun}>Particulier</Text>
         </View>
-        <Text style={styles.panelPromiseFun}>
-          Ton quartier a des moments — viens les choper et y aller.
-        </Text>
+        <Text style={styles.panelPromiseFun}>{MVP_PROMISE}</Text>
         <View style={styles.bullets}>
-          {particulierBullets.map((line) => (
+          {PARTICULIER_NEXT.map((line) => (
             <View key={line} style={styles.bulletRow}>
               <Sparkles size={14} color={colors.brand.secondary} />
               <Text style={styles.bulletFun}>{line}</Text>
@@ -82,17 +109,18 @@ export function OnboardingWelcomeStep({
           <View style={styles.miniChip}>
             <Text style={styles.miniChipText}>Participer</Text>
           </View>
-          {showProfessionnel ? (
-            <View style={styles.miniChip}>
-              <Text style={styles.miniChipText}>Créer (optionnel)</Text>
-            </View>
-          ) : null}
+          <View style={styles.miniChip}>
+            <Text style={styles.miniChipText}>Créer (optionnel)</Text>
+          </View>
         </View>
       </TouchableOpacity>
 
-      {showProfessionnel ? (
       <TouchableOpacity
-        style={[styles.panel, styles.panelFormal, preferredKind === 'professionnel' && styles.panelActiveFormal]}
+        style={[
+          styles.panel,
+          styles.panelFormal,
+          preferredKind === 'professionnel' && styles.panelActiveFormal,
+        ]}
         onPress={() => {
           haptics.selection();
           onSelectKind('professionnel');
@@ -117,7 +145,6 @@ export function OnboardingWelcomeStep({
           ))}
         </View>
       </TouchableOpacity>
-      ) : null}
     </View>
   );
 }

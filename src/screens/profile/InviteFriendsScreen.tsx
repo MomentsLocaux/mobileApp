@@ -38,9 +38,10 @@ export default function InviteFriendsScreen() {
         </View>
         <Text style={styles.cardTitle}>Partagez l’application</Text>
         <Text style={styles.cardBody}>
-          Invitez votre entourage à rejoindre Moments Locaux pour découvrir et publier des événements.
+          Invitez vos proches à découvrir les moments près de chez vous. Aucun accès au carnet
+          d’adresses : partagez un lien, c’est tout.
         </Text>
-        <Button title="Partager maintenant" onPress={handleInvite} fullWidth />
+        <Button title="Partager le lien" onPress={handleInvite} fullWidth />
       </Card>
     </View>
   );

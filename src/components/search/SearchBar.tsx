@@ -9,6 +9,8 @@ import {
   Pressable,
   Image,
   useWindowDimensions,
+  Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -20,12 +22,14 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { X, MapPin, Calendar, Tag, ChevronRight, Search } from 'lucide-react-native';
+import { X, MapPin, Calendar, Tag, ChevronRight, Search, Bookmark, Clock, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { useSearchStore } from '@/store/searchStore';
+import { useSavedSearchesStore } from '@/store/savedSearchesStore';
 import { MapboxService } from '@/services/mapbox.service';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -44,6 +48,7 @@ import {
 import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
 import type { CommunityMember } from '@/types/community';
+import type { SavedSearchSnapshot } from '@/services/saved-searches.service';
 
 type SectionKey = 'where' | 'when' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -114,6 +119,24 @@ export const SearchBar: React.FC<Props> = ({
     addHistory,
     commitSearch,
   } = useSearchStore();
+
+  const recentSearches = useSavedSearchesStore((s) => s.recent);
+  const savedSearches = useSavedSearchesStore((s) => s.saved);
+  const hydrateSavedSearches = useSavedSearchesStore((s) => s.hydrate);
+  const recordRecentFromCurrent = useSavedSearchesStore((s) => s.recordRecentFromCurrent);
+  const saveCurrent = useSavedSearchesStore((s) => s.saveCurrent);
+  const applySavedSearch = useSavedSearchesStore((s) => s.applySearch);
+  const removeSavedSearch = useSavedSearchesStore((s) => s.removeSearch);
+  const isCurrentSaved = useSavedSearchesStore((s) => s.isCurrentSaved);
+
+  useEffect(() => {
+    void hydrateSavedSearches();
+  }, [hydrateSavedSearches]);
+
+  const taxonomyLabels = useMemo(
+    () => ({ categories, subcategories, tags }),
+    [categories, subcategories, tags],
+  );
 
   const progress = useSharedValue(0);
   const contentProgress = useSharedValue(0);
@@ -341,6 +364,79 @@ export const SearchBar: React.FC<Props> = ({
       setOverlayVisible(false);
       onExpandedChange?.(false);
     }, Motion.duration.fast);
+  };
+
+  const currentIsSaved = isCurrentSaved(taxonomyLabels);
+
+  const applySnapshot = (item: SavedSearchSnapshot) => {
+    const ok = applySavedSearch(item.id);
+    if (!ok) return;
+    onApply();
+    closeExpanded();
+  };
+
+  const confirmRemove = (item: SavedSearchSnapshot) => {
+    Alert.alert('Supprimer', `Retirer « ${item.title} » ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => {
+          void removeSavedSearch(item.id);
+        },
+      },
+    ]);
+  };
+
+  const handleSaveCurrent = () => {
+    if (!hasSearchCriteria) return;
+    const defaultTitle = buildSearchSummary(
+      useSearchStore.getState() as SearchState,
+      categories,
+      subcategories,
+      tags,
+    );
+
+    const doSave = async (title?: string) => {
+      await saveCurrent(taxonomyLabels, title || defaultTitle);
+      Toast.show({ type: 'success', text1: 'Recherche enregistrée' });
+    };
+
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Enregistrer la recherche',
+        'Choisissez un nom (optionnel).',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Enregistrer',
+            onPress: (value?: string) => {
+              void doSave(value?.trim() || defaultTitle);
+            },
+          },
+        ],
+        'plain-text',
+        defaultTitle,
+      );
+      return;
+    }
+
+    Alert.alert('Enregistrer la recherche', defaultTitle, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Enregistrer',
+        onPress: () => {
+          void doSave(defaultTitle);
+        },
+      },
+    ]);
+  };
+
+  const handleApplySearch = () => {
+    commitSearch();
+    void recordRecentFromCurrent(taxonomyLabels);
+    onApply();
+    closeExpanded();
   };
 
   const barAnimatedStyle = useAnimatedStyle(() => ({
@@ -591,9 +687,62 @@ export const SearchBar: React.FC<Props> = ({
                           <Text style={styles.resultText}>{item.label}</Text>
                         </TouchableOpacity>
                       ))}
-                      {where.history.length > 0 && (
+                      {!query.trim() && (recentSearches.length > 0 || savedSearches.length > 0) ? (
                         <View style={styles.history}>
-                          <Text style={styles.meta}>Recherches récentes</Text>
+                          {savedSearches.length > 0 ? (
+                            <>
+                              <Text style={styles.meta}>Enregistrées</Text>
+                              {savedSearches.map((item) => (
+                                <TouchableOpacity
+                                  key={item.id}
+                                  style={styles.savedRow}
+                                  onPress={() => applySnapshot(item)}
+                                  onLongPress={() => confirmRemove(item)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Appliquer ${item.title}`}
+                                >
+                                  <Bookmark size={16} color={colors.brand.secondary} />
+                                  <Text style={styles.resultText} numberOfLines={2}>
+                                    {item.title}
+                                  </Text>
+                                  <TouchableOpacity
+                                    onPress={() => confirmRemove(item)}
+                                    hitSlop={8}
+                                    accessibilityLabel="Supprimer la recherche"
+                                  >
+                                    <Trash2 size={14} color={colors.brand.textSecondary} />
+                                  </TouchableOpacity>
+                                </TouchableOpacity>
+                              ))}
+                            </>
+                          ) : null}
+                          {recentSearches.length > 0 ? (
+                            <>
+                              <Text style={[styles.meta, savedSearches.length > 0 && styles.metaSpaced]}>
+                                Récents
+                              </Text>
+                              {recentSearches.map((item) => (
+                                <TouchableOpacity
+                                  key={item.id}
+                                  style={styles.savedRow}
+                                  onPress={() => applySnapshot(item)}
+                                  onLongPress={() => confirmRemove(item)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Appliquer ${item.title}`}
+                                >
+                                  <Clock size={16} color={colors.brand.textSecondary} />
+                                  <Text style={styles.resultText} numberOfLines={2}>
+                                    {item.title}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {where.history.length > 0 && query.trim().length === 0 && recentSearches.length === 0 ? (
+                        <View style={styles.history}>
+                          <Text style={styles.meta}>Lieux récents</Text>
                           {where.history.map((h) => (
                             <TouchableOpacity
                               key={h}
@@ -607,7 +756,7 @@ export const SearchBar: React.FC<Props> = ({
                             </TouchableOpacity>
                           ))}
                         </View>
-                      )}
+                      ) : null}
                     </SectionCard>
                   </Animated.View>
 
@@ -816,17 +965,36 @@ export const SearchBar: React.FC<Props> = ({
                   </Text>
                 ) : null}
                 <View style={styles.footer}>
-                  <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
-                    <Text style={styles.resetText}>Tout effacer</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.primaryBtn}
-                    onPress={() => {
-                      commitSearch();
-                      onApply();
-                      closeExpanded();
-                    }}
-                  >
+                  <View style={styles.footerLeft}>
+                    <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
+                      <Text style={styles.resetText}>Tout effacer</Text>
+                    </TouchableOpacity>
+                    {hasSearchCriteria ? (
+                      <TouchableOpacity
+                        style={styles.saveBtn}
+                        onPress={handleSaveCurrent}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          currentIsSaved ? 'Recherche déjà enregistrée' : 'Enregistrer la recherche'
+                        }
+                      >
+                        <Bookmark
+                          size={14}
+                          color={currentIsSaved ? colors.brand.secondary : colors.brand.textSecondary}
+                          fill={currentIsSaved ? colors.brand.secondary : 'transparent'}
+                        />
+                        <Text
+                          style={[
+                            styles.saveText,
+                            currentIsSaved && styles.saveTextActive,
+                          ]}
+                        >
+                          {currentIsSaved ? 'Enregistrée' : 'Enregistrer'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity style={styles.primaryBtn} onPress={handleApplySearch}>
                     <Text style={styles.primaryText}>{countLabel}</Text>
                     <ChevronRight size={16} color={colors.brand.primary} />
                   </TouchableOpacity>
@@ -1295,6 +1463,37 @@ const styles = StyleSheet.create({
   history: {
     marginTop: spacing.sm,
     gap: spacing.xs,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  metaSpaced: {
+    marginTop: spacing.md,
+  },
+  footerLeft: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    flexShrink: 1,
+    paddingRight: spacing.sm,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  saveText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+  },
+  saveTextActive: {
+    color: colors.brand.secondary,
   },
   zeroHint: {
     ...typography.caption,

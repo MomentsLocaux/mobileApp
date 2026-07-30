@@ -342,7 +342,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
             ) : (
               <View style={styles.compactScheduleCol}>
                 {humanDate.headline ? <Text style={styles.headline}>{humanDate.headline}</Text> : null}
-                <Text style={styles.compactDateLine} numberOfLines={2}>
+                <Text style={styles.compactDateLine} numberOfLines={3}>
                   {humanDate.startLine}
                 </Text>
               </View>

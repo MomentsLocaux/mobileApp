@@ -8,6 +8,7 @@ Phased against mobile feature flags (`src/config/features.ts`). See ADR_002 Amen
 - `FEATURE_CHECKIN` — QR / géoloc.
 - `FEATURE_OFFERS` — Nos offres / Habitué–Éclaireur (IAP).
 - `FEATURE_DIFFUSEUR` — Professionnel + packs / analytics.
+- Contact discovery (optionnel) — scan carnet via `expo-contacts`, match hash email/téléphone **opt-in** (jamais requis à l’inscription), UX consentement GDPR. MVP garde uniquement le share link.
 
 ## V2 / plus tard
 
