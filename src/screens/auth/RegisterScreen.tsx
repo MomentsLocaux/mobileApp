@@ -99,7 +99,7 @@ export default function RegisterScreen() {
     if (requiresEmailConfirmation || alreadyRegistered) {
       Alert.alert(
         'Vérification requise',
-        'Un email de confirmation vous a été envoyé. Validez votre adresse puis connectez-vous.',
+        'Un email de confirmation vous a été envoyé. Validez votre adresse puis connectez-vous. Pensez à vérifier vos spams si vous ne le voyez pas.',
         [{ text: 'OK', onPress: () => router.replace('/auth/login') }]
       );
       return;

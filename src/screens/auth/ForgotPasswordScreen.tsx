@@ -45,7 +45,7 @@ export default function ForgotPasswordScreen() {
 
     Alert.alert(
       'Email envoyé',
-      'Si un compte existe pour cet email, vous recevrez un lien pour réinitialiser votre mot de passe.',
+      'Si un compte existe pour cet email, vous recevrez un lien pour réinitialiser votre mot de passe. Pensez à vérifier vos spams si vous ne le voyez pas.',
       [{ text: 'OK', onPress: () => router.replace('/auth/login') }],
     );
   };

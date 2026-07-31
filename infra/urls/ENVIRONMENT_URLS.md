@@ -66,6 +66,8 @@ See `infra/runbooks/PUSH_NOTIFICATIONS.md`.
 
 Password recovery is enabled with Email provider (default). Custom SMTP required for reliable delivery.
 
+See runbook: `infra/runbooks/BRAND_EMAIL_BREVO_SMTP.md` (Brevo domain + Supabase SMTP + brand checklist).
+
 ## PROD reminder — Auth UX (iOS OAuth sheet)
 
 iOS shows the **real Auth host** in the system dialog  
