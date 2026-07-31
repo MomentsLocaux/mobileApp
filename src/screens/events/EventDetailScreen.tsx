@@ -25,7 +25,6 @@ import {
   Heart,
   MapPin,
   Calendar,
-  Users,
   Share2,
   Flag,
   Edit,
@@ -75,6 +74,7 @@ import { useFavoritesStore } from '@/store/favoritesStore';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { EventPhotoContributionModal } from '@/components/events/EventPhotoContributionModal';
+import { EventLikersSheet } from '@/components/events/EventLikersSheet';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
 import { CommunityService } from '@/services/community.service';
 import { ShopService } from '@/services/shop.service';
@@ -166,6 +166,7 @@ export default function EventDetailScreen() {
   const [communityPhotos, setCommunityPhotos] = useState<EventMediaSubmission[]>([]);
   const [loadingCommunityPhotos, setLoadingCommunityPhotos] = useState(false);
   const [contribModalVisible, setContribModalVisible] = useState(false);
+  const [likersSheetVisible, setLikersSheetVisible] = useState(false);
   const [peersEngaged, setPeersEngaged] = useState<
     Array<{ id: string; display_name: string; avatar_url: string | null }>
   >([]);
@@ -524,6 +525,14 @@ export default function EventDetailScreen() {
     } catch (error) {
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
     }
+  };
+
+  const handleOpenLikers = () => {
+    if (isGuest) {
+      openGuestGate('Voir qui a aimé');
+      return;
+    }
+    setLikersSheetVisible(true);
   };
 
   const executeCheckIn = useCallback(async (options?: { qrToken?: string; source?: 'mobile' | 'qr_scan'; successTitle?: string }) => {
@@ -1640,23 +1649,30 @@ export default function EventDetailScreen() {
               <Eye size={20} color={colors.neutral[400]} style={{ marginBottom: 4 }} />
               <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
-            <TouchableOpacity style={styles.statBox} onPress={handleToggleHeart}>
-              <Animated.View style={heartAnimatedStyle}>
-                <Heart
-                  size={20}
-                  color={colors.brand.secondary}
-                  fill={isEventHearted ? colors.brand.secondary : 'transparent'}
-                  style={{ marginBottom: 4 }}
-                />
-              </Animated.View>
-              <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
-            </TouchableOpacity>
             <View style={styles.statBox}>
-              <Users size={20} color={colors.brand.secondary} style={{ marginBottom: 4 }} />
-              <Text style={styles.statBoxValue}>
-                {(features.checkin ? eventStats.checkins : 0) +
-                  (event.interests_count || eventStats.interests || 0)}
-              </Text>
+              <TouchableOpacity
+                onPress={handleToggleHeart}
+                accessibilityRole="button"
+                accessibilityLabel={isEventHearted ? 'Ne plus aimer' : 'Aimer'}
+                hitSlop={8}
+              >
+                <Animated.View style={heartAnimatedStyle}>
+                  <Heart
+                    size={20}
+                    color={colors.brand.secondary}
+                    fill={isEventHearted ? colors.brand.secondary : 'transparent'}
+                    style={{ marginBottom: 4 }}
+                  />
+                </Animated.View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleOpenLikers}
+                accessibilityRole="button"
+                accessibilityLabel={`${eventStats.likes} personnes ont aimé`}
+                hitSlop={8}
+              >
+                <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
+              </TouchableOpacity>
             </View>
             <TouchableOpacity style={styles.statBox} onPress={handleGoToEchoes} activeOpacity={0.85}>
               <Star size={20} color="#FBBF24" fill="#FBBF24" style={{ marginBottom: 4 }} />
@@ -1698,7 +1714,7 @@ export default function EventDetailScreen() {
             <View style={styles.tagsContainer}>
               {visibleEventTags.map((tag, index) => (
                 <View key={`${tag}-${index}`} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
+                  <Text style={styles.tagText}>{tag}</Text>
                 </View>
               ))}
             </View>
@@ -1897,6 +1913,17 @@ export default function EventDetailScreen() {
         onSignIn={() => {
           closeGuestGate();
           router.push('/auth/login' as any);
+        }}
+      />
+
+      <EventLikersSheet
+        visible={likersSheetVisible}
+        eventId={event?.id ?? null}
+        onClose={() => setLikersSheetVisible(false)}
+        onPressProfile={(userId) => {
+          setLikersSheetVisible(false);
+          if (!features.socialPeers) return;
+          router.push(`/community/${userId}` as any);
         }}
       />
 
@@ -2221,7 +2248,7 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    minWidth: (width - spacing.lg * 2 - spacing.sm * 3) / 4,
+    minWidth: (width - spacing.lg * 2 - spacing.sm * 2) / 3,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     padding: 12,

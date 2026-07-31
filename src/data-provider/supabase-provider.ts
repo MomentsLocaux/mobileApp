@@ -178,6 +178,8 @@ const mapViewportRowToEvent = (row: Record<string, unknown>): EventWithCreator =
     visibility: (row.visibility as string) || 'public',
     comments_count: row.comments_count != null ? Number(row.comments_count) : 0,
     media_count: row.media_count != null ? Number(row.media_count) : 0,
+    interests_count: row.interests_count != null ? Number(row.interests_count) : 0,
+    checkins_count: row.checkins_count != null ? Number(row.checkins_count) : 0,
     operating_hours: row.operating_hours ?? null,
     media: [],
     category_meta:

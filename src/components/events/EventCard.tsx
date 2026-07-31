@@ -123,10 +123,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const accessLabel = getEventAccessLabel(event);
   const temporal = getEventTemporalState(event);
   const participating = isParticipating || Boolean(event.is_interested);
-  const socialLabel = getEventSocialProofLabel(
-    friendsGoingCount,
-    (event.interests_count || 0) + (event.checkins_count || 0)
-  );
+  const socialLabel = getEventSocialProofLabel(friendsGoingCount, event.likes_count || 0);
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
   const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
   const { isLive } = useMemo(() => getEventLiveWindow(event), [event]);
@@ -135,7 +132,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const showViewsBadge = viewCount >= MIN_VIEWS_BADGE_THRESHOLD;
   const hasSocialProof =
     (Number.isFinite(friendsGoingCount) && Number(friendsGoingCount) > 0) ||
-    (event.interests_count || 0) + (event.checkins_count || 0) > 0;
+    (event.likes_count || 0) > 0;
 
   const showDescription = Boolean(description) && variant !== 'compact' && variant !== 'map-preview';
   const showSchedulePanel = variant === 'discovery' || variant === 'favorite';

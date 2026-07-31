@@ -151,6 +151,19 @@ export function useMapViewportController({
         .setViewportFetchError('Impossible de lire la zone visible de la carte.');
     } finally {
       initialViewportLoadInFlightRef.current = false;
+      // Another path marked bootstrapped while we waited — don't leave loading forever
+      // if that path never finished publishing results.
+      if (
+        viewportBootstrappedRef.current &&
+        useMapResultsUIStore.getState().sheetStatus === 'loading'
+      ) {
+        // Give the in-flight force fetch a moment; clear only if still stuck shortly after.
+        setTimeout(() => {
+          if (useMapResultsUIStore.getState().sheetStatus === 'loading') {
+            useMapResultsUIStore.getState().setStatus('browsing');
+          }
+        }, 4000);
+      }
     }
   }, [isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
 

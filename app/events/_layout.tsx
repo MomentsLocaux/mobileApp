@@ -35,31 +35,13 @@ export default function EventsLayout() {
           animation: 'slide_from_bottom',
         }}
       />
+      {/* Nested folder app/events/create — declare the group, not create/step-* */}
       <Stack.Screen
-        name="create/index"
+        name="create"
         options={{
           headerShown: false,
           presentation: 'modal',
           animation: 'slide_from_bottom',
-        }}
-      />
-      {/* Legacy step routes - deprecated in favor of create/index */}
-      <Stack.Screen
-        name="create/step-1"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="create/step-2"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="create/preview"
-        options={{
-          headerShown: false,
         }}
       />
     </Stack>

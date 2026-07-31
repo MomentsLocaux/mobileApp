@@ -124,12 +124,13 @@ export const MIN_VIEWS_BADGE_THRESHOLD = 5;
 export function getEventAccessLabel(
   event: Pick<
     EventWithCreator,
-    'registration_required' | 'max_participants' | 'external_url' | 'status' | 'interests_count' | 'checkins_count'
+    'registration_required' | 'max_participants' | 'external_url' | 'status' | 'likes_count' | 'checkins_count'
   >
 ): EventAccessLabel {
   if (event.status === 'refused' || event.status === 'archived') return 'Annulé';
 
-  const participants = (event.interests_count || 0) + (event.checkins_count || 0);
+  // MVP: likes = interest signal; checkins only matter when populated (check-in flag on).
+  const participants = (event.likes_count || 0) + (event.checkins_count || 0);
   if (event.max_participants && participants >= event.max_participants) return 'Complet';
   if (event.registration_required) return 'Réservation requise';
   if (event.external_url) return 'Sur inscription';
@@ -143,15 +144,15 @@ export function isEventVerified(event: Pick<EventWithCreator, 'status'>): boolea
 
 export function getEventSocialProofLabel(
   friendsGoingCount?: number,
-  participantsCount?: number
+  likesCount?: number
 ): string {
   const friends = Number.isFinite(friendsGoingCount) ? Number(friendsGoingCount) : 0;
-  if (friends > 0) return `${friends} ami·e·s y vont`;
+  if (friends > 0) return `${friends} ami·e·s aiment`;
 
-  const participants = Number.isFinite(participantsCount) ? Number(participantsCount) : 0;
-  if (participants > 0) return `${participants} personne${participants > 1 ? 's' : ''} y vont`;
+  const likes = Number.isFinite(likesCount) ? Number(likesCount) : 0;
+  if (likes > 0) return `${likes} personne${likes > 1 ? 's' : ''} aime${likes > 1 ? 'nt' : ''}`;
 
-  return 'Soyez le premier à y aller';
+  return 'Soyez le premier à aimer';
 }
 
 export function getEventDescriptionPreview(description?: string | null, maxLength = 140): string | null {
@@ -172,13 +173,14 @@ export function getEventContextTags(event: Pick<EventWithCreator, 'tags' | 'ambi
   const tags = (Array.isArray(event.tags) ? event.tags : [])
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
     .filter((tag) => !isIngestProvenanceTag(tag))
-    .map((tag) => (tag.startsWith('#') ? tag : `#${tag.trim()}`))
+    .map((tag) => tag.replace(/^#+/, '').trim())
+    .filter(Boolean)
     .slice(0, 2);
 
   if (!tags.length && event.ambiance?.trim()) {
-    const ambiance = event.ambiance.trim();
-    if (!isIngestProvenanceTag(ambiance)) {
-      tags.push(ambiance.startsWith('#') ? ambiance : `#${ambiance}`);
+    const ambiance = event.ambiance.replace(/^#+/, '').trim();
+    if (ambiance && !isIngestProvenanceTag(ambiance)) {
+      tags.push(ambiance);
     }
   }
 

@@ -5,7 +5,7 @@ import type { MapWrapperHandle } from '@/components/map';
 import { useMapResultsUIStore } from '@/store';
 import type { EventWithCreator } from '@/types/database';
 import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
-import { filterFeatureCollectionByEventIds, type EventMapFeatureCollection, type MapBounds } from '@/types/map-events';
+import { type EventMapFeatureCollection, type MapBounds, filterFeatureCollectionByEventIds } from '@/types/map-events';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
@@ -299,6 +299,13 @@ export function useViewportEventsFetch({
         if (!isViewportRequestCurrent(requestId)) return;
 
         publishFilteredViewport(events, featureCollection, { metaFilter: currentMetaFilter });
+        // If publish early-returned (frozen / singleEvent), never leave the sheet stuck on loading.
+        if (
+          isViewportRequestCurrent(requestId) &&
+          useMapResultsUIStore.getState().sheetStatus === 'loading'
+        ) {
+          setStatus('browsing');
+        }
       } catch (error) {
         if (!isViewportRequestCurrent(requestId)) return;
         console.warn('bbox fetch error', error);

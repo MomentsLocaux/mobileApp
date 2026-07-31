@@ -2,6 +2,12 @@ import { supabase } from '@/lib/supabase/client';
 import type { CommunityMember, LeaderboardEntry } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
 
+export type EventLikerProfile = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+};
+
 export const CommunityService = {
   async listMyFollowers(): Promise<Array<{ id: string; display_name: string; avatar_url: string | null }>> {
     const currentUser = (await supabase.auth.getUser()).data.user?.id;
@@ -224,7 +230,41 @@ export const CommunityService = {
     });
 
     if (error) {
-      console.warn('listEventEngagedByFollowing', error);
+      const code = String((error as { code?: string })?.code || '');
+      // RPC not deployed yet (DEV/UAT lag) — empty peers, no noisy warn.
+      if (code !== 'PGRST202' && code !== '42883') {
+        console.warn('listEventEngagedByFollowing', error);
+      }
+      return [];
+    }
+
+    return (data || []).map((row: { user_id: string; display_name: string; avatar_url: string | null }) => ({
+      id: row.user_id,
+      display_name: row.display_name || 'Membre',
+      avatar_url: row.avatar_url || null,
+    }));
+  },
+
+  /**
+   * Profiles who liked an event (SECURITY DEFINER — owner-only RLS on event_likes).
+   */
+  async listEventLikers(
+    eventId: string,
+    options?: { limit?: number },
+  ): Promise<EventLikerProfile[]> {
+    const limit = options?.limit ?? 50;
+    if (!eventId) return [];
+
+    const { data, error } = await supabase.rpc('list_event_likers', {
+      p_event_id: eventId,
+      p_limit: limit,
+    });
+
+    if (error) {
+      const code = String((error as { code?: string })?.code || '');
+      if (code !== 'PGRST202' && code !== '42883') {
+        console.warn('listEventLikers', error);
+      }
       return [];
     }
 
