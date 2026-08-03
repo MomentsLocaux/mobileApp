@@ -520,10 +520,13 @@ export default function MapScreen() {
         endDate: undefined,
         includePast: false,
       });
-      cancelViewportFetch();
-      void refreshBounds();
+      const nextFilters = buildFiltersFromSearch(useSearchStore.getState(), userLocation);
+      if (!reapplyClientFilters({ searchFilters: nextFilters })) {
+        cancelViewportFetch();
+        void refreshBounds();
+      }
     },
-    [cancelViewportFetch, refreshBounds, setWhen]
+    [cancelViewportFetch, reapplyClientFilters, refreshBounds, setWhen, userLocation]
   );
 
   const handleCategoriesChange = useCallback(
@@ -588,50 +591,62 @@ export default function MapScreen() {
     setListSortOrder(order);
   }, []);
 
+  const refreshBoundsRef = useRef(refreshBounds);
+  refreshBoundsRef.current = refreshBounds;
+  const ensureInitialViewportLoadRef = useRef(ensureInitialViewportLoad);
+  ensureInitialViewportLoadRef.current = ensureInitialViewportLoad;
+  const restoreViewportFromFrozenRef = useRef(restoreViewportFromFrozen);
+  restoreViewportFromFrozenRef.current = restoreViewportFromFrozen;
+  const setStatusRef = useRef(setStatus);
+  setStatusRef.current = setStatus;
+  const clearedStaleWhenOnEntryRef = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
+      // Keep this callback identity stable ([] + refs). Otherwise React Navigation
+      // re-runs the effect when deps like hasSearchCriteria change mid-focus, and the
+      // stale-preset clear below immediately undoes MapFiltersSheet date taps.
       const uiState = useMapResultsUIStore.getState();
       if (uiState.sheetStatus === 'singleEvent' && uiState.frozenViewport) {
-        restoreViewportFromFrozen({ keepHighlight: true });
+        restoreViewportFromFrozenRef.current({ keepHighlight: true });
       }
 
-      // Clear stale date presets left by Fast Refresh / previous map sessions so browse
-      // is not silently filtered to "today" with zero local events.
-      const when = useSearchStore.getState().when;
-      if (when.preset || when.startDate || when.endDate) {
-        useSearchStore.getState().setWhen({
-          preset: undefined,
-          startDate: undefined,
-          endDate: undefined,
-          includePast: false,
-        });
+      // Once per map mount: drop leftover SearchBar date chips in browse mode.
+      // Do not clear again on later focus/dep cycles — that fights intentional map filters.
+      if (!clearedStaleWhenOnEntryRef.current) {
+        clearedStaleWhenOnEntryRef.current = true;
+        const search = useSearchStore.getState();
+        if (
+          !search.searchApplied &&
+          (search.when.preset || search.when.startDate || search.when.endDate)
+        ) {
+          search.setWhen({
+            preset: undefined,
+            startDate: undefined,
+            endDate: undefined,
+            includePast: false,
+          });
+        }
       }
 
-      if (searchApplied && hasSearchCriteria) {
-        void refreshBounds();
+      const latest = useSearchStore.getState();
+      if (latest.searchApplied && checkSearchCriteria(latest)) {
+        void refreshBoundsRef.current();
         return;
       }
 
       if (uiState.sheetStatus !== 'loading') {
-        setStatus('browsing');
+        setStatusRef.current('browsing');
       }
       resultsSheetRef.current?.collapseToPeek();
       // First open: onMapReady / location recenter own the bootstrap fetch.
       // Re-focus only: refresh the visible bbox.
       if (viewportBootstrappedRef.current) {
-        void refreshBounds();
+        void refreshBoundsRef.current();
       } else {
-        void ensureInitialViewportLoad();
+        void ensureInitialViewportLoadRef.current();
       }
-    }, [
-      ensureInitialViewportLoad,
-      hasSearchCriteria,
-      refreshBounds,
-      restoreViewportFromFrozen,
-      searchApplied,
-      setStatus,
-      viewportBootstrappedRef,
-    ])
+    }, [])
   );
 
   useEffect(() => {
