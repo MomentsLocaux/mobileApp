@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, Search } from 'lucide-react-native';
@@ -23,14 +24,15 @@ import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { EventResultCard } from '@/components/search/EventResultCard';
+import { MapResultCard } from '@/components/search/MapResultCard';
 import type { EventWithCreator } from '@/types/database';
-import { features } from '@/config/features';
 import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { NotificationsService } from '@/services/notifications.service';
 import { TriageControl } from '@/components/search/TriageControl';
 import {
+  DEFAULT_SEARCH_RADIUS_KM,
   hasSearchCriteria as checkSearchCriteria,
   resolveEffectiveRadiusKm,
   resolveSearchCenter,
@@ -41,6 +43,14 @@ import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { AppBackground, EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
+
+const NEARBY_CAROUSEL_LIMIT = 12;
+const META_FILTER_OPTIONS = [
+  { key: 'all', label: 'Tous' },
+  { key: 'live', label: 'En cours' },
+  { key: 'upcoming', label: 'À venir' },
+  { key: 'past', label: 'Passés' },
+] as const;
 
 type HomeFeedEventItemProps = {
   event: EventWithCreator;
@@ -123,6 +133,25 @@ export default function HomeScreen() {
     const metaFiltered = filterEventsByMetaStatus(base, metaFilter);
     return sortEvents(metaFiltered, sortBy, userLocation, sortOrder);
   }, [metaFeedEvents, metaFilter, searchResults, showSearchResults, sortBy, sortOrder, userLocation]);
+
+  /** Nearby carousel: live + upcoming within default radius, distance ASC — independent of temporal chips. */
+  const nearbyEvents = useMemo(() => {
+    if (!userLocation) return [];
+    const live = filterEventsByMetaStatus(fetchedEvents, 'live');
+    const upcoming = filterEventsByMetaStatus(fetchedEvents, 'upcoming');
+    const byId = new Map<string, EventWithCreator>();
+    for (const event of [...live, ...upcoming]) {
+      byId.set(event.id, event);
+    }
+    const withinRadius = filterEvents([...byId.values()], {
+      centerLat: userLocation.latitude,
+      centerLon: userLocation.longitude,
+      radiusKm: DEFAULT_SEARCH_RADIUS_KM,
+      includePast: false,
+    });
+    return sortEvents(withinRadius, 'distance', userLocation).slice(0, NEARBY_CAROUSEL_LIMIT);
+  }, [fetchedEvents, userLocation]);
+
   const filteredEventIds = useMemo(
     () => filteredAndSortedEvents.map((event) => event.id).filter(Boolean),
     [filteredAndSortedEvents],
@@ -341,15 +370,17 @@ export default function HomeScreen() {
 
   const renderFeedItem = useCallback(
     ({ item }: { item: EventWithCreator }) => (
-      <HomeFeedEventItem
-        event={item}
-        viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
-        friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
-        isHearted={likesSet.has(item.id) || favoritesSet.has(item.id)}
-        onPressEvent={handlePressEvent}
-        onNavigateEvent={handleNavigateEvent}
-        onToggleHeart={handleToggleHeart}
-      />
+      <View style={styles.feedItemWrap}>
+        <HomeFeedEventItem
+          event={item}
+          viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
+          friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
+          isHearted={likesSet.has(item.id) || favoritesSet.has(item.id)}
+          onPressEvent={handlePressEvent}
+          onNavigateEvent={handleNavigateEvent}
+          onToggleHeart={handleToggleHeart}
+        />
+      </View>
     ),
     [
       eventCardStatsById,
@@ -363,6 +394,152 @@ export default function HomeScreen() {
 
   const keyExtractor = useCallback((item: EventWithCreator) => item.id, []);
 
+  const renderNearbyItem = useCallback(
+    (item: EventWithCreator) => (
+      <MapResultCard
+        key={item.id}
+        event={item}
+        onPress={() => handlePressEvent(item.id)}
+        onOpenDetails={() => handlePressEvent(item.id)}
+      />
+    ),
+    [handlePressEvent]
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <>
+        {canCreateNow ? (
+          <View style={styles.storiesContainer}>
+            <View style={styles.storiesHeader}>
+              <Text style={styles.sectionTitle}>En ce moment</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storiesContent}
+            >
+              <TouchableOpacity
+                style={styles.storyItem}
+                onPress={() => router.push('/events/create/step-1' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Créer un événement"
+              >
+                <LinearGradient
+                  colors={[accent.accent, accent.accent]}
+                  style={styles.storyGradientBorder}
+                >
+                  <View style={styles.storyInner}>
+                    {profile?.avatar_url ? (
+                      <Image source={{ uri: profile.avatar_url }} style={styles.storyAvatar} />
+                    ) : (
+                      <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
+                    )}
+                    <View style={styles.plusBadge}>
+                      <Text style={styles.plusText}>+</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+                <Text style={[styles.storyLabel, styles.storyLabelActive]} numberOfLines={1}>
+                  Créer
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        ) : null}
+
+        <View style={styles.nearbyContainer}>
+          <View style={styles.storiesHeader}>
+            <Text style={styles.sectionTitle}>Autour de vous</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/map' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Voir la carte"
+            >
+              <Text style={styles.seeAllText}>Voir la carte</Text>
+            </TouchableOpacity>
+          </View>
+          {!userLocation ? (
+            <View style={styles.nearbyEmpty}>
+              <Text style={styles.nearbyEmptyText}>
+                Activez la localisation pour voir les événements près de vous.
+              </Text>
+            </View>
+          ) : nearbyEvents.length === 0 ? (
+            <View style={styles.nearbyEmpty}>
+              <Text style={styles.nearbyEmptyText}>
+                Aucun événement à proximité pour le moment.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.nearbyCarouselContent}
+            >
+              {nearbyEvents.map(renderNearbyItem)}
+            </ScrollView>
+          )}
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.metaFilterRow}
+          style={styles.metaFilterScroll}
+        >
+          {META_FILTER_OPTIONS.map((item) => {
+            const active = metaFilter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
+                onPress={() => {
+                  setMetaFilter(item.key);
+                  if (item.key !== 'all') {
+                    setSearchApplied(false);
+                  }
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Filtrer : ${item.label}`}
+              >
+                <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Pour vous</Text>
+          <TriageControl
+            value={sortBy}
+            onChange={(value) => searchState.setSortBy(value)}
+            sortOrder={sortOrder}
+            onSortOrderChange={(order) => searchState.setSortOrder(order)}
+            hasLocation={!!userLocation}
+          />
+        </View>
+      </>
+    ),
+    [
+      accent.accent,
+      canCreateNow,
+      metaFilter,
+      nearbyEvents,
+      profile?.avatar_url,
+      renderNearbyItem,
+      router,
+      searchState,
+      setSearchApplied,
+      sortBy,
+      sortOrder,
+      userLocation,
+    ]
+  );
+
   if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
@@ -374,8 +551,6 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* AppBackground is now global in _layout.tsx */}
-      {/* Header */}
       <View style={[styles.header, { marginTop: insets.top }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity
@@ -427,116 +602,24 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Create shortcut only when EVENT_CREATE; peer members via header link */}
-      {canCreateNow ? (
-      <View style={styles.storiesContainer}>
-        <View style={styles.storiesHeader}>
-          <Text style={styles.sectionTitle}>En ce moment</Text>
-          {features.socialPeers ? (
-            <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
-              <Text style={styles.seeAllText}>Membres</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-        <FlatList
-          horizontal
-          data={[{ me: true as const }]}
-          keyExtractor={() => 'me'}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.storiesContent}
-          renderItem={() => (
-              <TouchableOpacity
-                style={styles.storyItem}
-                onPress={() => router.push('/events/create/step-1' as any)}
-                accessibilityRole="button"
-                accessibilityLabel="Créer un événement"
-              >
-                <LinearGradient
-                  colors={[accent.accent, accent.accent]}
-                  style={styles.storyGradientBorder}
-                >
-                  <View style={styles.storyInner}>
-                    {profile?.avatar_url ? (
-                      <Image source={{ uri: profile.avatar_url }} style={styles.storyAvatar} />
-                    ) : (
-                      <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
-                    )}
-                    <View style={styles.plusBadge}>
-                      <Text style={styles.plusText}>+</Text>
-                    </View>
-                  </View>
-                </LinearGradient>
-                <Text style={[styles.storyLabel, styles.storyLabelActive]} numberOfLines={1}>
-                  Créer
-                </Text>
-              </TouchableOpacity>
-          )}
-        />
-      </View>
-      ) : features.socialPeers ? (
-        <View style={styles.storiesContainer}>
-          <View style={styles.storiesHeader}>
-            <Text style={styles.sectionTitle}>Autour de vous</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
-              <Text style={styles.seeAllText}>Membres</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
-
-      {/* Filters */}
-      <View style={styles.metaFilterRow}>
-        {([
-          { key: 'all', label: 'Tous' },
-          { key: 'live', label: 'En cours' },
-          { key: 'upcoming', label: 'À venir' },
-          { key: 'past', label: 'Passés' },
-        ] as const).map((item) => {
-          const active = metaFilter === item.key;
-          return (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
-              onPress={() => {
-                setMetaFilter(item.key);
-                if (item.key !== 'all') {
-                  setSearchApplied(false);
-                }
-              }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={`Filtrer : ${item.label}`}
-            >
-              <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Pour vous</Text>
-        <TriageControl
-          value={sortBy}
-          onChange={(value) => searchState.setSortBy(value)}
-          sortOrder={sortOrder}
-          onSortOrderChange={(order) => searchState.setSortOrder(order)}
-          hasLocation={!!userLocation}
-        />
-      </View>
-
       <FlatList
         data={filteredAndSortedEvents}
         renderItem={renderFeedItem}
         keyExtractor={keyExtractor}
+        ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={7}
         updateCellsBatchingPeriod={50}
         removeClippedSubviews
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.brand.secondary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.brand.secondary}
+          />
+        }
         ListEmptyComponent={
           searchLoading || metaFeedLoading ? (
             <EventCardSkeleton count={2} />
@@ -575,7 +658,6 @@ export default function HomeScreen() {
           router.push(`/(tabs)/map?focus=${id}` as any);
         }}
       />
-
     </View>
   );
 }
@@ -751,10 +833,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  nearbyContainer: {
+    paddingBottom: spacing.md,
+  },
+  nearbyCarouselContent: {
+    paddingHorizontal: spacing.md,
+  },
+  nearbyEmpty: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  nearbyEmptyText: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+  },
+  metaFilterScroll: {
+    marginBottom: spacing.md,
+    flexGrow: 0,
+  },
   metaFilterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
     gap: spacing.sm,
   },
   metaFilterPill: {
@@ -779,8 +879,10 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.md,
     gap: spacing.lg,
+  },
+  feedItemWrap: {
+    paddingHorizontal: spacing.md,
   },
   emptyContainer: {
     padding: spacing.lg,
@@ -790,6 +892,4 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.textSecondary,
   },
-  // Legacy styles kept just in case, but they seem unused now:
-  // storyAvatarContainer, storyAvatarMe
 });

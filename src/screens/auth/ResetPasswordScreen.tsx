@@ -149,6 +149,7 @@ export default function ResetPasswordScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              showPasswordToggle
               autoComplete="password-new"
               error={errors.password}
             />
@@ -158,6 +159,7 @@ export default function ResetPasswordScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
+              showPasswordToggle
               autoComplete="password-new"
               error={errors.confirmPassword}
             />

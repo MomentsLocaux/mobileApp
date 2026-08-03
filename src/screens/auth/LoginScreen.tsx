@@ -154,6 +154,7 @@ export default function LoginScreen() {
                           autoCapitalize="none"
                           autoComplete="email"
                           error={errors.email}
+                          containerStyle={styles.inputFieldContainer}
                           style={styles.input}
                           placeholderTextColor="rgba(255,255,255,0.5)"
                         />
@@ -166,8 +167,11 @@ export default function LoginScreen() {
                           value={password}
                           onChangeText={setPassword}
                           secureTextEntry
+                          showPasswordToggle
+                          toggleIconColor="rgba(255,255,255,0.6)"
                           autoComplete="password"
                           error={errors.password}
+                          containerStyle={styles.inputFieldContainer}
                           style={styles.input}
                           placeholderTextColor="rgba(255,255,255,0.5)"
                         />
