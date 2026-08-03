@@ -55,7 +55,7 @@ import {
 import { MapEventUnitOverlay } from '../../src/components/search/MapEventUnitOverlay';
 import { FloatingPressable } from '../../src/components/ui/FloatingPressable';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
-import type { SortOption, SortOrder } from '@/types/filters';
+import type { DatePreset, MapMode } from '@/constants/filters';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
 
@@ -88,7 +88,6 @@ export default function MapScreen() {
     freezeViewportResults,
     clearFrozenViewport,
     closeSheet,
-    syncViewportEvents,
     restoreViewportFromFrozen,
   } = useMapResultsUIStore();
 
@@ -124,12 +123,10 @@ export default function MapScreen() {
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [zoom, setZoom] = useState(12);
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
-  const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
+  const [mapMode, setMapMode] = useState<MapMode>('standard');
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
-  const [listSortBy, setListSortBy] = useState<SortOption>('triage');
-  const [listSortOrder, setListSortOrder] = useState<SortOrder | undefined>(undefined);
 
   zoomRef.current = zoom;
 
@@ -175,16 +172,19 @@ export default function MapScreen() {
   const whenPreset = searchState.when.preset;
   const setWhen = searchState.setWhen;
   const setWhat = searchState.setWhat;
+  const setSortBy = searchState.setSortBy;
+  const setSortOrder = searchState.setSortOrder;
   const selectedCategories = searchState.what.categories;
   const selectedSubcategories = searchState.what.subcategories;
-  const filtersActive = hasMapActiveFilters(
+  const filtersActive = hasMapActiveFilters({
     metaFilter,
     mapMode,
     sortBy,
+    sortOrder,
     whenPreset,
-    selectedCategories,
-    selectedSubcategories
-  );
+    categoryIds: selectedCategories,
+    subcategoryIds: selectedSubcategories,
+  });
   const sortCenter = useMemo(
     () =>
       searchState.where.location
@@ -513,7 +513,7 @@ export default function MapScreen() {
   );
 
   const handleWhenPresetChange = useCallback(
-    (preset?: 'today' | 'tomorrow' | 'weekend') => {
+    (preset?: DatePreset) => {
       setWhen({
         preset,
         startDate: undefined,
@@ -545,51 +545,41 @@ export default function MapScreen() {
     (next: EventMetaFilter) => {
       setMetaFilter(next);
       clearFrozenViewport();
+      // Date presets describe now/future, and the sheet disables them under "Passés":
+      // drop the preset so it cannot stay applied while being unreachable.
+      if (next === 'past' && whenPreset) {
+        setWhen({
+          preset: undefined,
+          startDate: undefined,
+          endDate: undefined,
+          includePast: false,
+        });
+      }
       // Past needs a broader server timeScope than the usual "current" cache.
       if (next === 'past' || !reapplyClientFilters({ metaFilter: next })) {
         cancelViewportFetch();
         void refreshBounds({ metaFilter: next });
       }
     },
-    [cancelViewportFetch, clearFrozenViewport, reapplyClientFilters, refreshBounds]
+    [
+      cancelViewportFetch,
+      clearFrozenViewport,
+      reapplyClientFilters,
+      refreshBounds,
+      setWhen,
+      whenPreset,
+    ]
   );
 
-  const reapplyViewportOrdering = useCallback(
-    (nextSortBy: typeof sortBy, nextSortOrder?: typeof sortOrder) => {
-      const source = frozenViewport?.events ?? sheetEvents;
-      if (!source.length || sheetStatus === 'loading' || sheetStatus === 'singleEvent') return;
-      const ordered =
-        nextSortBy !== 'triage'
-          ? sortEvents(source, nextSortBy, sortCenter, nextSortOrder)
-          : source;
-      syncViewportEvents(ordered);
-    },
-    [frozenViewport?.events, sheetEvents, sheetStatus, sortCenter, syncViewportEvents]
-  );
-
-  const handleSortByChange = useCallback(
-    (value: typeof sortBy) => {
-      searchState.setSortBy(value);
-      reapplyViewportOrdering(value, sortOrder);
-    },
-    [reapplyViewportOrdering, searchState, sortOrder]
-  );
-
-  const handleSortOrderChange = useCallback(
-    (order: NonNullable<typeof sortOrder>) => {
-      searchState.setSortOrder(order);
-      reapplyViewportOrdering(sortBy, order);
-    },
-    [reapplyViewportOrdering, searchState, sortBy]
-  );
-
-  const handleListSortByChange = useCallback((value: SortOption) => {
-    setListSortBy(value);
-  }, []);
-
-  const handleListSortOrderChange = useCallback((order: SortOrder) => {
-    setListSortOrder(order);
-  }, []);
+  const handleResetFilters = useCallback(() => {
+    setWhen({ preset: undefined, startDate: undefined, endDate: undefined, includePast: false });
+    setWhat({ categories: [], subcategories: [] });
+    setSortBy('triage');
+    setSortOrder(undefined);
+    setMetaFilter('all');
+    cancelViewportFetch();
+    void refreshBounds({ metaFilter: 'all' });
+  }, [cancelViewportFetch, refreshBounds, setSortBy, setSortOrder, setWhat, setWhen]);
 
   const refreshBoundsRef = useRef(refreshBounds);
   refreshBoundsRef.current = refreshBounds;
@@ -707,11 +697,11 @@ export default function MapScreen() {
   const displayPeekCount = frozenViewport?.eventCount ?? visibleEventCount;
 
   const sortedListEvents = useMemo(() => {
-    if (sheetStatus === 'singleEvent' || listSortBy === 'triage') {
+    if (sheetStatus === 'singleEvent' || sortBy === 'triage') {
       return displaySheetEvents;
     }
-    return sortEvents(displaySheetEvents, listSortBy, sortCenter, listSortOrder);
-  }, [displaySheetEvents, listSortBy, listSortOrder, sheetStatus, sortCenter]);
+    return sortEvents(displaySheetEvents, sortBy, sortCenter, sortOrder);
+  }, [displaySheetEvents, sheetStatus, sortBy, sortCenter, sortOrder]);
 
   if (locationLoading && !userLocation) {
     return (
@@ -845,10 +835,10 @@ export default function MapScreen() {
               peekCount={sheetStatus === 'singleEvent' ? 0 : displayPeekCount}
               metaFilter={metaFilter}
               isLoading={sheetStatus === 'loading'}
-              sortBy={listSortBy}
-              sortOrder={listSortOrder}
-              onSortByChange={handleListSortByChange}
-              onSortOrderChange={handleListSortOrderChange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortByChange={setSortBy}
+              onSortOrderChange={setSortOrder}
               hasLocation={!!userLocation}
             />
           </Animated.View>
@@ -866,14 +856,12 @@ export default function MapScreen() {
         searchActive={searchActive}
         sortBy={sortBy}
         sortOrder={sortOrder}
-        onSortByChange={handleSortByChange}
-        onSortOrderChange={handleSortOrderChange}
-        hasLocation={!!userLocation}
         whenPreset={whenPreset}
         onWhenPresetChange={handleWhenPresetChange}
         selectedCategories={selectedCategories}
         selectedSubcategories={selectedSubcategories}
         onCategoriesChange={handleCategoriesChange}
+        onReset={handleResetFilters}
         resultCount={displayPeekCount}
         isLoadingResults={sheetStatus === 'loading'}
       />
