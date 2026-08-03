@@ -180,7 +180,8 @@ export default function HomeScreen() {
       const timeScope = resolveEventTimeScope({ metaFilter });
       const data = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
       setMetaFeedEvents(data || []);
-    } catch {
+    } catch (error) {
+      console.warn('[Home] loadMetaFeed failed', error);
       setMetaFeedEvents([]);
     } finally {
       setMetaFeedLoading(false);

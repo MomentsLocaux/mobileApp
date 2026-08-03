@@ -136,6 +136,40 @@ const EVENT_LIGHT_SELECT = `
   category_meta:event_category(slug, icon)
 `;
 
+// Card / list feed: enough for EventResultCard without media[] / geography embeds
+// (EVENT_FULL_SELECT + media on hundreds of rows times out → empty Home).
+const EVENT_CARD_SELECT = `
+  id,
+  creator_id,
+  title,
+  category,
+  category_meta:event_category(slug, icon),
+  subcategory,
+  tags,
+  starts_at,
+  ends_at,
+  schedule_mode,
+  latitude,
+  longitude,
+  address,
+  boosted_until,
+  early_access_until,
+  city,
+  postal_code,
+  venue_name,
+  visibility,
+  is_free,
+  price,
+  cover_url,
+  comments_count,
+  media_count,
+  created_at,
+  updated_at,
+  status,
+  ambiance,
+  creator:profiles!events_creator_id_fkey(id, display_name, avatar_url, city, region)
+`;
+
 const pickCategoryMeta = (value: any): { slug?: string; icon?: string } | null => {
   if (Array.isArray(value)) return (value[0] as { slug?: string; icon?: string } | undefined) || null;
   if (value && typeof value === 'object') return value as { slug?: string; icon?: string };
@@ -294,19 +328,25 @@ export const supabaseProvider: (Pick<
 > &
   IBugsProvider) = {
   async listEvents(filters: Record<string, unknown> = {}) {
-    const { limit, creatorId, includePast, timeScope } = filters as {
+    const { limit, creatorId, includePast, timeScope, selectMode } = filters as {
       limit?: number;
       creatorId?: string;
       includePast?: boolean;
       timeScope?: EventTimeScope;
+      /** `full` embeds media[] + description; default `card` for public feeds. */
+      selectMode?: 'card' | 'full';
     };
     const appliedLimit = typeof limit === 'number' ? limit : 200;
     const nowIso = new Date().toISOString();
     const resolvedScope: EventTimeScope = timeScope ?? (includePast ? 'all' : 'ongoing');
+    // Creator "my events" keeps full payload; public discovery lists use card-lite.
+    const select =
+      selectMode === 'full' || creatorId ? EVENT_FULL_SELECT : EVENT_CARD_SELECT;
 
     let query = supabase
       .from('events')
-      .select(EVENT_FULL_SELECT)
+      // Cast avoids TS2589 on conditional select string unions.
+      .select(select as string)
       .order('boosted_until', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false });
 

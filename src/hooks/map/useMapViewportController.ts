@@ -161,6 +161,10 @@ export function useMapViewportController({
         setTimeout(() => {
           if (useMapResultsUIStore.getState().sheetStatus === 'loading') {
             useMapResultsUIStore.getState().setStatus('browsing');
+            // Don't leave a stale banner if markers/list already recovered via another path.
+            if (useMapResultsUIStore.getState().sheetEvents.length > 0) {
+              useMapResultsUIStore.getState().setViewportFetchError(null);
+            }
           }
         }, 4000);
       }

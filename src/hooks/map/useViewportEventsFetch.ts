@@ -44,6 +44,8 @@ export type ViewportFetchOptions = {
   immediate?: boolean;
   force?: boolean;
   metaFilter?: EventMetaFilter;
+  /** Internal: one silent retry after cold-start / transient failure. */
+  retried?: boolean;
 };
 
 type RawViewportCache = {
@@ -309,6 +311,12 @@ export function useViewportEventsFetch({
       } catch (error) {
         if (!isViewportRequestCurrent(requestId)) return;
         console.warn('bbox fetch error', error);
+        // Cold-start / statement timeout: one silent retry before alarming the user.
+        if (!options?.retried) {
+          await new Promise((resolve) => setTimeout(resolve, 450));
+          if (!isViewportRequestCurrent(requestId)) return;
+          return runViewportFetch(bounds, requestId, { ...options, force: true, retried: true });
+        }
         setViewportFetchError('Impossible de charger les événements. Vérifiez votre connexion.');
         setStatus('browsing');
       }

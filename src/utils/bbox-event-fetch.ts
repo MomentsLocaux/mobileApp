@@ -24,7 +24,7 @@ export type MapViewportPayload = {
  */
 const USE_MAP_VIEWPORT_RPC = true;
 
-const RPC_CLIENT_TIMEOUT_MS = 2500;
+const RPC_CLIENT_TIMEOUT_MS = 4000;
 
 const isMissingViewportRpc = (error: unknown) => {
   const code = String((error as { code?: string })?.code || '');

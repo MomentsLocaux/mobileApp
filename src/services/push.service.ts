@@ -83,6 +83,49 @@ function getProjectId(): string | undefined {
   return Constants.expoConfig?.extra?.eas?.projectId || easConfig?.projectId || undefined;
 }
 
+/** Wait until supabase-js has a JWT (UI can have userId earlier after first signup). */
+async function waitForAuthSession(maxAttempts = 10): Promise<boolean> {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return true;
+    await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+  }
+  return false;
+}
+
+function isNotAuthenticatedRpcError(error: { message?: string; code?: string } | null): boolean {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('not authenticated') || message.includes('authenticated user required');
+}
+
+async function upsertDevicePushTokenWithRetry(params: {
+  token: string;
+  platform: 'ios' | 'android' | 'web';
+  deviceName: string | null;
+}): Promise<{ error: { message: string } | null }> {
+  let lastError: { message: string } | null = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (attempt > 0) {
+      const ready = await waitForAuthSession(4);
+      if (!ready) {
+        lastError = { message: 'not authenticated' };
+        await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+        continue;
+      }
+    }
+    const { error } = await supabase.rpc('upsert_my_device_push_token', {
+      p_token: params.token,
+      p_platform: params.platform,
+      p_device_name: params.deviceName,
+    });
+    if (!error) return { error: null };
+    lastError = { message: error.message };
+    if (!isNotAuthenticatedRpcError(error)) return { error: lastError };
+    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  return { error: lastError };
+}
+
 /**
  * Requests notification permission, obtains the Expo push token and stores it
  * in device_push_tokens. Returns the token, or null when unavailable
@@ -117,13 +160,20 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
     // Prefer auth.uid() inside the RPC so a stale profile id cannot fail RLS.
     // SECURITY DEFINER RPC also reclaims a token previously owned by another account
     // on the same device (plain upsert hits UPDATE USING and fails).
+    // After first signup the UI often has userId before the JWT is attached to the client.
+    const sessionReady = await waitForAuthSession();
+    if (!sessionReady) {
+      console.warn('[push] Failed to persist device token: session not ready', { userId });
+      return null;
+    }
+
     const platform: 'ios' | 'android' | 'web' =
       Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
 
-    const { error } = await supabase.rpc('upsert_my_device_push_token', {
-      p_token: token,
-      p_platform: platform,
-      p_device_name: Constants.deviceName ?? null,
+    const { error } = await upsertDevicePushTokenWithRetry({
+      token,
+      platform,
+      deviceName: Constants.deviceName ?? null,
     });
     if (error) {
       console.warn('[push] Failed to persist device token:', error.message, { userId });

@@ -1,12 +1,14 @@
 <!--
-  Supabase Auth → Email Templates → Confirm signup
-  Subject suggéré : Bienvenue sur Moments Locaux — confirmez votre email
+  Supabase → Authentication → Email Templates → Confirm signup
+
+  Objet suggéré :
+  Bienvenue sur Moments Locaux — confirmez votre email
+
+  Coller le HTML ci-dessous (du <!DOCTYPE> jusqu’à </html>) dans le champ Body.
+  Variable Supabase : {{ .ConfirmationURL }}
 
   Image (Storage public DEV) :
   https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/moments-locaux-organizer.png
-
-  Sur UAT : remplacer le host par https://ieehuzeotwagkkprohjr.supabase.co
-  (ou uploader la même image dans le bucket avatar/branding du projet UAT)
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -21,7 +23,6 @@
       <tr>
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background-color:#ffffff;border-radius:16px;overflow:hidden;">
-            <!-- Header / brand -->
             <tr>
               <td align="center" style="padding:36px 32px 20px 32px;background-color:#0f1719;">
                 <img
@@ -40,17 +41,15 @@
               </td>
             </tr>
 
-            <!-- Body -->
             <tr>
               <td style="padding:28px 32px 8px 32px;color:#0f1719;">
                 <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#0f1719;">
-                  Merci de rejoindre Moments Locaux — l’app pour découvrir et vivre les événements près de chez vous.
+                  Encore une étape pour rejoindre la vie près de chez vous.
                 </p>
                 <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#3a4346;">
-                  Un dernier pas : confirmez votre adresse email pour activer votre compte.
+                  Confirmez votre adresse email pour activer votre compte et commencer à découvrir les moments autour de vous.
                 </p>
 
-                <!-- CTA -->
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 28px auto;">
                   <tr>
                     <td align="center" bgcolor="#2A4FE3" style="border-radius:999px;">
@@ -71,17 +70,16 @@
                   <a href="{{ .ConfirmationURL }}" style="color:#2A4FE3;text-decoration:underline;">{{ .ConfirmationURL }}</a>
                 </p>
                 <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7376;">
-                  Si vous n’avez pas créé de compte, vous pouvez ignorer cet email.
+                  Ce lien expire bientôt. Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement ce message.
                 </p>
               </td>
             </tr>
 
-            <!-- Footer -->
             <tr>
               <td style="padding:20px 32px 28px 32px;border-top:1px solid #ececec;">
                 <p style="margin:0;font-size:12px;line-height:1.5;color:#8a9194;text-align:center;">
-                  Moments Locaux · ne-pas-repondre@moments-locaux.com<br />
-                  Pensez à vérifier vos spams si besoin.
+                  — L’équipe Moments Locaux<br />
+                  ne-pas-repondre@moments-locaux.com · pensez à vérifier vos spams si besoin
                 </p>
               </td>
             </tr>
