@@ -3,8 +3,11 @@ import type { SearchState } from '../store/searchStore';
 
 type Coords = { latitude: number; longitude: number };
 
+/** Structural subset of the search store consumed here, so callers can pass plain objects. */
+export type SearchFilterInput = Pick<SearchState, 'where' | 'when' | 'what'>;
+
 export const buildFiltersFromSearch = (
-  search: SearchState,
+  search: SearchFilterInput,
   userCoords?: Coords | null
 ): EventFilters => {
   const includePast = search.when.includePast ?? false;

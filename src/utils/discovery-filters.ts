@@ -1,0 +1,244 @@
+import {
+  DEFAULT_SORT_OPTION,
+  DISCOVERY_DEFAULT_RADIUS_KM,
+  NO_ACTIVE_FILTER_LABEL,
+  datePresetLabel,
+  metaFilterLabel,
+  sortOptionLabel,
+  type DatePreset,
+  type DiscoveryStatus,
+  type MapMode,
+} from '@/constants/filters';
+import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
+import { resolveEventTimeScope, type EventTimeScope } from './event-time-scope';
+import { buildFiltersFromSearch } from './search-filters';
+
+export type DiscoverySurface = 'home' | 'map';
+
+export interface DiscoveryCoords {
+  latitude: number;
+  longitude: number;
+}
+
+export interface DiscoveryWhenFilter {
+  preset?: DatePreset;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface DiscoveryPlaceFilter {
+  /** Explicit center picked by the user; falls back to the device position when absent. */
+  center?: DiscoveryCoords | null;
+  label?: string;
+  radiusKm?: number;
+}
+
+export interface DiscoveryContentFilter {
+  categories: string[];
+  subcategories: string[];
+  tags: string[];
+  query?: string;
+}
+
+export interface DiscoverySortState {
+  sortBy: SortOption;
+  sortOrder?: SortOrder;
+}
+
+export interface DiscoveryFilters {
+  status: DiscoveryStatus;
+  when: DiscoveryWhenFilter;
+  place: DiscoveryPlaceFilter;
+  content: DiscoveryContentFilter;
+  /** Sort is surface-scoped: the map list and the home feed keep independent choices. */
+  sort: Record<DiscoverySurface, DiscoverySortState>;
+  /** Presentation-only, excluded from the active filter count. */
+  mapMode: MapMode;
+}
+
+export function createDefaultDiscoveryFilters(): DiscoveryFilters {
+  return {
+    status: 'all',
+    when: {},
+    place: { center: null, radiusKm: DISCOVERY_DEFAULT_RADIUS_KM },
+    content: { categories: [], subcategories: [], tags: [], query: '' },
+    sort: {
+      home: { sortBy: DEFAULT_SORT_OPTION },
+      map: { sortBy: DEFAULT_SORT_OPTION },
+    },
+    mapMode: 'standard',
+  };
+}
+
+export function includesPast(filters: DiscoveryFilters): boolean {
+  return filters.status === 'past';
+}
+
+/** Server-side temporal scope for the current status. */
+export function toTimeScope(
+  filters: DiscoveryFilters,
+  options?: { searchActive?: boolean }
+): EventTimeScope {
+  return resolveEventTimeScope({
+    metaFilter: filters.status,
+    searchActive: options?.searchActive ?? false,
+    includePast: includesPast(filters),
+  });
+}
+
+/** Center used for distance sorting and radius filtering. */
+export function resolveSortCenter(
+  filters: DiscoveryFilters,
+  fallbackCoords?: DiscoveryCoords | null
+): DiscoveryCoords | null {
+  return filters.place.center ?? fallbackCoords ?? null;
+}
+
+/** Maps the discovery model onto the `EventFilters` shape consumed by queries. */
+export function toEventFilters(
+  filters: DiscoveryFilters,
+  fallbackCoords?: DiscoveryCoords | null
+): EventFilters {
+  const center = resolveSortCenter(filters, fallbackCoords);
+  const query = filters.content.query?.trim();
+
+  return buildFiltersFromSearch(
+    {
+      where: {
+        history: [],
+        location: center
+          ? {
+              latitude: center.latitude,
+              longitude: center.longitude,
+              label: filters.place.label ?? 'Autour de moi',
+            }
+          : undefined,
+        radiusKm: filters.place.radiusKm,
+      },
+      when: {
+        preset: filters.when.preset,
+        startDate: filters.when.startDate,
+        endDate: filters.when.endDate,
+        includePast: includesPast(filters),
+      },
+      what: {
+        categories: filters.content.categories,
+        subcategories: filters.content.subcategories,
+        tags: filters.content.tags,
+        query,
+      },
+    },
+    fallbackCoords
+  );
+}
+
+function hasWhenFilter(filters: DiscoveryFilters): boolean {
+  return Boolean(filters.when.preset || filters.when.startDate || filters.when.endDate);
+}
+
+function hasPlaceFilter(filters: DiscoveryFilters): boolean {
+  return Boolean(filters.place.center) || filters.place.radiusKm !== undefined;
+}
+
+/**
+ * Number of user-visible active filters. `mapMode` is presentation only and is
+ * never counted; sort is counted only when a surface is provided and differs
+ * from the default.
+ */
+export function activeFilterCount(
+  filters: DiscoveryFilters,
+  options?: { surface?: DiscoverySurface }
+): number {
+  let count = 0;
+
+  if (filters.status !== 'all') count += 1;
+  if (hasWhenFilter(filters)) count += 1;
+  if (hasPlaceFilter(filters)) count += 1;
+  if (filters.content.categories.length > 0) count += 1;
+  if (filters.content.subcategories.length > 0) count += 1;
+  if (filters.content.tags.length > 0) count += 1;
+  if (filters.content.query?.trim()) count += 1;
+
+  const surface = options?.surface;
+  if (surface && filters.sort[surface].sortBy !== DEFAULT_SORT_OPTION) count += 1;
+
+  return count;
+}
+
+export interface SummarizeOptions {
+  surface?: DiscoverySurface;
+  /** Category / subcategory id → label, so the summary can name a single selection. */
+  categoryLabels?: Record<string, string>;
+  emptyLabel?: string;
+  includeMapMode?: boolean;
+}
+
+/** Human-readable recap of the active filters, e.g. "En cours · Demain · 2 catégories". */
+export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions): string {
+  const { surface, categoryLabels, emptyLabel = NO_ACTIVE_FILTER_LABEL, includeMapMode } =
+    options ?? {};
+  const parts: string[] = [];
+
+  if (filters.status !== 'all') parts.push(metaFilterLabel(filters.status));
+  if (filters.when.preset) parts.push(datePresetLabel(filters.when.preset));
+
+  const { categories, subcategories, tags } = filters.content;
+  if (categories.length === 1) {
+    parts.push(categoryLabels?.[categories[0]] ?? '1 catégorie');
+  } else if (categories.length > 1) {
+    parts.push(`${categories.length} catégories`);
+  }
+
+  if (subcategories.length === 1) {
+    parts.push(categoryLabels?.[subcategories[0]] ?? '1 sous-catégorie');
+  } else if (subcategories.length > 1) {
+    parts.push(`${subcategories.length} sous-catégories`);
+  }
+
+  if (tags.length > 0) {
+    parts.push(tags.length === 1 ? '1 tag' : `${tags.length} tags`);
+  }
+
+  if (includeMapMode && filters.mapMode !== 'standard') {
+    parts.push('Satellite');
+  }
+
+  if (surface && filters.sort[surface].sortBy !== DEFAULT_SORT_OPTION) {
+    parts.push(sortOptionLabel(filters.sort[surface].sortBy));
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : emptyLabel;
+}
+
+/**
+ * Contradictory combinations that can only ever return zero results, so callers
+ * can warn instead of showing an unexplained empty state.
+ */
+export function explainEmptyCombination(filters: DiscoveryFilters): string | null {
+  if (filters.status === 'past' && filters.when.preset) {
+    return `« ${metaFilterLabel('past')} » ne peut pas être combiné avec « ${datePresetLabel(
+      filters.when.preset
+    )} ».`;
+  }
+
+  if (filters.status === 'live' && filters.when.preset === 'tomorrow') {
+    return `« ${metaFilterLabel('live')} » ne peut pas être combiné avec « ${datePresetLabel(
+      'tomorrow'
+    )} ».`;
+  }
+
+  const { startDate, endDate } = filters.when;
+  if (startDate && endDate) {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    if (!Number.isNaN(start) && !Number.isNaN(end) && start > end) {
+      return 'La date de début est postérieure à la date de fin.';
+    }
+  }
+
+  return null;
+}
+
+export function isCombinationEmpty(filters: DiscoveryFilters): boolean {
+  return explainEmptyCombination(filters) !== null;
+}
