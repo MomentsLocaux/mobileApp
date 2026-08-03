@@ -13,16 +13,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
-import { useLocationStore, useSearchStore } from '@/store';
+import { useLocationStore, useSearchStore, useDiscoveryFiltersStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
-import { filterEvents, filterEventsByMetaStatus, type EventMetaFilter } from '@/utils/filter-events';
+import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { DISCOVERY_DEFAULT_RADIUS_KM, metaFilterLabel } from '@/constants/filters';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import { MapResultCard } from '@/components/search/MapResultCard';
 import type { EventWithCreator } from '@/types/database';
@@ -30,9 +30,13 @@ import { SearchBar } from '@/components/search/SearchBar';
 import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { NotificationsService } from '@/services/notifications.service';
-import { TriageControl } from '@/components/search/TriageControl';
 import {
-  DEFAULT_SEARCH_RADIUS_KM,
+  ActiveFiltersBar,
+  SortControl,
+  StatusFilterRow,
+  type ActiveFilterChip,
+} from '@/components/filters';
+import {
   hasSearchCriteria as checkSearchCriteria,
   resolveEffectiveRadiusKm,
   resolveSearchCenter,
@@ -41,16 +45,12 @@ import {
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { AppBackground, EmptyState, EventCardSkeleton } from '@/components/ui';
+import { EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
+import { buildSearchSummary } from '@/utils/search-summary';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 const NEARBY_CAROUSEL_LIMIT = 12;
-const META_FILTER_OPTIONS = [
-  { key: 'all', label: 'Tous' },
-  { key: 'live', label: 'En cours' },
-  { key: 'upcoming', label: 'À venir' },
-  { key: 'past', label: 'Passés' },
-] as const;
 
 type HomeFeedEventItemProps = {
   event: EventWithCreator;
@@ -97,15 +97,22 @@ export default function HomeScreen() {
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
   const searchState = useSearchStore();
-  const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
+  const status = useDiscoveryFiltersStore((s) => s.status);
+  const setStatus = useDiscoveryFiltersStore((s) => s.setStatus);
+  const homeSort = useDiscoveryFiltersStore((s) => s.sort.home);
+  const setSort = useDiscoveryFiltersStore((s) => s.setSort);
+  const setSortOrder = useDiscoveryFiltersStore((s) => s.setSortOrder);
+  const categories = useTaxonomyStore((s) => s.categories);
+  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const tags = useTaxonomyStore((s) => s.tags);
   const [refreshing, setRefreshing] = useState(false);
   const searchApplied = searchState.searchApplied;
   const setSearchApplied = searchState.setSearchApplied;
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
   const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>([]);
   const [metaFeedLoading, setMetaFeedLoading] = useState(false);
+  const [nearbyPool, setNearbyPool] = useState<EventWithCreator[]>([]);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -123,22 +130,23 @@ export default function HomeScreen() {
   }, [currentLocation]);
 
   const filters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
-  const sortBy = searchState.sortBy || 'triage';
-  const sortOrder = searchState.sortOrder;
+  const sortBy = homeSort.sortBy;
+  const sortOrder = homeSort.sortOrder;
   const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchState), [searchState]);
-  const showSearchResults = searchApplied && metaFilter === 'all';
+  /** Search stays applied when changing status — axes are cumulative. */
+  const showSearchResults = searchApplied && hasSearchCriteria;
 
   const filteredAndSortedEvents = useMemo(() => {
     const base = showSearchResults ? searchResults : metaFeedEvents;
-    const metaFiltered = filterEventsByMetaStatus(base, metaFilter);
+    const metaFiltered = filterEventsByMetaStatus(base, status);
     return sortEvents(metaFiltered, sortBy, userLocation, sortOrder);
-  }, [metaFeedEvents, metaFilter, searchResults, showSearchResults, sortBy, sortOrder, userLocation]);
+  }, [metaFeedEvents, searchResults, showSearchResults, sortBy, sortOrder, status, userLocation]);
 
-  /** Nearby carousel: live + upcoming within default radius, distance ASC — independent of temporal chips. */
+  /** Nearby carousel: live + upcoming within default radius, distance ASC — independent of status chips. */
   const nearbyEvents = useMemo(() => {
     if (!userLocation) return [];
-    const live = filterEventsByMetaStatus(fetchedEvents, 'live');
-    const upcoming = filterEventsByMetaStatus(fetchedEvents, 'upcoming');
+    const live = filterEventsByMetaStatus(nearbyPool, 'live');
+    const upcoming = filterEventsByMetaStatus(nearbyPool, 'upcoming');
     const byId = new Map<string, EventWithCreator>();
     for (const event of [...live, ...upcoming]) {
       byId.set(event.id, event);
@@ -146,11 +154,11 @@ export default function HomeScreen() {
     const withinRadius = filterEvents([...byId.values()], {
       centerLat: userLocation.latitude,
       centerLon: userLocation.longitude,
-      radiusKm: DEFAULT_SEARCH_RADIUS_KM,
+      radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
       includePast: false,
     });
     return sortEvents(withinRadius, 'distance', userLocation).slice(0, NEARBY_CAROUSEL_LIMIT);
-  }, [fetchedEvents, userLocation]);
+  }, [nearbyPool, userLocation]);
 
   const filteredEventIds = useMemo(
     () => filteredAndSortedEvents.map((event) => event.id).filter(Boolean),
@@ -162,7 +170,7 @@ export default function HomeScreen() {
     if (!hasSearchCriteria && searchApplied) {
       setSearchApplied(false);
     }
-  }, [hasSearchCriteria, searchApplied]);
+  }, [hasSearchCriteria, searchApplied, setSearchApplied]);
 
   const effectiveRadiusKm = useMemo(
     () => resolveEffectiveRadiusKm(searchState.where, userLocation),
@@ -177,7 +185,10 @@ export default function HomeScreen() {
   const loadMetaFeed = useCallback(async () => {
     setMetaFeedLoading(true);
     try {
-      const timeScope = resolveEventTimeScope({ metaFilter });
+      const timeScope = resolveEventTimeScope({
+        metaFilter: status,
+        includePast: status === 'past',
+      });
       const data = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
       setMetaFeedEvents(data || []);
     } catch (error) {
@@ -186,12 +197,34 @@ export default function HomeScreen() {
     } finally {
       setMetaFeedLoading(false);
     }
-  }, [metaFilter]);
+  }, [status]);
+
+  const loadNearbyPool = useCallback(async () => {
+    if (!userLocation) {
+      setNearbyPool([]);
+      return;
+    }
+    try {
+      // `current` = live + upcoming so the carousel is not stuck on ongoing-only supply.
+      const data = await EventsService.listEvents({
+        limit: SEARCH_FETCH_LIMIT,
+        timeScope: 'current',
+      });
+      setNearbyPool(data || []);
+    } catch (error) {
+      console.warn('[Home] loadNearbyPool failed', error);
+      setNearbyPool([]);
+    }
+  }, [userLocation]);
 
   useEffect(() => {
     if (showSearchResults) return;
     loadMetaFeed();
   }, [loadMetaFeed, showSearchResults]);
+
+  useEffect(() => {
+    loadNearbyPool();
+  }, [loadNearbyPool]);
 
   const loadUnreadNotifications = useCallback(async () => {
     if (!profile?.id) {
@@ -332,11 +365,14 @@ export default function HomeScreen() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([reload(), showSearchResults ? Promise.resolve() : loadMetaFeed()]);
+      await Promise.all([
+        loadNearbyPool(),
+        showSearchResults ? Promise.resolve() : loadMetaFeed(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadMetaFeed, reload, showSearchResults]);
+  }, [loadMetaFeed, loadNearbyPool, showSearchResults]);
 
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
@@ -406,6 +442,35 @@ export default function HomeScreen() {
     ),
     [handlePressEvent]
   );
+
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
+    const chips: ActiveFilterChip[] = [];
+    if (showSearchResults) {
+      const summary = buildSearchSummary(searchState, categories, subcategories, tags);
+      chips.push({
+        key: 'search',
+        label: summary || 'Recherche active',
+        onClear: () => setSearchApplied(false),
+      });
+    }
+    if (status !== 'all') {
+      chips.push({
+        key: 'status',
+        label: metaFilterLabel(status),
+        onClear: () => setStatus('all'),
+      });
+    }
+    return chips;
+  }, [
+    categories,
+    searchState,
+    setSearchApplied,
+    setStatus,
+    showSearchResults,
+    status,
+    subcategories,
+    tags,
+  ]);
 
   const listHeader = useMemo(
     () => (
@@ -483,72 +548,55 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.metaFilterRow}
-          style={styles.metaFilterScroll}
-        >
-          {META_FILTER_OPTIONS.map((item) => {
-            const active = metaFilter === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.metaFilterPill, active && styles.metaFilterPillActive]}
-                onPress={() => {
-                  setMetaFilter(item.key);
-                  if (item.key !== 'all') {
-                    setSearchApplied(false);
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`Filtrer : ${item.label}`}
-              >
-                <Text style={[styles.metaFilterText, active && styles.metaFilterTextActive]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <StatusFilterRow
+          value={status}
+          onChange={setStatus}
+          style={styles.statusFilterRow}
+        />
+
+        <ActiveFiltersBar
+          chips={activeFilterChips}
+          onClearAll={
+            activeFilterChips.length > 1
+              ? () => {
+                  setSearchApplied(false);
+                  setStatus('all');
+                }
+              : undefined
+          }
+        />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Pour vous</Text>
-          <TriageControl
+          <SortControl
             value={sortBy}
-            onChange={(value) => searchState.setSortBy(value)}
+            onChange={(value) => setSort('home', value, sortOrder)}
             sortOrder={sortOrder}
-            onSortOrderChange={(order) => searchState.setSortOrder(order)}
+            onSortOrderChange={(order) => setSortOrder('home', order)}
             hasLocation={!!userLocation}
+            mode="pill"
           />
         </View>
       </>
     ),
     [
       accent.accent,
+      activeFilterChips,
       canCreateNow,
-      metaFilter,
       nearbyEvents,
       profile?.avatar_url,
       renderNearbyItem,
       router,
-      searchState,
       setSearchApplied,
+      setSort,
+      setSortOrder,
+      setStatus,
       sortBy,
       sortOrder,
+      status,
       userLocation,
     ]
   );
-
-  if (loadingEvents) {
-    return (
-      <View style={styles.loadingContainer}>
-        <AppBackground />
-        <EventCardSkeleton count={2} />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -594,7 +642,9 @@ export default function HomeScreen() {
 
         <View style={styles.searchContainer}>
           <SearchBar
-            onApply={() => setMetaFilter('all')}
+            onApply={() => {
+              /* Keep current status — search and status axes are cumulative. */
+            }}
             hasLocation={!!userLocation}
             applied={searchApplied}
             enableCommunitySearch
@@ -628,18 +678,18 @@ export default function HomeScreen() {
             <EmptyState
               icon={Search}
               title="Aucun événement pour ces critères"
-              subtitle="Élargissez le rayon ou incluez les événements passés."
+              subtitle="Élargissez le rayon ou ajustez le statut temporel."
               ctaLabel="Effacer la recherche"
               onCtaPress={() => setSearchApplied(false)}
             />
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {metaFilter === 'upcoming'
+                {status === 'upcoming'
                   ? 'Aucun événement à venir pour le moment.'
-                  : metaFilter === 'past'
+                  : status === 'past'
                     ? 'Aucun événement passé trouvé.'
-                    : metaFilter === 'live'
+                    : status === 'live'
                       ? 'Aucun événement en cours pour le moment.'
                       : 'Aucun événement trouvé'}
               </Text>
@@ -848,35 +898,8 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
   },
-  metaFilterScroll: {
-    marginBottom: spacing.md,
-    flexGrow: 0,
-  },
-  metaFilterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  metaFilterPill: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  metaFilterPillActive: {
-    backgroundColor: colors.brand.secondary,
-    borderColor: colors.brand.secondary,
-  },
-  metaFilterText: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-    fontWeight: '600',
-  },
-  metaFilterTextActive: {
-    color: '#0f1719', // Dark text on active cyan pill
+  statusFilterRow: {
+    marginBottom: spacing.sm,
   },
   listContent: {
     paddingBottom: spacing.xl,

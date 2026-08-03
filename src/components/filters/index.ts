@@ -19,6 +19,9 @@ export type { RadiusControlProps } from './RadiusControl';
 export { SortControl } from './SortControl';
 export type { SortControlMode, SortControlProps } from './SortControl';
 
+export { ActiveFiltersBar } from './ActiveFiltersBar';
+export type { ActiveFilterChip, ActiveFiltersBarProps } from './ActiveFiltersBar';
+
 export {
   createFilterChipTone,
   defaultFilterChipTone,
