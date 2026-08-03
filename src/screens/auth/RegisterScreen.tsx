@@ -152,6 +152,7 @@ export default function RegisterScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            showPasswordToggle
             autoComplete="password-new"
             error={errors.password}
           />
@@ -162,6 +163,7 @@ export default function RegisterScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
+            showPasswordToggle
             autoComplete="password-new"
             error={errors.confirmPassword}
           />
