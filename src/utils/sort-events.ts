@@ -1,7 +1,7 @@
 import type { EventWithCreator } from '../types/database';
 import type { SortOption, SortOrder } from '../types/filters';
 
-function calculateDistance(
+export function calculateDistanceKm(
   lat1: number,
   lon1: number,
   lat2: number,
@@ -69,7 +69,7 @@ export function sortEvents(
     if (userLocation) {
       const coords = extractCoords(event);
       if (coords) {
-        const dist = calculateDistance(
+        const dist = calculateDistanceKm(
           userLocation.latitude,
           userLocation.longitude,
           coords.lat,
@@ -111,13 +111,13 @@ export function sortEvents(
         if (!aCoords) return 1;
         if (!bCoords) return -1;
 
-        const distA = calculateDistance(
+        const distA = calculateDistanceKm(
           userLocation.latitude,
           userLocation.longitude,
           aCoords.lat,
           aCoords.lon
         );
-        const distB = calculateDistance(
+        const distB = calculateDistanceKm(
           userLocation.latitude,
           userLocation.longitude,
           bCoords.lat,
@@ -168,7 +168,7 @@ export function getDistanceText(
 ): string | null {
   if (!userLocation) return null;
 
-  const distance = calculateDistance(
+  const distance = calculateDistanceKm(
     userLocation.latitude,
     userLocation.longitude,
     eventLat,
