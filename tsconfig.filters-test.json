@@ -15,7 +15,8 @@
   "include": [
     "src/utils/discovery-filters.test.ts",
     "src/utils/event-time-scope.test.ts",
-    "src/store/discoveryFiltersStore.test.ts"
+    "src/store/discoveryFiltersStore.test.ts",
+    "src/screens/proposals/proposal-filtering.test.ts"
   ],
   "exclude": ["supabase/functions/**/*"]
 }

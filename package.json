@@ -11,7 +11,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:filters",
-    "test:filters": "tsc -p tsconfig.filters-test.json && NODE_PATH=./node_modules node --test /tmp/moments-locaux-filter-tests/utils/*.test.js /tmp/moments-locaux-filter-tests/store/*.test.js",
+    "test:filters": "tsc -p tsconfig.filters-test.json && NODE_PATH=./node_modules node --test /tmp/moments-locaux-filter-tests/utils/*.test.js /tmp/moments-locaux-filter-tests/store/*.test.js /tmp/moments-locaux-filter-tests/screens/proposals/*.test.js",
     "expo:config": "expo config",
     "android": "expo run:android",
     "ios": "expo run:ios"

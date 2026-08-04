@@ -4,7 +4,7 @@ import { IdentityAppBackground } from '@/components/identity/IdentityAppBackgrou
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import {
   Map,
-  Home,
+  HouseHeart,
   Users,
   User,
   Bell,
@@ -26,6 +26,7 @@ import {
   Briefcase,
   BarChart3,
   Package,
+  WandSparkles,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
@@ -236,7 +237,7 @@ export default function TabsLayout() {
                 isProfessionnelAccount ? (
                   <Briefcase size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
                 ) : (
-                  <Home size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                  <HouseHeart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
                 )
               ),
             tabBarButton: (props) =>
@@ -245,6 +246,27 @@ export default function TabsLayout() {
                 isProfessionnelAccount ? 'Accéder au tableau de bord' : "Accéder à l'accueil",
               ),
           }}
+        />
+        <Tabs.Screen
+          name="proposals"
+          options={
+            isProfessionnelAccount
+              ? { href: null }
+              : {
+                  title: 'Propositions',
+                  tabBarIcon: ({ focused, size }) =>
+                    renderTabIconSlot(
+                      focused,
+                      <WandSparkles
+                        size={size}
+                        color={tabIconColor(focused, isGuest)}
+                        strokeWidth={focused ? 2.4 : 2}
+                      />
+                    ),
+                  tabBarButton: (props) =>
+                    renderProtectedTabButton(props, 'Créer vos propositions'),
+                }
+          }
         />
         <Tabs.Screen
           name="map"
