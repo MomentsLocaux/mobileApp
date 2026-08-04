@@ -56,8 +56,8 @@ export default function RootLayout() {
         if (!mounted) return;
 
         if (currentSession) {
-          const currentUser = await AuthService.getCurrentUser();
-          const currentProfile = await AuthService.getCurrentProfile();
+          const currentUser = currentSession.user;
+          const currentProfile = await AuthService.getProfileForUser(currentUser);
           if (!mounted) return;
 
           setSession(currentSession);
@@ -87,10 +87,16 @@ export default function RootLayout() {
 
     const { data: { subscription } } = AuthService.onAuthStateChange((session, profile) => {
       if (!mounted) return;
+      const previousUserId = useAuthStore.getState().user?.id;
       setSession(session);
       if (session) {
+        if (previousUserId !== session.user.id) {
+          setProfile(null);
+        }
         setUser(session.user);
-        setProfile(profile);
+        if (profile) {
+          setProfile(profile);
+        }
       } else {
         setUser(null);
         setProfile(null);

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAuthStore } from '@/state/auth';
 import { AuthService } from '@/services/auth.service';
 import type { SocialProvider } from '@/services/oauth.service';
@@ -11,13 +11,11 @@ export function useAuth() {
     profile,
     isLoading,
     error,
-    initialized,
     setUser,
     setSession,
     setProfile,
     setLoading,
     setError,
-    setInitialized,
     reset,
   } = useAuthStore();
 
@@ -149,49 +147,6 @@ export function useAuth() {
     if (!user) return null;
     return fetchProfile(user.id, user.email);
   }, [fetchProfile, user]);
-
-  useEffect(() => {
-    if (initialized) return;
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const blocked = await AuthService.isAutoRestoreBlocked();
-        const session = blocked ? null : await AuthService.getCurrentSession();
-        if (!mounted) return;
-        const user = blocked ? null : await AuthService.getCurrentUser();
-        if (!mounted) return;
-
-        setSession(session);
-        setUser(user);
-
-        if (user) {
-          try {
-            await fetchProfile(user.id, user.email);
-          } catch (profileError: any) {
-            console.error('Error fetching profile on init:', profileError);
-            setError(profileError?.message || 'Erreur profil');
-            setProfile(null);
-          }
-        } else {
-          setProfile(null);
-        }
-      } catch (initError: any) {
-        console.error('Error initializing auth state:', initError);
-        setError(initError?.message || 'Erreur connexion');
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-      } finally {
-        if (!mounted) return;
-        setInitialized(true);
-        setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [fetchProfile, initialized, setError, setLoading, setProfile, setSession, setUser]);
 
   return {
     user,

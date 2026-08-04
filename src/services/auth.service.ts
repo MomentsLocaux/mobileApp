@@ -25,6 +25,15 @@ const SESSION_ACCESS_KEY = 'supabase_session_access_token';
 const SESSION_REFRESH_KEY = 'supabase_session_refresh_token';
 
 export class AuthService {
+  private static profileRequests = new Map<string, Promise<Profile | null>>();
+  private static explicitSignInInProgress = false;
+
+  private static logPerf(step: string, startedAt: number) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.info(`[AuthPerf] ${step}: ${Date.now() - startedAt}ms`);
+    }
+  }
+
   private static attachEmail(profile: Profile | null, userEmail?: string | null): Profile | null {
     if (!profile) return null;
     if (profile.email) return profile;
@@ -144,8 +153,7 @@ export class AuthService {
     if (!session || !user) {
       return { success: false, error: 'Session invalide' };
     }
-    const profile =
-      (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, user.email || ''));
+    const profile = await this.getProfileForUser(user);
     return {
       success: true,
       session,
@@ -163,6 +171,24 @@ export class AuthService {
       console.error('Unexpected error in ensureProfile:', error);
       return null;
     }
+  }
+
+  /** Coalesces profile hydration triggered by sign-in, auth events and app bootstrap. */
+  static async getProfileForUser(user: User): Promise<Profile | null> {
+    const existingRequest = this.profileRequests.get(user.id);
+    if (existingRequest) return existingRequest;
+
+    const request = (async () => {
+      const rawProfile =
+        (await dataProvider.getProfile(user.id)) ||
+        (await this.ensureProfile(user.id, user.email || ''));
+      return this.attachEmail(rawProfile, user.email);
+    })().finally(() => {
+      this.profileRequests.delete(user.id);
+    });
+
+    this.profileRequests.set(user.id, request);
+    return request;
   }
 
   static async signUp(email: string, password: string): Promise<AuthResponse> {
@@ -193,45 +219,59 @@ export class AuthService {
     const user = session.user;
     if (!user) return { success: false, error: 'No user returned' };
 
-    const rawProfile =
-      (await dataProvider.getProfile(user.id)) ||
-      (await this.ensureProfile(user.id, user.email || ''));
-    const profile = this.attachEmail(rawProfile, user.email);
-    await this.clearAutoRestoreBlock();
-    await this.saveSession(session);
+    const [profile] = await Promise.all([
+      this.getProfileForUser(user),
+      this.clearAutoRestoreBlock(),
+      this.saveSession(session),
+    ]);
     return { success: true, session, user, profile };
   }
 
   static async signInWithProvider(provider: SocialProvider): Promise<AuthResponse> {
+    const startedAt = Date.now();
+    this.explicitSignInInProgress = true;
     try {
       const session =
         provider === 'apple'
           ? await signInWithApple()
           : await signInWithOAuthProvider(provider);
-
-      return await this.finalizeOAuthSession(session);
+      const response = await this.finalizeOAuthSession(session);
+      this.logPerf(`signInWithProvider:${provider}`, startedAt);
+      return response;
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Connexion impossible',
       };
+    } finally {
+      this.explicitSignInInProgress = false;
     }
   }
 
   static async signIn(email: string, password: string): Promise<AuthResponse> {
+    const startedAt = Date.now();
+    this.explicitSignInInProgress = true;
     try {
+      const tokenStartedAt = Date.now();
       const { session, user } = await dataProvider.signIn(email, password);
+      this.logPerf('signInWithPassword', tokenStartedAt);
       if (!user) return { success: false, error: 'No user returned' };
-      const rawProfile = (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, email));
-      const profile = this.attachEmail(rawProfile, user.email);
-      await this.clearAutoRestoreBlock();
-      await this.saveSession(session);
+      const hydrationStartedAt = Date.now();
+      const [profile] = await Promise.all([
+        this.getProfileForUser(user),
+        this.clearAutoRestoreBlock(),
+        this.saveSession(session),
+      ]);
+      this.logPerf('profile+session-persistence', hydrationStartedAt);
+      this.logPerf('signIn-total', startedAt);
       return { success: true, session, user, profile };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    } finally {
+      this.explicitSignInInProgress = false;
     }
   }
 
@@ -327,12 +367,10 @@ export class AuthService {
 
   static async getCurrentProfile(): Promise<Profile | null> {
     try {
-      const user = await this.getCurrentUser();
+      const session = await this.getCurrentSession();
+      const user = session?.user ?? (await this.getCurrentUser());
       if (!user) return null;
-
-      const profile =
-        (await dataProvider.getProfile(user.id)) || (await this.ensureProfile(user.id, user.email || ''));
-      return this.attachEmail(profile, user.email);
+      return this.getProfileForUser(user);
     } catch {
       return null;
     }
@@ -372,22 +410,30 @@ export class AuthService {
   }
 
   static onAuthStateChange(callback: (session: Session | null, profile: Profile | null) => void) {
-    const sub = dataProvider.onAuthStateChange(async (session) => {
-      if (session?.user) {
-        const blocked = await this.isAutoRestoreBlocked();
-        if (blocked) {
-          callback(null, null);
-          return;
-        }
-
-        const rawProfile =
-          (await dataProvider.getProfile(session.user.id)) ||
-          (await this.ensureProfile(session.user.id, session.user.email || ''));
-        const profile = this.attachEmail(rawProfile, session.user.email);
-        callback(session, profile);
-      } else {
+    const sub = dataProvider.onAuthStateChange((session) => {
+      if (!session?.user) {
         callback(null, null);
+        return;
       }
+
+      // Supabase warns against awaiting another client call inside the auth
+      // callback. Defer all asynchronous work until the callback has returned.
+      const belongsToExplicitSignIn = this.explicitSignInInProgress;
+      setTimeout(() => {
+        void (async () => {
+          const blocked = !belongsToExplicitSignIn && (await this.isAutoRestoreBlocked());
+          if (blocked) {
+            callback(null, null);
+            return;
+          }
+
+          callback(session, null);
+          const profile = await this.getProfileForUser(session.user);
+          callback(session, profile);
+        })().catch((error) => {
+          console.error('Deferred auth profile hydration failed:', error);
+        });
+      }, 0);
     });
     return { data: { subscription: sub } } as any;
   }
