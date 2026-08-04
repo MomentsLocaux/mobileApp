@@ -16,14 +16,25 @@ export type ProposalPreferences = {
   dateWindow: ProposalDateWindow;
 };
 
-export type ProposalPhase = 'wizard' | 'loading' | 'deck' | 'empty' | 'summary';
+export type ProposalPhase = 'entry' | 'wizard' | 'loading' | 'deck' | 'empty' | 'summary' | 'history';
 export type ProposalDecision = 'like' | 'pass';
 
-export type ProposalSession = {
-  pool: EventWithCreator[];
-  currentIndex: number;
-  likedEvents: EventWithCreator[];
-  passedIds: string[];
-  seenIds: string[];
+export type ProposalSessionDecision = {
+  event: EventWithCreator;
+  decision: ProposalDecision;
+  decidedAt: string;
 };
 
+export type ProposalSessionStatus = 'in_progress' | 'completed';
+
+export type ProposalSession = {
+  id: string;
+  status: ProposalSessionStatus;
+  preferences: ProposalPreferences;
+  pool: EventWithCreator[];
+  currentIndex: number;
+  decisions: ProposalSessionDecision[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+};
