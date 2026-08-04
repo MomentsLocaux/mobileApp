@@ -1,59 +1,44 @@
-import type { SearchState } from '@/store/searchStore';
+import {
+  DEFAULT_DISCOVERY_STATUS,
+  DEFAULT_SORT_OPTION,
+  HOME_DEFAULT_SORT_OPTION,
+} from '@/constants/filters';
 import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
-
-const presetLabel = (preset: 'today' | 'tomorrow' | 'weekend') => {
-  switch (preset) {
-    case 'today':
-      return "Aujourd'hui";
-    case 'tomorrow':
-      return 'Demain';
-    case 'weekend':
-      return 'Ce week-end';
-    default:
-      return 'Flexible';
-  }
-};
-
-const formatDate = (value: string | Date) => {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-};
+import {
+  summarize,
+  type DiscoveryFilters,
+  type DiscoverySurface,
+} from '@/utils/discovery-filters';
 
 export const buildSearchSummary = (
-  state: SearchState,
+  filters: DiscoveryFilters,
   categories: Category[],
   subcategories: Subcategory[],
-  tags: Tag[]
+  tags: Tag[],
+  surface?: DiscoverySurface
 ) => {
-  const whereLabel =
-    state.where.location?.city ||
-    state.where.location?.label ||
-    (state.where.radiusKm ? 'À proximité' : 'Partout');
+  const labels: Record<string, string> = {};
+  categories.forEach((category) => {
+    labels[category.id] = category.label;
+  });
+  subcategories.forEach((subcategory) => {
+    labels[subcategory.id] = subcategory.label;
+  });
+  tags.forEach((tag) => {
+    labels[tag.slug] = tag.label;
+  });
 
-  const whenLabel = state.when.includePast
-    ? "N'importe quand"
-    : state.when.startDate && state.when.endDate
-      ? `${formatDate(state.when.startDate)} - ${formatDate(state.when.endDate)}`
-      : state.when.startDate
-        ? formatDate(state.when.startDate)
-        : state.when.preset
-          ? presetLabel(state.when.preset)
-          : 'Flexible';
-
-  const categoryLabel = state.what.categories.length
-    ? categories.find((c) => c.id === state.what.categories[0])?.label
-    : undefined;
-  const subcategoryLabel = !categoryLabel && state.what.subcategories.length
-    ? subcategories.find((s) => s.id === state.what.subcategories[0])?.label
-    : undefined;
-  const tagLabel = !categoryLabel && !subcategoryLabel && state.what.tags.length
-    ? tags.find((t) => t.slug === state.what.tags[0])?.label || state.what.tags[0]
-    : undefined;
-
-  const whatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Tous types';
-
-  const queryLabel = state.what.query?.trim();
-  const prefix = queryLabel ? `“${queryLabel}” · ` : '';
-
-  return `${prefix}${whereLabel} · ${whenLabel} · ${whatLabel}`;
+  return summarize(
+    {
+      ...filters,
+      status: DEFAULT_DISCOVERY_STATUS,
+      sort: surface
+        ? filters.sort
+        : {
+            home: { sortBy: HOME_DEFAULT_SORT_OPTION, sortOrder: 'asc' },
+            map: { sortBy: DEFAULT_SORT_OPTION },
+          },
+    },
+    { surface, categoryLabels: labels, emptyLabel: 'Recherche' }
+  );
 };

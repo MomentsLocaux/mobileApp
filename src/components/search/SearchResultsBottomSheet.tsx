@@ -18,7 +18,8 @@ import { useReduceMotion } from '@/hooks/useReduceMotion';
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
-import { TriageControl } from './TriageControl';
+import { SortControl } from '@/components/filters';
+import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
 import {
   VIEWPORT_PEEK_HEIGHT,
@@ -242,6 +243,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       [isLoading, metaFilter, peekCount]
     );
 
+    // Advanced search can still apply the otherwise API-only `created` sort:
+    // list it so the active choice stays visible and reversible.
+    const sortOptions = useMemo(
+      () => (sortBy === 'created' ? ALL_SORT_OPTIONS : SORT_OPTIONS),
+      [sortBy]
+    );
+
     const beginSheetDrag = useCallback(() => {
       if (!isSheetExpandableRef.current || dragActiveRef.current) return;
       dragActiveRef.current = true;
@@ -452,13 +460,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                   ) : null}
                 </View>
                 {onSortByChange ? (
-                  <TriageControl
+                  <SortControl
                     value={sortBy}
                     onChange={onSortByChange}
                     sortOrder={sortOrder}
                     onSortOrderChange={onSortOrderChange}
                     hasLocation={hasLocation}
-                    showLabel={false}
+                    options={sortOptions}
+                    mode="iconOnly"
                   />
                 ) : null}
               </View>

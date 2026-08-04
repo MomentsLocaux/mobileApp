@@ -31,10 +31,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { useAuth, useLocation } from '@/hooks';
-import { useLocationStore, useSearchStore, useMapResultsUIStore } from '../../src/store';
+import {
+  selectDiscoveryFilters,
+  useDiscoveryFiltersStore,
+  useLocationStore,
+  useMapResultsUIStore,
+} from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
-import { buildFiltersFromSearch } from '../../src/utils/search-filters';
 import type { EventMetaFilter } from '../../src/utils/filter-events';
 import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
@@ -55,9 +59,15 @@ import {
 import { MapEventUnitOverlay } from '../../src/components/search/MapEventUnitOverlay';
 import { FloatingPressable } from '../../src/components/ui/FloatingPressable';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
-import type { SortOption, SortOrder } from '@/types/filters';
+import type { DatePreset } from '@/constants/filters';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
+import {
+  includesPast,
+  resolveSortCenter,
+  toEventFilters,
+  type DiscoveryFilters,
+} from '@/utils/discovery-filters';
 
 const SHEET_CAMERA_FOLLOW_THROTTLE_MS = 72;
 const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 80;
@@ -68,7 +78,21 @@ export default function MapScreen() {
   useLocation();
 
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
-  const searchState = useSearchStore();
+  const discoveryStatus = useDiscoveryFiltersStore((s) => s.status);
+  const when = useDiscoveryFiltersStore((s) => s.when);
+  const place = useDiscoveryFiltersStore((s) => s.place);
+  const content = useDiscoveryFiltersStore((s) => s.content);
+  const sort = useDiscoveryFiltersStore((s) => s.sort);
+  const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
+  const searchApplied = useDiscoveryFiltersStore((s) => s.searchApplied);
+  const setDiscoveryStatus = useDiscoveryFiltersStore((s) => s.setStatus);
+  const setWhen = useDiscoveryFiltersStore((s) => s.setWhen);
+  const setContent = useDiscoveryFiltersStore((s) => s.setContent);
+  const setSort = useDiscoveryFiltersStore((s) => s.setSort);
+  const setMapMode = useDiscoveryFiltersStore((s) => s.setMapMode);
+  const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
+  const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
+  const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const { profile } = useAuth();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
@@ -88,7 +112,6 @@ export default function MapScreen() {
     freezeViewportResults,
     clearFrozenViewport,
     closeSheet,
-    syncViewportEvents,
     restoreViewportFromFrozen,
   } = useMapResultsUIStore();
 
@@ -124,12 +147,8 @@ export default function MapScreen() {
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [zoom, setZoom] = useState(12);
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
-  const [mapMode, setMapMode] = useState<'standard' | 'satellite'>('standard');
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const [metaFilter, setMetaFilter] = useState<EventMetaFilter>('all');
-  const [listSortBy, setListSortBy] = useState<SortOption>('triage');
-  const [listSortOrder, setListSortOrder] = useState<SortOrder | undefined>(undefined);
 
   zoomRef.current = zoom;
 
@@ -163,34 +182,37 @@ export default function MapScreen() {
     zoom: 12,
   };
 
-  const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchState), [searchState]);
-  const searchApplied = searchState.searchApplied;
-  const setSearchApplied = searchState.setSearchApplied;
-  const commitSearch = searchState.commitSearch;
-  const includePast = !!searchState.when.includePast;
-  const searchActive = searchApplied && hasSearchCriteria;
-  const searchFilters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
-  const sortBy = searchState.sortBy || 'triage';
-  const sortOrder = searchState.sortOrder;
-  const whenPreset = searchState.when.preset;
-  const setWhen = searchState.setWhen;
-  const setWhat = searchState.setWhat;
-  const selectedCategories = searchState.what.categories;
-  const selectedSubcategories = searchState.what.subcategories;
-  const filtersActive = hasMapActiveFilters(
-    metaFilter,
-    mapMode,
-    sortBy,
-    whenPreset,
-    selectedCategories,
-    selectedSubcategories
+  const discoveryFilters = useMemo<DiscoveryFilters>(
+    () => ({
+      status: discoveryStatus,
+      when,
+      place,
+      content,
+      sort,
+      mapMode,
+    }),
+    [content, discoveryStatus, mapMode, place, sort, when]
   );
+  const metaFilter = discoveryStatus;
+  const hasSearchCriteria = useMemo(
+    () => checkSearchCriteria({ place, when, content }),
+    [content, place, when]
+  );
+  const includePast = includesPast(discoveryFilters);
+  const searchActive = searchApplied && hasSearchCriteria;
+  const searchFilters = useMemo(
+    () => toEventFilters(discoveryFilters, userLocation),
+    [discoveryFilters, userLocation]
+  );
+  const sortBy = sort.map.sortBy;
+  const sortOrder = sort.map.sortOrder;
+  const whenPreset = when.preset;
+  const selectedCategories = content.categories;
+  const selectedSubcategories = content.subcategories;
+  const filtersActive = hasMapActiveFilters(discoveryFilters);
   const sortCenter = useMemo(
-    () =>
-      searchState.where.location
-        ? { latitude: searchState.where.location.latitude, longitude: searchState.where.location.longitude }
-        : userLocation,
-    [searchState.where.location, userLocation]
+    () => resolveSortCenter(discoveryFilters, userLocation),
+    [discoveryFilters, userLocation]
   );
 
   const { fetch, viewport, viewportFrozenRef, frozenViewportBoundsRef } = useMapScreenData({
@@ -232,10 +254,17 @@ export default function MapScreen() {
   } = viewport;
 
   const { applySearch } = useMapSearchApply({
-    searchState,
+    filters: discoveryFilters,
     userLocation,
-    setMetaFilter,
-    commitSearch,
+    syncSearchState: () => {
+      reapplyClientFilters({
+        metaFilter,
+        searchFilters,
+        searchApplied: true,
+        hasSearchCriteria,
+        includePast,
+      });
+    },
     setStatus,
     fitToRadius,
     refreshBounds,
@@ -513,125 +542,179 @@ export default function MapScreen() {
   );
 
   const handleWhenPresetChange = useCallback(
-    (preset?: 'today' | 'tomorrow' | 'weekend') => {
+    (preset?: DatePreset) => {
       setWhen({
         preset,
         startDate: undefined,
         endDate: undefined,
         includePast: false,
       });
-      cancelViewportFetch();
-      void refreshBounds();
+      const nextFilters = toEventFilters(
+        selectDiscoveryFilters(useDiscoveryFiltersStore.getState()),
+        userLocation
+      );
+      const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
+      const nextHasSearchCriteria = checkSearchCriteria({
+        place: nextDiscoveryFilters.place,
+        when: nextDiscoveryFilters.when,
+        content: nextDiscoveryFilters.content,
+      });
+      if (nextHasSearchCriteria) commitSearch();
+      else setSearchApplied(false);
+      if (!reapplyClientFilters({
+        searchFilters: nextFilters,
+        searchApplied: nextHasSearchCriteria,
+        hasSearchCriteria: nextHasSearchCriteria,
+        includePast: includesPast(nextDiscoveryFilters),
+      })) {
+        cancelViewportFetch();
+        void refreshBounds();
+      }
     },
-    [cancelViewportFetch, refreshBounds, setWhen]
+    [
+      cancelViewportFetch,
+      commitSearch,
+      reapplyClientFilters,
+      refreshBounds,
+      setSearchApplied,
+      setWhen,
+      userLocation,
+    ]
   );
 
   const handleCategoriesChange = useCallback(
     (categories: string[], subcategories: string[]) => {
-      setWhat({ categories, subcategories });
-      const nextFilters = buildFiltersFromSearch(useSearchStore.getState(), userLocation);
-      if (!reapplyClientFilters({ searchFilters: nextFilters })) {
+      setContent({ categories, subcategories });
+      const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
+      const nextFilters = toEventFilters(nextDiscoveryFilters, userLocation);
+      const nextHasSearchCriteria = checkSearchCriteria({
+        place: nextDiscoveryFilters.place,
+        when: nextDiscoveryFilters.when,
+        content: nextDiscoveryFilters.content,
+      });
+      if (nextHasSearchCriteria) commitSearch();
+      else setSearchApplied(false);
+      if (!reapplyClientFilters({
+        searchFilters: nextFilters,
+        searchApplied: nextHasSearchCriteria,
+        hasSearchCriteria: nextHasSearchCriteria,
+        includePast: includesPast(nextDiscoveryFilters),
+      })) {
         cancelViewportFetch();
         void refreshBounds();
       }
     },
-    [cancelViewportFetch, reapplyClientFilters, refreshBounds, setWhat, userLocation]
+    [
+      cancelViewportFetch,
+      commitSearch,
+      reapplyClientFilters,
+      refreshBounds,
+      setContent,
+      setSearchApplied,
+      userLocation,
+    ]
   );
 
   const handleMetaFilterChange = useCallback(
     (next: EventMetaFilter) => {
-      setMetaFilter(next);
+      const previous = discoveryStatus;
+      setDiscoveryStatus(next);
       clearFrozenViewport();
+      const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
+      const nextSearchFilters = toEventFilters(nextDiscoveryFilters, userLocation);
+      const nextHasSearchCriteria = checkSearchCriteria({
+        place: nextDiscoveryFilters.place,
+        when: nextDiscoveryFilters.when,
+        content: nextDiscoveryFilters.content,
+      });
+      const reapplied = reapplyClientFilters({
+        metaFilter: next,
+        searchFilters: nextSearchFilters,
+        hasSearchCriteria: nextHasSearchCriteria,
+        includePast: includesPast(nextDiscoveryFilters),
+      });
       // Past needs a broader server timeScope than the usual "current" cache.
-      if (next === 'past' || !reapplyClientFilters({ metaFilter: next })) {
+      // Leaving it also needs a fresh current/upcoming payload.
+      if (next === 'past' || previous === 'past' || !reapplied) {
         cancelViewportFetch();
         void refreshBounds({ metaFilter: next });
       }
     },
-    [cancelViewportFetch, clearFrozenViewport, reapplyClientFilters, refreshBounds]
+    [
+      cancelViewportFetch,
+      clearFrozenViewport,
+      discoveryStatus,
+      reapplyClientFilters,
+      refreshBounds,
+      setDiscoveryStatus,
+      userLocation,
+    ]
   );
 
-  const reapplyViewportOrdering = useCallback(
-    (nextSortBy: typeof sortBy, nextSortOrder?: typeof sortOrder) => {
-      const source = frozenViewport?.events ?? sheetEvents;
-      if (!source.length || sheetStatus === 'loading' || sheetStatus === 'singleEvent') return;
-      const ordered =
-        nextSortBy !== 'triage'
-          ? sortEvents(source, nextSortBy, sortCenter, nextSortOrder)
-          : source;
-      syncViewportEvents(ordered);
-    },
-    [frozenViewport?.events, sheetEvents, sheetStatus, sortCenter, syncViewportEvents]
-  );
+  const handleResetFilters = useCallback(() => {
+    resetCriteria();
+    clearFrozenViewport();
+    const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
+    reapplyClientFilters({
+      metaFilter: 'all',
+      searchFilters: toEventFilters(nextDiscoveryFilters, userLocation),
+      searchApplied: false,
+      hasSearchCriteria: false,
+      includePast: false,
+    });
+    cancelViewportFetch();
+    void refreshBounds({ metaFilter: 'all' });
+  }, [
+    cancelViewportFetch,
+    clearFrozenViewport,
+    reapplyClientFilters,
+    refreshBounds,
+    resetCriteria,
+    userLocation,
+  ]);
 
-  const handleSortByChange = useCallback(
-    (value: typeof sortBy) => {
-      searchState.setSortBy(value);
-      reapplyViewportOrdering(value, sortOrder);
-    },
-    [reapplyViewportOrdering, searchState, sortOrder]
-  );
-
-  const handleSortOrderChange = useCallback(
-    (order: NonNullable<typeof sortOrder>) => {
-      searchState.setSortOrder(order);
-      reapplyViewportOrdering(sortBy, order);
-    },
-    [reapplyViewportOrdering, searchState, sortBy]
-  );
-
-  const handleListSortByChange = useCallback((value: SortOption) => {
-    setListSortBy(value);
-  }, []);
-
-  const handleListSortOrderChange = useCallback((order: SortOrder) => {
-    setListSortOrder(order);
-  }, []);
-
+  const refreshBoundsRef = useRef(refreshBounds);
+  refreshBoundsRef.current = refreshBounds;
+  const ensureInitialViewportLoadRef = useRef(ensureInitialViewportLoad);
+  ensureInitialViewportLoadRef.current = ensureInitialViewportLoad;
+  const restoreViewportFromFrozenRef = useRef(restoreViewportFromFrozen);
+  restoreViewportFromFrozenRef.current = restoreViewportFromFrozen;
+  const setStatusRef = useRef(setStatus);
+  setStatusRef.current = setStatus;
   useFocusEffect(
     useCallback(() => {
+      // Keep this callback identity stable ([] + refs). Shared discovery criteria
+      // must survive navigation between Home and Map.
       const uiState = useMapResultsUIStore.getState();
       if (uiState.sheetStatus === 'singleEvent' && uiState.frozenViewport) {
-        restoreViewportFromFrozen({ keepHighlight: true });
+        restoreViewportFromFrozenRef.current({ keepHighlight: true });
       }
 
-      // Clear stale date presets left by Fast Refresh / previous map sessions so browse
-      // is not silently filtered to "today" with zero local events.
-      const when = useSearchStore.getState().when;
-      if (when.preset || when.startDate || when.endDate) {
-        useSearchStore.getState().setWhen({
-          preset: undefined,
-          startDate: undefined,
-          endDate: undefined,
-          includePast: false,
-        });
-      }
-
-      if (searchApplied && hasSearchCriteria) {
-        void refreshBounds();
+      const latest = useDiscoveryFiltersStore.getState();
+      if (
+        latest.searchApplied &&
+        checkSearchCriteria({
+          place: latest.place,
+          when: latest.when,
+          content: latest.content,
+        })
+      ) {
+        void refreshBoundsRef.current();
         return;
       }
 
       if (uiState.sheetStatus !== 'loading') {
-        setStatus('browsing');
+        setStatusRef.current('browsing');
       }
       resultsSheetRef.current?.collapseToPeek();
       // First open: onMapReady / location recenter own the bootstrap fetch.
       // Re-focus only: refresh the visible bbox.
       if (viewportBootstrappedRef.current) {
-        void refreshBounds();
+        void refreshBoundsRef.current();
       } else {
-        void ensureInitialViewportLoad();
+        void ensureInitialViewportLoadRef.current();
       }
-    }, [
-      ensureInitialViewportLoad,
-      hasSearchCriteria,
-      refreshBounds,
-      restoreViewportFromFrozen,
-      searchApplied,
-      setStatus,
-      viewportBootstrappedRef,
-    ])
+    }, [viewportBootstrappedRef])
   );
 
   useEffect(() => {
@@ -692,11 +775,11 @@ export default function MapScreen() {
   const displayPeekCount = frozenViewport?.eventCount ?? visibleEventCount;
 
   const sortedListEvents = useMemo(() => {
-    if (sheetStatus === 'singleEvent' || listSortBy === 'triage') {
+    if (sheetStatus === 'singleEvent' || sortBy === 'triage') {
       return displaySheetEvents;
     }
-    return sortEvents(displaySheetEvents, listSortBy, sortCenter, listSortOrder);
-  }, [displaySheetEvents, listSortBy, listSortOrder, sheetStatus, sortCenter]);
+    return sortEvents(displaySheetEvents, sortBy, sortCenter, sortOrder);
+  }, [displaySheetEvents, sheetStatus, sortBy, sortCenter, sortOrder]);
 
   if (locationLoading && !userLocation) {
     return (
@@ -719,6 +802,7 @@ export default function MapScreen() {
                 onApply={applySearch}
                 hasLocation={!!userLocation}
                 applied={searchApplied}
+                surface="map"
                 onExpandedChange={setSearchExpanded}
               />
             </View>
@@ -830,10 +914,10 @@ export default function MapScreen() {
               peekCount={sheetStatus === 'singleEvent' ? 0 : displayPeekCount}
               metaFilter={metaFilter}
               isLoading={sheetStatus === 'loading'}
-              sortBy={listSortBy}
-              sortOrder={listSortOrder}
-              onSortByChange={handleListSortByChange}
-              onSortOrderChange={handleListSortOrderChange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortByChange={(value) => setSort('map', value, sortOrder)}
+              onSortOrderChange={(value) => setSort('map', sortBy, value)}
               hasLocation={!!userLocation}
             />
           </Animated.View>
@@ -849,16 +933,13 @@ export default function MapScreen() {
         mapMode={mapMode}
         onMapModeChange={setMapMode}
         searchActive={searchActive}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSortByChange={handleSortByChange}
-        onSortOrderChange={handleSortOrderChange}
-        hasLocation={!!userLocation}
+        filters={discoveryFilters}
         whenPreset={whenPreset}
         onWhenPresetChange={handleWhenPresetChange}
         selectedCategories={selectedCategories}
         selectedSubcategories={selectedSubcategories}
         onCategoriesChange={handleCategoriesChange}
+        onReset={handleResetFilters}
         resultCount={displayPeekCount}
         isLoadingResults={sheetStatus === 'loading'}
       />

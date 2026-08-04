@@ -28,7 +28,8 @@ import Toast from 'react-native-toast-message';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
-import { useSearchStore } from '@/store/searchStore';
+import type { SearchWhereState } from '@/store/searchStore';
+import { useDiscoveryFiltersStore } from '@/store/discoveryFiltersStore';
 import { useSavedSearchesStore } from '@/store/savedSearchesStore';
 import { MapboxService } from '@/services/mapbox.service';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -37,7 +38,6 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import { useLocationStore } from '@/store';
 import { fetchSearchPreviewEvents } from '@/utils/search-preview-events';
-import type { SearchState } from '@/store/searchStore';
 import { buildSearchSummary } from '@/utils/search-summary';
 import {
   hasSearchCriteria as checkSearchCriteria,
@@ -45,10 +45,14 @@ import {
   resolveEffectiveRadiusKm,
   resolveSearchCenter,
 } from '@/utils/search-helpers';
-import type { EventWithCreator } from '@/types/database';
 import { CommunityService } from '@/services/community.service';
 import type { CommunityMember } from '@/types/community';
 import type { SavedSearchSnapshot } from '@/services/saved-searches.service';
+import {
+  type DiscoveryFilters,
+  type DiscoverySurface,
+} from '@/utils/discovery-filters';
+import { DEFAULT_SORT_OPTION, DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 
 type SectionKey = 'where' | 'when' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -67,6 +71,7 @@ interface Props {
   placeholder?: string;
   hasLocation: boolean;
   applied: boolean;
+  surface: DiscoverySurface;
   onExpandedChange?: (expanded: boolean) => void;
   enableCommunitySearch?: boolean;
 }
@@ -76,6 +81,7 @@ export const SearchBar: React.FC<Props> = ({
   placeholder = 'Rechercher un événement',
   hasLocation,
   applied,
+  surface,
   onExpandedChange,
   enableCommunitySearch = false,
 }) => {
@@ -105,20 +111,69 @@ export const SearchBar: React.FC<Props> = ({
   const tags = useTaxonomyStore((s) => s.tags);
   const { currentLocation } = useLocationStore();
 
-  const {
-    where,
-    when,
-    what,
-    setWhere,
-    setWhen,
-    setWhat,
-    sortBy,
-    sortOrder,
-    setSortBy,
-    setSortOrder,
-    addHistory,
-    commitSearch,
-  } = useSearchStore();
+  const status = useDiscoveryFiltersStore((s) => s.status);
+  const when = useDiscoveryFiltersStore((s) => s.when);
+  const place = useDiscoveryFiltersStore((s) => s.place);
+  const what = useDiscoveryFiltersStore((s) => s.content);
+  const sort = useDiscoveryFiltersStore((s) => s.sort);
+  const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
+  const placeHistory = useDiscoveryFiltersStore((s) => s.placeHistory);
+  const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
+  const setWhen = useDiscoveryFiltersStore((s) => s.setWhen);
+  const setWhat = useDiscoveryFiltersStore((s) => s.setContent);
+  const setSort = useDiscoveryFiltersStore((s) => s.setSort);
+  const addHistory = useDiscoveryFiltersStore((s) => s.addPlaceHistory);
+  const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
+  const resetSearch = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
+  const sortBy = sort[surface].sortBy;
+  const sortOrder = sort[surface].sortOrder;
+
+  const where = useMemo<SearchWhereState>(
+    () => ({
+      history: placeHistory,
+      location: place.center
+        ? {
+            latitude: place.center.latitude,
+            longitude: place.center.longitude,
+            label: place.label || 'Zone choisie',
+            city: place.city,
+            postalCode: place.postalCode,
+          }
+        : undefined,
+      radiusKm: place.radiusKm,
+    }),
+    [place, placeHistory]
+  );
+
+  const filters = useMemo<DiscoveryFilters>(
+    () => ({ status, when, place, content: what, sort, mapMode }),
+    [mapMode, place, sort, status, what, when]
+  );
+
+  const setWhere = (payload: Partial<SearchWhereState>) => {
+    const next: Parameters<typeof setPlace>[0] = {};
+    if ('location' in payload) {
+      next.center = payload.location
+        ? {
+            latitude: payload.location.latitude,
+            longitude: payload.location.longitude,
+          }
+        : null;
+      next.label = payload.location?.label;
+      next.city = payload.location?.city;
+      next.postalCode = payload.location?.postalCode;
+    }
+    if ('radiusKm' in payload) next.radiusKm = payload.radiusKm;
+    setPlace(next);
+  };
+
+  const setSortBy = (nextSortBy?: typeof sortBy) => {
+    setSort(surface, nextSortBy || DEFAULT_SORT_OPTION, sortOrder);
+  };
+
+  const setSortOrder = (nextSortOrder?: typeof sortOrder) => {
+    setSort(surface, sortBy, nextSortOrder);
+  };
 
   const recentSearches = useSavedSearchesStore((s) => s.recent);
   const savedSearches = useSavedSearchesStore((s) => s.saved);
@@ -190,22 +245,32 @@ export const SearchBar: React.FC<Props> = ({
     };
   }, [currentLocation]);
 
-  const searchSlice = useMemo(() => ({ where, when, what }), [where, when, what]);
+  const searchSlice = useMemo(
+    () => ({ place, when, content: what }),
+    [place, what, when]
+  );
   const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchSlice), [searchSlice]);
   const effectiveRadiusKm = useMemo(
-    () => resolveEffectiveRadiusKm(where, userCoords),
-    [where, userCoords]
+    () => resolveEffectiveRadiusKm(place, userCoords),
+    [place, userCoords]
   );
-  const searchCenter = useMemo(() => resolveSearchCenter(where, userCoords), [where, userCoords]);
+  const searchCenter = useMemo(
+    () => resolveSearchCenter(place, userCoords),
+    [place, userCoords]
+  );
   const displayedRadiusKm = where.radiusKm ?? effectiveRadiusKm ?? PROXIMITY_RADIUS_KM;
 
   const summaryText = useMemo(() => {
     if (!applied || !hasSearchCriteria) return undefined;
-    return buildSearchSummary({ where, when, who: { adults: 1, children: 0, babies: 0 }, what, sortBy } as SearchState, categories, subcategories, tags);
-  }, [applied, categories, hasSearchCriteria, sortBy, subcategories, tags, what, when, where]);
+    return buildSearchSummary(filters, categories, subcategories, tags, surface);
+  }, [applied, categories, filters, hasSearchCriteria, subcategories, surface, tags]);
 
   const sectionSummary = useMemo(() => {
-    const whereLabel = where.location?.label || (where.radiusKm ? 'À proximité' : 'Choisir un lieu');
+    const whereLabel =
+      where.location?.label ||
+      (where.radiusKm !== undefined && where.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM
+        ? 'À proximité'
+        : 'Choisir un lieu');
     const whenLabel = includePast
       ? "N'importe quand"
       : when.startDate && when.endDate
@@ -263,7 +328,7 @@ export const SearchBar: React.FC<Props> = ({
     const timeout = setTimeout(async () => {
       try {
         const filteredEvents = await fetchSearchPreviewEvents(
-          { where, when, what },
+          filters,
           { searchCenter, effectiveRadiusKm, userCoords }
         );
         if (!cancelled) {
@@ -284,7 +349,7 @@ export const SearchBar: React.FC<Props> = ({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [effectiveRadiusKm, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords, where, when, what]);
+  }, [effectiveRadiusKm, filters, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords]);
 
   useEffect(() => {
     let cancelled = false;
@@ -366,10 +431,10 @@ export const SearchBar: React.FC<Props> = ({
     }, Motion.duration.fast);
   };
 
-  const currentIsSaved = isCurrentSaved(taxonomyLabels);
+  const currentIsSaved = isCurrentSaved(taxonomyLabels, surface);
 
   const applySnapshot = (item: SavedSearchSnapshot) => {
-    const ok = applySavedSearch(item.id);
+    const ok = applySavedSearch(item.id, surface);
     if (!ok) return;
     onApply();
     closeExpanded();
@@ -390,15 +455,10 @@ export const SearchBar: React.FC<Props> = ({
 
   const handleSaveCurrent = () => {
     if (!hasSearchCriteria) return;
-    const defaultTitle = buildSearchSummary(
-      useSearchStore.getState() as SearchState,
-      categories,
-      subcategories,
-      tags,
-    );
+    const defaultTitle = buildSearchSummary(filters, categories, subcategories, tags, surface);
 
     const doSave = async (title?: string) => {
-      await saveCurrent(taxonomyLabels, title || defaultTitle);
+      await saveCurrent(taxonomyLabels, surface, title || defaultTitle);
       Toast.show({ type: 'success', text1: 'Recherche enregistrée' });
     };
 
@@ -434,7 +494,7 @@ export const SearchBar: React.FC<Props> = ({
 
   const handleApplySearch = () => {
     commitSearch();
-    void recordRecentFromCurrent(taxonomyLabels);
+    void recordRecentFromCurrent(taxonomyLabels, surface);
     onApply();
     closeExpanded();
   };
@@ -966,7 +1026,7 @@ export const SearchBar: React.FC<Props> = ({
                 ) : null}
                 <View style={styles.footer}>
                   <View style={styles.footerLeft}>
-                    <TouchableOpacity onPress={() => useSearchStore.getState().resetSearch()}>
+                    <TouchableOpacity onPress={resetSearch}>
                       <Text style={styles.resetText}>Tout effacer</Text>
                     </TouchableOpacity>
                     {hasSearchCriteria ? (

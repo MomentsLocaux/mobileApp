@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAuthStore } from '@/state/auth';
 import { AuthService } from '@/services/auth.service';
 import type { SocialProvider } from '@/services/oauth.service';
@@ -11,13 +11,11 @@ export function useAuth() {
     profile,
     isLoading,
     error,
-    initialized,
     setUser,
     setSession,
     setProfile,
     setLoading,
     setError,
-    setInitialized,
     reset,
   } = useAuthStore();
 
@@ -37,24 +35,29 @@ export function useAuth() {
       setLoading(true);
       setError(null);
       const response = await AuthService.signIn(email, password);
-      setLoading(false);
 
       if (!response.success) {
+        setLoading(false);
         setError(response.error || 'Erreur connexion');
         return response;
       }
 
       setSession(response.session || null);
       setUser(response.user || null);
+      setProfile(response.profile || null);
+      setLoading(false);
 
-      if (response.user) {
-        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
-        setProfile(profile);
+      if (response.user && !response.profile) {
+        void AuthService.getProfileForUser(response.user)
+          .then(setProfile)
+          .catch((profileError) => {
+            console.error('Post-login profile hydration failed:', profileError);
+          });
       }
 
       return response;
     },
-    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+    [setError, setLoading, setSession, setUser, setProfile],
   );
 
   const signInWithProvider = useCallback(
@@ -62,24 +65,29 @@ export function useAuth() {
       setLoading(true);
       setError(null);
       const response = await AuthService.signInWithProvider(provider);
-      setLoading(false);
 
       if (!response.success) {
+        setLoading(false);
         setError(response.error || 'Connexion impossible');
         return response;
       }
 
       setSession(response.session || null);
       setUser(response.user || null);
+      setProfile(response.profile || null);
+      setLoading(false);
 
-      if (response.user) {
-        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
-        setProfile(profile);
+      if (response.user && !response.profile) {
+        void AuthService.getProfileForUser(response.user)
+          .then(setProfile)
+          .catch((profileError) => {
+            console.error('Post-login profile hydration failed:', profileError);
+          });
       }
 
       return response;
     },
-    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+    [setError, setLoading, setSession, setUser, setProfile],
   );
 
   const signUp = useCallback(
@@ -149,49 +157,6 @@ export function useAuth() {
     if (!user) return null;
     return fetchProfile(user.id, user.email);
   }, [fetchProfile, user]);
-
-  useEffect(() => {
-    if (initialized) return;
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const blocked = await AuthService.isAutoRestoreBlocked();
-        const session = blocked ? null : await AuthService.getCurrentSession();
-        if (!mounted) return;
-        const user = blocked ? null : await AuthService.getCurrentUser();
-        if (!mounted) return;
-
-        setSession(session);
-        setUser(user);
-
-        if (user) {
-          try {
-            await fetchProfile(user.id, user.email);
-          } catch (profileError: any) {
-            console.error('Error fetching profile on init:', profileError);
-            setError(profileError?.message || 'Erreur profil');
-            setProfile(null);
-          }
-        } else {
-          setProfile(null);
-        }
-      } catch (initError: any) {
-        console.error('Error initializing auth state:', initError);
-        setError(initError?.message || 'Erreur connexion');
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-      } finally {
-        if (!mounted) return;
-        setInitialized(true);
-        setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [fetchProfile, initialized, setError, setLoading, setProfile, setSession, setUser]);
 
   return {
     user,

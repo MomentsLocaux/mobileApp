@@ -3,6 +3,7 @@ export { useLocationStore } from './locationStore';
 export { useAppStore } from './appStore';
 export { useFilterStore } from './filterStore';
 export { useSearchStore } from './searchStore';
+export { useDiscoveryFiltersStore, selectDiscoveryFilters } from './discoveryFiltersStore';
 export { useSavedSearchesStore } from './savedSearchesStore';
 export { useFavoritesStore } from './favoritesStore';
 export { useLikesStore } from './likesStore';

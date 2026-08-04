@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Image,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,13 +15,13 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronDown, Compass, Heart, Search, Users } from 'lucide-react-native';
+import { Bell, ChevronDown, Compass, Heart, MapPin, Search, Users } from 'lucide-react-native';
 
-import { AppBackground, EmptyState, EventCardSkeleton } from '@/components/ui';
+import { AppBackground, EmptyState } from '@/components/ui';
 import { EventCard } from '@/components/events/EventCard';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
-import { useAuth } from '@/hooks';
+import { useAuth, useLocation } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
 import { EventsService } from '@/services/events.service';
 import { CommunityService } from '@/services/community.service';
@@ -28,6 +30,12 @@ import type { EventWithCreator } from '@/types/database';
 import type { CommunityMember } from '@/types/community';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { useLikesStore } from '@/store/likesStore';
+import {
+  DEFAULT_FAVORITE_TIME_FILTER,
+  filterFavoriteEvents,
+  type FavoriteTimeFilter,
+} from '@/utils/favorite-events';
+import { calculateDistanceKm, sortEvents } from '@/utils/sort-events';
 
 type FavoriteRow = {
   event_id: string;
@@ -35,93 +43,107 @@ type FavoriteRow = {
 };
 
 type Tab = 'events' | 'creators';
-type SortDirection = 'asc' | 'desc';
+type FavoriteSort = 'distance' | 'date_asc' | 'date_desc';
 
-const eventSortValue = (event: EventWithCreator) => {
-  const ts = new Date(event.starts_at || event.created_at || 0).getTime();
-  return Number.isNaN(ts) ? 0 : ts;
-};
+const TIME_FILTERS: { value: FavoriteTimeFilter; label: string }[] = [
+  { value: 'active', label: 'En cours & à venir' },
+  { value: 'live', label: 'En cours' },
+  { value: 'upcoming', label: 'À venir' },
+  { value: 'past', label: 'Passés' },
+  { value: 'all', label: 'Tous' },
+];
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile, user, session, isLoading } = useAuth();
+  const { currentLocation, isLoading: locationLoading } = useLocation();
   const { favorites, replaceFavorites, clearFavorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('events');
   const [query, setQuery] = useState('');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [timeFilter, setTimeFilter] = useState<FavoriteTimeFilter>(DEFAULT_FAVORITE_TIME_FILTER);
+  const [favoriteSort, setFavoriteSort] = useState<FavoriteSort>('distance');
   const [creatorFavorites, setCreatorFavorites] = useState<CommunityMember[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const userLocation = useMemo(() => {
+    if (!currentLocation) return null;
+    return {
+      latitude: currentLocation.coords.latitude,
+      longitude: currentLocation.coords.longitude,
+    };
+  }, [currentLocation]);
 
   const loadFavorites = useCallback(async () => {
+    setLoadingFavorites(true);
     const followerId = user?.id || session?.user?.id || profile?.id;
     const favoritesOwnerId = profile?.id || followerId;
     if (!session || !followerId || !favoritesOwnerId) {
       replaceFavorites([]);
       setCreatorFavorites([]);
       setInitialLoading(false);
+      setLoadingFavorites(false);
       return;
     }
 
     try {
-      const { data: favoritesData, error: favoritesError } = await supabase
-        .from('favorites')
-        .select('event_id, created_at')
-        .eq('profile_id', favoritesOwnerId)
-        .order('created_at', { ascending: false })
-        .limit(500);
+      const [favoritesResult, followsResult] = await Promise.all([
+        supabase
+          .from('favorites')
+          .select('event_id, created_at')
+          .eq('profile_id', favoritesOwnerId)
+          .order('created_at', { ascending: false })
+          .limit(500),
+        supabase
+          .from('follows')
+          .select('following, created_at, profile:profiles!follows_following_fkey(id, display_name, avatar_url, cover_url, city, bio)')
+          .eq('follower', followerId)
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+
+      const { data: favoritesData, error: favoritesError } = favoritesResult;
+      const { data: followsData, error: followsError } = followsResult;
 
       if (favoritesError) throw favoritesError;
+      if (followsError) throw followsError;
 
       const favoriteRows = (favoritesData || []) as FavoriteRow[];
       const eventIds = favoriteRows.map((row) => row.event_id).filter(Boolean);
-
-      if (!eventIds.length) {
-        replaceFavorites([]);
-      } else {
-        const events = await EventsService.getEventsByIds(eventIds);
-        const byId = new Map(events.map((event) => [event.id, event]));
-        const ordered = eventIds.map((id) => byId.get(id)).filter(Boolean) as EventWithCreator[];
-        replaceFavorites(ordered);
-      }
-
-      const { data: followsData, error: followsError } = await supabase
-        .from('follows')
-        .select('following, created_at, profile:profiles!follows_following_fkey(id, display_name, avatar_url, cover_url, city, bio)')
-        .eq('follower', followerId)
-        .order('created_at', { ascending: false })
-        .limit(500);
-
-      if (followsError) throw followsError;
-
       const followRows = (followsData || []) as any[];
       const followedIds = followRows.map((row) => row.following).filter(Boolean);
-      let statsByUserId = new Map<string, { events_created_count: number; followers_count: number; lumo_total: number; following_count: number }>();
+      const [events, statsResult] = await Promise.all([
+        eventIds.length ? EventsService.getEventsByIds(eventIds) : Promise.resolve([]),
+        followedIds.length
+          ? supabase
+              .from('community_profile_stats')
+              .select('user_id, events_created_count, followers_count, lumo_total, following_count')
+              .in('user_id', followedIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
 
-      if (followedIds.length > 0) {
-        const { data: statsData, error: statsError } = await supabase
-          .from('community_profile_stats')
-          .select('user_id, events_created_count, followers_count, lumo_total, following_count')
-          .in('user_id', followedIds);
+      const byId = new Map(events.map((event) => [event.id, event]));
+      const ordered = eventIds.map((id) => byId.get(id)).filter(Boolean) as EventWithCreator[];
+      replaceFavorites(ordered);
 
-        if (statsError) throw statsError;
-
-        statsByUserId = new Map(
-          ((statsData || []) as any[]).map((row) => [
-            row.user_id,
-            {
-              events_created_count: Number(row.events_created_count || 0),
-              followers_count: Number(row.followers_count || 0),
-              lumo_total: Number(row.lumo_total || 0),
-              following_count: Number(row.following_count || 0),
-            },
-          ]),
-        );
-      }
+      if (statsResult.error) throw statsResult.error;
+      const statsByUserId = new Map(
+        ((statsResult.data || []) as any[]).map((row) => [
+          row.user_id,
+          {
+            events_created_count: Number(row.events_created_count || 0),
+            followers_count: Number(row.followers_count || 0),
+            lumo_total: Number(row.lumo_total || 0),
+            following_count: Number(row.following_count || 0),
+          },
+        ]),
+      );
 
       const creators = followRows
         .map((row) => {
@@ -149,26 +171,26 @@ export default function FavoritesScreen() {
       Alert.alert('Erreur', 'Impossible de charger vos favoris pour le moment.');
     } finally {
       setInitialLoading(false);
+      setLoadingFavorites(false);
       setRefreshing(false);
     }
   }, [profile?.id, replaceFavorites, session, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
-      loadFavorites();
+      void loadFavorites();
     }, [loadFavorites]),
   );
 
   useEffect(() => {
-    if (session && (user?.id || session?.user?.id || profile?.id)) {
-      loadFavorites();
-    }
-  }, [loadFavorites, profile?.id, session, user?.id]);
+    const interval = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const queryValue = query.trim().toLowerCase();
 
   const filteredEvents = useMemo(() => {
-    const base = favorites.filter((event) => {
+    const searched = favorites.filter((event) => {
       if (!queryValue) return true;
       const haystack = [
         event.title,
@@ -183,14 +205,17 @@ export default function FavoritesScreen() {
       return haystack.includes(queryValue);
     });
 
-    const sorted = [...base].sort((a, b) => {
-      const av = eventSortValue(a);
-      const bv = eventSortValue(b);
-      return sortDirection === 'desc' ? bv - av : av - bv;
-    });
+    const temporal = filterFavoriteEvents(searched, timeFilter, new Date(nowMs));
 
-    return sorted;
-  }, [favorites, queryValue, sortDirection]);
+    if (favoriteSort === 'distance' && userLocation) {
+      return sortEvents(temporal, 'distance', userLocation, 'asc');
+    }
+    if (favoriteSort === 'date_desc') {
+      return sortEvents(temporal, 'date', null, 'desc');
+    }
+    // Date ascending is also the safe fallback while location is unavailable.
+    return sortEvents(temporal, 'date', null, 'asc');
+  }, [favoriteSort, favorites, nowMs, queryValue, timeFilter, userLocation]);
 
   const filteredCreators = useMemo(() => {
     return creatorFavorites.filter((creator) => {
@@ -205,7 +230,25 @@ export default function FavoritesScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadFavorites();
+    void loadFavorites();
+  };
+
+  const handleChooseSort = () => {
+    Alert.alert('Trier les favoris', undefined, [
+      {
+        text: 'Distance croissante',
+        onPress: () => setFavoriteSort('distance'),
+      },
+      {
+        text: 'Date la plus proche',
+        onPress: () => setFavoriteSort('date_asc'),
+      },
+      {
+        text: 'Date la plus lointaine',
+        onPress: () => setFavoriteSort('date_desc'),
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
   };
 
   const handleToggleHeart = async (event: EventWithCreator) => {
@@ -282,7 +325,22 @@ export default function FavoritesScreen() {
     return (
       <View style={styles.loadingContainer}>
         <AppBackground />
-        <EventCardSkeleton count={3} />
+        <View
+          style={styles.loadingCard}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Chargement de vos favoris"
+          accessibilityLiveRegion="polite"
+        >
+          <View style={styles.loadingSpinnerShell}>
+            <ActivityIndicator size="small" color={colors.brand.secondary} />
+            <View style={styles.loadingHeartBadge}>
+              <Heart size={15} color={colors.brand.secondary} fill={colors.brand.secondary} />
+            </View>
+          </View>
+          <Text style={styles.loadingTitle}>Nous préparons vos favoris</Text>
+          <Text style={styles.loadingSubtitle}>Encore un instant, vos pépites arrivent…</Text>
+        </View>
       </View>
     );
   }
@@ -297,8 +355,53 @@ export default function FavoritesScreen() {
     );
   }
 
-  const eventsCountLabel = `${filteredEvents.length} ÉVÉNEMENTS ENREGISTRÉS`;
+  const eventsCountLabel = `${filteredEvents.length} FAVORI${filteredEvents.length > 1 ? 'S' : ''} AFFICHÉ${filteredEvents.length > 1 ? 'S' : ''}`;
   const creatorsCountLabel = `${filteredCreators.length} PROFILS SUIVIS`;
+  const sortLabel = favoriteSort === 'distance'
+    ? userLocation
+      ? 'Distance'
+      : locationLoading
+        ? 'Localisation…'
+        : 'Distance indisponible'
+    : favoriteSort === 'date_asc'
+      ? 'Date proche'
+      : 'Date lointaine';
+
+  const eventEmptyState = (() => {
+    if (favorites.length === 0) {
+      return {
+        title: 'Aucun événement favori',
+        subtitle: 'Ajoutez des événements en favoris pour les retrouver ici.',
+        ctaLabel: 'Explorer les événements',
+        onCtaPress: () => router.push('/(tabs)' as any),
+      };
+    }
+    if (queryValue) {
+      return {
+        title: 'Aucun favori correspondant',
+        subtitle: 'Essayez une autre recherche ou réinitialisez les filtres.',
+        ctaLabel: 'Réinitialiser',
+        onCtaPress: () => {
+          setQuery('');
+          setTimeFilter(DEFAULT_FAVORITE_TIME_FILTER);
+        },
+      };
+    }
+    if (timeFilter === 'active') {
+      return {
+        title: 'Aucun favori en cours ou à venir',
+        subtitle: 'Vos anciens favoris restent disponibles dans le filtre « Passés ».',
+        ctaLabel: 'Voir les favoris passés',
+        onCtaPress: () => setTimeFilter('past'),
+      };
+    }
+    return {
+      title: 'Aucun favori dans cette période',
+      subtitle: 'Choisissez une autre période pour retrouver vos événements.',
+      ctaLabel: 'Voir en cours & à venir',
+      onCtaPress: () => setTimeFilter(DEFAULT_FAVORITE_TIME_FILTER),
+    };
+  })();
 
   return (
     <View style={styles.container}>
@@ -344,22 +447,61 @@ export default function FavoritesScreen() {
           </TouchableOpacity>
         </View>
 
+        {activeTab === 'events' ? (
+          <View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+              accessibilityRole="radiogroup"
+            >
+              {TIME_FILTERS.map((option) => {
+                const active = timeFilter === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    onPress={() => setTimeFilter(option.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    activeOpacity={0.82}
+                  >
+                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {favoriteSort === 'distance' && !userLocation && !locationLoading ? (
+              <Text style={styles.locationHint}>
+                Activez la localisation pour classer les favoris par distance. Tri par date appliqué temporairement.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>{activeTab === 'events' ? eventsCountLabel : creatorsCountLabel}</Text>
           {activeTab === 'events' ? (
             <View style={styles.listHeaderActions}>
               <TouchableOpacity
                 style={styles.sortButton}
-                onPress={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                onPress={handleChooseSort}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Tri actuel : ${sortLabel}`}
               >
-                <Text style={styles.sortText}>Trier par Date</Text>
+                <MapPin size={14} color={colors.brand.secondary} />
+                <Text style={styles.sortText}>{sortLabel}</Text>
                 <ChevronDown
                   size={14}
                   color={colors.brand.secondary}
-                  style={{ transform: [{ rotate: sortDirection === 'desc' ? '0deg' : '180deg' }] }}
                 />
               </TouchableOpacity>
+              {loadingFavorites && !refreshing ? (
+                <ActivityIndicator size="small" color={colors.brand.secondary} />
+              ) : null}
               {filteredEvents.length > 0 ? (
                 <TouchableOpacity style={styles.sortButton} onPress={handleClearEventFavorites} activeOpacity={0.85}>
                   <Text style={styles.sortText}>Vider</Text>
@@ -384,10 +526,10 @@ export default function FavoritesScreen() {
             ListEmptyComponent={
               <EmptyState
                 icon={Heart}
-                title="Aucun événement favori"
-                subtitle="Ajoutez des événements en favoris pour les retrouver ici."
-                ctaLabel="Explorer les événements"
-                onCtaPress={() => router.push('/(tabs)' as any)}
+                title={eventEmptyState.title}
+                subtitle={eventEmptyState.subtitle}
+                ctaLabel={eventEmptyState.ctaLabel}
+                onCtaPress={eventEmptyState.onCtaPress}
               />
             }
             renderItem={({ item }) => (
@@ -402,6 +544,16 @@ export default function FavoritesScreen() {
                 onPrimaryAction={() => setNavEvent(item)}
                 onSecondaryAction={() => router.push(`/events/${item.id}` as any)}
                 onNavigate={() => setNavEvent(item)}
+                distanceKm={
+                  userLocation
+                    ? calculateDistanceKm(
+                        userLocation.latitude,
+                        userLocation.longitude,
+                        item.latitude,
+                        item.longitude,
+                      )
+                    : undefined
+                }
                 style={styles.eventCard}
               />
             )}
@@ -503,7 +655,51 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
     backgroundColor: 'transparent',
+  },
+  loadingCard: {
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(26, 36, 38, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.2)',
+  },
+  loadingSpinnerShell: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  loadingHeartBadge: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.primary,
+    borderWidth: 1,
+    borderColor: 'rgba(43, 191, 227, 0.35)',
+  },
+  loadingTitle: {
+    ...typography.h5,
+    color: colors.brand.text,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
@@ -565,11 +761,44 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     color: '#06242c',
   },
+  filterRow: {
+    gap: spacing.sm,
+    paddingRight: spacing.md,
+  },
+  filterChip: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  filterChipActive: {
+    borderColor: colors.brand.secondary,
+    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+  },
+  filterChipText: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+  },
+  filterChipTextActive: {
+    color: colors.brand.secondary,
+  },
+  locationHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 17,
+  },
   listHeader: {
     marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   listHeaderActions: {
     flexDirection: 'row',
@@ -578,6 +807,7 @@ const styles = StyleSheet.create({
   },
   listTitle: {
     ...typography.h6,
+    flex: 1,
     color: '#9eb0c4',
     letterSpacing: 1,
     fontWeight: '800',
@@ -588,7 +818,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sortText: {
-    ...typography.subtitle,
+    ...typography.caption,
     color: colors.brand.secondary,
     fontWeight: '700',
   },

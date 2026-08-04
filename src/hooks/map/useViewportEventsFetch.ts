@@ -48,6 +48,14 @@ export type ViewportFetchOptions = {
   retried?: boolean;
 };
 
+type ClientFilterOverrides = {
+  metaFilter?: EventMetaFilter;
+  searchFilters?: EventFilters;
+  searchApplied?: boolean;
+  hasSearchCriteria?: boolean;
+  includePast?: boolean;
+};
+
 type RawViewportCache = {
   events: EventWithCreator[];
   featureCollection: EventMapFeatureCollection;
@@ -155,7 +163,7 @@ export function useViewportEventsFetch({
     (
       events: EventWithCreator[],
       featureCollection: EventMapFeatureCollection | FeatureCollection | null,
-      options?: { metaFilter?: EventMetaFilter; searchFilters?: EventFilters }
+      options?: ClientFilterOverrides
     ) => {
       const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
       const currentSearchApplied = searchAppliedRef.current;
@@ -165,8 +173,7 @@ export function useViewportEventsFetch({
       const currentSortOrder = sortOrderRef.current;
       const currentSortCenter = sortCenterRef.current;
 
-      const effectiveSearchActive =
-        currentMetaFilter === 'all' && currentSearchApplied && currentHasSearchCriteria;
+      const effectiveSearchActive = currentSearchApplied && currentHasSearchCriteria;
       const effectiveFilters = effectiveSearchActive ? currentSearchFilters : {};
       const browseFilters: EventFilters = {
         ...pickWhenFilters(currentSearchFilters),
@@ -211,15 +218,24 @@ export function useViewportEventsFetch({
 
   /** Re-run client filters/sort on the last RPC payload — no network, no loading flash. */
   const reapplyClientFilters = useCallback(
-    (options?: { metaFilter?: EventMetaFilter; searchFilters?: EventFilters }) => {
-      const raw = lastViewportRawRef.current;
-      if (!raw) return false;
+    (options?: ClientFilterOverrides) => {
       if (options?.searchFilters) {
         searchFiltersRef.current = options.searchFilters;
       }
       if (options?.metaFilter) {
         metaFilterRef.current = options.metaFilter;
       }
+      if (options?.searchApplied !== undefined) {
+        searchAppliedRef.current = options.searchApplied;
+      }
+      if (options?.hasSearchCriteria !== undefined) {
+        hasSearchCriteriaRef.current = options.hasSearchCriteria;
+      }
+      if (options?.includePast !== undefined) {
+        includePastRef.current = options.includePast;
+      }
+      const raw = lastViewportRawRef.current;
+      if (!raw) return false;
       publishFilteredViewport(raw.events, raw.featureCollection, options);
       return true;
     },
@@ -242,8 +258,7 @@ export function useViewportEventsFetch({
         const currentIncludePast = includePastRef.current;
         const currentSearchFilters = searchFiltersRef.current;
 
-        const effectiveSearchActive =
-          currentMetaFilter === 'all' && currentSearchApplied && currentHasSearchCriteria;
+        const effectiveSearchActive = currentSearchApplied && currentHasSearchCriteria;
         const bboxTimeScope = resolveEventTimeScope({
           metaFilter: currentMetaFilter,
           searchActive: effectiveSearchActive,

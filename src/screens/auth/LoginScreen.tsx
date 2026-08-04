@@ -14,19 +14,23 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks';
-import { colors, spacing, typography } from '../../constants/theme';
+import { spacing, typography } from '../../constants/theme';
 import { AuthService } from '@/services/auth.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Input, Button } from '../../components/ui';
+import { Input } from '../../components/ui';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import type { SocialProvider } from '@/services/oauth.service';
+import { useAuthStore } from '@/state/auth';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn, signInWithProvider, isLoading } = useAuth();
+  const setSession = useAuthStore((state) => state.setSession);
+  const setUser = useAuthStore((state) => state.setUser);
+  const setProfile = useAuthStore((state) => state.setProfile);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -61,8 +65,16 @@ export default function LoginScreen() {
       setHasSavedSession(false);
       return false;
     }
+    setSession(res.session ?? null);
+    setUser(res.user ?? null);
+    setProfile(res.profile ?? null);
+    if (res.user && !res.profile) {
+      void AuthService.getProfileForUser(res.user).then(setProfile).catch((profileError) => {
+        console.error('Post-biometric profile hydration failed:', profileError);
+      });
+    }
     setShowForm(false);
-    router.replace('/(tabs)/map');
+    router.replace('/(tabs)' as any);
     return true;
   };
 
@@ -72,7 +84,7 @@ export default function LoginScreen() {
       Alert.alert('Erreur', response?.error || 'Connexion impossible');
       return;
     }
-    router.replace('/(tabs)/map');
+    router.replace('/(tabs)' as any);
   };
 
   const handleLogin = async () => {
@@ -94,7 +106,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace('/(tabs)/map');
+    router.replace('/(tabs)' as any);
   };
 
   useEffect(() => {
