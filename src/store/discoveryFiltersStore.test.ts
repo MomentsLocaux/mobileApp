@@ -66,7 +66,7 @@ describe('discovery filter store', () => {
     store.resetCriteria();
 
     const current = useDiscoveryFiltersStore.getState();
-    assert.equal(current.status, 'all');
+    assert.equal(current.status, 'live');
     assert.deepEqual(current.content.tags, []);
     assert.deepEqual(current.sort.home, { sortBy: 'date', sortOrder: 'asc' });
     assert.deepEqual(current.sort.map, { sortBy: 'popularity', sortOrder: 'desc' });

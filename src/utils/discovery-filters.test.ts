@@ -11,13 +11,18 @@ import {
   resetDiscoveryCriteria,
   summarize,
   toEventFilters,
+  toTimeScope,
 } from './discovery-filters';
 
 describe('discovery filter contract', () => {
   it('does not count discovery defaults as active filters', () => {
     const filters = createDefaultDiscoveryFilters();
 
+    assert.equal(filters.status, 'live');
     assert.equal(filters.place.radiusKm, DISCOVERY_DEFAULT_RADIUS_KM);
+    assert.equal(filters.place.radiusKm, 20);
+    assert.deepEqual(filters.sort.home, { sortBy: 'distance', sortOrder: 'asc' });
+    assert.equal(toTimeScope(filters), 'ongoing');
     assert.equal(activeFilterCount(filters, { surface: 'home' }), 0);
     assert.equal(summarize(filters, { surface: 'home' }), NO_ACTIVE_FILTER_LABEL);
   });
@@ -118,11 +123,14 @@ describe('discovery filter contract', () => {
     });
   });
 
-  it('does not turn the default radius into an implicit location filter', () => {
+  it('applies the default nearby radius when device coordinates are available', () => {
     const filters = createDefaultDiscoveryFilters();
 
     assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
       includePast: false,
+      centerLat: 49.61,
+      centerLon: 6.13,
+      radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
     });
 
     filters.place.radiusKm = 25;
@@ -174,7 +182,7 @@ describe('discovery filter contract', () => {
     const reset = resetDiscoveryCriteria(filters);
 
     assert.equal(activeFilterCount(reset), 0);
-    assert.equal(reset.status, 'all');
+    assert.equal(reset.status, 'live');
     assert.deepEqual(reset.content.categories, []);
     assert.deepEqual(reset.place, {
       center: null,

@@ -15,7 +15,7 @@ export const SEARCH_FETCH_LIMIT = 300;
 export const MAP_VIEWPORT_LIMIT_MAX = 1500;
 export const MAP_SHEET_LIST_LIMIT = 120;
 
-export const DEFAULT_SEARCH_RADIUS_KM = 10;
+export const DEFAULT_SEARCH_RADIUS_KM = DISCOVERY_DEFAULT_RADIUS_KM;
 export const PROXIMITY_RADIUS_KM = 40;
 
 type Coords = { latitude: number; longitude: number };
@@ -80,7 +80,6 @@ export const resolveSearchCenter = (
   }
   if (
     place.radiusKm !== undefined &&
-    place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM &&
     userCoords
   ) {
     return userCoords;

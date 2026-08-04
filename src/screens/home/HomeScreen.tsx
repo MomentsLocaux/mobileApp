@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,21 +13,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/hooks';
+import { useAuth, useLocation } from '@/hooks';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
-import { useLocationStore, useDiscoveryFiltersStore } from '@/store';
+import { useDiscoveryFiltersStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography } from '@/constants/theme';
-import { DISCOVERY_DEFAULT_RADIUS_KM, metaFilterLabel } from '@/constants/filters';
+import {
+  DEFAULT_DISCOVERY_STATUS,
+  DISCOVERY_DEFAULT_RADIUS_KM,
+  DISCOVERY_MAX_RADIUS_KM,
+  metaFilterLabel,
+} from '@/constants/filters';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import { MapResultCard } from '@/components/search/MapResultCard';
 import type { EventWithCreator } from '@/types/database';
 import { SearchBar } from '@/components/search/SearchBar';
-import { EventsService } from '@/services/events.service';
 import { NotificationsService } from '@/services/notifications.service';
 import {
   ActiveFiltersBar,
@@ -37,12 +41,13 @@ import {
 } from '@/components/filters';
 import {
   hasSearchCriteria as checkSearchCriteria,
+  getBoundsFromRadiusKm,
   resolveEffectiveRadiusKm,
   resolveSearchCenter,
   SEARCH_FETCH_LIMIT,
 } from '@/utils/search-helpers';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
-import { listEventsByBBoxForMap } from '@/utils/bbox-event-fetch';
+import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -54,6 +59,15 @@ import {
 } from '@/utils/discovery-filters';
 
 const NEARBY_CAROUSEL_LIMIT = 12;
+const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
+const HOME_CARD_STATS_LIMIT = 40;
+const HOME_FEED_CACHE_TTL_MS = 2 * 60 * 1000;
+
+let homeFeedCache: {
+  key: string;
+  events: EventWithCreator[];
+  storedAt: number;
+} | null = null;
 
 type HomeFeedEventItemProps = {
   event: EventWithCreator;
@@ -96,7 +110,12 @@ export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { canCreateNow, accent } = useAccountIdentity();
-  const { currentLocation } = useLocationStore();
+  const {
+    currentLocation,
+    isLoading: locationLoading,
+    error: locationError,
+    requestPermission: requestLocationPermission,
+  } = useLocation();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
   const status = useDiscoveryFiltersStore((s) => s.status);
@@ -106,6 +125,7 @@ export default function HomeScreen() {
   const sort = useDiscoveryFiltersStore((s) => s.sort);
   const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
   const setStatus = useDiscoveryFiltersStore((s) => s.setStatus);
+  const setRadiusKm = useDiscoveryFiltersStore((s) => s.setRadiusKm);
   const setSort = useDiscoveryFiltersStore((s) => s.setSort);
   const setSortOrder = useDiscoveryFiltersStore((s) => s.setSortOrder);
   const searchApplied = useDiscoveryFiltersStore((s) => s.searchApplied);
@@ -120,11 +140,11 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>([]);
-  const [metaFeedLoading, setMetaFeedLoading] = useState(false);
-  const [nearbyPool, setNearbyPool] = useState<EventWithCreator[]>([]);
+  const [metaFeedLoading, setMetaFeedLoading] = useState(true);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const metaFeedRequestId = useRef(0);
   const insets = useSafeAreaInsets();
 
   const firstName = profile?.display_name?.trim().split(/\s+/)[0];
@@ -156,32 +176,33 @@ export default function HomeScreen() {
   /** Search stays applied when changing status — axes are cumulative. */
   const showSearchResults = searchApplied && hasSearchCriteria;
 
+  const browseCenter = place.center ?? userLocation;
+  const browseRadiusKm = place.radiusKm ?? DISCOVERY_DEFAULT_RADIUS_KM;
+
   const filteredAndSortedEvents = useMemo(() => {
     const base = showSearchResults ? searchResults : metaFeedEvents;
     const metaFiltered = filterEventsByMetaStatus(base, status);
-    return sortEvents(metaFiltered, sortBy, userLocation, sortOrder);
-  }, [metaFeedEvents, searchResults, showSearchResults, sortBy, sortOrder, status, userLocation]);
+    return sortEvents(metaFiltered, sortBy, browseCenter, sortOrder);
+  }, [browseCenter, metaFeedEvents, searchResults, showSearchResults, sortBy, sortOrder, status]);
 
-  /** Nearby carousel: live + upcoming within default radius, distance ASC — independent of status chips. */
+  /** The carousel reuses the feed payload: no second 300-event request on Home mount. */
   const nearbyEvents = useMemo(() => {
-    if (!userLocation) return [];
-    const live = filterEventsByMetaStatus(nearbyPool, 'live');
-    const upcoming = filterEventsByMetaStatus(nearbyPool, 'upcoming');
-    const byId = new Map<string, EventWithCreator>();
-    for (const event of [...live, ...upcoming]) {
-      byId.set(event.id, event);
-    }
-    const withinRadius = filterEvents([...byId.values()], {
-      centerLat: userLocation.latitude,
-      centerLon: userLocation.longitude,
-      radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
-      includePast: false,
+    if (!browseCenter) return [];
+    const withinRadius = filterEvents(filterEventsByMetaStatus(metaFeedEvents, status), {
+      centerLat: browseCenter.latitude,
+      centerLon: browseCenter.longitude,
+      radiusKm: browseRadiusKm,
+      includePast: status === 'past',
     });
-    return sortEvents(withinRadius, 'distance', userLocation).slice(0, NEARBY_CAROUSEL_LIMIT);
-  }, [nearbyPool, userLocation]);
+    return sortEvents(withinRadius, 'distance', browseCenter).slice(0, NEARBY_CAROUSEL_LIMIT);
+  }, [browseCenter, browseRadiusKm, metaFeedEvents, status]);
 
   const filteredEventIds = useMemo(
-    () => filteredAndSortedEvents.map((event) => event.id).filter(Boolean),
+    () =>
+      filteredAndSortedEvents
+        .slice(0, HOME_CARD_STATS_LIMIT)
+        .map((event) => event.id)
+        .filter(Boolean),
     [filteredAndSortedEvents],
   );
   const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
@@ -193,58 +214,89 @@ export default function HomeScreen() {
   }, [hasSearchCriteria, searchApplied, setSearchApplied]);
 
   const effectiveRadiusKm = useMemo(
-    () => resolveEffectiveRadiusKm(place, userLocation),
+    () =>
+      resolveEffectiveRadiusKm(place, userLocation) ??
+      (userLocation
+        ? place.radiusKm && place.radiusKm > 0
+          ? place.radiusKm
+          : DISCOVERY_DEFAULT_RADIUS_KM
+        : undefined),
     [place, userLocation]
   );
 
   const searchCenter = useMemo(
-    () => resolveSearchCenter(place, userLocation),
+    () => resolveSearchCenter(place, userLocation) ?? userLocation,
     [place, userLocation]
   );
 
-  const loadMetaFeed = useCallback(async () => {
+  const loadMetaFeed = useCallback(async (forceRefresh = false) => {
+    const requestId = ++metaFeedRequestId.current;
+    if (!browseCenter) {
+      setMetaFeedEvents([]);
+      setMetaFeedLoading(false);
+      return;
+    }
+
     setMetaFeedLoading(true);
     try {
       const timeScope = resolveEventTimeScope({
         metaFilter: status,
         includePast: status === 'past',
       });
-      const data = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
-      setMetaFeedEvents(data || []);
+      const cacheKey = [
+        browseCenter.latitude.toFixed(3),
+        browseCenter.longitude.toFixed(3),
+        browseRadiusKm,
+        timeScope,
+      ].join(':');
+      if (
+        !forceRefresh &&
+        homeFeedCache?.key === cacheKey &&
+        Date.now() - homeFeedCache.storedAt < HOME_FEED_CACHE_TTL_MS
+      ) {
+        if (requestId === metaFeedRequestId.current) {
+          setMetaFeedEvents(homeFeedCache.events);
+        }
+        return;
+      }
+
+      const bounds = getBoundsFromRadiusKm(
+        browseCenter.latitude,
+        browseCenter.longitude,
+        browseRadiusKm
+      );
+      const viewport = await listMapViewportForMap(
+        { ...bounds, limit: HOME_FEED_LIMIT },
+        timeScope
+      );
+      // The RPC uses a rectangle; enforce the requested circular radius client-side.
+      const events = filterEvents(viewport.events || [], {
+        centerLat: browseCenter.latitude,
+        centerLon: browseCenter.longitude,
+        radiusKm: browseRadiusKm,
+        includePast: status === 'past',
+      });
+      homeFeedCache = { key: cacheKey, events, storedAt: Date.now() };
+      if (requestId === metaFeedRequestId.current) {
+        setMetaFeedEvents(events);
+      }
     } catch (error) {
       console.warn('[Home] loadMetaFeed failed', error);
-      setMetaFeedEvents([]);
+      if (requestId === metaFeedRequestId.current) {
+        setMetaFeedEvents([]);
+      }
     } finally {
-      setMetaFeedLoading(false);
+      if (requestId === metaFeedRequestId.current) {
+        setMetaFeedLoading(false);
+      }
     }
-  }, [status]);
-
-  const loadNearbyPool = useCallback(async () => {
-    if (!userLocation) {
-      setNearbyPool([]);
-      return;
-    }
-    try {
-      // `current` = live + upcoming so the carousel is not stuck on ongoing-only supply.
-      const data = await EventsService.listEvents({
-        limit: SEARCH_FETCH_LIMIT,
-        timeScope: 'current',
-      });
-      setNearbyPool(data || []);
-    } catch (error) {
-      console.warn('[Home] loadNearbyPool failed', error);
-      setNearbyPool([]);
-    }
-  }, [userLocation]);
+  }, [browseCenter, browseRadiusKm, status]);
 
   useEffect(() => {
     if (showSearchResults) return;
+    if (!browseCenter && (locationLoading || (!locationError && !currentLocation))) return;
     loadMetaFeed();
-  }, [loadMetaFeed, showSearchResults]);
-
-  useEffect(() => {
-    loadNearbyPool();
-  }, [loadNearbyPool]);
+  }, [browseCenter, currentLocation, loadMetaFeed, locationError, locationLoading, showSearchResults]);
 
   const loadUnreadNotifications = useCallback(async () => {
     if (!profile?.id) {
@@ -299,35 +351,34 @@ export default function HomeScreen() {
       try {
         let baseEvents: EventWithCreator[] = [];
         if (searchCenter && effectiveRadiusKm) {
-          const latDelta = effectiveRadiusKm / 111;
-          const lonDelta =
-            effectiveRadiusKm /
-            (111 * Math.max(Math.cos((searchCenter.latitude * Math.PI) / 180), 0.1));
-          const ne: [number, number] = [searchCenter.longitude + lonDelta, searchCenter.latitude + latDelta];
-          const sw: [number, number] = [searchCenter.longitude - lonDelta, searchCenter.latitude - latDelta];
-
-          const featureCollection = await listEventsByBBoxForMap(
-            { ne, sw, limit: SEARCH_FETCH_LIMIT },
+          const bounds = getBoundsFromRadiusKm(
+            searchCenter.latitude,
+            searchCenter.longitude,
+            effectiveRadiusKm
+          );
+          const viewport = await listMapViewportForMap(
+            { ...bounds, limit: SEARCH_FETCH_LIMIT },
             searchTimeScope,
             {
               mergeUpcomingForDatePreset:
                 searchTimeScope === 'current' && !!when.preset,
             }
           );
-          const ids =
-            featureCollection?.features
-              ?.map((f: any) => f?.properties?.id)
-              .filter(Boolean) || [];
-          const uniqueIds = Array.from(new Set(ids)) as string[];
-          baseEvents = uniqueIds.length ? await EventsService.getEventsByIds(uniqueIds) : [];
-        } else {
-          baseEvents = await EventsService.listEvents({
-            limit: SEARCH_FETCH_LIMIT,
-            timeScope: searchTimeScope,
-          });
+          baseEvents = viewport.events || [];
         }
 
-        const filtered = filterEvents(baseEvents, filters, null);
+        const filtered = filterEvents(
+          baseEvents,
+          searchCenter && effectiveRadiusKm
+            ? {
+                ...filters,
+                centerLat: searchCenter.latitude,
+                centerLon: searchCenter.longitude,
+                radiusKm: effectiveRadiusKm,
+              }
+            : filters,
+          null
+        );
         if (!cancelled) {
           setSearchResults(filtered);
         }
@@ -387,14 +438,13 @@ export default function HomeScreen() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadNearbyPool(),
-        showSearchResults ? Promise.resolve() : loadMetaFeed(),
-      ]);
+      if (!showSearchResults) {
+        await loadMetaFeed(true);
+      }
     } finally {
       setRefreshing(false);
     }
-  }, [loadMetaFeed, loadNearbyPool, showSearchResults]);
+  }, [loadMetaFeed, showSearchResults]);
 
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
@@ -481,11 +531,11 @@ export default function HomeScreen() {
         onClear: clearSearchCriteria,
       });
     }
-    if (status !== 'all') {
+    if (status !== DEFAULT_DISCOVERY_STATUS) {
       chips.push({
         key: 'status',
         label: metaFilterLabel(status),
-        onClear: () => setStatus('all'),
+        onClear: () => setStatus(DEFAULT_DISCOVERY_STATUS),
       });
     }
     return chips;
@@ -499,6 +549,15 @@ export default function HomeScreen() {
     subcategories,
     tags,
   ]);
+
+  const expandedRadiusKm = Math.min(
+    DISCOVERY_MAX_RADIUS_KM,
+    Math.max(40, browseRadiusKm * 2)
+  );
+  const canExpandRadius = browseRadiusKm < DISCOVERY_MAX_RADIUS_KM;
+  const openSearch = useCallback(() => {
+    router.push('/(tabs)/map' as any);
+  }, [router]);
 
   const listHeader = useMemo(
     () => (
@@ -544,7 +603,7 @@ export default function HomeScreen() {
 
         <View style={styles.nearbyContainer}>
           <View style={styles.storiesHeader}>
-            <Text style={styles.sectionTitle}>Autour de vous</Text>
+            <Text style={styles.sectionTitle}>Autour de vous · {browseRadiusKm} km</Text>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/map' as any)}
               accessibilityRole="button"
@@ -553,7 +612,7 @@ export default function HomeScreen() {
               <Text style={styles.seeAllText}>Voir la carte</Text>
             </TouchableOpacity>
           </View>
-          {!userLocation ? (
+          {!browseCenter ? (
             <View style={styles.nearbyEmpty}>
               <Text style={styles.nearbyEmptyText}>
                 Activez la localisation pour voir les événements près de vous.
@@ -600,7 +659,7 @@ export default function HomeScreen() {
             onChange={(value) => setSort('home', value, sortOrder)}
             sortOrder={sortOrder}
             onSortOrderChange={(order) => setSortOrder('home', order)}
-            hasLocation={!!userLocation}
+            hasLocation={!!browseCenter}
             mode="pill"
           />
         </View>
@@ -609,6 +668,8 @@ export default function HomeScreen() {
     [
       accent.accent,
       activeFilterChips,
+      browseCenter,
+      browseRadiusKm,
       canCreateNow,
       nearbyEvents,
       profile?.avatar_url,
@@ -621,7 +682,6 @@ export default function HomeScreen() {
       sortBy,
       sortOrder,
       status,
-      userLocation,
     ]
   );
 
@@ -700,28 +760,50 @@ export default function HomeScreen() {
           />
         }
         ListEmptyComponent={
-          searchLoading || metaFeedLoading ? (
+          (showSearchResults ? searchLoading : metaFeedLoading) ? (
             <EventCardSkeleton count={2} />
+          ) : !browseCenter ? (
+            <EmptyState
+              icon={Search}
+              title="Localisation nécessaire"
+              subtitle="Activez la localisation pour afficher les événements en cours à moins de 20 km, ou lancez une recherche par lieu."
+              ctaLabel="Activer la localisation"
+              onCtaPress={requestLocationPermission}
+              secondaryCtaLabel="Rechercher un lieu"
+              onSecondaryCtaPress={openSearch}
+            />
           ) : showSearchResults ? (
             <EmptyState
               icon={Search}
               title="Aucun événement pour ces critères"
-              subtitle="Élargissez le rayon ou ajustez le statut temporel."
-              ctaLabel="Effacer la recherche"
-              onCtaPress={clearSearchCriteria}
+              subtitle={`Aucun résultat dans un rayon de ${browseRadiusKm} km.`}
+              ctaLabel={canExpandRadius ? `Élargir à ${expandedRadiusKm} km` : 'Effacer la recherche'}
+              onCtaPress={
+                canExpandRadius
+                  ? () => setRadiusKm(expandedRadiusKm)
+                  : clearSearchCriteria
+              }
+              secondaryCtaLabel="Modifier la recherche"
+              onSecondaryCtaPress={openSearch}
             />
           ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {status === 'upcoming'
-                  ? 'Aucun événement à venir pour le moment.'
-                  : status === 'past'
-                    ? 'Aucun événement passé trouvé.'
-                    : status === 'live'
-                      ? 'Aucun événement en cours pour le moment.'
-                      : 'Aucun événement trouvé'}
-              </Text>
-            </View>
+            <EmptyState
+              icon={Search}
+              title={
+                status === 'live'
+                  ? 'Aucun événement en cours à proximité'
+                  : 'Aucun événement à proximité'
+              }
+              subtitle={`Aucun résultat dans un rayon de ${browseRadiusKm} km.`}
+              ctaLabel={canExpandRadius ? `Élargir à ${expandedRadiusKm} km` : 'Lancer une recherche'}
+              onCtaPress={
+                canExpandRadius
+                  ? () => setRadiusKm(expandedRadiusKm)
+                  : openSearch
+              }
+              secondaryCtaLabel={canExpandRadius ? 'Lancer une recherche' : undefined}
+              onSecondaryCtaPress={canExpandRadius ? openSearch : undefined}
+            />
           )
         }
       />

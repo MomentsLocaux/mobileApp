@@ -1,6 +1,8 @@
 import {
   DEFAULT_SORT_OPTION,
+  DEFAULT_DISCOVERY_STATUS,
   DISCOVERY_DEFAULT_RADIUS_KM,
+  HOME_DEFAULT_SORT_OPTION,
   NO_ACTIVE_FILTER_LABEL,
   datePresetLabel,
   metaFilterLabel,
@@ -67,7 +69,7 @@ export interface DiscoveryFilters extends DiscoveryCriteria, DiscoveryPresentati
 
 export function createDefaultDiscoveryCriteria(): DiscoveryCriteria {
   return {
-    status: 'all',
+    status: DEFAULT_DISCOVERY_STATUS,
     when: {},
     place: { center: null, radiusKm: DISCOVERY_DEFAULT_RADIUS_KM },
     content: { categories: [], subcategories: [], tags: [], query: '' },
@@ -78,7 +80,7 @@ export function createDefaultDiscoveryFilters(): DiscoveryFilters {
   return {
     ...createDefaultDiscoveryCriteria(),
     sort: {
-      home: { sortBy: DEFAULT_SORT_OPTION },
+      home: { sortBy: HOME_DEFAULT_SORT_OPTION, sortOrder: 'asc' },
       map: { sortBy: DEFAULT_SORT_OPTION },
     },
     mapMode: 'standard',
@@ -114,11 +116,8 @@ export function toEventFilters(
   filters: DiscoveryFilters,
   fallbackCoords?: DiscoveryCoords | null
 ): EventFilters {
-  const hasCustomRadius =
-    filters.place.radiusKm !== undefined &&
-    filters.place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM;
   const center =
-    filters.place.center ?? (hasCustomRadius && fallbackCoords ? fallbackCoords : null);
+    filters.place.center ?? (filters.place.radiusKm !== undefined && fallbackCoords ? fallbackCoords : null);
   const query = filters.content.query?.trim();
 
   return buildFiltersFromSearch(
@@ -170,6 +169,10 @@ function isPlaceFilterActive(place: DiscoveryPlaceFilter): boolean {
 
 function hasPlaceFilter(filters: DiscoveryFilters): boolean {
   return isPlaceFilterActive(filters.place);
+}
+
+function defaultSortForSurface(surface: DiscoverySurface): SortOption {
+  return surface === 'home' ? HOME_DEFAULT_SORT_OPTION : DEFAULT_SORT_OPTION;
 }
 
 function formatDiscoveryDate(value: string): string {
@@ -226,7 +229,7 @@ export function activeFilterCount(
 ): number {
   let count = 0;
 
-  if (filters.status !== 'all') count += 1;
+  if (filters.status !== DEFAULT_DISCOVERY_STATUS) count += 1;
   if (hasWhenFilter(filters)) count += 1;
   if (hasPlaceFilter(filters)) count += 1;
   if (filters.content.categories.length > 0) count += 1;
@@ -235,7 +238,7 @@ export function activeFilterCount(
   if (filters.content.query?.trim()) count += 1;
 
   const surface = options?.surface;
-  if (surface && filters.sort[surface].sortBy !== DEFAULT_SORT_OPTION) count += 1;
+  if (surface && filters.sort[surface].sortBy !== defaultSortForSurface(surface)) count += 1;
 
   return count;
 }
@@ -254,7 +257,7 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
     options ?? {};
   const parts: string[] = [];
 
-  if (filters.status !== 'all') parts.push(metaFilterLabel(filters.status));
+  if (filters.status !== DEFAULT_DISCOVERY_STATUS) parts.push(metaFilterLabel(filters.status));
   const whenLabel = whenSummary(filters.when);
   if (whenLabel) parts.push(whenLabel);
 
@@ -285,7 +288,7 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
     parts.push('Satellite');
   }
 
-  if (surface && filters.sort[surface].sortBy !== DEFAULT_SORT_OPTION) {
+  if (surface && filters.sort[surface].sortBy !== defaultSortForSurface(surface)) {
     parts.push(sortOptionLabel(filters.sort[surface].sortBy));
   }
 

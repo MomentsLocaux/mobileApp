@@ -10,9 +10,19 @@ type Props = {
   subtitle?: string;
   ctaLabel?: string;
   onCtaPress?: () => void;
+  secondaryCtaLabel?: string;
+  onSecondaryCtaPress?: () => void;
 };
 
-export function EmptyState({ icon: Icon, title, subtitle, ctaLabel, onCtaPress }: Props) {
+export function EmptyState({
+  icon: Icon,
+  title,
+  subtitle,
+  ctaLabel,
+  onCtaPress,
+  secondaryCtaLabel,
+  onSecondaryCtaPress,
+}: Props) {
   return (
     <MotionReveal style={styles.wrap}>
       {Icon ? (
@@ -31,6 +41,17 @@ export function EmptyState({ icon: Icon, title, subtitle, ctaLabel, onCtaPress }
           activeOpacity={0.85}
         >
           <Text style={styles.ctaText}>{ctaLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+      {secondaryCtaLabel && onSecondaryCtaPress ? (
+        <TouchableOpacity
+          style={styles.secondaryCta}
+          onPress={onSecondaryCtaPress}
+          accessibilityRole="button"
+          accessibilityLabel={secondaryCtaLabel}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.secondaryCtaText}>{secondaryCtaLabel}</Text>
         </TouchableOpacity>
       ) : null}
     </MotionReveal>
@@ -80,5 +101,15 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.primary,
     fontWeight: '800',
+  },
+  secondaryCta: {
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+  },
+  secondaryCtaText: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '700',
   },
 });

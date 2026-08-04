@@ -1,4 +1,8 @@
-import { DEFAULT_SORT_OPTION } from '@/constants/filters';
+import {
+  DEFAULT_DISCOVERY_STATUS,
+  DEFAULT_SORT_OPTION,
+  HOME_DEFAULT_SORT_OPTION,
+} from '@/constants/filters';
 import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
 import {
   summarize,
@@ -27,11 +31,11 @@ export const buildSearchSummary = (
   return summarize(
     {
       ...filters,
-      status: 'all',
+      status: DEFAULT_DISCOVERY_STATUS,
       sort: surface
         ? filters.sort
         : {
-            home: { sortBy: DEFAULT_SORT_OPTION },
+            home: { sortBy: HOME_DEFAULT_SORT_OPTION, sortOrder: 'asc' },
             map: { sortBy: DEFAULT_SORT_OPTION },
           },
     },
