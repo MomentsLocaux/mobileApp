@@ -58,6 +58,27 @@ export class AuthService {
     ]);
   }
 
+  /**
+   * Starts non-blocking work that is useful after authentication but must not
+   * keep the user on the login screen once Supabase returned a valid session.
+   */
+  private static startPostSignInHydration(session: Session, user: User, startedAt: number) {
+    void Promise.all([
+      this.getProfileForUser(user),
+      this.clearAutoRestoreBlock(),
+      this.saveSession(session),
+    ])
+      .then(() => {
+        this.logPerf('post-sign-in hydration', startedAt);
+      })
+      .catch((error) => {
+        console.error('Post-sign-in hydration failed:', error);
+      })
+      .finally(() => {
+        this.explicitSignInInProgress = false;
+      });
+  }
+
   static async clearSavedSession() {
     await Promise.all([
       SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
@@ -153,12 +174,12 @@ export class AuthService {
     if (!session || !user) {
       return { success: false, error: 'Session invalide' };
     }
-    const profile = await this.getProfileForUser(user);
+    this.startPostSignInHydration(session, user, Date.now());
     return {
       success: true,
       session,
       user,
-      profile: this.attachEmail(profile, user.email),
+      profile: null,
       biometricUsed: true,
     };
   }
@@ -214,17 +235,13 @@ export class AuthService {
     }
   }
 
-  /** Persists session tokens + ensures profile after any successful OAuth sign-in. */
+  /** Returns as soon as OAuth yielded a session; profile/persistence continue off-screen. */
   static async finalizeOAuthSession(session: Session): Promise<AuthResponse> {
     const user = session.user;
     if (!user) return { success: false, error: 'No user returned' };
 
-    const [profile] = await Promise.all([
-      this.getProfileForUser(user),
-      this.clearAutoRestoreBlock(),
-      this.saveSession(session),
-    ]);
-    return { success: true, session, user, profile };
+    this.startPostSignInHydration(session, user, Date.now());
+    return { success: true, session, user, profile: null };
   }
 
   static async signInWithProvider(provider: SocialProvider): Promise<AuthResponse> {
@@ -236,15 +253,17 @@ export class AuthService {
           ? await signInWithApple()
           : await signInWithOAuthProvider(provider);
       const response = await this.finalizeOAuthSession(session);
-      this.logPerf(`signInWithProvider:${provider}`, startedAt);
+      this.logPerf(`signInWithProvider:${provider}:session-ready`, startedAt);
+      if (!response.success) {
+        this.explicitSignInInProgress = false;
+      }
       return response;
     } catch (error) {
+      this.explicitSignInInProgress = false;
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Connexion impossible',
       };
-    } finally {
-      this.explicitSignInInProgress = false;
     }
   }
 
@@ -255,23 +274,19 @@ export class AuthService {
       const tokenStartedAt = Date.now();
       const { session, user } = await dataProvider.signIn(email, password);
       this.logPerf('signInWithPassword', tokenStartedAt);
-      if (!user) return { success: false, error: 'No user returned' };
-      const hydrationStartedAt = Date.now();
-      const [profile] = await Promise.all([
-        this.getProfileForUser(user),
-        this.clearAutoRestoreBlock(),
-        this.saveSession(session),
-      ]);
-      this.logPerf('profile+session-persistence', hydrationStartedAt);
-      this.logPerf('signIn-total', startedAt);
-      return { success: true, session, user, profile };
+      if (!session || !user) {
+        this.explicitSignInInProgress = false;
+        return { success: false, error: 'No session returned' };
+      }
+      this.startPostSignInHydration(session, user, Date.now());
+      this.logPerf('signIn:session-ready', startedAt);
+      return { success: true, session, user, profile: null };
     } catch (error) {
+      this.explicitSignInInProgress = false;
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
-    } finally {
-      this.explicitSignInInProgress = false;
     }
   }
 

@@ -35,24 +35,29 @@ export function useAuth() {
       setLoading(true);
       setError(null);
       const response = await AuthService.signIn(email, password);
-      setLoading(false);
 
       if (!response.success) {
+        setLoading(false);
         setError(response.error || 'Erreur connexion');
         return response;
       }
 
       setSession(response.session || null);
       setUser(response.user || null);
+      setProfile(response.profile || null);
+      setLoading(false);
 
-      if (response.user) {
-        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
-        setProfile(profile);
+      if (response.user && !response.profile) {
+        void AuthService.getProfileForUser(response.user)
+          .then(setProfile)
+          .catch((profileError) => {
+            console.error('Post-login profile hydration failed:', profileError);
+          });
       }
 
       return response;
     },
-    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+    [setError, setLoading, setSession, setUser, setProfile],
   );
 
   const signInWithProvider = useCallback(
@@ -60,24 +65,29 @@ export function useAuth() {
       setLoading(true);
       setError(null);
       const response = await AuthService.signInWithProvider(provider);
-      setLoading(false);
 
       if (!response.success) {
+        setLoading(false);
         setError(response.error || 'Connexion impossible');
         return response;
       }
 
       setSession(response.session || null);
       setUser(response.user || null);
+      setProfile(response.profile || null);
+      setLoading(false);
 
-      if (response.user) {
-        const profile = response.profile || (await fetchProfile(response.user.id, response.user.email));
-        setProfile(profile);
+      if (response.user && !response.profile) {
+        void AuthService.getProfileForUser(response.user)
+          .then(setProfile)
+          .catch((profileError) => {
+            console.error('Post-login profile hydration failed:', profileError);
+          });
       }
 
       return response;
     },
-    [fetchProfile, setError, setLoading, setSession, setUser, setProfile],
+    [setError, setLoading, setSession, setUser, setProfile],
   );
 
   const signUp = useCallback(

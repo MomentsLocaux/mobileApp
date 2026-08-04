@@ -191,7 +191,7 @@ export default function TabsLayout() {
     );
   };
 
-  if (isLoading || (isAuthenticated && !profile)) {
+  if (isLoading) {
     return (
       <View style={styles.container}>
         <IdentityAppBackground />
@@ -207,7 +207,7 @@ export default function TabsLayout() {
   return (
     <>
       <Tabs
-        initialRouteName="map"
+        initialRouteName="index"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: accent.accent,

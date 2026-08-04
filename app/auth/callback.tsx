@@ -42,7 +42,16 @@ export default function AuthCallbackScreen() {
         setSession(response.session ?? null);
         setUser(response.user);
         setProfile(response.profile ?? null);
-        router.replace('/(tabs)/map');
+        if (!response.profile) {
+          void AuthService.getProfileForUser(response.user)
+            .then((profile) => {
+              if (mounted) setProfile(profile);
+            })
+            .catch((profileError) => {
+              console.error('Post-OAuth profile hydration failed:', profileError);
+            });
+        }
+        router.replace('/(tabs)' as any);
       } catch {
         if (mounted) router.replace('/auth/login');
       }

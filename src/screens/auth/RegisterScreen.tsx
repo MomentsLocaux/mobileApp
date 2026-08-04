@@ -77,7 +77,7 @@ export default function RegisterScreen() {
       Alert.alert('Erreur', response?.error || 'Connexion impossible');
       return;
     }
-    router.replace('/(tabs)/map');
+    router.replace('/(tabs)' as any);
   };
 
   const handleRegister = async () => {

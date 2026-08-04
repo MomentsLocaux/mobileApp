@@ -112,7 +112,7 @@ export default function ResetPasswordScreen() {
     }
 
     Alert.alert('Mot de passe mis à jour', 'Vous pouvez continuer dans l’application.', [
-      { text: 'OK', onPress: () => router.replace('/(tabs)/map') },
+      { text: 'OK', onPress: () => router.replace('/(tabs)' as any) },
     ]);
   };
 
