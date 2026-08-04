@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Heart, MapPin, ThumbsDown } from 'lucide-react-native';
+import { Heart, MapPin, PauseCircle, ThumbsDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -44,6 +44,7 @@ type Props = {
   categories: Category[];
   disabled?: boolean;
   onDecision: (decision: ProposalDecision) => void;
+  onPause: () => void;
   onOpenDetails: (eventId: string) => void;
 };
 
@@ -58,6 +59,7 @@ export function ProposalSwipeDeck({
   categories,
   disabled = false,
   onDecision,
+  onPause,
   onOpenDetails,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -145,8 +147,20 @@ export function ProposalSwipeDeck({
           <Text style={styles.eyebrow}>TES PROPOSITIONS</Text>
           <Text style={styles.headerTitle}>À toi de jouer</Text>
         </View>
-        <View style={styles.counterPill}>
-          <Text style={styles.counterText}>{Math.min(currentIndex + 1, total)} / {total}</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.pauseButton}
+            onPress={onPause}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel="Arrêter et reprendre plus tard"
+          >
+            <PauseCircle size={17} color={colors.brand.secondary} />
+            <Text style={styles.pauseText}>Arrêter</Text>
+          </TouchableOpacity>
+          <View style={styles.counterPill}>
+            <Text style={styles.counterText}>{Math.min(currentIndex + 1, total)} / {total}</Text>
+          </View>
         </View>
       </View>
 
@@ -274,6 +288,9 @@ const styles = StyleSheet.create({
   header: { width: '100%', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eyebrow: { ...typography.label, fontSize: 11, letterSpacing: 1.3, color: colors.brand.secondary },
   headerTitle: { ...typography.h4, color: colors.brand.text },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  pauseButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: '#365867' },
+  pauseText: { ...typography.label, fontSize: 11, color: colors.brand.secondary },
   counterPill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full, backgroundColor: colors.brand.surface },
   counterText: { ...typography.label, color: colors.brand.text },
   deck: { width: '100%', alignItems: 'center', justifyContent: 'center' },

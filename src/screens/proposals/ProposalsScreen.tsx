@@ -42,6 +42,8 @@ import { haptics } from '@/utils/haptics';
 import { fetchProposalPool } from './proposal-pool';
 import { ProposalSwipeDeck } from './ProposalSwipeDeck';
 import { ProposalWizard } from './ProposalWizard';
+import { ProposalHistory } from './ProposalHistory';
+import { ProposalSessionEntry } from './ProposalSessionEntry';
 import type { ProposalDecision, ProposalPreferences } from './proposal.types';
 
 const MIN_LOADING_TRANSITION_MS = 550;
@@ -62,11 +64,15 @@ export default function ProposalsScreen() {
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   const phase = useProposalsStore((state) => state.phase);
+  const hasHydrated = useProposalsStore((state) => state.hasHydrated);
   const wizardStep = useProposalsStore((state) => state.wizardStep);
   const preferences = useProposalsStore((state) => state.preferences);
   const pool = useProposalsStore((state) => state.pool);
   const currentIndex = useProposalsStore((state) => state.currentIndex);
   const likedEvents = useProposalsStore((state) => state.likedEvents);
+  const sessions = useProposalsStore((state) => state.sessions);
+  const activeSessionId = useProposalsStore((state) => state.activeSessionId);
+  const selectedSessionId = useProposalsStore((state) => state.selectedSessionId);
   const setWizardStep = useProposalsStore((state) => state.setWizardStep);
   const toggleCategory = useProposalsStore((state) => state.toggleCategory);
   const setCategories = useProposalsStore((state) => state.setCategories);
@@ -76,11 +82,19 @@ export default function ProposalsScreen() {
   const beginLoading = useProposalsStore((state) => state.beginLoading);
   const setPool = useProposalsStore((state) => state.setPool);
   const applyDecision = useProposalsStore((state) => state.applyDecision);
+  const reviseDecision = useProposalsStore((state) => state.reviseDecision);
+  const pauseSession = useProposalsStore((state) => state.pauseSession);
+  const resumeSession = useProposalsStore((state) => state.resumeSession);
+  const startNewSession = useProposalsStore((state) => state.startNewSession);
+  const showEntry = useProposalsStore((state) => state.showEntry);
+  const showHistory = useProposalsStore((state) => state.showHistory);
+  const selectHistorySession = useProposalsStore((state) => state.selectHistorySession);
   const editPreferences = useProposalsStore((state) => state.editPreferences);
 
   const [wantsCurrentLocation, setWantsCurrentLocation] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processingDecision, setProcessingDecision] = useState(false);
+  const [historyBusyEventId, setHistoryBusyEventId] = useState<string | null>(null);
   const [cardRevision, setCardRevision] = useState(0);
   const requestIdRef = useRef(0);
 
@@ -125,6 +139,9 @@ export default function ProposalsScreen() {
 
     const exclusions = new Set(likedEventIds);
     favoriteEvents.forEach((event) => exclusions.add(event.id));
+    current.sessions.forEach((proposalSession) => {
+      proposalSession.decisions.forEach((item) => exclusions.add(item.event.id));
+    });
     if (!options?.resetSession) current.seenIds.forEach((id) => exclusions.add(id));
 
     try {
@@ -202,9 +219,67 @@ export default function ProposalsScreen() {
   const currentEvent = pool[currentIndex];
   const nextEvent = pool[currentIndex + 1];
 
+  const handleReviseDecision = useCallback(async (
+    sessionId: string,
+    eventId: string,
+    nextDecision: ProposalDecision,
+  ) => {
+    const proposalSession = useProposalsStore.getState().sessions.find((item) => item.id === sessionId);
+    const existing = proposalSession?.decisions.find((item) => item.event.id === eventId);
+    if (!existing || existing.decision === nextDecision || historyBusyEventId) return;
+
+    const userId = profile?.id || user?.id || session?.user?.id;
+    if (!userId) {
+      Alert.alert('Connexion requise', 'Reconnecte-toi pour modifier ce choix.');
+      return;
+    }
+
+    setHistoryBusyEventId(eventId);
+    try {
+      const event = existing.event;
+      const before = {
+        isLiked: useLikesStore.getState().isLiked(event.id),
+        isFavorite: useFavoritesStore.getState().isFavorite(event.id),
+      };
+      let after = before;
+      if (nextDecision === 'like') {
+        after = await ensureEventHearted(userId, event, before);
+      } else if (before.isLiked || before.isFavorite) {
+        after = await toggleEventHeart(userId, event, before);
+      }
+      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+      reviseDecision(sessionId, eventId, nextDecision);
+      haptics.selection();
+    } catch (error) {
+      console.warn('[Proposals] history revision failed', error);
+      Alert.alert('Choix non modifié', 'La synchronisation du cœur a échoué. Réessaie dans un instant.');
+    } finally {
+      setHistoryBusyEventId(null);
+    }
+  }, [historyBusyEventId, profile?.id, reviseDecision, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
+
+  if (!hasHydrated) {
+    return (
+      <GestureHandlerRootView style={styles.root}>
+        <AppBackground />
+        <ProposalLoadingState title="Nous retrouvons tes propositions" subtitle="Ta progression est en cours de restauration." />
+      </GestureHandlerRootView>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <AppBackground />
+      {phase === 'entry' ? (
+        <ProposalSessionEntry
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onResume={resumeSession}
+          onStartNew={startNewSession}
+          onHistory={() => showHistory()}
+        />
+      ) : null}
+
       {phase === 'wizard' ? (
         <ProposalWizard
           step={wizardStep}
@@ -236,6 +311,7 @@ export default function ProposalsScreen() {
           categories={categories}
           disabled={processingDecision}
           onDecision={(decision) => void handleDecision(decision)}
+          onPause={pauseSession}
           onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
         />
       ) : null}
@@ -259,6 +335,20 @@ export default function ProposalsScreen() {
           onMore={() => void generatePool({ resetSession: false })}
           onEdit={editPreferences}
           onFavorites={() => router.push('/(tabs)/favorites' as any)}
+          onHistory={() => showHistory()}
+          onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
+        />
+      ) : null}
+
+      {phase === 'history' ? (
+        <ProposalHistory
+          sessions={sessions}
+          selectedSessionId={selectedSessionId}
+          busyEventId={historyBusyEventId}
+          onBack={showEntry}
+          onSelectSession={selectHistorySession}
+          onResume={resumeSession}
+          onRevise={(sessionId, eventId, decision) => void handleReviseDecision(sessionId, eventId, decision)}
           onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
         />
       ) : null}
@@ -266,7 +356,13 @@ export default function ProposalsScreen() {
   );
 }
 
-function ProposalLoadingState() {
+function ProposalLoadingState({
+  title = 'On prépare tes propositions',
+  subtitle = 'Nous recherchons les meilleurs événements autour de toi.',
+}: {
+  title?: string;
+  subtitle?: string;
+}) {
   const rotation = useSharedValue(0);
   useEffect(() => {
     rotation.value = withRepeat(withTiming(1, { duration: 1300, easing: Easing.linear }), -1, false);
@@ -283,8 +379,8 @@ function ProposalLoadingState() {
         </Animated.View>
       </View>
       <Text style={styles.stateEyebrow}>ROULEMENT DE TAMBOUR…</Text>
-      <Text style={styles.stateTitle}>On prépare tes propositions</Text>
-      <Text style={styles.stateSubtitle}>Nous recherchons les meilleurs événements autour de toi.</Text>
+      <Text style={styles.stateTitle}>{title}</Text>
+      <Text style={styles.stateSubtitle}>{subtitle}</Text>
       <View style={styles.loadingDots}>
         <View style={styles.loadingDot} />
         <View style={[styles.loadingDot, styles.loadingDotMuted]} />
@@ -338,12 +434,14 @@ function ProposalSummary({
   onMore,
   onEdit,
   onFavorites,
+  onHistory,
   onOpenDetails,
 }: {
   likedEvents: EventWithCreator[];
   onMore: () => void;
   onEdit: () => void;
   onFavorites: () => void;
+  onHistory: () => void;
   onOpenDetails: (eventId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -448,6 +546,10 @@ function ProposalSummary({
         <TouchableOpacity style={styles.textAction} onPress={onFavorites}>
           <Heart size={17} color={colors.brand.secondary} />
           <Text style={styles.textActionText}>Voir mes favoris</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.textAction} onPress={onHistory}>
+          <CalendarDays size={17} color={colors.brand.secondary} />
+          <Text style={styles.textActionText}>Voir mon historique</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
