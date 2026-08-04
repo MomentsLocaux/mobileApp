@@ -8,8 +8,8 @@ import {
   type DatePreset,
   type DiscoveryStatus,
   type MapMode,
-} from '@/constants/filters';
-import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
+} from '../constants/filters';
+import type { EventFilters, SortOption, SortOrder } from '../types/filters';
 import { resolveEventTimeScope, type EventTimeScope } from './event-time-scope';
 import { buildFiltersFromSearch } from './search-filters';
 
@@ -45,23 +45,34 @@ export interface DiscoverySortState {
   sortOrder?: SortOrder;
 }
 
-export interface DiscoveryFilters {
+export interface DiscoveryCriteria {
   status: DiscoveryStatus;
   when: DiscoveryWhenFilter;
   place: DiscoveryPlaceFilter;
   content: DiscoveryContentFilter;
+}
+
+export interface DiscoveryPresentation {
   /** Sort is surface-scoped: the map list and the home feed keep independent choices. */
   sort: Record<DiscoverySurface, DiscoverySortState>;
   /** Presentation-only, excluded from the active filter count. */
   mapMode: MapMode;
 }
 
-export function createDefaultDiscoveryFilters(): DiscoveryFilters {
+export interface DiscoveryFilters extends DiscoveryCriteria, DiscoveryPresentation {}
+
+export function createDefaultDiscoveryCriteria(): DiscoveryCriteria {
   return {
     status: 'all',
     when: {},
     place: { center: null, radiusKm: DISCOVERY_DEFAULT_RADIUS_KM },
     content: { categories: [], subcategories: [], tags: [], query: '' },
+  };
+}
+
+export function createDefaultDiscoveryFilters(): DiscoveryFilters {
+  return {
+    ...createDefaultDiscoveryCriteria(),
     sort: {
       home: { sortBy: DEFAULT_SORT_OPTION },
       map: { sortBy: DEFAULT_SORT_OPTION },
@@ -136,8 +147,59 @@ function hasWhenFilter(filters: DiscoveryFilters): boolean {
   return Boolean(filters.when.preset || filters.when.startDate || filters.when.endDate);
 }
 
+function isPlaceFilterActive(place: DiscoveryPlaceFilter): boolean {
+  const { center, label, radiusKm } = place;
+  return (
+    Boolean(center) ||
+    Boolean(label?.trim()) ||
+    (radiusKm !== undefined && radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM)
+  );
+}
+
 function hasPlaceFilter(filters: DiscoveryFilters): boolean {
-  return Boolean(filters.place.center) || filters.place.radiusKm !== undefined;
+  return isPlaceFilterActive(filters.place);
+}
+
+function formatDiscoveryDate(value: string): string {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}`;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+}
+
+function whenSummary(when: DiscoveryWhenFilter): string | null {
+  if (when.preset) return datePresetLabel(when.preset);
+  if (when.startDate && when.endDate) {
+    return `${formatDiscoveryDate(when.startDate)}–${formatDiscoveryDate(when.endDate)}`;
+  }
+  if (when.startDate) return `Dès le ${formatDiscoveryDate(when.startDate)}`;
+  if (when.endDate) return `Jusqu’au ${formatDiscoveryDate(when.endDate)}`;
+  return null;
+}
+
+function placeSummary(place: DiscoveryPlaceFilter): string | null {
+  if (!isPlaceFilterActive(place)) return null;
+
+  const label = place.label?.trim() || (place.center ? 'Zone choisie' : null);
+  const hasCustomRadius =
+    place.radiusKm !== undefined && place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM;
+
+  if (label && place.radiusKm !== undefined) {
+    return `${label} · ${Math.round(place.radiusKm)} km`;
+  }
+  if (label) return label;
+  if (hasCustomRadius) return `${Math.round(place.radiusKm as number)} km`;
+  return null;
+}
+
+/** Clears user criteria while preserving surface-specific presentation choices. */
+export function resetDiscoveryCriteria(filters: DiscoveryFilters): DiscoveryFilters {
+  return {
+    ...filters,
+    ...createDefaultDiscoveryCriteria(),
+  };
 }
 
 /**
@@ -180,7 +242,14 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
   const parts: string[] = [];
 
   if (filters.status !== 'all') parts.push(metaFilterLabel(filters.status));
-  if (filters.when.preset) parts.push(datePresetLabel(filters.when.preset));
+  const whenLabel = whenSummary(filters.when);
+  if (whenLabel) parts.push(whenLabel);
+
+  const placeLabel = placeSummary(filters.place);
+  if (placeLabel) parts.push(placeLabel);
+
+  const query = filters.content.query?.trim();
+  if (query) parts.push(`« ${query} »`);
 
   const { categories, subcategories, tags } = filters.content;
   if (categories.length === 1) {

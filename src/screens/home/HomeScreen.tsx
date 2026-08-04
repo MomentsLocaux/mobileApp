@@ -21,7 +21,7 @@ import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { DISCOVERY_DEFAULT_RADIUS_KM, metaFilterLabel } from '@/constants/filters';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import { MapResultCard } from '@/components/search/MapResultCard';
@@ -334,6 +334,7 @@ export default function HomeScreen() {
     searchCenter,
     searchState.searchRevision,
     searchState.when.includePast,
+    searchState.when.preset,
   ]);
 
   useEffect(() => {

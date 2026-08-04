@@ -3,6 +3,7 @@ import type { DatePreset, DiscoveryStatus, MapMode } from '@/constants/filters';
 import type { SortOption, SortOrder } from '@/types/filters';
 import {
   createDefaultDiscoveryFilters,
+  resetDiscoveryCriteria,
   type DiscoveryContentFilter,
   type DiscoveryFilters,
   type DiscoveryPlaceFilter,
@@ -11,8 +12,8 @@ import {
 } from '@/utils/discovery-filters';
 
 /**
- * Single source of truth for discovery filters (home, map, search).
- * Phase 0 ships the state container only; screens are wired in a later phase.
+ * Target source of truth for discovery filters (home, map, search).
+ * Legacy search state is migrated surface by surface.
  */
 export interface DiscoveryFiltersState extends DiscoveryFilters {
   setStatus: (status: DiscoveryStatus) => void;
@@ -25,6 +26,7 @@ export interface DiscoveryFiltersState extends DiscoveryFilters {
   setSort: (surface: DiscoverySurface, sortBy: SortOption, sortOrder?: SortOrder) => void;
   setSortOrder: (surface: DiscoverySurface, sortOrder?: SortOrder) => void;
   setMapMode: (mapMode: MapMode) => void;
+  resetCriteria: () => void;
   reset: () => void;
 }
 
@@ -62,6 +64,8 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set) => (
     })),
 
   setMapMode: (mapMode) => set({ mapMode }),
+
+  resetCriteria: () => set((state) => resetDiscoveryCriteria(state)),
 
   reset: () => set(createDefaultDiscoveryFilters()),
 }));
