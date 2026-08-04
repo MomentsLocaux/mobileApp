@@ -58,7 +58,7 @@ export function filterProposalPool({
 
   return events
     .filter((event) => {
-      if (!event?.id || excluded.has(event.id) || event.is_liked) return false;
+      if (!event?.id || excluded.has(event.id) || event.is_liked || event.is_favorited) return false;
       if (event.status !== 'published' || event.visibility !== 'public') return false;
       if (!Number.isFinite(event.latitude) || !Number.isFinite(event.longitude)) return false;
       if (selectedCategories.size > 0 && !selectedCategories.has(event.category || '')) return false;

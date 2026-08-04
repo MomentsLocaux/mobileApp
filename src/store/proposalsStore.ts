@@ -29,6 +29,7 @@ interface ProposalsState {
   seenIds: string[];
   setWizardStep: (step: 0 | 1 | 2) => void;
   toggleCategory: (categoryId: string) => void;
+  setCategories: (categoryIds: string[]) => void;
   setRadius: (radiusKm: ProposalRadiusKm) => void;
   setAnchor: (anchor: ProposalAnchor) => void;
   setDateWindow: (dateWindow: ProposalDateWindow) => void;
@@ -61,6 +62,13 @@ export const useProposalsStore = create<ProposalsState>()(
             categoryIds: state.preferences.categoryIds.includes(categoryId)
               ? state.preferences.categoryIds.filter((id) => id !== categoryId)
               : [...state.preferences.categoryIds, categoryId],
+          },
+        })),
+      setCategories: (categoryIds) =>
+        set((state) => ({
+          preferences: {
+            ...state.preferences,
+            categoryIds: unique(categoryIds),
           },
         })),
       setRadius: (radiusKm) =>
@@ -121,4 +129,3 @@ export const useProposalsStore = create<ProposalsState>()(
     },
   ),
 );
-

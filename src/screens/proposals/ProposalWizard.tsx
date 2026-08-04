@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { CalendarDays, Check, LocateFixed, MapPin, Search, Sparkles } from 'lucide-react-native';
+import { CalendarDays, Check, CheckCheck, LocateFixed, MapPin, Search, Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import type { Category } from '@/store/taxonomyStore';
@@ -22,6 +22,7 @@ import type {
   ProposalPreferences,
   ProposalRadiusKm,
 } from './proposal.types';
+import { getProposalCategoryHint } from './proposal-category-hints';
 
 type Props = {
   step: 0 | 1 | 2;
@@ -32,6 +33,7 @@ type Props = {
   onUseCurrentLocation: () => void;
   onStepChange: (step: 0 | 1 | 2) => void;
   onToggleCategory: (categoryId: string) => void;
+  onSelectAllCategories: (categoryIds: string[]) => void;
   onRadiusChange: (radius: ProposalRadiusKm) => void;
   onAnchorChange: (anchor: ProposalAnchor) => void;
   onDateWindowChange: (window: ProposalDateWindow) => void;
@@ -61,6 +63,7 @@ export function ProposalWizard({
   onUseCurrentLocation,
   onStepChange,
   onToggleCategory,
+  onSelectAllCategories,
   onRadiusChange,
   onAnchorChange,
   onDateWindowChange,
@@ -100,6 +103,8 @@ export function ProposalWizard({
   const canContinue = step !== 1 || Boolean(preferences.anchor);
   const actionLabel = step === 2 ? 'Générer mes propositions' : 'Continuer';
   const selectedCategoryCount = preferences.categoryIds.length;
+  const allCategoriesSelected =
+    categories.length > 0 && categories.every((category) => preferences.categoryIds.includes(category.id));
   const categorySubtitle = useMemo(
     () => selectedCategoryCount === 0
       ? 'Toutes les catégories seront explorées'
@@ -150,7 +155,27 @@ export function ProposalWizard({
 
         {step === 0 ? (
           <View style={styles.section}>
-            <Text style={styles.selectionHint}>{categorySubtitle}</Text>
+            <View style={styles.categoryHeaderRow}>
+              <Text style={styles.selectionHint}>{categorySubtitle}</Text>
+              <TouchableOpacity
+                style={[styles.selectAllButton, allCategoriesSelected && styles.selectAllButtonActive]}
+                onPress={() => {
+                  haptics.selection();
+                  onSelectAllCategories(
+                    allCategoriesSelected ? [] : categories.map((category) => category.id),
+                  );
+                }}
+                disabled={categories.length === 0}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: allCategoriesSelected, disabled: categories.length === 0 }}
+                accessibilityLabel={allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+              >
+                <CheckCheck size={16} color={allCategoriesSelected ? colors.brand.primary : colors.brand.secondary} />
+                <Text style={[styles.selectAllText, allCategoriesSelected && styles.selectAllTextActive]}>
+                  {allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.chipGrid}>
               {categories.map((category) => {
                 const active = preferences.categoryIds.includes(category.id);
@@ -165,16 +190,25 @@ export function ProposalWizard({
                       haptics.selection();
                       onToggleCategory(category.id);
                     }}
-                    style={[
-                      styles.categoryChip,
-                      active && styles.categoryChipActive,
-                      category.color ? { borderColor: category.color } : null,
-                    ]}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
                   >
-                    <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
-                      {category.icon ? `${category.icon} ` : ''}{category.label}
-                    </Text>
-                    {active ? <Check size={15} color={colors.brand.primary} strokeWidth={3} /> : null}
+                    <View style={styles.categoryCopy}>
+                      <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                        {category.label}
+                      </Text>
+                      <Text style={[styles.categoryHint, active && styles.categoryHintActive]}>
+                        {getProposalCategoryHint(category.slug)}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.categoryCheck,
+                        active && styles.categoryCheckActive,
+                        !active && category.color ? { borderColor: category.color } : null,
+                      ]}
+                    >
+                      {active ? <Check size={15} color={colors.brand.primary} strokeWidth={3} /> : null}
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -354,12 +388,22 @@ const styles = StyleSheet.create({
   title: { ...typography.h2, color: colors.brand.text, maxWidth: 420 },
   subtitle: { ...typography.body, color: colors.brand.textSecondary, marginTop: spacing.sm, maxWidth: 500 },
   section: { marginTop: spacing.xl },
-  selectionHint: { ...typography.bodySmall, color: colors.brand.textSecondary, marginBottom: spacing.md },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  categoryChip: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  categoryHeaderRow: { gap: spacing.sm, marginBottom: spacing.md },
+  selectionHint: { ...typography.bodySmall, color: colors.brand.textSecondary },
+  selectAllButton: { minHeight: 42, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1, borderColor: 'rgba(43, 191, 227, 0.45)', backgroundColor: 'rgba(43, 191, 227, 0.08)' },
+  selectAllButtonActive: { backgroundColor: colors.brand.secondary, borderColor: colors.brand.secondary },
+  selectAllText: { ...typography.label, color: colors.brand.secondary },
+  selectAllTextActive: { color: colors.brand.primary },
+  chipGrid: { gap: spacing.sm },
+  categoryChip: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
   categoryChipActive: { backgroundColor: colors.brand.secondary, borderColor: colors.brand.secondary },
-  categoryLabel: { ...typography.label, color: colors.brand.text },
+  categoryCopy: { flex: 1 },
+  categoryLabel: { ...typography.h6, color: colors.brand.text },
   categoryLabelActive: { color: colors.brand.primary },
+  categoryHint: { ...typography.bodySmall, color: colors.brand.textSecondary, marginTop: 3, lineHeight: 18 },
+  categoryHintActive: { color: '#17323a' },
+  categoryCheck: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#475569' },
+  categoryCheckActive: { borderColor: colors.brand.primary, backgroundColor: 'rgba(15, 23, 25, 0.08)' },
   infoCard: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.brand.surface },
   infoText: { ...typography.bodySmall, color: colors.brand.textSecondary },
   locationButton: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },

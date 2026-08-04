@@ -49,9 +49,19 @@ test('pool enforces publication, categories, radius, dates and exclusions', () =
   });
   const excluded = event({ id: 'excluded' });
   const alreadyLiked = event({ id: 'liked', is_liked: true });
+  const alreadyFavorited = event({ id: 'favorited', is_favorited: true });
 
   const result = filterProposalPool({
-    events: [outsideRadius, wrongCategory, unpublished, outsideWindow, excluded, alreadyLiked, valid],
+    events: [
+      outsideRadius,
+      wrongCategory,
+      unpublished,
+      outsideWindow,
+      excluded,
+      alreadyLiked,
+      alreadyFavorited,
+      valid,
+    ],
     preferences,
     categoryValues: ['music-id', 'music'],
     excludedIds: ['excluded'],

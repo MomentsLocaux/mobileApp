@@ -33,6 +33,34 @@ export async function toggleEventHeart(
   return { isLiked, isFavorite };
 }
 
+async function ensureToggleOn(toggle: () => Promise<boolean>): Promise<boolean> {
+  let active = await toggle();
+
+  // The RPC is a toggle. If local state was stale and the first call removed an
+  // existing server-side value, a second call restores the intended final state.
+  if (!active) active = await toggle();
+
+  return active;
+}
+
+export async function ensureEventHearted(
+  userId: string,
+  event: EventWithCreator,
+  state: { isLiked: boolean; isFavorite: boolean }
+): Promise<{ isLiked: boolean; isFavorite: boolean }> {
+  let isLiked = state.isLiked;
+  let isFavorite = state.isFavorite;
+
+  if (!isLiked) {
+    isLiked = await ensureToggleOn(() => SocialService.like(userId, event.id));
+  }
+  if (!isFavorite) {
+    isFavorite = await ensureToggleOn(() => SocialService.toggleFavorite(userId, event.id));
+  }
+
+  return { isLiked, isFavorite };
+}
+
 export function syncHeartStores(
   event: EventWithCreator,
   before: { isLiked: boolean; isFavorite: boolean },

@@ -30,7 +30,6 @@ import {
 } from 'lucide-react-native';
 import { AppBackground } from '@/components/ui';
 import { useAuth, useLocation } from '@/hooks';
-import { SocialService } from '@/services/social.service';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { useProposalsStore } from '@/store/proposalsStore';
@@ -38,6 +37,7 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventWithCreator } from '@/types/database';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { getEventImageUrls, getHumanizedDate } from '@/utils/event-card-display';
+import { ensureEventHearted, syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { haptics } from '@/utils/haptics';
 import { fetchProposalPool } from './proposal-pool';
 import { ProposalSwipeDeck } from './ProposalSwipeDeck';
@@ -58,6 +58,8 @@ export default function ProposalsScreen() {
   const loadTaxonomy = useTaxonomyStore((state) => state.load);
   const likedEventIds = useLikesStore((state) => state.likedEventIds);
   const toggleLike = useLikesStore((state) => state.toggleLike);
+  const favoriteEvents = useFavoritesStore((state) => state.favorites);
+  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   const phase = useProposalsStore((state) => state.phase);
   const wizardStep = useProposalsStore((state) => state.wizardStep);
@@ -67,6 +69,7 @@ export default function ProposalsScreen() {
   const likedEvents = useProposalsStore((state) => state.likedEvents);
   const setWizardStep = useProposalsStore((state) => state.setWizardStep);
   const toggleCategory = useProposalsStore((state) => state.toggleCategory);
+  const setCategories = useProposalsStore((state) => state.setCategories);
   const setRadius = useProposalsStore((state) => state.setRadius);
   const setAnchor = useProposalsStore((state) => state.setAnchor);
   const setDateWindow = useProposalsStore((state) => state.setDateWindow);
@@ -121,6 +124,7 @@ export default function ProposalsScreen() {
     beginLoading(options);
 
     const exclusions = new Set(likedEventIds);
+    favoriteEvents.forEach((event) => exclusions.add(event.id));
     if (!options?.resetSession) current.seenIds.forEach((id) => exclusions.add(id));
 
     try {
@@ -141,7 +145,7 @@ export default function ProposalsScreen() {
         setPool([]);
       }
     }
-  }, [beginLoading, categoryValues, likedEventIds, setPool, setWizardStep]);
+  }, [beginLoading, categoryValues, favoriteEvents, likedEventIds, setPool, setWizardStep]);
 
   const handleCurrentLocation = useCallback(() => {
     haptics.selection();
@@ -176,21 +180,24 @@ export default function ProposalsScreen() {
 
     setProcessingDecision(true);
     try {
-      let remoteLiked = await SocialService.like(userId, event.id);
-      // If local state was stale and the first toggle removed a server-side like,
-      // restore the intended final state: the swipe action always means “liked”.
-      if (!remoteLiked) remoteLiked = await SocialService.like(userId, event.id);
-      if (!remoteLiked) throw new Error('Like was not persisted');
-      if (!useLikesStore.getState().isLiked(event.id)) toggleLike(event.id);
+      const before = {
+        isLiked: useLikesStore.getState().isLiked(event.id) || Boolean(event.is_liked),
+        isFavorite: useFavoritesStore.getState().isFavorite(event.id) || Boolean(event.is_favorited),
+      };
+      const after = await ensureEventHearted(userId, event, before);
+      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
       applyDecision(event, 'like');
     } catch (error) {
-      console.warn('[Proposals] like failed', error);
+      console.warn('[Proposals] heart failed', error);
       setCardRevision((value) => value + 1);
-      Alert.alert('Like non enregistré', 'La carte reste dans le deck. Réessaie dans un instant.');
+      Alert.alert(
+        'Coup de cœur non enregistré',
+        'Le like et le favori n’ont pas pu être enregistrés. La carte reste dans le deck.',
+      );
     } finally {
       setProcessingDecision(false);
     }
-  }, [applyDecision, processingDecision, profile?.id, session?.user?.id, toggleLike, user?.id]);
+  }, [applyDecision, processingDecision, profile?.id, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
 
   const currentEvent = pool[currentIndex];
   const nextEvent = pool[currentIndex + 1];
@@ -208,6 +215,7 @@ export default function ProposalsScreen() {
           onUseCurrentLocation={handleCurrentLocation}
           onStepChange={setWizardStep}
           onToggleCategory={toggleCategory}
+          onSelectAllCategories={setCategories}
           onRadiusChange={setRadius}
           onAnchorChange={setAnchor}
           onDateWindowChange={setDateWindow}
@@ -340,24 +348,29 @@ function ProposalSummary({
 }) {
   const insets = useSafeAreaInsets();
   const { profile, user, session } = useAuth();
+  const isLiked = useLikesStore((state) => state.isLiked);
+  const toggleLike = useLikesStore((state) => state.toggleLike);
   const isFavorite = useFavoritesStore((state) => state.isFavorite);
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
-  const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
+  const [heartBusyId, setHeartBusyId] = useState<string | null>(null);
 
-  const handleFavorite = async (event: EventWithCreator) => {
+  const handleHeart = async (event: EventWithCreator) => {
     const userId = profile?.id || user?.id || session?.user?.id;
-    if (!userId || favoriteBusyId) return;
-    setFavoriteBusyId(event.id);
+    if (!userId || heartBusyId) return;
+    setHeartBusyId(event.id);
     try {
-      const remoteFavorite = await SocialService.toggleFavorite(userId, event.id);
-      const localFavorite = useFavoritesStore.getState().isFavorite(event.id);
-      if (remoteFavorite !== localFavorite) toggleFavorite(event);
+      const before = {
+        isLiked: useLikesStore.getState().isLiked(event.id),
+        isFavorite: useFavoritesStore.getState().isFavorite(event.id),
+      };
+      const after = await toggleEventHeart(userId, event, before);
+      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
       haptics.selection();
     } catch (error) {
-      console.warn('[Proposals] favorite failed', error);
-      Alert.alert('Favori non enregistré', 'Réessaie dans un instant.');
+      console.warn('[Proposals] heart failed', error);
+      Alert.alert('Coup de cœur non enregistré', 'Réessaie dans un instant.');
     } finally {
-      setFavoriteBusyId(null);
+      setHeartBusyId(null);
     }
   };
 
@@ -376,7 +389,7 @@ function ProposalSummary({
         </Text>
         <Text style={styles.summarySubtitle}>
           {likedEvents.length > 0
-            ? 'Tes likes sont enregistrés. Ajoute séparément les moments que tu veux garder dans tes favoris.'
+            ? 'Tes coups de cœur ont été ajoutés à tes favoris.'
             : 'On peut élargir la recherche ou repartir avec de nouvelles envies.'}
         </Text>
 
@@ -384,7 +397,7 @@ function ProposalSummary({
           {likedEvents.map((event) => {
             const image = getEventImageUrls(event)[0];
             const date = getHumanizedDate(event);
-            const favorite = isFavorite(event.id);
+            const hearted = isFavorite(event.id) || isLiked(event.id);
             return (
               <TouchableOpacity
                 key={event.id}
@@ -404,19 +417,19 @@ function ProposalSummary({
                   <Text style={styles.summaryCardDate} numberOfLines={1}>{date.startLine}</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.favoriteButton, favorite && styles.favoriteButtonActive]}
+                  style={[styles.favoriteButton, hearted && styles.favoriteButtonActive]}
                   onPress={(pressEvent) => {
                     pressEvent.stopPropagation();
-                    void handleFavorite(event);
+                    void handleHeart(event);
                   }}
-                  disabled={favoriteBusyId === event.id}
+                  disabled={heartBusyId === event.id}
                   accessibilityRole="button"
-                  accessibilityLabel={favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  accessibilityLabel={hearted ? 'Retirer des coups de cœur' : 'Ajouter aux coups de cœur'}
                 >
-                  {favoriteBusyId === event.id ? (
+                  {heartBusyId === event.id ? (
                     <ActivityIndicator size="small" color={colors.brand.secondary} />
                   ) : (
-                    <Heart size={20} color={favorite ? colors.brand.primary : colors.brand.secondary} fill={favorite ? colors.brand.secondary : 'transparent'} />
+                    <Heart size={20} color={hearted ? colors.brand.primary : colors.brand.secondary} fill={hearted ? colors.brand.secondary : 'transparent'} />
                   )}
                 </TouchableOpacity>
               </TouchableOpacity>

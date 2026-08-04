@@ -17,7 +17,8 @@
     "src/utils/favorite-events.test.ts",
     "src/utils/event-time-scope.test.ts",
     "src/store/discoveryFiltersStore.test.ts",
-    "src/screens/proposals/proposal-filtering.test.ts"
+    "src/screens/proposals/proposal-filtering.test.ts",
+    "src/screens/proposals/proposal-category-hints.test.ts"
   ],
   "exclude": ["supabase/functions/**/*"]
 }
