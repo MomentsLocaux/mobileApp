@@ -7,3 +7,4 @@ export { MotionReveal } from './MotionReveal';
 export { FloatingPressable } from './FloatingPressable';
 export { EventCardSkeleton, EventDetailSkeleton, SkeletonBlock } from './EventCardSkeleton';
 export { EmptyState } from './EmptyState';
+export { DiscoveryLoadingState } from './DiscoveryLoadingState';

@@ -49,7 +49,7 @@ import {
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { EmptyState, EventCardSkeleton } from '@/components/ui';
+import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -612,7 +612,11 @@ export default function HomeScreen() {
               <Text style={styles.seeAllText}>Voir la carte</Text>
             </TouchableOpacity>
           </View>
-          {!browseCenter ? (
+          {metaFeedLoading && !showSearchResults ? (
+            <View style={styles.nearbyEmpty}>
+              <Text style={styles.nearbyEmptyText}>Préparation de votre sélection locale…</Text>
+            </View>
+          ) : !browseCenter ? (
             <View style={styles.nearbyEmpty}>
               <Text style={styles.nearbyEmptyText}>
                 Activez la localisation pour voir les événements près de vous.
@@ -671,6 +675,7 @@ export default function HomeScreen() {
       browseCenter,
       browseRadiusKm,
       canCreateNow,
+      metaFeedLoading,
       nearbyEvents,
       profile?.avatar_url,
       renderNearbyItem,
@@ -682,6 +687,7 @@ export default function HomeScreen() {
       sortBy,
       sortOrder,
       status,
+      showSearchResults,
     ]
   );
 
@@ -761,7 +767,18 @@ export default function HomeScreen() {
         }
         ListEmptyComponent={
           (showSearchResults ? searchLoading : metaFeedLoading) ? (
-            <EventCardSkeleton count={2} />
+            <DiscoveryLoadingState
+              title={
+                showSearchResults
+                  ? 'Nous recherchons les événements qui vous correspondent'
+                  : 'Nous recherchons les meilleurs événements à proximité pour vous'
+              }
+              subtitle={
+                showSearchResults
+                  ? 'Nous appliquons vos critères de recherche.'
+                  : `Événements en cours dans un rayon de ${browseRadiusKm} km.`
+              }
+            />
           ) : !browseCenter ? (
             <EmptyState
               icon={Search}
