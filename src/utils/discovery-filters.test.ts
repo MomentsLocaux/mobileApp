@@ -118,6 +118,38 @@ describe('discovery filter contract', () => {
     });
   });
 
+  it('does not turn the default radius into an implicit location filter', () => {
+    const filters = createDefaultDiscoveryFilters();
+
+    assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
+      includePast: false,
+    });
+
+    filters.place.radiusKm = 25;
+    assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
+      includePast: false,
+      centerLat: 49.61,
+      centerLon: 6.13,
+      radiusKm: 25,
+    });
+  });
+
+  it('treats include-past as a visible, queryable date criterion', () => {
+    const filters = createDefaultDiscoveryFilters();
+    filters.when.includePast = true;
+
+    assert.equal(activeFilterCount(filters), 1);
+    assert.equal(summarize(filters), 'Passés inclus');
+    assert.equal(toEventFilters(filters).includePast, true);
+  });
+
+  it('makes the explicit past status authoritative in event filters', () => {
+    const filters = createDefaultDiscoveryFilters();
+    filters.status = 'past';
+
+    assert.equal(toEventFilters(filters).includePast, true);
+  });
+
   it('explains contradictory temporal criteria', () => {
     const filters = createDefaultDiscoveryFilters();
     filters.status = 'live';

@@ -18,14 +18,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
-import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { filterColors } from '@/constants/filter-tokens';
 import {
-  DEFAULT_SORT_OPTION,
   MAP_MODES,
   type DatePreset,
   type MapMode,
@@ -45,17 +43,6 @@ import {
 } from '@/components/filters';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 
-/** Discovery filter values owned by the map screen (sort excluded from the sheet UI). */
-export interface MapFiltersSnapshot {
-  metaFilter: EventMetaFilter;
-  mapMode: MapMode;
-  sortBy: SortOption;
-  sortOrder?: SortOrder;
-  whenPreset?: DatePreset;
-  categoryIds?: string[];
-  subcategoryIds?: string[];
-}
-
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -65,8 +52,6 @@ interface Props {
   mapMode: MapMode;
   onMapModeChange: (mode: MapMode) => void;
   searchActive: boolean;
-  sortBy: SortOption;
-  sortOrder?: SortOrder;
   whenPreset?: DatePreset;
   onWhenPresetChange: (preset?: DatePreset) => void;
   selectedCategories: string[];
@@ -75,6 +60,7 @@ interface Props {
   onReset: () => void;
   resultCount: number;
   isLoadingResults?: boolean;
+  filters: DiscoveryFilters;
 }
 
 function formatResultsButtonLabel(count: number, isLoading = false): string {
@@ -84,28 +70,9 @@ function formatResultsButtonLabel(count: number, isLoading = false): string {
   return `Afficher les ${count} événements`;
 }
 
-/** Projects the map screen state onto the shared discovery filter model. */
-export function buildMapDiscoveryFilters(snapshot: MapFiltersSnapshot): DiscoveryFilters {
-  return {
-    status: snapshot.metaFilter,
-    when: { preset: snapshot.whenPreset },
-    place: {},
-    content: {
-      categories: snapshot.categoryIds ?? [],
-      subcategories: snapshot.subcategoryIds ?? [],
-      tags: [],
-    },
-    sort: {
-      home: { sortBy: DEFAULT_SORT_OPTION },
-      map: { sortBy: snapshot.sortBy, sortOrder: snapshot.sortOrder },
-    },
-    mapMode: snapshot.mapMode,
-  };
-}
-
 /** `mapMode` is a display preference and never counts as an active content filter. */
-export function hasMapActiveFilters(snapshot: MapFiltersSnapshot): boolean {
-  return activeFilterCount(buildMapDiscoveryFilters(snapshot), { surface: 'map' }) > 0;
+export function hasMapActiveFilters(filters: DiscoveryFilters): boolean {
+  return activeFilterCount(filters) > 0;
 }
 
 export function MapFiltersSheet({
@@ -117,8 +84,6 @@ export function MapFiltersSheet({
   mapMode,
   onMapModeChange,
   searchActive,
-  sortBy,
-  sortOrder,
   whenPreset,
   onWhenPresetChange,
   selectedCategories,
@@ -127,6 +92,7 @@ export function MapFiltersSheet({
   onReset,
   resultCount,
   isLoadingResults = false,
+  filters,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [overlayMounted, setOverlayMounted] = useState(false);
@@ -150,20 +116,6 @@ export function MapFiltersSheet({
     [isLoadingResults, resultCount]
   );
 
-  const discoveryFilters = useMemo(
-    () =>
-      buildMapDiscoveryFilters({
-        metaFilter,
-        mapMode,
-        sortBy,
-        sortOrder,
-        whenPreset,
-        categoryIds: selectedCategories,
-        subcategoryIds: selectedSubcategories,
-      }),
-    [mapMode, metaFilter, selectedCategories, selectedSubcategories, sortBy, sortOrder, whenPreset]
-  );
-
   const categoryLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     categories.forEach((cat) => {
@@ -176,13 +128,13 @@ export function MapFiltersSheet({
   }, [categories, subcategories]);
 
   const summaryLabel = useMemo(
-    () => summarize(discoveryFilters, { surface: 'map', categoryLabels, includeMapMode: true }),
-    [categoryLabels, discoveryFilters]
+    () => summarize(filters, { categoryLabels, includeMapMode: true }),
+    [categoryLabels, filters]
   );
 
   const canReset = useMemo(
-    () => activeFilterCount(discoveryFilters, { surface: 'map' }) > 0,
-    [discoveryFilters]
+    () => activeFilterCount(filters) > 0,
+    [filters]
   );
 
   const searchHint = useMemo(() => {

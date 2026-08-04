@@ -12,6 +12,10 @@
     "target": "ES2020",
     "types": ["node"]
   },
-  "include": ["src/utils/discovery-filters.test.ts", "src/utils/event-time-scope.test.ts"],
+  "include": [
+    "src/utils/discovery-filters.test.ts",
+    "src/utils/event-time-scope.test.ts",
+    "src/store/discoveryFiltersStore.test.ts"
+  ],
   "exclude": ["supabase/functions/**/*"]
 }

@@ -1,14 +1,13 @@
 import { useCallback } from 'react';
-import { resolveEffectiveRadiusKm } from '@/utils/search-helpers';
-import type { SearchState } from '@/store/searchStore';
+import { resolveEffectiveRadiusKm, resolveSearchCenter } from '@/utils/search-helpers';
+import type { DiscoveryFilters } from '@/utils/discovery-filters';
 
 type UserLocation = { latitude: number; longitude: number } | null;
 
 type Params = {
-  searchState: SearchState;
+  filters: DiscoveryFilters;
   userLocation: UserLocation;
-  setMetaFilter: (filter: 'all') => void;
-  commitSearch: () => void;
+  syncSearchState: () => void;
   setStatus: (status: 'loading') => void;
   fitToRadius: (latitude: number, longitude: number, radiusKm: number) => unknown;
   refreshBounds: () => Promise<void>;
@@ -21,36 +20,24 @@ type SearchTargetBounds = {
 };
 
 function resolveSearchTargetBounds(
-  searchState: SearchState,
+  filters: DiscoveryFilters,
   userLocation: UserLocation
 ): SearchTargetBounds | null {
-  const location = searchState.where.location;
-  const effectiveRadius = resolveEffectiveRadiusKm(searchState.where, userLocation) ?? 10;
+  const center = resolveSearchCenter(filters.place, userLocation);
+  const effectiveRadius = resolveEffectiveRadiusKm(filters.place, userLocation);
+  if (!center || effectiveRadius === undefined) return null;
 
-  if (location) {
-    return {
-      latitude: location.latitude,
-      longitude: location.longitude,
-      radiusKm: effectiveRadius,
-    };
-  }
-
-  if (searchState.where.radiusKm !== undefined && userLocation) {
-    return {
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      radiusKm: effectiveRadius,
-    };
-  }
-
-  return null;
+  return {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    radiusKm: effectiveRadius,
+  };
 }
 
 export function useMapSearchApply({
-  searchState,
+  filters,
   userLocation,
-  setMetaFilter,
-  commitSearch,
+  syncSearchState,
   setStatus,
   fitToRadius,
   refreshBounds,
@@ -63,11 +50,11 @@ export function useMapSearchApply({
   );
 
   const applySearch = useCallback(() => {
-    setMetaFilter('all');
-    commitSearch();
+    // SearchBar commits the shared lifecycle before invoking this callback.
+    syncSearchState();
     setStatus('loading');
 
-    const targetBounds = resolveSearchTargetBounds(searchState, userLocation);
+    const targetBounds = resolveSearchTargetBounds(filters, userLocation);
     if (targetBounds) {
       moveMapToSearchBounds(targetBounds);
       return;
@@ -75,12 +62,11 @@ export function useMapSearchApply({
 
     void refreshBounds();
   }, [
-    commitSearch,
+    filters,
     moveMapToSearchBounds,
     refreshBounds,
-    searchState,
-    setMetaFilter,
     setStatus,
+    syncSearchState,
     userLocation,
   ]);
 

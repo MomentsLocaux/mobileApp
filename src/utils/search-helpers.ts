@@ -1,4 +1,9 @@
-import type { SearchState } from '@/store/searchStore';
+import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
+import type {
+  DiscoveryContentFilter,
+  DiscoveryPlaceFilter,
+  DiscoveryWhenFilter,
+} from '@/utils/discovery-filters';
 
 /** Home / search list fetches (non-map). */
 export const SEARCH_FETCH_LIMIT = 300;
@@ -27,43 +32,57 @@ export const resolveMapViewportLimit = (zoom?: number | null): number => {
   return 500; // country / wide
 };
 
-export const hasSearchCriteria = (search: Pick<SearchState, 'where' | 'when' | 'what'>): boolean => {
+export type DiscoverySearchCriteria = {
+  place: DiscoveryPlaceFilter;
+  when: DiscoveryWhenFilter;
+  content: DiscoveryContentFilter;
+};
+
+export const hasSearchCriteria = (search: DiscoverySearchCriteria): boolean => {
   const includePast = search.when.includePast ?? false;
-  const hasWhere = !!search.where.location || search.where.radiusKm !== undefined;
+  const hasWhere =
+    Boolean(search.place.center) ||
+    Boolean(search.place.label?.trim()) ||
+    (search.place.radiusKm !== undefined &&
+      search.place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM);
   const hasWhen =
     !!search.when.preset ||
     !!search.when.startDate ||
     !!search.when.endDate ||
     includePast;
   const hasWhat =
-    search.what.categories.length > 0 ||
-    search.what.subcategories.length > 0 ||
-    search.what.tags.length > 0 ||
-    !!search.what.query?.trim();
+    search.content.categories.length > 0 ||
+    search.content.subcategories.length > 0 ||
+    search.content.tags.length > 0 ||
+    !!search.content.query?.trim();
   return hasWhere || hasWhen || hasWhat;
 };
 
 /** Radius used for bbox + client filter — 0 in UI becomes default 10 km when a center exists. */
 export const resolveEffectiveRadiusKm = (
-  where: SearchState['where'],
+  place: DiscoveryPlaceFilter,
   userCoords?: Coords | null
 ): number | undefined => {
-  const center = resolveSearchCenter(where, userCoords);
+  const center = resolveSearchCenter(place, userCoords);
   if (!center) return undefined;
-  if (where.radiusKm !== undefined) {
-    return where.radiusKm > 0 ? where.radiusKm : DEFAULT_SEARCH_RADIUS_KM;
+  if (place.radiusKm !== undefined) {
+    return place.radiusKm > 0 ? place.radiusKm : DEFAULT_SEARCH_RADIUS_KM;
   }
   return DEFAULT_SEARCH_RADIUS_KM;
 };
 
 export const resolveSearchCenter = (
-  where: SearchState['where'],
+  place: DiscoveryPlaceFilter,
   userCoords?: Coords | null
 ): Coords | null => {
-  if (where.location) {
-    return { latitude: where.location.latitude, longitude: where.location.longitude };
+  if (place.center) {
+    return { latitude: place.center.latitude, longitude: place.center.longitude };
   }
-  if (where.radiusKm !== undefined && userCoords) {
+  if (
+    place.radiusKm !== undefined &&
+    place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM &&
+    userCoords
+  ) {
     return userCoords;
   }
   return null;

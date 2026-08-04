@@ -1,29 +1,26 @@
 import { EventsService } from '@/services/events.service';
-import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { filterEvents } from '@/utils/filter-events';
-import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
-import type { SearchState } from '@/store/searchStore';
 import type { EventWithCreator } from '@/types/database';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import {
+  toEventFilters,
+  toTimeScope,
+  type DiscoveryFilters,
+} from '@/utils/discovery-filters';
 
 type Coords = { latitude: number; longitude: number };
 
 /** Fetch + filter events for SearchBar preview count (aligned with map viewport RPC). */
 export async function fetchSearchPreviewEvents(
-  search: Pick<SearchState, 'where' | 'when' | 'what'>,
+  filters: DiscoveryFilters,
   options: {
     searchCenter: Coords | null;
     effectiveRadiusKm?: number;
     userCoords?: Coords | null;
   }
 ): Promise<EventWithCreator[]> {
-  const includePast = search.when.includePast ?? false;
-  const timeScope = resolveEventTimeScope({
-    metaFilter: 'all',
-    searchActive: true,
-    includePast,
-  });
+  const timeScope = toTimeScope(filters, { searchActive: true });
 
   let events: EventWithCreator[] = [];
 
@@ -44,16 +41,13 @@ export async function fetchSearchPreviewEvents(
     const viewport = await listMapViewportForMap(
       { ne, sw, limit: SEARCH_FETCH_LIMIT },
       timeScope,
-      { mergeUpcomingForDatePreset: timeScope === 'current' && !!search.when.preset }
+      { mergeUpcomingForDatePreset: timeScope === 'current' && !!filters.when.preset }
     );
     events = viewport.events || [];
   } else {
     events = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
   }
 
-  const filters = buildFiltersFromSearch(
-    { ...search, who: { adults: 1, children: 0, babies: 0 } } as SearchState,
-    options.userCoords
-  );
-  return filterEvents(events, filters, null);
+  const eventFilters = toEventFilters(filters, options.userCoords);
+  return filterEvents(events, eventFilters, null);
 }

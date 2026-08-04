@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
-import { useLocationStore, useSearchStore, useDiscoveryFiltersStore } from '@/store';
+import { useLocationStore, useDiscoveryFiltersStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
@@ -27,7 +27,6 @@ import { EventResultCard } from '@/components/search/EventResultCard';
 import { MapResultCard } from '@/components/search/MapResultCard';
 import type { EventWithCreator } from '@/types/database';
 import { SearchBar } from '@/components/search/SearchBar';
-import { buildFiltersFromSearch } from '@/utils/search-filters';
 import { EventsService } from '@/services/events.service';
 import { NotificationsService } from '@/services/notifications.service';
 import {
@@ -49,6 +48,10 @@ import { EmptyState, EventCardSkeleton } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import {
+  toEventFilters,
+  type DiscoveryFilters,
+} from '@/utils/discovery-filters';
 
 const NEARBY_CAROUSEL_LIMIT = 12;
 
@@ -96,18 +99,24 @@ export default function HomeScreen() {
   const { currentLocation } = useLocationStore();
   const { favorites, toggleFavorite } = useFavoritesStore();
   const { likedEventIds, toggleLike } = useLikesStore();
-  const searchState = useSearchStore();
   const status = useDiscoveryFiltersStore((s) => s.status);
+  const when = useDiscoveryFiltersStore((s) => s.when);
+  const place = useDiscoveryFiltersStore((s) => s.place);
+  const content = useDiscoveryFiltersStore((s) => s.content);
+  const sort = useDiscoveryFiltersStore((s) => s.sort);
+  const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
   const setStatus = useDiscoveryFiltersStore((s) => s.setStatus);
-  const homeSort = useDiscoveryFiltersStore((s) => s.sort.home);
   const setSort = useDiscoveryFiltersStore((s) => s.setSort);
   const setSortOrder = useDiscoveryFiltersStore((s) => s.setSortOrder);
+  const searchApplied = useDiscoveryFiltersStore((s) => s.searchApplied);
+  const searchRevision = useDiscoveryFiltersStore((s) => s.searchRevision);
+  const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
+  const clearSearchCriteria = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
+  const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
   const tags = useTaxonomyStore((s) => s.tags);
   const [refreshing, setRefreshing] = useState(false);
-  const searchApplied = searchState.searchApplied;
-  const setSearchApplied = searchState.setSearchApplied;
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>([]);
@@ -129,10 +138,21 @@ export default function HomeScreen() {
     };
   }, [currentLocation]);
 
-  const filters = useMemo(() => buildFiltersFromSearch(searchState, userLocation), [searchState, userLocation]);
+  const discoveryFilters = useMemo<DiscoveryFilters>(
+    () => ({ status, when, place, content, sort, mapMode }),
+    [content, mapMode, place, sort, status, when]
+  );
+  const filters = useMemo(
+    () => toEventFilters(discoveryFilters, userLocation),
+    [discoveryFilters, userLocation]
+  );
+  const homeSort = sort.home;
   const sortBy = homeSort.sortBy;
   const sortOrder = homeSort.sortOrder;
-  const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchState), [searchState]);
+  const hasSearchCriteria = useMemo(
+    () => checkSearchCriteria({ place, when, content }),
+    [content, place, when]
+  );
   /** Search stays applied when changing status — axes are cumulative. */
   const showSearchResults = searchApplied && hasSearchCriteria;
 
@@ -173,13 +193,13 @@ export default function HomeScreen() {
   }, [hasSearchCriteria, searchApplied, setSearchApplied]);
 
   const effectiveRadiusKm = useMemo(
-    () => resolveEffectiveRadiusKm(searchState.where, userLocation),
-    [searchState.where, userLocation]
+    () => resolveEffectiveRadiusKm(place, userLocation),
+    [place, userLocation]
   );
 
   const searchCenter = useMemo(
-    () => resolveSearchCenter(searchState.where, userLocation),
-    [searchState.where, userLocation]
+    () => resolveSearchCenter(place, userLocation),
+    [place, userLocation]
   );
 
   const loadMetaFeed = useCallback(async () => {
@@ -271,9 +291,9 @@ export default function HomeScreen() {
 
     setSearchLoading(true);
     const searchTimeScope = resolveEventTimeScope({
-      metaFilter: 'all',
+      metaFilter: status,
       searchActive: true,
-      includePast: !!searchState.when.includePast,
+      includePast: !!when.includePast,
     });
     const run = async () => {
       try {
@@ -291,7 +311,7 @@ export default function HomeScreen() {
             searchTimeScope,
             {
               mergeUpcomingForDatePreset:
-                searchTimeScope === 'current' && !!searchState.when.preset,
+                searchTimeScope === 'current' && !!when.preset,
             }
           );
           const ids =
@@ -332,9 +352,10 @@ export default function HomeScreen() {
     hasSearchCriteria,
     showSearchResults,
     searchCenter,
-    searchState.searchRevision,
-    searchState.when.includePast,
-    searchState.when.preset,
+    searchRevision,
+    status,
+    when.includePast,
+    when.preset,
   ]);
 
   useEffect(() => {
@@ -447,11 +468,17 @@ export default function HomeScreen() {
   const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const chips: ActiveFilterChip[] = [];
     if (showSearchResults) {
-      const summary = buildSearchSummary(searchState, categories, subcategories, tags);
+      const summary = buildSearchSummary(
+        discoveryFilters,
+        categories,
+        subcategories,
+        tags,
+        'home'
+      );
       chips.push({
         key: 'search',
         label: summary || 'Recherche active',
-        onClear: () => setSearchApplied(false),
+        onClear: clearSearchCriteria,
       });
     }
     if (status !== 'all') {
@@ -464,8 +491,8 @@ export default function HomeScreen() {
     return chips;
   }, [
     categories,
-    searchState,
-    setSearchApplied,
+    clearSearchCriteria,
+    discoveryFilters,
     setStatus,
     showSearchResults,
     status,
@@ -560,8 +587,7 @@ export default function HomeScreen() {
           onClearAll={
             activeFilterChips.length > 1
               ? () => {
-                  setSearchApplied(false);
-                  setStatus('all');
+                  resetCriteria();
                 }
               : undefined
           }
@@ -588,7 +614,7 @@ export default function HomeScreen() {
       profile?.avatar_url,
       renderNearbyItem,
       router,
-      setSearchApplied,
+      resetCriteria,
       setSort,
       setSortOrder,
       setStatus,
@@ -648,6 +674,7 @@ export default function HomeScreen() {
             }}
             hasLocation={!!userLocation}
             applied={searchApplied}
+            surface="home"
             enableCommunitySearch
             placeholder="Rechercher des événements..."
           />
@@ -681,7 +708,7 @@ export default function HomeScreen() {
               title="Aucun événement pour ces critères"
               subtitle="Élargissez le rayon ou ajustez le statut temporel."
               ctaLabel="Effacer la recherche"
-              onCtaPress={() => setSearchApplied(false)}
+              onCtaPress={clearSearchCriteria}
             />
           ) : (
             <View style={styles.emptyContainer}>

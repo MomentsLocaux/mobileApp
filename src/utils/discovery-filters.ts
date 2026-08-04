@@ -24,12 +24,16 @@ export interface DiscoveryWhenFilter {
   preset?: DatePreset;
   startDate?: string;
   endDate?: string;
+  /** Include past events alongside current/upcoming results. */
+  includePast?: boolean;
 }
 
 export interface DiscoveryPlaceFilter {
   /** Explicit center picked by the user; falls back to the device position when absent. */
   center?: DiscoveryCoords | null;
   label?: string;
+  city?: string;
+  postalCode?: string;
   radiusKm?: number;
 }
 
@@ -82,7 +86,7 @@ export function createDefaultDiscoveryFilters(): DiscoveryFilters {
 }
 
 export function includesPast(filters: DiscoveryFilters): boolean {
-  return filters.status === 'past';
+  return filters.status === 'past' || Boolean(filters.when.includePast);
 }
 
 /** Server-side temporal scope for the current status. */
@@ -110,7 +114,11 @@ export function toEventFilters(
   filters: DiscoveryFilters,
   fallbackCoords?: DiscoveryCoords | null
 ): EventFilters {
-  const center = resolveSortCenter(filters, fallbackCoords);
+  const hasCustomRadius =
+    filters.place.radiusKm !== undefined &&
+    filters.place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM;
+  const center =
+    filters.place.center ?? (hasCustomRadius && fallbackCoords ? fallbackCoords : null);
   const query = filters.content.query?.trim();
 
   return buildFiltersFromSearch(
@@ -138,13 +146,17 @@ export function toEventFilters(
         tags: filters.content.tags,
         query,
       },
-    },
-    fallbackCoords
+    }
   );
 }
 
 function hasWhenFilter(filters: DiscoveryFilters): boolean {
-  return Boolean(filters.when.preset || filters.when.startDate || filters.when.endDate);
+  return Boolean(
+    filters.when.preset ||
+      filters.when.startDate ||
+      filters.when.endDate ||
+      filters.when.includePast
+  );
 }
 
 function isPlaceFilterActive(place: DiscoveryPlaceFilter): boolean {
@@ -170,6 +182,7 @@ function formatDiscoveryDate(value: string): string {
 }
 
 function whenSummary(when: DiscoveryWhenFilter): string | null {
+  if (when.includePast) return 'Passés inclus';
   if (when.preset) return datePresetLabel(when.preset);
   if (when.startDate && when.endDate) {
     return `${formatDiscoveryDate(when.startDate)}–${formatDiscoveryDate(when.endDate)}`;
