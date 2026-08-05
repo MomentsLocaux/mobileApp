@@ -1,11 +1,13 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Check } from 'lucide-react-native';
 import {
   CATEGORY_VISUAL_LABELS,
   CATEGORY_VISUAL_SLUGS,
   getCategoryLucideIcon,
   type CategoryVisualSlug,
 } from '@/constants/category-visuals';
+import { getCategoryHint } from '@/constants/category-hints';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -34,11 +36,12 @@ export function OnboardingThemesStep({
     <View style={styles.wrap}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
-      <View style={styles.chipRow}>
+      <View style={styles.categoryList}>
         {CATEGORY_VISUAL_SLUGS.map((slug) => {
           const active = selectedSet.has(slug);
           const category = categoriesMap[slug];
           const label = category?.label?.trim() || CATEGORY_VISUAL_LABELS[slug];
+          const hint = getCategoryHint(slug);
           const categoryColor = getCategoryColor(slug);
           const categoryTextColor = getCategoryTextColor(slug);
           const Icon = getCategoryLucideIcon(slug);
@@ -49,29 +52,44 @@ export function OnboardingThemesStep({
               onPress={() => onToggle(slug)}
               activeOpacity={0.75}
               style={[
-                styles.chip,
-                {
-                  backgroundColor: `${categoryColor}18`,
-                  borderColor: `${categoryColor}80`,
-                },
+                styles.categoryCard,
                 active && {
-                  backgroundColor: categoryColor,
+                  backgroundColor: `${categoryColor}26`,
                   borderColor: categoryColor,
                 },
               ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={label}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: active }}
+              accessibilityLabel={`Catégorie ${label}. ${hint}`}
             >
-              <Icon size={16} color={active ? categoryTextColor : categoryColor} strokeWidth={2} />
-              <Text
+              <View
                 style={[
-                  styles.chipText,
-                  { color: active ? categoryTextColor : categoryColor },
+                  styles.categoryIcon,
+                  {
+                    backgroundColor: `${categoryColor}22`,
+                    borderColor: `${categoryColor}66`,
+                  },
                 ]}
               >
-                {label}
-              </Text>
+                <Icon size={21} color={categoryColor} strokeWidth={2} />
+              </View>
+              <View style={styles.categoryCopy}>
+                <Text style={[styles.categoryLabel, active && { color: categoryColor }]}>
+                  {label}
+                </Text>
+                <Text style={styles.categoryHint}>{hint}</Text>
+              </View>
+              <View
+                style={[
+                  styles.categoryCheck,
+                  { borderColor: active ? categoryColor : `${categoryColor}80` },
+                  active && { backgroundColor: categoryColor },
+                ]}
+              >
+                {active ? (
+                  <Check size={15} color={categoryTextColor} strokeWidth={3} />
+                ) : null}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -93,23 +111,47 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     lineHeight: 22,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  categoryList: {
     gap: spacing.sm,
   },
-  chip: {
-    minHeight: 44,
+  categoryCard: {
+    minHeight: 92,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: colors.brand.surface,
+  },
+  categoryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
   },
-  chipText: {
-    ...typography.caption,
-    fontWeight: '600',
+  categoryCopy: {
+    flex: 1,
+  },
+  categoryLabel: {
+    ...typography.h6,
+    color: colors.brand.text,
+  },
+  categoryHint: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  categoryCheck: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
   },
 });
