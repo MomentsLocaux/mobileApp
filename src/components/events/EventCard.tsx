@@ -48,7 +48,6 @@ import {
   isMeaningfulPriceLabel,
   MIN_VIEWS_BADGE_THRESHOLD,
 } from '@/utils/event-card-display';
-import { getEventLiveWindow } from '@/utils/event-status';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventImageCarousel } from './EventImageCarousel';
 
@@ -124,7 +123,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const socialLabel = getEventSocialProofLabel(friendsGoingCount, event.likes_count || 0);
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
   const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
-  const { isLive } = useMemo(() => getEventLiveWindow(event), [event]);
   const showPriceBadge = isMeaningfulPriceLabel(priceLabel);
   const showAccessBadge = isMeaningfulAccessLabel(accessLabel);
   const showViewsBadge = viewCount >= MIN_VIEWS_BADGE_THRESHOLD;
@@ -238,12 +236,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
           <View style={styles.mediaTopRow} pointerEvents="box-none">
             <View style={styles.badgeCol}>
-              {isLive ? (
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>EN DIRECT</Text>
-                </View>
-              ) : null}
               <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
                 <Text style={[styles.categoryText, { color: categoryTextColor }]}>{categoryLabel}</Text>
               </View>
@@ -461,30 +453,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xs,
     paddingRight: spacing.sm,
-  },
-  liveBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(239,68,68,0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.35)',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: CARD_THEME.error,
-  },
-  liveText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: CARD_THEME.error,
-    letterSpacing: 0.4,
   },
   categoryBadge: {
     alignSelf: 'flex-start',

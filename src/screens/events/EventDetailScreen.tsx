@@ -1358,12 +1358,6 @@ export default function EventDetailScreen() {
               <View style={styles.heroBadge}>
                 <Text style={styles.heroBadgeText}>{getCategoryLabel(event.category || '')}</Text>
               </View>
-              {isLiveNow && (
-                <View style={[styles.heroBadge, styles.heroBadgeLive]}>
-                  <View style={styles.liveDot} />
-                  <Text style={[styles.heroBadgeText, styles.heroBadgeTextLive]}>EN DIRECT</Text>
-                </View>
-              )}
               {GAMIFICATION_ENABLED &&
               EarlyAccessService.isWindowActive(event.early_access_until) ? (
                 <View style={[styles.heroBadge, styles.heroBadgeEarly]}>
@@ -1986,14 +1980,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     backgroundColor: colors.brand.secondary,
   },
-  heroBadgeLive: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   heroBadgeEarly: {
     backgroundColor: 'rgba(234, 179, 8, 0.25)',
     borderColor: 'rgba(234, 179, 8, 0.45)',
@@ -2005,15 +1991,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  heroBadgeTextLive: {
-    color: '#F87171',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
   },
   content: {
     padding: spacing.lg,
