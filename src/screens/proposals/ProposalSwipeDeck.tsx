@@ -24,6 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Category } from '@/store/taxonomyStore';
 import type { EventWithCreator } from '@/types/database';
+import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 import {
@@ -33,6 +34,7 @@ import {
   getHumanizedDate,
 } from '@/utils/event-card-display';
 import { distanceBetweenKm } from './proposal-filtering';
+import { getProposalCategoryLabel } from './proposal-category-display';
 import type { ProposalAnchor, ProposalDecision } from './proposal.types';
 
 type Props = {
@@ -232,6 +234,8 @@ function ProposalCardContent({
   const image = getEventImageUrls(event)[0];
   const date = getHumanizedDate(event);
   const category = categoryMap.get(event.category || '');
+  const categoryColor = category ? getCategoryColor(category.slug) : undefined;
+  const categoryTextColor = category ? getCategoryTextColor(category.slug) : undefined;
   const description = getEventDescriptionPreview(event.description, 105);
   const distance = distanceBetweenKm(anchor, {
     latitude: event.latitude,
@@ -254,8 +258,10 @@ function ProposalCardContent({
       <View style={styles.cardContent}>
         <View style={styles.badgeRow}>
           {category ? (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{category.icon ? `${category.icon} ` : ''}{category.label}</Text>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
+              <Text style={[styles.categoryBadgeText, { color: categoryTextColor }]}>
+                {getProposalCategoryLabel(category)}
+              </Text>
             </View>
           ) : null}
           <View style={styles.distanceBadge}>

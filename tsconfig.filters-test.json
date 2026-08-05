@@ -19,6 +19,7 @@
     "src/utils/event-time-scope.test.ts",
     "src/store/discoveryFiltersStore.test.ts",
     "src/screens/proposals/proposal-filtering.test.ts",
+    "src/screens/proposals/proposal-category-display.test.ts",
     "src/screens/proposals/proposal-category-hints.test.ts",
     "src/screens/proposals/proposal-session-history.test.ts"
   ],

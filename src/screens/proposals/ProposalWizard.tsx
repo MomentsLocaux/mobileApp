@@ -23,6 +23,7 @@ import type {
   ProposalRadiusKm,
 } from './proposal.types';
 import { getProposalCategoryHint } from './proposal-category-hints';
+import { getProposalCategoryLabel } from './proposal-category-display';
 
 type Props = {
   step: 0 | 1 | 2;
@@ -179,13 +180,14 @@ export function ProposalWizard({
             <View style={styles.chipGrid}>
               {categories.map((category) => {
                 const active = preferences.categoryIds.includes(category.id);
+                const categoryLabel = getProposalCategoryLabel(category);
                 return (
                   <TouchableOpacity
                     key={category.id}
                     activeOpacity={0.8}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: active }}
-                    accessibilityLabel={`Catégorie ${category.label}`}
+                    accessibilityLabel={`Catégorie ${categoryLabel}`}
                     onPress={() => {
                       haptics.selection();
                       onToggleCategory(category.id);
@@ -194,7 +196,7 @@ export function ProposalWizard({
                   >
                     <View style={styles.categoryCopy}>
                       <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
-                        {category.label}
+                        {categoryLabel}
                       </Text>
                       <Text style={[styles.categoryHint, active && styles.categoryHintActive]}>
                         {getProposalCategoryHint(category.slug)}
