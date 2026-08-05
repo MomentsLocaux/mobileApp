@@ -64,8 +64,10 @@ export interface IDataProvider {
   spendLumo(payload: { amount: number; reason?: string; item_type?: string; item_id?: string }): Promise<any>;
 
   toggleFavorite(eventId: string): Promise<boolean>;
+  removeFavorite(eventId: string): Promise<void>;
   toggleInterest(eventId: string): Promise<boolean>;
   like(eventId: string): Promise<boolean>;
+  unlike(eventId: string): Promise<void>;
   likeComment(commentId: string): Promise<boolean>;
   likeMedia(mediaId: string): Promise<boolean>;
 

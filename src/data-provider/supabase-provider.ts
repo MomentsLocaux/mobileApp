@@ -317,8 +317,10 @@ export const supabaseProvider: (Pick<
   | 'earnLumo'
   | 'spendLumo'
   | 'toggleFavorite'
+  | 'removeFavorite'
   | 'toggleInterest'
   | 'like'
+  | 'unlike'
   | 'likeComment'
   | 'likeMedia'
   | 'uploadAvatar'
@@ -919,6 +921,16 @@ export const supabaseProvider: (Pick<
     return true; // now favorited
   },
 
+  async removeFavorite(eventId: string) {
+    const userId = await getAuthedUserId('removeFavorite');
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('profile_id', userId)
+      .eq('event_id', eventId);
+    if (error) throw formatSupabaseError(error, 'removeFavorite');
+  },
+
   async toggleInterest(eventId: string) {
     const { error } = await (supabase.rpc as any)('toggle_interest', { event_id: eventId });
     if (!error) return true;
@@ -977,6 +989,16 @@ export const supabaseProvider: (Pick<
       throw formatSupabaseError(insertError, 'like-insert');
     }
     return true; // now liked
+  },
+
+  async unlike(eventId: string) {
+    const userId = await getAuthedUserId('unlike');
+    const { error } = await supabase
+      .from('event_likes')
+      .delete()
+      .eq('user_id', userId)
+      .eq('event_id', eventId);
+    if (error) throw formatSupabaseError(error, 'unlike');
   },
 
   async likeComment(commentId: string) {

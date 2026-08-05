@@ -8,7 +8,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { ArrowLeft, CalendarDays, Heart, Play, ThumbsDown } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  CalendarDays,
+  Heart,
+  Play,
+  ThumbsDown,
+  Trash2,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { getEventImageUrls, getHumanizedDate } from '@/utils/event-card-display';
@@ -18,9 +25,12 @@ type Props = {
   sessions: ProposalSession[];
   selectedSessionId: string | null;
   busyEventId: string | null;
+  deleteBusy: boolean;
   onBack: () => void;
   onSelectSession: (sessionId: string | null) => void;
   onResume: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+  onDeleteAll: () => void;
   onRevise: (sessionId: string, eventId: string, decision: ProposalDecision) => void;
   onOpenDetails: (eventId: string) => void;
 };
@@ -29,9 +39,12 @@ export function ProposalHistory({
   sessions,
   selectedSessionId,
   busyEventId,
+  deleteBusy,
   onBack,
   onSelectSession,
   onResume,
+  onDeleteSession,
+  onDeleteAll,
   onRevise,
   onOpenDetails,
 }: Props) {
@@ -55,7 +68,19 @@ export function ProposalHistory({
           <Text style={styles.eyebrow}>PROPOSITIONS</Text>
           <Text style={styles.headerTitle}>{selectedSession ? 'Choix de la session' : 'Mon historique'}</Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={styles.headerAction}
+          onPress={() => selectedSession ? onDeleteSession(selectedSession.id) : onDeleteAll()}
+          disabled={deleteBusy || sessions.length === 0}
+          accessibilityRole="button"
+          accessibilityLabel={selectedSession ? 'Supprimer cette session' : 'Supprimer tout l’historique'}
+        >
+          {deleteBusy ? (
+            <ActivityIndicator size="small" color="#fb7185" />
+          ) : (
+            <Trash2 size={20} color="#fb7185" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {selectedSession ? (
@@ -63,6 +88,8 @@ export function ProposalHistory({
           session={selectedSession}
           busyEventId={busyEventId}
           onResume={onResume}
+          onDelete={() => onDeleteSession(selectedSession.id)}
+          deleteBusy={deleteBusy}
           onRevise={onRevise}
           onOpenDetails={onOpenDetails}
         />
@@ -75,27 +102,37 @@ export function ProposalHistory({
             const likes = session.decisions.filter((item) => item.decision === 'like').length;
             const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(session.createdAt));
             return (
-              <TouchableOpacity
-                key={session.id}
-                style={styles.sessionCard}
-                onPress={() => onSelectSession(session.id)}
-                activeOpacity={0.82}
-                accessibilityRole="button"
-              >
-                <View style={styles.sessionTopRow}>
-                  <View style={styles.sessionCopy}>
-                    <Text style={styles.sessionTitle}>{session.preferences.anchor?.label || 'Sélection locale'}</Text>
-                    <Text style={styles.sessionDate}>{date} · {session.preferences.radiusKm} km</Text>
+              <View key={session.id} style={styles.sessionCard}>
+                <TouchableOpacity
+                  style={styles.sessionMain}
+                  onPress={() => onSelectSession(session.id)}
+                  activeOpacity={0.82}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.sessionTopRow}>
+                    <View style={styles.sessionCopy}>
+                      <Text style={styles.sessionTitle}>{session.preferences.anchor?.label || 'Sélection locale'}</Text>
+                      <Text style={styles.sessionDate}>{date} · {session.preferences.radiusKm} km</Text>
+                    </View>
+                    <View style={[styles.statusPill, session.status === 'completed' && styles.statusPillCompleted]}>
+                      <Text style={styles.statusText}>{session.status === 'completed' ? 'Terminée' : 'En cours'}</Text>
+                    </View>
                   </View>
-                  <View style={[styles.statusPill, session.status === 'completed' && styles.statusPillCompleted]}>
-                    <Text style={styles.statusText}>{session.status === 'completed' ? 'Terminée' : 'En cours'}</Text>
+                  <View style={styles.sessionStats}>
+                    <Text style={styles.sessionStat}>{session.decisions.length}/{session.pool.length} choix</Text>
+                    <Text style={styles.sessionStat}>❤️ {likes}</Text>
                   </View>
-                </View>
-                <View style={styles.sessionStats}>
-                  <Text style={styles.sessionStat}>{session.decisions.length}/{session.pool.length} choix</Text>
-                  <Text style={styles.sessionStat}>❤️ {likes}</Text>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.sessionDeleteButton}
+                  onPress={() => onDeleteSession(session.id)}
+                  disabled={deleteBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Supprimer la session du ${date}`}
+                >
+                  <Trash2 size={18} color="#fb7185" />
+                </TouchableOpacity>
+              </View>
             );
           })}
         </ScrollView>
@@ -108,12 +145,16 @@ function SessionDetails({
   session,
   busyEventId,
   onResume,
+  onDelete,
+  deleteBusy,
   onRevise,
   onOpenDetails,
 }: {
   session: ProposalSession;
   busyEventId: string | null;
   onResume: (sessionId: string) => void;
+  onDelete: () => void;
+  deleteBusy: boolean;
   onRevise: (sessionId: string, eventId: string, decision: ProposalDecision) => void;
   onOpenDetails: (eventId: string) => void;
 }) {
@@ -129,6 +170,20 @@ function SessionDetails({
           <Text style={styles.resumeButtonText}>Reprendre cette session</Text>
         </TouchableOpacity>
       ) : null}
+      <TouchableOpacity
+        style={styles.deleteSessionButton}
+        onPress={onDelete}
+        disabled={deleteBusy}
+        accessibilityRole="button"
+        accessibilityLabel="Supprimer cette session"
+      >
+        {deleteBusy ? (
+          <ActivityIndicator size="small" color="#fb7185" />
+        ) : (
+          <Trash2 size={18} color="#fb7185" />
+        )}
+        <Text style={styles.deleteSessionText}>Supprimer cette session</Text>
+      </TouchableOpacity>
 
       <View style={styles.eventList}>
         {session.pool.map((event, index) => {
@@ -200,12 +255,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.surface },
   headerCopy: { flex: 1, alignItems: 'center' },
-  headerSpacer: { width: 44 },
+  headerAction: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(251, 113, 133, 0.10)' },
   eyebrow: { ...typography.label, fontSize: 10, letterSpacing: 1.1, color: colors.brand.secondary },
   headerTitle: { ...typography.h4, color: colors.brand.text },
   sessionsContent: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
   introText: { ...typography.body, color: colors.brand.textSecondary, marginBottom: spacing.sm },
-  sessionCard: { padding: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  sessionCard: { flexDirection: 'row', alignItems: 'center', borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  sessionMain: { flex: 1, padding: spacing.lg },
+  sessionDeleteButton: { width: 48, height: 48, marginRight: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, backgroundColor: 'rgba(251, 113, 133, 0.10)' },
   sessionTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   sessionCopy: { flex: 1 },
   sessionTitle: { ...typography.h5, color: colors.brand.text },
@@ -219,6 +276,8 @@ const styles = StyleSheet.create({
   detailsSummary: { ...typography.body, color: colors.brand.textSecondary },
   resumeButton: { minHeight: 50, marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: borderRadius.full, backgroundColor: colors.brand.secondary },
   resumeButtonText: { ...typography.bodyBold, color: colors.brand.primary },
+  deleteSessionButton: { minHeight: 48, marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: 'rgba(251, 113, 133, 0.45)' },
+  deleteSessionText: { ...typography.bodyBold, color: '#fb7185' },
   eventList: { gap: spacing.md, marginTop: spacing.lg },
   eventCard: { overflow: 'hidden', borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
   eventCardPending: { opacity: 0.66 },

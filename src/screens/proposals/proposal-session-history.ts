@@ -33,10 +33,16 @@ export function recordProposalDecision(
   session: ProposalSession,
   event: EventWithCreator,
   decision: ProposalDecision,
-  now: string = new Date().toISOString(),
+  options?: { now?: string; heartCreatedBySession?: boolean },
 ): ProposalSession {
+  const now = options?.now ?? new Date().toISOString();
   const existingIndex = session.decisions.findIndex((item) => item.event.id === event.id);
-  const nextDecision = { event, decision, decidedAt: now };
+  const nextDecision = {
+    event,
+    decision,
+    decidedAt: now,
+    heartCreatedBySession: decision === 'like' && options?.heartCreatedBySession === true,
+  };
   const decisions = [...session.decisions];
   if (existingIndex >= 0) decisions[existingIndex] = nextDecision;
   else decisions.push(nextDecision);
@@ -62,13 +68,19 @@ export function reviseProposalDecision(
   session: ProposalSession,
   eventId: string,
   decision: ProposalDecision,
-  now: string = new Date().toISOString(),
+  options?: { now?: string; heartCreatedBySession?: boolean },
 ): ProposalSession {
+  const now = options?.now ?? new Date().toISOString();
   const existingIndex = session.decisions.findIndex((item) => item.event.id === eventId);
   if (existingIndex < 0) return session;
 
   const decisions = [...session.decisions];
-  decisions[existingIndex] = { ...decisions[existingIndex], decision, decidedAt: now };
+  decisions[existingIndex] = {
+    ...decisions[existingIndex],
+    decision,
+    decidedAt: now,
+    heartCreatedBySession: decision === 'like' && options?.heartCreatedBySession === true,
+  };
   return { ...session, decisions, updatedAt: now };
 }
 
@@ -88,4 +100,18 @@ export function keepRecentProposalSessions(sessions: ProposalSession[]): Proposa
   return [...sessions]
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
     .slice(0, PROPOSAL_HISTORY_LIMIT);
+}
+
+export function getSessionCreatedHeartEvents(
+  sessions: ProposalSession[],
+): EventWithCreator[] {
+  const eventsById = new Map<string, EventWithCreator>();
+  sessions.forEach((session) => {
+    session.decisions.forEach((item) => {
+      if (item.decision === 'like' && item.heartCreatedBySession === true) {
+        eventsById.set(item.event.id, item.event);
+      }
+    });
+  });
+  return Array.from(eventsById.values());
 }

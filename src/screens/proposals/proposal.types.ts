@@ -23,6 +23,7 @@ export type ProposalSessionDecision = {
   event: EventWithCreator;
   decision: ProposalDecision;
   decidedAt: string;
+  heartCreatedBySession?: boolean;
 };
 
 export type ProposalSessionStatus = 'in_progress' | 'completed';

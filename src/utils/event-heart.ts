@@ -61,6 +61,17 @@ export async function ensureEventHearted(
   return { isLiked, isFavorite };
 }
 
+export async function removeEventHeart(
+  userId: string,
+  eventId: string,
+): Promise<{ isLiked: false; isFavorite: false }> {
+  await Promise.all([
+    SocialService.unlike(userId, eventId),
+    SocialService.removeFavorite(userId, eventId),
+  ]);
+  return { isLiked: false, isFavorite: false };
+}
+
 export function syncHeartStores(
   event: EventWithCreator,
   before: { isLiked: boolean; isFavorite: boolean },
