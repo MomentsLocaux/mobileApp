@@ -25,7 +25,44 @@ test('upcoming sorting distinguishes start and end intent', () => {
   assert.equal(findContextualSortChoice(choices, 'endDate', 'desc')?.label, 'Se terminent le plus tard');
 });
 
-test('all and past keep the neutral technical control', () => {
-  assert.equal(getContextualSortChoices('all', options), null);
-  assert.equal(getContextualSortChoices('past', options), null);
+test('past sorting describes completed events in the past tense', () => {
+  const choices = getContextualSortChoices('past', options);
+  assert.equal(
+    findContextualSortChoice(choices, 'date', 'asc')?.label,
+    'Ont commencé il y a longtemps',
+  );
+  assert.equal(findContextualSortChoice(choices, 'date', 'desc')?.label, 'Ont commencé récemment');
+  assert.equal(
+    findContextualSortChoice(choices, 'endDate', 'asc')?.label,
+    'Terminés depuis le plus longtemps',
+  );
+  assert.equal(findContextualSortChoice(choices, 'endDate', 'desc')?.label, 'Terminés récemment');
+});
+
+test('all sorting stays chronologically neutral across event statuses', () => {
+  const choices = getContextualSortChoices('all', options);
+  assert.equal(
+    findContextualSortChoice(choices, 'date', 'asc')?.label,
+    'Début : du plus tôt au plus tard',
+  );
+  assert.equal(
+    findContextualSortChoice(choices, 'date', 'desc')?.label,
+    'Début : du plus tard au plus tôt',
+  );
+  assert.equal(
+    findContextualSortChoice(choices, 'endDate', 'asc')?.label,
+    'Fin : du plus tôt au plus tard',
+  );
+  assert.equal(
+    findContextualSortChoice(choices, 'endDate', 'desc')?.label,
+    'Fin : du plus tard au plus tôt',
+  );
+});
+
+test('shared choices use outcome-oriented labels and unavailable choices stay hidden', () => {
+  const choices = getContextualSortChoices('all', ['triage', 'popularity']);
+  assert.deepEqual(
+    choices.map(({ label }) => label),
+    ['Recommandés', 'Les plus populaires'],
+  );
 });

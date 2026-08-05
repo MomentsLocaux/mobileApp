@@ -38,14 +38,72 @@ const UPCOMING_CHOICES: ContextualSortChoice[] = [
   { key: 'created:asc', label: 'Ajoutés il y a longtemps', sortBy: 'created', sortOrder: 'asc' },
 ];
 
+const PAST_CHOICES: ContextualSortChoice[] = [
+  { key: 'endDate:desc', label: 'Terminés récemment', sortBy: 'endDate', sortOrder: 'desc' },
+  SHARED_CHOICES.distance,
+  SHARED_CHOICES.popularity,
+  SHARED_CHOICES.triage,
+  { key: 'date:desc', label: 'Ont commencé récemment', sortBy: 'date', sortOrder: 'desc' },
+  {
+    key: 'date:asc',
+    label: 'Ont commencé il y a longtemps',
+    sortBy: 'date',
+    sortOrder: 'asc',
+  },
+  {
+    key: 'endDate:asc',
+    label: 'Terminés depuis le plus longtemps',
+    sortBy: 'endDate',
+    sortOrder: 'asc',
+  },
+  { key: 'created:desc', label: 'Ajoutés récemment', sortBy: 'created', sortOrder: 'desc' },
+  { key: 'created:asc', label: 'Ajoutés il y a longtemps', sortBy: 'created', sortOrder: 'asc' },
+];
+
+const ALL_CHOICES: ContextualSortChoice[] = [
+  SHARED_CHOICES.triage,
+  SHARED_CHOICES.distance,
+  SHARED_CHOICES.popularity,
+  {
+    key: 'date:asc',
+    label: 'Début : du plus tôt au plus tard',
+    sortBy: 'date',
+    sortOrder: 'asc',
+  },
+  {
+    key: 'date:desc',
+    label: 'Début : du plus tard au plus tôt',
+    sortBy: 'date',
+    sortOrder: 'desc',
+  },
+  {
+    key: 'endDate:asc',
+    label: 'Fin : du plus tôt au plus tard',
+    sortBy: 'endDate',
+    sortOrder: 'asc',
+  },
+  {
+    key: 'endDate:desc',
+    label: 'Fin : du plus tard au plus tôt',
+    sortBy: 'endDate',
+    sortOrder: 'desc',
+  },
+  { key: 'created:desc', label: 'Ajoutés récemment', sortBy: 'created', sortOrder: 'desc' },
+  { key: 'created:asc', label: 'Ajoutés il y a longtemps', sortBy: 'created', sortOrder: 'asc' },
+];
+
 export function getContextualSortChoices(
   status: EventMetaFilter,
   options: readonly SortOption[],
-): ContextualSortChoice[] | null {
-  if (status !== 'live' && status !== 'upcoming') return null;
+): ContextualSortChoice[] {
   const allowed = new Set(options);
-  return (status === 'live' ? LIVE_CHOICES : UPCOMING_CHOICES)
-    .filter((choice) => allowed.has(choice.sortBy));
+  const choicesByStatus: Record<EventMetaFilter, ContextualSortChoice[]> = {
+    all: ALL_CHOICES,
+    live: LIVE_CHOICES,
+    upcoming: UPCOMING_CHOICES,
+    past: PAST_CHOICES,
+  };
+  return choicesByStatus[status].filter((choice) => allowed.has(choice.sortBy));
 }
 
 export function findContextualSortChoice(
