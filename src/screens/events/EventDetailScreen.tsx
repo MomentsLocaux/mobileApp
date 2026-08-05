@@ -1914,6 +1914,7 @@ export default function EventDetailScreen() {
           visible={contribModalVisible}
           eventId={event.id}
           userId={profile.id}
+          eventTitle={event.title}
           onClose={() => setContribModalVisible(false)}
           onSubmitted={() => loadCommunityPhotos(event.id)}
         />
