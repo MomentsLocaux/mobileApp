@@ -15,6 +15,8 @@ import { SocialService } from '@/services/social.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
+import { features } from '@/config/features';
+import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 
 export default function EventEchoesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,7 +43,13 @@ export default function EventEchoesScreen() {
 
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
-  const canAddCommunityPhoto = !isGuest && !!event && (isAdmin || isOwner || hasCheckedIn);
+  const communityPhotoEligibility = getCommunityPhotoEligibility({
+    authenticated: !isGuest,
+    checkinEnabled: features.checkin,
+    isOwner,
+    isAdmin,
+    hasCheckedIn,
+  });
   const rootComments = useMemo(
     () => comments.filter((comment) => !comment.parent_comment_id),
     [comments],
@@ -63,7 +71,7 @@ export default function EventEchoesScreen() {
   }, [event]);
 
   const loadCheckinStatus = useCallback(async (eventId: string) => {
-    if (!profile?.id) {
+    if (!features.checkin || !profile?.id) {
       setHasCheckedIn(false);
       return;
     }
@@ -119,7 +127,11 @@ export default function EventEchoesScreen() {
 
   const handleAddPhoto = () => {
     if (!event) return;
-    if (!canAddCommunityPhoto) {
+    if (communityPhotoEligibility.reason === 'sign_in') {
+      Alert.alert('Connexion requise', 'Connectez-vous pour proposer une photo à la communauté.');
+      return;
+    }
+    if (communityPhotoEligibility.reason === 'checkin_required') {
       Alert.alert('Check-in requis', 'Vous devez faire un check-in pour ajouter une photo.');
       return;
     }
@@ -408,7 +420,7 @@ export default function EventEchoesScreen() {
               </View>
             )}
 
-            <Button title="Ajouter une photo" onPress={handleAddPhoto} disabled={!canAddCommunityPhoto} fullWidth style={{ marginTop: spacing.md }} />
+            <Button title="Ajouter une photo" onPress={handleAddPhoto} fullWidth style={{ marginTop: spacing.md }} />
           </>
         ) : null}
       </ScrollView>
