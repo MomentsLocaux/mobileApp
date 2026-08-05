@@ -142,6 +142,7 @@ const EVENT_CARD_SELECT = `
   id,
   creator_id,
   title,
+  description,
   category,
   category_meta:event_category(slug, icon),
   subcategory,
@@ -381,7 +382,10 @@ export const supabaseProvider: (Pick<
 
     const { data, error } = await supabase
       .rpc('get_events_by_ids', { ids: cleanedIds })
-      .select(EVENT_FULL_SELECT);
+      // Lists and map fallbacks only need the card payload. Loading media and
+      // detail-only fields for dozens of IDs can approach PostgREST's timeout.
+      // Event detail still uses getEventById with EVENT_FULL_SELECT.
+      .select(EVENT_CARD_SELECT);
 
     if (!error) {
       return (data || []) as unknown as EventWithCreator[];

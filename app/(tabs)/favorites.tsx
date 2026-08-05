@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronDown, Compass, Heart, MapPin, Search, Users } from 'lucide-react-native';
+import { Bell, ChevronDown, Compass, Heart, MapPin, Search } from 'lucide-react-native';
 
 import { AppBackground, EmptyState } from '@/components/ui';
 import { EventCard } from '@/components/events/EventCard';
@@ -117,39 +117,16 @@ export default function FavoritesScreen() {
       const favoriteRows = (favoritesData || []) as FavoriteRow[];
       const eventIds = favoriteRows.map((row) => row.event_id).filter(Boolean);
       const followRows = (followsData || []) as any[];
-      const followedIds = followRows.map((row) => row.following).filter(Boolean);
-      const [events, statsResult] = await Promise.all([
-        eventIds.length ? EventsService.getEventsByIds(eventIds) : Promise.resolve([]),
-        followedIds.length
-          ? supabase
-              .from('community_profile_stats')
-              .select('user_id, events_created_count, followers_count, lumo_total, following_count')
-              .in('user_id', followedIds)
-          : Promise.resolve({ data: [], error: null }),
-      ]);
+      const events = eventIds.length ? await EventsService.getEventsByIds(eventIds) : [];
 
       const byId = new Map(events.map((event) => [event.id, event]));
       const ordered = eventIds.map((id) => byId.get(id)).filter(Boolean) as EventWithCreator[];
       replaceFavorites(ordered);
 
-      if (statsResult.error) throw statsResult.error;
-      const statsByUserId = new Map(
-        ((statsResult.data || []) as any[]).map((row) => [
-          row.user_id,
-          {
-            events_created_count: Number(row.events_created_count || 0),
-            followers_count: Number(row.followers_count || 0),
-            lumo_total: Number(row.lumo_total || 0),
-            following_count: Number(row.following_count || 0),
-          },
-        ]),
-      );
-
       const creators = followRows
         .map((row) => {
           const p = row.profile;
           if (!p?.id) return null;
-          const stats = statsByUserId.get(p.id);
           return {
             user_id: p.id,
             display_name: p.display_name || 'Profil',
@@ -157,10 +134,13 @@ export default function FavoritesScreen() {
             cover_url: p.cover_url || null,
             city: p.city || null,
             bio: p.bio || null,
-            events_created_count: stats?.events_created_count ?? 0,
-            lumo_total: stats?.lumo_total ?? 0,
-            followers_count: stats?.followers_count ?? 0,
-            following_count: stats?.following_count ?? 0,
+            // Aggregate community stats are intentionally omitted here: the
+            // security-invoker view scans all visible events and can exceed the
+            // authenticated statement timeout. The profile detail remains the
+            // source of truth for those counters.
+            events_created_count: 0,
+            followers_count: 0,
+            following_count: 0,
           } as CommunityMember;
         })
         .filter(Boolean) as CommunityMember[];
@@ -594,17 +574,8 @@ export default function FavoritesScreen() {
                     {item.display_name}
                   </Text>
                   <Text style={styles.creatorMeta} numberOfLines={1}>
-                    {item.city || 'Ville inconnue'}
+                    {[item.city, item.bio].filter(Boolean).join(' · ') || 'Profil suivi'}
                   </Text>
-                  <View style={styles.creatorStatsRow}>
-                    <View style={styles.creatorStatPill}>
-                      <Users size={12} color={colors.brand.textSecondary} />
-                      <Text style={styles.creatorStatText}>{item.followers_count || 0}</Text>
-                    </View>
-                    <View style={styles.creatorStatPill}>
-                      <Text style={styles.creatorStatText}>{item.events_created_count || 0} événements</Text>
-                    </View>
-                  </View>
                 </View>
 
                 <TouchableOpacity
@@ -869,26 +840,6 @@ const styles = StyleSheet.create({
   creatorMeta: {
     ...typography.subtitle,
     color: colors.brand.textSecondary,
-  },
-  creatorStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 2,
-  },
-  creatorStatPill: {
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  creatorStatText: {
-    ...typography.caption,
-    color: '#c4ccda',
-    fontWeight: '700',
   },
   favoriteFabSmall: {
     width: 42,
