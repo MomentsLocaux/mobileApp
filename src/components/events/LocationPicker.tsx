@@ -236,7 +236,7 @@ export function LocationPicker({
                 disabled={geocodeLoading}
               >
                 {geocodeLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary[600]} />
+                  <ActivityIndicator size="small" color={colors.brand.secondary} />
                 ) : (
                   <>
                     <Navigation size={18} color={colors.primary[600]} />

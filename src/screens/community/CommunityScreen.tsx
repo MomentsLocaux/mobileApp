@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, Users } from 'lucide-react-native';
+import { Search, Users, UserPlus } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
@@ -214,7 +214,18 @@ function PeersMembersScreen() {
 
       <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Membres</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.title}>Membres</Text>
+            <TouchableOpacity
+              style={styles.inviteButton}
+              onPress={() => router.push('/profile/invite' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Inviter un ami"
+            >
+              <UserPlus size={16} color={colors.brand.secondary} />
+              <Text style={styles.inviteButtonText}>Inviter un ami</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.subtitle}>
             Suivez des personnes de l’app pour voir quand elles aiment un moment près de chez vous.
           </Text>
@@ -303,9 +314,32 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.xs,
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   title: {
     ...typography.h3,
     color: colors.brand.text,
+    flexShrink: 1,
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 181, 24, 0.45)',
+    backgroundColor: 'rgba(124, 181, 24, 0.08)',
+  },
+  inviteButtonText: {
+    ...typography.label,
+    fontSize: 12,
+    color: colors.brand.secondary,
   },
   subtitle: {
     ...typography.bodySmall,

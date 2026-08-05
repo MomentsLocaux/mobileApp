@@ -992,6 +992,7 @@ export default function OnboardingScreen() {
             <OnboardingThemesStep
               selected={themeSlugs}
               onToggle={toggleThemeSlug}
+              onSelectAll={(slugs) => setThemeSlugs(slugs)}
               title="Ce que tu aimes découvrir"
               subtitle="Ces thèmes nourrissent ton fil et tes notifs. Tu pourras les modifier plus tard. Tu peux passer."
             />
@@ -1003,6 +1004,7 @@ export default function OnboardingScreen() {
             <OnboardingThemesStep
               selected={createThemeSlugs}
               onToggle={toggleCreateThemeSlug}
+              onSelectAll={(slugs) => setCreateThemeSlugs(slugs)}
               title="Ce que tu vas proposer"
               subtitle="Catégories de tes futurs moments (préremplies depuis ce que tu aimes découvrir). Différent de tes goûts perso — tu peux ajuster ou passer."
             />
@@ -1298,11 +1300,14 @@ const styles = StyleSheet.create({
   },
   input: {
     ...typography.body,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: colors.neutral[200],
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    lineHeight: 22,
+    minHeight: 52,
     color: colors.brand.text,
   },
   textArea: {
@@ -1319,9 +1324,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.neutral[200],
     alignItems: 'flex-start',
   },
   valueIcon: {
@@ -1359,9 +1364,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     minHeight: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.neutral[200],
   },
   roleChipActive: {
     borderColor: colors.brand.secondary,
@@ -1395,8 +1400,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.surface,
     marginTop: spacing.sm,
   },
   intentRowActive: {
@@ -1449,9 +1454,9 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.neutral[200],
     overflow: 'hidden',
   },
   resultRow: {
@@ -1488,8 +1493,8 @@ const styles = StyleSheet.create({
     borderRadius: 66,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.surfaceMuted,
   },
   avatarPreview: {
     width: '100%',
@@ -1510,8 +1515,8 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: borderRadius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

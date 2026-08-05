@@ -16,6 +16,7 @@ import { useDiscoveryCapture } from '../src/hooks/useDiscoveryCapture';
 import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
 import { ensureDiscoveryLocationTaskRegistered } from '@/tasks/discovery-location';
 import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
+import { useProposalsStore } from '@/store/proposalsStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -34,6 +35,10 @@ export default function RootLayout() {
   usePushNotifications(userId);
   useDiscoveryCapture(userId);
   useProximityAlerts(userId);
+
+  useEffect(() => {
+    useProposalsStore.getState().bindToUser(userId ?? null);
+  }, [userId]);
 
   useEffect(() => {
     if (fontsLoaded) {

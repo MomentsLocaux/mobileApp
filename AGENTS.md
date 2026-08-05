@@ -60,6 +60,10 @@ npm run typecheck
 npm run lint
 ```
 
+When the change touches **charte / branding / colors / sheets / spinners / map chrome**, also walk
+`docs/CHARTER_UI_SURFACES.md` (and `.cursor/rules/charter-ui-surfaces.mdc`) so previously reported
+surfaces are not left behind.
+
 For config/release changes, also run:
 
 ```bash

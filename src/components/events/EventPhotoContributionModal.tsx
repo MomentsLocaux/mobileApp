@@ -169,7 +169,7 @@ export function EventPhotoContributionModal({
           ]}
         >
           <LinearGradient
-            colors={['rgba(124, 181, 24,0.18)', 'rgba(26,36,38,0)']}
+            colors={['rgba(124, 181, 24,0.14)', 'rgba(244,251,246,0)']}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.sheetGlow}
@@ -236,7 +236,7 @@ export function EventPhotoContributionModal({
                 <Text style={styles.actionTitle}>Galerie</Text>
                 <Text style={styles.actionSubtitle}>Choisir une photo existante</Text>
               </View>
-              <ChevronRight size={18} color="rgba(255,255,255,0.35)" />
+              <ChevronRight size={18} color={colors.brand.textSecondary} />
             </FloatingPressable>
 
             <FloatingPressable
@@ -254,7 +254,7 @@ export function EventPhotoContributionModal({
                 <Text style={styles.actionTitle}>Appareil photo</Text>
                 <Text style={styles.actionSubtitle}>Prendre une nouvelle photo</Text>
               </View>
-              <ChevronRight size={18} color="rgba(255,255,255,0.35)" />
+              <ChevronRight size={18} color={colors.brand.textSecondary} />
             </FloatingPressable>
           </View>
 
@@ -271,7 +271,7 @@ export function EventPhotoContributionModal({
             animateEntrance={false}
           >
             {uploading ? (
-              <ActivityIndicator color={colors.brand.primary} />
+              <ActivityIndicator color={colors.brand.onAccent} />
             ) : (
               <Text style={styles.submitText}>Envoyer pour validation</Text>
             )}
@@ -310,13 +310,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8,14,16,0.45)',
   },
   sheet: {
-    backgroundColor: '#121a1c',
+    backgroundColor: colors.brand.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.neutral[200],
     overflow: 'hidden',
   },
   sheetGlow: {
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(26,51,41,0.16)',
     marginBottom: spacing.md,
   },
   headerRow: {
@@ -373,9 +373,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(26,51,41,0.08)',
   },
   subtitle: {
     ...typography.bodySmall,
@@ -386,9 +386,9 @@ const styles = StyleSheet.create({
   preview: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(26,51,41,0.08)',
     marginBottom: spacing.md,
   },
   previewImage: {
@@ -432,9 +432,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(26,51,41,0.08)',
     minHeight: 68,
   },
   actionIcon: {
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     ...typography.body,
-    color: colors.brand.primary,
+    color: colors.brand.onAccent,
     fontWeight: '800',
   },
   limitHint: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.brand.page,
   },
   cancelText: {
     ...typography.body,
