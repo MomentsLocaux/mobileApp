@@ -1,8 +1,15 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { CATEGORY_VISUAL_SLUGS, type CategoryVisualSlug } from '@/constants/category-visuals';
-import { THEME_CHIP_LABELS } from '@/services/preferences.service';
+import {
+  CATEGORY_VISUAL_LABELS,
+  CATEGORY_VISUAL_SLUGS,
+  getCategoryLucideIcon,
+  type CategoryVisualSlug,
+} from '@/constants/category-visuals';
+import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 type Props = {
   selected: string[];
@@ -19,6 +26,8 @@ export function OnboardingThemesStep({
   title = 'Qu’est-ce qui te tente ?',
   subtitle = 'Choisis quelques thèmes pour démarrer. Tu pourras les modifier dans Paramètres → Notifications. Tu peux aussi passer cette étape.',
 }: Props) {
+  useTaxonomy();
+  const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
   const selectedSet = new Set(selected);
 
   return (
@@ -28,17 +37,40 @@ export function OnboardingThemesStep({
       <View style={styles.chipRow}>
         {CATEGORY_VISUAL_SLUGS.map((slug) => {
           const active = selectedSet.has(slug);
+          const category = categoriesMap[slug];
+          const label = category?.label?.trim() || CATEGORY_VISUAL_LABELS[slug];
+          const categoryColor = getCategoryColor(slug);
+          const categoryTextColor = getCategoryTextColor(slug);
+          const Icon = getCategoryLucideIcon(slug);
+
           return (
             <TouchableOpacity
               key={slug}
               onPress={() => onToggle(slug)}
               activeOpacity={0.75}
-              style={[styles.chip, active && styles.chipActive]}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: `${categoryColor}18`,
+                  borderColor: `${categoryColor}80`,
+                },
+                active && {
+                  backgroundColor: categoryColor,
+                  borderColor: categoryColor,
+                },
+              ]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              accessibilityLabel={label}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {THEME_CHIP_LABELS[slug]}
+              <Icon size={16} color={active ? categoryTextColor : categoryColor} strokeWidth={2} />
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: active ? categoryTextColor : categoryColor },
+                ]}
+              >
+                {label}
               </Text>
             </TouchableOpacity>
           );
@@ -67,23 +99,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'transparent',
-  },
-  chipActive: {
-    backgroundColor: colors.brand.secondary,
-    borderColor: colors.brand.secondary,
   },
   chipText: {
     ...typography.caption,
-    color: colors.brand.textSecondary,
     fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.brand.primary,
   },
 });

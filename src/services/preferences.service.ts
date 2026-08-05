@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/supabase/client';
-import type { CategoryVisualSlug } from '@/constants/category-visuals';
+import {
+  CATEGORY_VISUAL_LABELS,
+  type CategoryVisualSlug,
+} from '@/constants/category-visuals';
 
 export type NotifyFrequency = 'instant' | 'daily' | 'weekly';
 
@@ -56,18 +59,7 @@ export const DEFAULT_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
   preferred_category_slugs: [],
 };
 
-export const THEME_CHIP_LABELS: Record<CategoryVisualSlug, string> = {
-  'arts-culture': 'Arts & culture',
-  'marches-artisanat': 'Marchés',
-  'fetes-animations': 'Fêtes',
-  'famille-enfants': 'Famille',
-  'gastronomie-saveurs': 'Gastronomie',
-  'nature-bienetre': 'Nature',
-  'ateliers-apprentissage': 'Ateliers',
-  'sport-loisirs': 'Sport',
-  'vie-locale': 'Vie locale',
-  'insolite-ephemere': 'Insolite',
-};
+export const THEME_CHIP_LABELS: Record<CategoryVisualSlug, string> = CATEGORY_VISUAL_LABELS;
 
 const normalizeQuietTime = (value: unknown): QuietTime => {
   if (value == null || value === '') return null;

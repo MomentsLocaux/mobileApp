@@ -28,6 +28,20 @@ export const CATEGORY_VISUAL_SLUGS = [
 
 export type CategoryVisualSlug = (typeof CATEGORY_VISUAL_SLUGS)[number];
 
+/** Canonical labels used while the remote taxonomy is loading or unavailable. */
+export const CATEGORY_VISUAL_LABELS: Record<CategoryVisualSlug, string> = {
+  'arts-culture': 'Arts & Culture',
+  'marches-artisanat': 'Marchés & Artisanat',
+  'fetes-animations': 'Fêtes & Animations',
+  'famille-enfants': 'Famille & Enfants',
+  'gastronomie-saveurs': 'Gastronomie & Saveurs',
+  'nature-bienetre': 'Nature & Bien-être',
+  'ateliers-apprentissage': 'Ateliers & Apprentissage',
+  'sport-loisirs': 'Sport & Loisirs',
+  'vie-locale': 'Vie locale',
+  'insolite-ephemere': 'Insolite & Éphémère',
+};
+
 export type CategoryVisual = {
   Icon: LucideIcon;
   fallbackColor: string;
