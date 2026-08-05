@@ -89,6 +89,7 @@ import { useLikesStore } from '@/store/likesStore';
 import { getEventLiveWindow } from '@/utils/event-status';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
 
@@ -756,11 +757,19 @@ export default function EventDetailScreen() {
   };
 
   const handleAddPhoto = () => {
-    if (isGuest) {
+    const eligibility = getCommunityPhotoEligibility({
+      authenticated: !isGuest,
+      checkinEnabled: features.checkin,
+      isOwner,
+      isAdmin,
+      hasCheckedIn,
+    });
+
+    if (eligibility.reason === 'sign_in') {
       openGuestGate('Ajouter une photo');
       return;
     }
-    if (!isAdmin && !isOwner && !hasCheckedIn) {
+    if (eligibility.reason === 'checkin_required') {
       Alert.alert('Check-in requis', 'Vous devez faire un check-in pour ajouter une photo.');
       return;
     }
