@@ -1,15 +1,16 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, type LucideIcon } from 'lucide-react-native';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { MotionReveal } from './MotionReveal';
 
 type Props = {
   title: string;
   subtitle?: string;
+  icon?: LucideIcon;
 };
 
-export function DiscoveryLoadingState({ title, subtitle }: Props) {
+export function DiscoveryLoadingState({ title, subtitle, icon: LoadingIcon = MapPin }: Props) {
   return (
     <MotionReveal style={styles.reveal}>
       <View
@@ -22,7 +23,7 @@ export function DiscoveryLoadingState({ title, subtitle }: Props) {
         <View style={styles.spinnerShell}>
           <ActivityIndicator size="large" color={colors.brand.secondary} />
           <View style={styles.pinBadge} pointerEvents="none">
-            <MapPin size={16} color={colors.brand.secondary} strokeWidth={2.5} />
+            <LoadingIcon size={16} color={colors.brand.secondary} strokeWidth={2.5} />
           </View>
         </View>
 

@@ -17,7 +17,7 @@ import { colors, spacing, typography, borderRadius } from '../../constants/theme
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
 import type { CommunityMember } from '../../types/community';
-import { AppBackground, EmptyState, SkeletonBlock } from '@/components/ui';
+import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { haptics } from '@/utils/haptics';
 import { features } from '@/config/features';
 import { MOMENTS_LOCAUX_ORGANIZER_NAME } from '@/constants/branding';
@@ -40,6 +40,7 @@ function PeersMembersScreen() {
   const [query, setQuery] = useState('');
   const [members, setMembers] = useState<CommunityMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [followPendingId, setFollowPendingId] = useState<string | null>(null);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
@@ -51,29 +52,40 @@ function PeersMembersScreen() {
     const seq = ++searchSeq.current;
     try {
       setLoadingMembers(true);
-      if (currentUserId) {
-        const ids = await CommunityService.getFollowingIds(currentUserId);
-        if (seq !== searchSeq.current) return;
-        setFollowingIds(ids);
-      } else {
-        setFollowingIds([]);
-      }
+      setLoadError(null);
 
       const trimmed = search.trim();
       // Peer discovery is global by default (city filter was opt-in on main).
       // Hard-filtering by profile.city emptied the list for most users.
-      const data = trimmed
-        ? await CommunityService.searchMembers({
+      const membersRequest = trimmed
+        ? CommunityService.searchMembers({
             query: trimmed,
             limit: 40,
           })
-        : await CommunityService.listMembers({
+        : CommunityService.listMembers({
             city: null,
-            sort: 'followers',
             limit: 40,
           });
 
+      const followingRequest = currentUserId
+        ? CommunityService.getFollowingIds(currentUserId)
+        : Promise.resolve<string[]>([]);
+      const [membersResult, followingResult] = await Promise.allSettled([
+        membersRequest,
+        followingRequest,
+      ]);
+
       if (seq !== searchSeq.current) return;
+
+      if (followingResult.status === 'fulfilled') {
+        setFollowingIds(followingResult.value);
+      } else {
+        console.warn('load following ids error', followingResult.reason);
+        setFollowingIds([]);
+      }
+
+      if (membersResult.status === 'rejected') throw membersResult.reason;
+      const data = membersResult.value;
 
       const filtered = (data || []).filter((m) => {
         if (!m.user_id || m.user_id === currentUserId) return false;
@@ -85,7 +97,10 @@ function PeersMembersScreen() {
       setMembers(filtered);
     } catch (e) {
       console.warn('load peers error', e);
-      Alert.alert('Erreur', 'Impossible de charger les membres');
+      if (seq === searchSeq.current) {
+        setMembers([]);
+        setLoadError('Impossible de charger les membres pour le moment.');
+      }
     } finally {
       if (seq === searchSeq.current) setLoadingMembers(false);
     }
@@ -221,7 +236,11 @@ function PeersMembersScreen() {
         </View>
 
         {loadingMembers && !refreshing ? (
-          <MembersListSkeleton />
+          <DiscoveryLoadingState
+            icon={Users}
+            title="Nous recherchons les membres de la communauté"
+            subtitle="Encore un instant, nous préparons les profils à découvrir."
+          />
         ) : (
           <FlatList
             data={sortedMembers}
@@ -241,38 +260,31 @@ function PeersMembersScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />
             }
             ListEmptyComponent={
-              <EmptyState
-                icon={Users}
-                title={query.trim() ? 'Aucun résultat' : 'Aucun membre pour le moment'}
-                subtitle={
-                  query.trim()
-                    ? 'Essayez un autre nom, ou invitez vos proches à rejoindre l’app.'
-                    : 'Recherchez un prénom ou parcourez les membres pour les suivre.'
-                }
-                ctaLabel="Inviter des amis"
-                onCtaPress={() => router.push('/profile/invite' as any)}
-              />
+              loadError ? (
+                <EmptyState
+                  icon={Users}
+                  title="Chargement impossible"
+                  subtitle={loadError}
+                  ctaLabel="Réessayer"
+                  onCtaPress={() => void load(query)}
+                />
+              ) : (
+                <EmptyState
+                  icon={Users}
+                  title={query.trim() ? 'Aucun résultat' : 'Aucun membre pour le moment'}
+                  subtitle={
+                    query.trim()
+                      ? 'Essayez un autre nom, ou invitez vos proches à rejoindre l’app.'
+                      : 'Recherchez un prénom ou parcourez les membres pour les suivre.'
+                  }
+                  ctaLabel="Inviter des amis"
+                  onCtaPress={() => router.push('/profile/invite' as any)}
+                />
+              )
             }
           />
         )}
       </View>
-    </View>
-  );
-}
-
-function MembersListSkeleton() {
-  return (
-    <View style={styles.skeletonWrap}>
-      {Array.from({ length: 6 }).map((_, index) => (
-        <View key={index} style={styles.memberCard}>
-          <SkeletonBlock height={56} width={56} radius={28} />
-          <View style={{ flex: 1, gap: 8 }}>
-            <SkeletonBlock height={14} width="55%" />
-            <SkeletonBlock height={11} width="40%" />
-          </View>
-          <SkeletonBlock height={36} width={72} radius={borderRadius.full} />
-        </View>
-      ))}
     </View>
   );
 }
@@ -330,10 +342,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: spacing.xl * 2,
     flexGrow: 1,
-  },
-  skeletonWrap: {
-    gap: spacing.sm,
-    paddingBottom: spacing.xl,
   },
   memberCard: {
     flexDirection: 'row',

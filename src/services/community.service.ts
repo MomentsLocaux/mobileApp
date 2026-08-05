@@ -8,6 +8,27 @@ export type EventLikerProfile = {
   avatar_url: string | null;
 };
 
+type PublicMemberProfile = {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+  city: string | null;
+  bio: string | null;
+};
+
+const toCommunityMember = (profile: PublicMemberProfile): CommunityMember => ({
+  user_id: profile.id,
+  display_name: profile.display_name || '',
+  avatar_url: profile.avatar_url,
+  cover_url: profile.cover_url,
+  city: profile.city,
+  bio: profile.bio,
+  events_created_count: 0,
+  followers_count: 0,
+  following_count: 0,
+});
+
 export const CommunityService = {
   async listMyFollowers(): Promise<Array<{ id: string; display_name: string; avatar_url: string | null }>> {
     const currentUser = (await supabase.auth.getUser()).data.user?.id;
@@ -31,10 +52,11 @@ export const CommunityService = {
   async searchMembers(options: { query?: string; city?: string; limit?: number }) {
     const { query, city, limit = 12 } = options;
     let db = supabase
-      .from('community_profile_stats')
-      .select(
-        'user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, followers_count, following_count',
-      )
+      .from('profiles')
+      .select('id, display_name, avatar_url, cover_url, city, bio')
+      .eq('status', 'active')
+      .not('display_name', 'is', null)
+      .order('display_name', { ascending: true })
       .limit(limit);
 
     if (query && query.trim()) {
@@ -47,43 +69,34 @@ export const CommunityService = {
 
     const { data, error } = await db;
     if (error) throw error;
-    return (data || []) as CommunityMember[];
+    return (data || []).map((profile) => toCommunityMember(profile as PublicMemberProfile));
   },
 
   async listMembers(options: {
     city?: string | null;
-    sort?: 'followers' | 'events' | 'lumo';
     limit?: number;
     offset?: number;
   }): Promise<CommunityMember[]> {
-    const { city, sort = 'followers', limit = 30, offset = 0 } = options;
-    let query = supabase.from('community_profile_stats').select(`
-      user_id,
-      display_name,
-      avatar_url,
-      cover_url,
-      city,
-      bio,
-      events_created_count,
-      followers_count,
-      following_count
-    `);
+    const { city, limit = 30, offset = 0 } = options;
+    let query = supabase
+      .from('profiles')
+      .select(`
+        id,
+        display_name,
+        avatar_url,
+        cover_url,
+        city,
+        bio
+      `)
+      .eq('status', 'active')
+      .not('display_name', 'is', null);
     if (city) {
       query = query.eq('city', city);
     }
-    if (sort === 'followers') {
-      query = query.order('followers_count', { ascending: false });
-    } else if (sort === 'events') {
-      query = query.order('events_created_count', { ascending: false });
-    } else if (sort === 'lumo') {
-      query = query.order('lumo_total', { ascending: false });
-    } else {
-      query = query.order('followers_count', { ascending: false });
-    }
-    query = query.limit(limit).range(offset, offset + limit - 1);
+    query = query.order('display_name', { ascending: true }).range(offset, offset + limit - 1);
     const { data, error } = await query;
     if (error) throw error;
-    return (data || []) as CommunityMember[];
+    return (data || []).map((profile) => toCommunityMember(profile as PublicMemberProfile));
   },
 
   async getFollowingIds(currentUserId: string): Promise<string[]> {
