@@ -1,5 +1,10 @@
 import { useTaxonomyStore } from '@/store/taxonomyStore';
-import { getCategoryFallbackColor, getCategoryVisual, isCategoryVisualSlug } from './category-visuals';
+import {
+  CATEGORY_VISUAL_LABELS,
+  getCategoryFallbackColor,
+  getCategoryVisual,
+  isCategoryVisualSlug,
+} from './category-visuals';
 import { colors } from './theme';
 import type { EventCategory } from '../types/database';
 
@@ -37,7 +42,12 @@ const getColorLuminance = (hexColor: string): number => {
 export const getCategoryLabel = (category: EventCategory): string => {
   const { categoriesMap } = useTaxonomyStore.getState();
   if (!category) return 'Catégorie';
-  return categoriesMap[category]?.label || String(category);
+  const categoryMeta = categoriesMap[category];
+  const slug = categoryMeta?.slug ?? (isCategoryVisualSlug(category) ? category : null);
+  return (
+    categoryMeta?.label ||
+    (isCategoryVisualSlug(slug) ? CATEGORY_VISUAL_LABELS[slug] : String(category))
+  );
 };
 
 /**
@@ -47,7 +57,7 @@ export const getCategoryLabel = (category: EventCategory): string => {
 export const getCategoryIcon = (category: EventCategory): string => {
   const { categoriesMap } = useTaxonomyStore.getState();
   if (!category) return 'circle';
-  const slug = categoriesMap[category]?.slug;
+  const slug = categoriesMap[category]?.slug ?? (isCategoryVisualSlug(category) ? category : null);
   if (isCategoryVisualSlug(slug)) return slug;
   return categoriesMap[category]?.icon || 'circle';
 };
@@ -57,8 +67,9 @@ export { getCategoryLucideIcon } from './category-visuals';
 export const getCategoryColor = (category: EventCategory): string => {
   const { categoriesMap } = useTaxonomyStore.getState();
   if (!category) return DEFAULT_CATEGORY_COLOR;
-  const slug = categoriesMap[category]?.slug;
-  const rawColor = categoriesMap[category]?.color ?? getCategoryFallbackColor(slug);
+  const categoryMeta = categoriesMap[category];
+  const slug = categoryMeta?.slug ?? (isCategoryVisualSlug(category) ? category : null);
+  const rawColor = categoryMeta?.color ?? getCategoryFallbackColor(slug);
   if (typeof rawColor !== 'string') return DEFAULT_CATEGORY_COLOR;
   return normalizeHexColor(rawColor) || getCategoryVisual(slug)?.fallbackColor || DEFAULT_CATEGORY_COLOR;
 };
