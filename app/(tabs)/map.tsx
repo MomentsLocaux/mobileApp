@@ -917,6 +917,7 @@ export default function MapScreen() {
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortByChange={(value) => setSort('map', value, sortOrder)}
+              onSortChange={(value, order) => setSort('map', value, order)}
               onSortOrderChange={(value) => setSort('map', sortBy, value)}
               hasLocation={!!userLocation}
             />

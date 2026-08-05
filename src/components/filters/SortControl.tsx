@@ -11,6 +11,12 @@ import {
 } from 'react-native';
 import { SlidersHorizontal } from 'lucide-react-native';
 import type { SortOption, SortOrder } from '@/types/filters';
+import type { EventMetaFilter } from '@/utils/filter-events';
+import {
+  findContextualSortChoice,
+  getContextualSortChoices,
+  type ContextualSortChoice,
+} from '@/utils/contextual-sort-labels';
 import {
   DISTANCE_DISABLED_REASON,
   SORT_LABELS,
@@ -34,12 +40,14 @@ export type SortControlMode = 'pill' | 'iconOnly' | 'list';
 export interface SortControlProps {
   value: SortOption;
   onChange: (next: SortOption) => void;
+  onSelectionChange?: (sortBy: SortOption, sortOrder?: SortOrder) => void;
   sortOrder?: SortOrder;
   onSortOrderChange?: (next: SortOrder) => void;
   /** Distance sorting requires a center; without it the option is disabled. */
   hasLocation?: boolean;
   mode?: SortControlMode;
   options?: readonly SortOption[];
+  status?: EventMetaFilter;
   title?: string;
   hint?: string;
   style?: StyleProp<ViewStyle>;
@@ -49,18 +57,31 @@ export interface SortControlProps {
 export function SortControl({
   value,
   onChange,
+  onSelectionChange,
   sortOrder,
   onSortOrderChange,
   hasLocation = false,
   mode = 'pill',
   options = SORT_OPTIONS,
-  title = 'Trier par',
+  status = 'all',
+  title,
   hint,
   style,
   testID,
 }: SortControlProps) {
   const [open, setOpen] = useState(false);
-  const showOrder = isOrderableSort(value) && Boolean(onSortOrderChange);
+  const contextualChoices = useMemo(
+    () => getContextualSortChoices(status, options),
+    [options, status],
+  );
+  const resolvedTitle = title ?? (contextualChoices ? 'Afficher en premier' : 'Trier par');
+  const effectiveSortOrder = isOrderableSort(value)
+    ? sortOrder ?? defaultSortOrderFor(value)
+    : undefined;
+  const activeContextualChoice = contextualChoices
+    ? findContextualSortChoice(contextualChoices, value, effectiveSortOrder)
+    : undefined;
+  const showOrder = !contextualChoices && isOrderableSort(value) && Boolean(onSortOrderChange);
 
   const isDisabled = useCallback(
     (option: SortOption) => option === 'distance' && !hasLocation,
@@ -76,6 +97,19 @@ export function SortControl({
       }
     },
     [isDisabled, onChange, onSortOrderChange, sortOrder]
+  );
+
+  const selectContextual = useCallback(
+    (choice: ContextualSortChoice) => {
+      if (isDisabled(choice.sortBy)) return;
+      if (onSelectionChange) {
+        onSelectionChange(choice.sortBy, choice.sortOrder);
+        return;
+      }
+      onChange(choice.sortBy);
+      if (choice.sortOrder) onSortOrderChange?.(choice.sortOrder);
+    },
+    [isDisabled, onChange, onSelectionChange, onSortOrderChange],
   );
 
   const orderRow = useMemo(() => {
@@ -127,19 +161,49 @@ export function SortControl({
     </View>
   );
 
+  const renderContextualOptions = (choices: ContextualSortChoice[], afterSelect?: () => void) => (
+    <View style={styles.optionList}>
+      {choices.map((choice) => {
+        const disabled = isDisabled(choice.sortBy);
+        const selected = activeContextualChoice?.key === choice.key;
+        return (
+          <TouchableOpacity
+            key={choice.key}
+            style={[styles.option, disabled && styles.optionDisabled]}
+            onPress={() => {
+              selectContextual(choice);
+              afterSelect?.();
+            }}
+            disabled={disabled}
+            activeOpacity={filterOpacity.pressed}
+            accessibilityRole="button"
+            accessibilityState={{ selected, disabled }}
+            accessibilityLabel={choice.label}
+            accessibilityHint={disabled ? DISTANCE_DISABLED_REASON : undefined}
+          >
+            <Text style={[styles.optionText, selected && styles.optionTextActive]}>
+              {choice.label}
+            </Text>
+            {disabled ? <Text style={styles.optionReason}>{DISTANCE_DISABLED_REASON}</Text> : null}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   if (mode === 'list') {
     return (
       <View style={style} testID={testID}>
-        {title ? <Text style={styles.title}>{title}</Text> : null}
+        {resolvedTitle ? <Text style={styles.title}>{resolvedTitle}</Text> : null}
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-        {renderOptions()}
+        {contextualChoices ? renderContextualOptions(contextualChoices) : renderOptions()}
         {orderRow}
       </View>
     );
   }
 
   const showLabel = mode === 'pill';
-  const triggerLabel = `${SORT_LABELS[value]}${
+  const triggerLabel = activeContextualChoice?.label ?? `${SORT_LABELS[value]}${
     showOrder && sortOrder ? ` · ${sortOrderLabel(sortOrder)}` : ''
   }`;
 
@@ -150,7 +214,7 @@ export function SortControl({
         onPress={() => setOpen(true)}
         activeOpacity={filterOpacity.pressed}
         accessibilityRole="button"
-        accessibilityLabel={`Trier par ${SORT_LABELS[value]}`}
+        accessibilityLabel={`Tri actuel : ${triggerLabel}`}
         testID={testID}
       >
         <SlidersHorizontal size={16} color={filterColors.text} />
@@ -169,9 +233,11 @@ export function SortControl({
           accessibilityLabel="Fermer le tri"
         />
         <View style={styles.sheet}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{resolvedTitle}</Text>
           {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-          {renderOptions(() => setOpen(false))}
+          {contextualChoices
+            ? renderContextualOptions(contextualChoices, () => setOpen(false))
+            : renderOptions(() => setOpen(false))}
           {orderRow}
         </View>
       </Modal>

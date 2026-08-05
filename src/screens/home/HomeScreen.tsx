@@ -597,10 +597,12 @@ export default function HomeScreen() {
           <SortControl
             value={sortBy}
             onChange={(value) => setSort('home', value, sortOrder)}
+            onSelectionChange={(value, order) => setSort('home', value, order)}
             sortOrder={sortOrder}
             onSortOrderChange={(order) => setSortOrder('home', order)}
             hasLocation={!!browseCenter}
             mode="pill"
+            status={status}
           />
         </View>
       </>

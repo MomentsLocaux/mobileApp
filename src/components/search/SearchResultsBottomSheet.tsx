@@ -71,6 +71,7 @@ interface Props {
   sortBy?: SortOption;
   sortOrder?: SortOrder;
   onSortByChange?: (value: SortOption) => void;
+  onSortChange?: (sortBy: SortOption, sortOrder?: SortOrder) => void;
   onSortOrderChange?: (order: SortOrder) => void;
   hasLocation?: boolean;
 }
@@ -107,6 +108,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       sortBy = 'triage',
       sortOrder,
       onSortByChange,
+      onSortChange,
       onSortOrderChange,
       hasLocation = false,
     },
@@ -463,11 +465,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                   <SortControl
                     value={sortBy}
                     onChange={onSortByChange}
+                    onSelectionChange={onSortChange}
                     sortOrder={sortOrder}
                     onSortOrderChange={onSortOrderChange}
                     hasLocation={hasLocation}
                     options={sortOptions}
                     mode="iconOnly"
+                    status={metaFilter}
                   />
                 ) : null}
               </View>
