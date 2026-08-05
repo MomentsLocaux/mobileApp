@@ -16,4 +16,4 @@ export const MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL = supabaseUrl
   : null;
 
 /** Local asset fallback if remote branding avatar is unavailable. */
-export const MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL = require('../../assets/images/icon.png');
+export const MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL = require('../../assets/images/logo-mark.png');

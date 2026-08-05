@@ -17,7 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronDown, Compass, Heart, MapPin, Search } from 'lucide-react-native';
 
-import { AppBackground, EmptyState } from '@/components/ui';
+import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { EventCard } from '@/components/events/EventCard';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
@@ -305,22 +305,11 @@ export default function FavoritesScreen() {
     return (
       <View style={styles.loadingContainer}>
         <AppBackground />
-        <View
-          style={styles.loadingCard}
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel="Chargement de vos favoris"
-          accessibilityLiveRegion="polite"
-        >
-          <View style={styles.loadingSpinnerShell}>
-            <ActivityIndicator size="small" color={colors.brand.secondary} />
-            <View style={styles.loadingHeartBadge}>
-              <Heart size={15} color={colors.brand.secondary} fill={colors.brand.secondary} />
-            </View>
-          </View>
-          <Text style={styles.loadingTitle}>Nous préparons vos favoris</Text>
-          <Text style={styles.loadingSubtitle}>Encore un instant, vos pépites arrivent…</Text>
-        </View>
+        <DiscoveryLoadingState
+          icon={Heart}
+          title="Nous préparons vos favoris"
+          subtitle="Encore un instant, vos pépites arrivent…"
+        />
       </View>
     );
   }
@@ -630,47 +619,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     backgroundColor: 'transparent',
-  },
-  loadingCard: {
-    width: '100%',
-    maxWidth: 420,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(26, 36, 38, 0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.2)',
-  },
-  loadingSpinnerShell: {
-    width: 58,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  loadingHeartBadge: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.page,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.35)',
-  },
-  loadingTitle: {
-    ...typography.h5,
-    color: colors.brand.text,
-    textAlign: 'center',
-  },
-  loadingSubtitle: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',

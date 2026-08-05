@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
 import type { LucideIcon } from 'lucide-react-native';
+import { colors } from '@/constants/theme';
 
 /** ViewBox sized so the tip sits on the bottom edge (Mapbox `iconAnchor: 'bottom'`). */
 const PIN_VB_W = 40;
@@ -10,7 +11,7 @@ const HEAD_CX = 20;
 const HEAD_CY = 17;
 
 /**
- * Soft modern pin: colored body + white icon disc.
+ * Soft modern pin: colored body + mint icon disc.
  * Keeps category color as the brand signal while maximizing icon contrast.
  */
 const PIN_BODY = [
@@ -76,7 +77,7 @@ export const CategoryEventMarker: React.FC<Props> = React.memo(
               cy={20}
               r={14.5}
               fill="none"
-              stroke="#FFFFFF"
+              stroke={colors.brand.page}
               strokeWidth={2.4}
               strokeOpacity={0.95}
             />
@@ -110,17 +111,17 @@ export const CategoryEventMarker: React.FC<Props> = React.memo(
           <Path
             d={PIN_BODY}
             fill={color}
-            stroke="#FFFFFF"
+            stroke={colors.brand.page}
             strokeWidth={2}
             strokeLinejoin="round"
           />
 
-          {/* White icon disc for max contrast */}
+          {/* Mint icon disc for softer contrast on light map */}
           <Circle
             cx={HEAD_CX}
             cy={HEAD_CY}
             r={9.2}
-            fill="#FFFFFF"
+            fill={colors.brand.page}
             stroke="rgba(15,23,25,0.06)"
             strokeWidth={1}
           />

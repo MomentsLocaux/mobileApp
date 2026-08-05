@@ -20,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
 import { ProfileService } from '../../services/profile.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getProfileIdentityLabel } from '../../utils/roleHelpers';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -227,7 +226,7 @@ export default function ProfileEditScreen() {
             disabled={uploadingAvatar}
           >
             {uploadingAvatar ? (
-              <ActivityIndicator size="small" color={colors.brand.primary} />
+              <ActivityIndicator size="small" color={colors.brand.secondary} />
             ) : (
               <Upload size={20} color={colors.brand.primary} />
             )}
@@ -269,11 +268,6 @@ export default function ProfileEditScreen() {
         <View style={styles.infoBox}>
           <Text style={styles.infoLabel}>Email</Text>
           <Text style={styles.infoValue}>{profile.email}</Text>
-        </View>
-
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Profil</Text>
-          <Text style={styles.infoValue}>{getProfileIdentityLabel(profile)}</Text>
         </View>
 
         <Button

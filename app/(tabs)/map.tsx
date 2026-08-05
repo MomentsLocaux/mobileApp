@@ -785,7 +785,7 @@ export default function MapScreen() {
     return (
       <GestureHandlerRootView style={styles.loadingContainer}>
         <AppBackground />
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <ActivityIndicator size="large" color={colors.brand.secondary} />
         <Text style={styles.fallbackText}>Obtention de votre position...</Text>
       </GestureHandlerRootView>
     );

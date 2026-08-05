@@ -1,0 +1,18 @@
+---
+description: Light brand charter — never forget reported UI surfaces when changing colors/theme/branding
+globs: **/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Charter UI surfaces
+
+When the task involves **charte graphique**, branding, theme tokens, colors, modals/sheets,
+spinners, map cards, or “harmoniser le design”:
+
+1. Read and follow `docs/CHARTER_UI_SURFACES.md`.
+2. Prefer `colors.brand.*` from `src/constants/theme.ts` — no new dark ink sheets (`#121a1c`)
+   or hardcoded `#0f1719` / `#334155` / `#122c33` on light screens.
+3. Before closing, re-check every surface listed in that doc that could regress (spinners,
+   bug-report form, photo/nav sheets, proposal wizard + distance chip, event detail actions,
+   map overlay/card/markers, onboarding inputs/themes).
+4. If you touch a new surface, **add it to** `docs/CHARTER_UI_SURFACES.md`.

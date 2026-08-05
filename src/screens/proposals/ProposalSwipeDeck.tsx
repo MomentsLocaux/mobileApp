@@ -265,7 +265,7 @@ function ProposalCardContent({
             </View>
           ) : null}
           <View style={styles.distanceBadge}>
-            <MapPin size={13} color={colors.brand.text} />
+            <MapPin size={13} color={colors.brand.textSecondary} />
             <Text style={styles.distanceBadgeText}>{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}</Text>
           </View>
         </View>
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.label, fontSize: 11, letterSpacing: 1.3, color: colors.brand.secondary },
   headerTitle: { ...typography.h4, color: colors.brand.text },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pauseButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: '#365867' },
+  pauseButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.neutral[200] },
   pauseText: { ...typography.label, fontSize: 11, color: colors.brand.secondary },
   counterPill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full, backgroundColor: colors.brand.surface },
   counterText: { ...typography.label, color: colors.brand.text },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   categoryBadge: { paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: borderRadius.full, backgroundColor: colors.brand.secondary },
   categoryBadgeText: { ...typography.label, color: colors.brand.primary },
-  distanceBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: borderRadius.full, backgroundColor: 'rgba(15, 23, 25, 0.75)' },
+  distanceBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: borderRadius.full, backgroundColor: 'rgba(244,251,246,0.94)' },
   distanceBadgeText: { ...typography.label, color: colors.brand.text },
   dateHeadline: { ...typography.label, color: '#67e8f9', marginBottom: spacing.xs },
   eventTitle: { ...typography.h2, color: '#fff' },

@@ -118,7 +118,7 @@ export default function EventsListScreen() {
   if (loadingEvents) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <ActivityIndicator size="large" color={colors.brand.secondary} />
         <Text style={styles.loadingText}>Chargement des événements...</Text>
       </View>
     );

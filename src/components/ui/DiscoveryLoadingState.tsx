@@ -46,9 +46,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(26, 36, 38, 0.88)',
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.2)',
+    borderColor: colors.neutral[200],
   },
   spinnerShell: {
     width: 68,
@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.page,
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.35)',
+    borderColor: 'rgba(124, 181, 24, 0.4)',
   },
   title: {
     ...typography.h5,

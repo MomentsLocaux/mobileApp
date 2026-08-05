@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { Check, CheckCheck } from 'lucide-react-native';
 import {
   CATEGORY_VISUAL_LABELS,
   CATEGORY_VISUAL_SLUGS,
@@ -12,10 +12,13 @@ import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { haptics } from '@/utils/haptics';
 
 type Props = {
   selected: string[];
   onToggle: (slug: CategoryVisualSlug) => void;
+  /** Prefer bulk replace when parent owns the selection array. */
+  onSelectAll?: (slugs: CategoryVisualSlug[]) => void;
   /** Override copy — discover vs create_themes. */
   title?: string;
   subtitle?: string;
@@ -25,17 +28,57 @@ type Props = {
 export function OnboardingThemesStep({
   selected,
   onToggle,
+  onSelectAll,
   title = 'Qu’est-ce qui te tente ?',
   subtitle = 'Choisis quelques thèmes pour démarrer. Tu pourras les modifier dans Paramètres → Notifications. Tu peux aussi passer cette étape.',
 }: Props) {
   useTaxonomy();
   const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
   const selectedSet = new Set(selected);
+  const allSelected = CATEGORY_VISUAL_SLUGS.every((slug) => selectedSet.has(slug));
+
+  const handleSelectAll = () => {
+    haptics.selection();
+    const next = allSelected ? [] : [...CATEGORY_VISUAL_SLUGS];
+    if (onSelectAll) {
+      onSelectAll(next);
+      return;
+    }
+    // Fallback: toggle only slugs that need to change.
+    for (const slug of CATEGORY_VISUAL_SLUGS) {
+      const isSelected = selectedSet.has(slug);
+      if (allSelected ? isSelected : !isSelected) {
+        onToggle(slug);
+      }
+    }
+  };
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
+      <View style={styles.categoryHeaderRow}>
+        <Text style={styles.selectionHint}>
+          {selected.length === 0
+            ? 'Aucune catégorie sélectionnée'
+            : `${selected.length} sélectionnée${selected.length > 1 ? 's' : ''}`}
+        </Text>
+        <TouchableOpacity
+          style={[styles.selectAllButton, allSelected && styles.selectAllButtonActive]}
+          onPress={handleSelectAll}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: allSelected }}
+          accessibilityLabel={allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+        >
+          <CheckCheck
+            size={16}
+            color={allSelected ? colors.brand.primary : colors.brand.secondary}
+          />
+          <Text style={[styles.selectAllText, allSelected && styles.selectAllTextActive]}>
+            {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.categoryList}>
         {CATEGORY_VISUAL_SLUGS.map((slug) => {
           const active = selectedSet.has(slug);
@@ -111,6 +154,36 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     lineHeight: 22,
   },
+  categoryHeaderRow: {
+    gap: spacing.sm,
+  },
+  selectionHint: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+  },
+  selectAllButton: {
+    minHeight: 42,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 181, 24, 0.45)',
+    backgroundColor: 'rgba(124, 181, 24, 0.08)',
+  },
+  selectAllButtonActive: {
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
+  },
+  selectAllText: {
+    ...typography.label,
+    color: colors.brand.secondary,
+  },
+  selectAllTextActive: {
+    color: colors.brand.primary,
+  },
   categoryList: {
     gap: spacing.sm,
   },
@@ -122,7 +195,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.neutral[200],
     backgroundColor: colors.brand.surface,
   },
   categoryIcon: {

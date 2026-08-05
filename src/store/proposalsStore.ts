@@ -28,6 +28,8 @@ const defaultPreferences: ProposalPreferences = {
 
 interface ProposalsState {
   hasHydrated: boolean;
+  /** Owner of persisted sessions — prevents cross-account leakage on shared devices. */
+  ownerUserId: string | null;
   phase: ProposalPhase;
   wizardStep: 0 | 1 | 2;
   preferences: ProposalPreferences;
@@ -40,6 +42,8 @@ interface ProposalsState {
   activeSessionId: string | null;
   selectedSessionId: string | null;
   finishHydration: () => void;
+  /** Bind store to the signed-in user; clears history when the account changes or signs out. */
+  bindToUser: (userId: string | null) => void;
   setWizardStep: (step: 0 | 1 | 2) => void;
   toggleCategory: (categoryId: string) => void;
   setCategories: (categoryIds: string[]) => void;
@@ -81,17 +85,22 @@ const emptySessionState = {
   seenIds: [] as string[],
 };
 
+const emptyOwnedState = {
+  phase: 'wizard' as ProposalPhase,
+  wizardStep: 0 as 0 | 1 | 2,
+  preferences: defaultPreferences,
+  ...emptySessionState,
+  sessions: [] as ProposalSession[],
+  activeSessionId: null as string | null,
+  selectedSessionId: null as string | null,
+};
+
 export const useProposalsStore = create<ProposalsState>()(
   persist(
     (set, get) => ({
       hasHydrated: false,
-      phase: 'wizard',
-      wizardStep: 0,
-      preferences: defaultPreferences,
-      ...emptySessionState,
-      sessions: [],
-      activeSessionId: null,
-      selectedSessionId: null,
+      ownerUserId: null,
+      ...emptyOwnedState,
       finishHydration: () => {
         const state = get();
         const active = state.activeSessionId
@@ -101,6 +110,23 @@ export const useProposalsStore = create<ProposalsState>()(
           hasHydrated: true,
           phase: active || state.sessions.length > 0 ? 'entry' : 'wizard',
         });
+      },
+      bindToUser: (userId) => {
+        const state = get();
+        if (!userId) {
+          if (
+            state.ownerUserId === null &&
+            state.sessions.length === 0 &&
+            state.pool.length === 0
+          ) {
+            return;
+          }
+          set({ hasHydrated: true, ownerUserId: null, ...emptyOwnedState });
+          return;
+        }
+        if (state.ownerUserId === userId) return;
+        // Account switch, or unscoped legacy persist (v≤3): never keep another user's history.
+        set({ hasHydrated: true, ownerUserId: userId, ...emptyOwnedState });
       },
       setWizardStep: (wizardStep) => set({ wizardStep }),
       toggleCategory: (categoryId) =>
@@ -248,20 +274,16 @@ export const useProposalsStore = create<ProposalsState>()(
       showSummary: () => set({ phase: 'summary' }),
       reset: () => set({
         hasHydrated: true,
-        phase: 'wizard',
-        wizardStep: 0,
-        preferences: defaultPreferences,
-        ...emptySessionState,
-        sessions: [],
-        activeSessionId: null,
-        selectedSessionId: null,
+        ownerUserId: null,
+        ...emptyOwnedState,
       }),
     }),
     {
       name: 'proposals-preferences-store',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => persistStorage),
       partialize: (state) => ({
+        ownerUserId: state.ownerUserId,
         preferences: state.preferences,
         pool: state.pool,
         currentIndex: state.currentIndex,
@@ -276,6 +298,7 @@ export const useProposalsStore = create<ProposalsState>()(
         const state = persistedState as Partial<ProposalsState>;
         return {
           ...state,
+          ownerUserId: state.ownerUserId ?? null,
           sessions: state.sessions ?? [],
           activeSessionId: state.activeSessionId ?? null,
           selectedSessionId: null,

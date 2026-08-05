@@ -3,9 +3,10 @@ import { View, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { X } from 'lucide-react-native';
+import { Heart, X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
@@ -14,6 +15,7 @@ import { VIEWPORT_PEEK_HEIGHT } from '@/utils/map-sheet-layout';
 import { EventCard } from '@/components/events/EventCard';
 import { EventCardStatsService } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
+import { haptics } from '@/utils/haptics';
 
 const VIEWPORT_PEEK_OFFSET = VIEWPORT_PEEK_HEIGHT + spacing.md;
 
@@ -42,6 +44,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
 }) => {
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(0);
+  const heartScale = useSharedValue(1);
   const [viewsCount, setViewsCount] = useState(0);
   const [friendsGoingCount, setFriendsGoingCount] = useState(0);
 
@@ -76,10 +79,24 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
     transform: [{ translateY: (1 - progress.value) * Motion.distance.listEnterY }],
   }));
 
-  const closeEnterStyle = useAnimatedStyle(() => ({
+  const chromeEnterStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [{ scale: 0.85 + progress.value * 0.15 }],
   }));
+
+  const heartAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
+
+  const handleHeartPress = () => {
+    if (!onToggleHeart) return;
+    haptics.light();
+    heartScale.value = withSequence(
+      withTiming(1.18, { duration: 90 }),
+      withTiming(1, { duration: 120 }),
+    );
+    onToggleHeart(event);
+  };
 
   return (
     <Animated.View
@@ -87,15 +104,9 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
       style={[styles.wrapper, { bottom: bottomInset + VIEWPORT_PEEK_OFFSET }, cardStyle]}
     >
       <View style={styles.cardShell}>
-        <Animated.View
-          style={[
-            styles.closeButton,
-            onToggleHeart ? styles.closeButtonWithLike : null,
-            closeEnterStyle,
-          ]}
-        >
+        <Animated.View style={[styles.closeButton, chromeEnterStyle]}>
           <FloatingPressable
-            style={styles.closePressable}
+            style={styles.chromePressable}
             onPress={onClose}
             hitSlop={8}
             accessibilityRole="button"
@@ -105,6 +116,27 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
             <X size={20} color={colors.brand.text} />
           </FloatingPressable>
         </Animated.View>
+
+        {onToggleHeart ? (
+          <Animated.View style={[styles.heartButton, chromeEnterStyle]}>
+            <FloatingPressable
+              style={styles.chromePressable}
+              onPress={handleHeartPress}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={isHearted ? 'Retirer des favoris' : 'Aimer et enregistrer'}
+              animateEntrance={false}
+            >
+              <Animated.View style={heartAnimatedStyle}>
+                <Heart
+                  size={20}
+                  color={isHearted ? colors.brand.secondary : colors.brand.text}
+                  fill={isHearted ? colors.brand.secondary : 'transparent'}
+                />
+              </Animated.View>
+            </FloatingPressable>
+          </Animated.View>
+        ) : null}
 
         <EventCard
           event={event}
@@ -116,7 +148,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
           onPress={onPress}
           onPrimaryAction={onPress}
           onNavigate={onNavigate}
-          onHeartPress={onToggleHeart ? () => onToggleHeart(event) : undefined}
           isLiked={isHearted}
           isFavorite={isHearted}
         />
@@ -146,17 +177,20 @@ const styles = StyleSheet.create({
     right: spacing.sm,
     zIndex: 40,
   },
-  closeButtonWithLike: {
-    top: spacing.sm + 48,
+  heartButton: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    zIndex: 40,
   },
-  closePressable: {
+  chromePressable: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(18, 22, 28, 0.82)',
+    backgroundColor: colors.brand.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.neutral[200],
   },
 });

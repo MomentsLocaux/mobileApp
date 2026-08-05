@@ -24,6 +24,7 @@ import type {
 } from './proposal.types';
 import { getProposalCategoryHint } from './proposal-category-hints';
 import { getProposalCategoryLabel } from './proposal-category-display';
+import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 
 type Props = {
   step: 0 | 1 | 2;
@@ -181,6 +182,9 @@ export function ProposalWizard({
               {categories.map((category) => {
                 const active = preferences.categoryIds.includes(category.id);
                 const categoryLabel = getProposalCategoryLabel(category);
+                const categoryColor =
+                  category.color?.trim() || getCategoryColor(category.slug || category.id);
+                const categoryTextColor = getCategoryTextColor(category.slug || category.id);
                 return (
                   <TouchableOpacity
                     key={category.id}
@@ -192,24 +196,40 @@ export function ProposalWizard({
                       haptics.selection();
                       onToggleCategory(category.id);
                     }}
-                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    style={[
+                      styles.categoryChip,
+                      { borderColor: active ? categoryColor : `${categoryColor}80` },
+                      active && {
+                        backgroundColor: `${categoryColor}26`,
+                        borderColor: categoryColor,
+                      },
+                    ]}
                   >
                     <View style={styles.categoryCopy}>
-                      <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                      <Text
+                        style={[
+                          styles.categoryLabel,
+                          active && { color: categoryColor },
+                        ]}
+                      >
                         {categoryLabel}
                       </Text>
-                      <Text style={[styles.categoryHint, active && styles.categoryHintActive]}>
+                      <Text style={styles.categoryHint}>
                         {getProposalCategoryHint(category.slug)}
                       </Text>
                     </View>
                     <View
                       style={[
                         styles.categoryCheck,
-                        active && styles.categoryCheckActive,
-                        !active && category.color ? { borderColor: category.color } : null,
+                        {
+                          borderColor: active ? categoryColor : `${categoryColor}99`,
+                          backgroundColor: active ? categoryColor : 'transparent',
+                        },
                       ]}
                     >
-                      {active ? <Check size={15} color={colors.brand.primary} strokeWidth={3} /> : null}
+                      {active ? (
+                        <Check size={15} color={categoryTextColor} strokeWidth={3} />
+                      ) : null}
                     </View>
                   </TouchableOpacity>
                 );
@@ -397,52 +417,52 @@ const styles = StyleSheet.create({
   selectAllText: { ...typography.label, color: colors.brand.secondary },
   selectAllTextActive: { color: colors.brand.primary },
   chipGrid: { gap: spacing.sm },
-  categoryChip: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  categoryChip: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
   categoryChipActive: { backgroundColor: colors.brand.secondary, borderColor: colors.brand.secondary },
   categoryCopy: { flex: 1 },
   categoryLabel: { ...typography.h6, color: colors.brand.text },
   categoryLabelActive: { color: colors.brand.primary },
   categoryHint: { ...typography.bodySmall, color: colors.brand.textSecondary, marginTop: 3, lineHeight: 18 },
-  categoryHintActive: { color: '#17323a' },
-  categoryCheck: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#475569' },
+  categoryHintActive: { color: colors.brand.primary },
+  categoryCheck: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.neutral[300] },
   categoryCheckActive: { borderColor: colors.brand.primary, backgroundColor: 'rgba(15, 23, 25, 0.08)' },
-  infoCard: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.brand.surface },
+  infoCard: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.brand.surfaceMuted },
   infoText: { ...typography.bodySmall, color: colors.brand.textSecondary },
-  locationButton: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
-  locationButtonActive: { borderColor: colors.brand.secondary, backgroundColor: '#122c33' },
+  locationButton: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
+  locationButtonActive: { borderColor: colors.brand.secondary, backgroundColor: colors.brand.surfaceMuted },
   locationButtonCopy: { flex: 1, marginLeft: spacing.md },
   locationButtonTitle: { ...typography.h6, color: colors.brand.text },
   locationButtonSubtitle: { ...typography.bodySmall, color: colors.brand.textSecondary },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.lg },
-  divider: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: '#334155' },
+  divider: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.neutral[200] },
   dividerText: { ...typography.bodySmall, color: colors.brand.textSecondary },
-  searchBox: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  searchBox: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
   searchInput: { flex: 1, marginLeft: spacing.sm, ...typography.body, color: colors.brand.text },
-  searchResult: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#334155' },
+  searchResult: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.neutral[200] },
   searchResultText: { flex: 1, ...typography.bodySmall, color: colors.brand.text },
-  anchorCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.md, backgroundColor: '#122c33' },
+  anchorCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.brand.surfaceMuted, borderWidth: 1, borderColor: 'rgba(124, 181, 24, 0.35)' },
   anchorCopy: { flex: 1, marginLeft: spacing.sm },
   anchorLabel: { ...typography.label, fontSize: 11, color: colors.brand.secondary },
   anchorValue: { ...typography.body, color: colors.brand.text },
   sectionLabel: { ...typography.h6, color: colors.brand.text, marginTop: spacing.xl, marginBottom: spacing.md },
   radiusRow: { flexDirection: 'row', gap: spacing.sm },
-  radiusChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.md, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  radiusChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
   radiusChipActive: { backgroundColor: colors.brand.secondary, borderColor: colors.brand.secondary },
   radiusText: { ...typography.label, color: colors.brand.text },
-  radiusTextActive: { color: colors.brand.primary },
-  dateOption: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
-  dateOptionActive: { borderColor: colors.brand.secondary, backgroundColor: '#122c33' },
-  dateIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#243136' },
+  radiusTextActive: { color: colors.brand.onAccent },
+  dateOption: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
+  dateOptionActive: { borderColor: colors.brand.secondary, backgroundColor: colors.brand.surfaceMuted },
+  dateIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.surfaceMuted },
   dateIconActive: { backgroundColor: colors.brand.secondary },
   dateCopy: { flex: 1, marginLeft: spacing.md },
   dateLabel: { ...typography.h6, color: colors.brand.text },
   dateLabelActive: { color: colors.brand.secondary },
   dateDetail: { ...typography.bodySmall, color: colors.brand.textSecondary, marginTop: 2 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#334155', backgroundColor: colors.brand.page },
-  backButton: { minHeight: 54, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, borderWidth: 1, borderColor: '#475569' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.neutral[200], backgroundColor: colors.brand.page },
+  backButton: { minHeight: 54, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
   backButtonText: { ...typography.label, color: colors.brand.text },
   primaryButton: { flex: 1, minHeight: 54, flexDirection: 'row', gap: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, backgroundColor: colors.brand.secondary },
   primaryButtonFull: { flex: 1 },
   primaryButtonDisabled: { opacity: 0.4 },
-  primaryButtonText: { ...typography.bodyBold, color: colors.brand.primary },
+  primaryButtonText: { ...typography.bodyBold, color: colors.brand.onAccent },
 });

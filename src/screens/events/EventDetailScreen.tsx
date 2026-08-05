@@ -1968,8 +1968,8 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     ...screenHeaderStyles.iconButton,
-    backgroundColor: 'rgba(8, 13, 16, 0.62)',
-    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(244, 251, 246, 0.92)',
+    borderColor: 'rgba(26,51,41,0.12)',
   },
   heroContainer: {
     position: 'relative',
