@@ -19,15 +19,16 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT lower(coalesce(
-    (
-      SELECT value
-      FROM public.app_config
-      WHERE key = 'checkin_enabled'
-      LIMIT 1
-    ),
-    'false'
-  )) IN ('true', '1', 'yes', 'on');
+  SELECT (SELECT auth.uid()) IS NOT NULL
+    AND lower(coalesce(
+      (
+        SELECT value
+        FROM public.app_config
+        WHERE key = 'checkin_enabled'
+        LIMIT 1
+      ),
+      'false'
+    )) IN ('true', '1', 'yes', 'on');
 $$;
 
 REVOKE ALL ON FUNCTION private.is_checkin_enabled() FROM PUBLIC, anon, authenticated;
