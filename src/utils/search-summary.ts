@@ -3,7 +3,7 @@ import {
   DEFAULT_SORT_OPTION,
   HOME_DEFAULT_SORT_OPTION,
 } from '@/constants/filters';
-import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
+import type { Category, Subcategory } from '@/store/taxonomyStore';
 import {
   summarize,
   type DiscoveryFilters,
@@ -14,7 +14,6 @@ export const buildSearchSummary = (
   filters: DiscoveryFilters,
   categories: Category[],
   subcategories: Subcategory[],
-  tags: Tag[],
   surface?: DiscoverySurface
 ) => {
   const labels: Record<string, string> = {};
@@ -24,10 +23,6 @@ export const buildSearchSummary = (
   subcategories.forEach((subcategory) => {
     labels[subcategory.id] = subcategory.label;
   });
-  tags.forEach((tag) => {
-    labels[tag.slug] = tag.label;
-  });
-
   return summarize(
     {
       ...filters,

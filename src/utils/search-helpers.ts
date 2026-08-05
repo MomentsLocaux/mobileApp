@@ -53,7 +53,6 @@ export const hasSearchCriteria = (search: DiscoverySearchCriteria): boolean => {
   const hasWhat =
     search.content.categories.length > 0 ||
     search.content.subcategories.length > 0 ||
-    search.content.tags.length > 0 ||
     !!search.content.query?.trim();
   return hasWhere || hasWhen || hasWhat;
 };

@@ -106,7 +106,6 @@ export const SearchBar: React.FC<Props> = ({
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
-  const tags = useTaxonomyStore((s) => s.tags);
   const { currentLocation } = useLocationStore();
 
   const status = useDiscoveryFiltersStore((s) => s.status);
@@ -184,12 +183,20 @@ export const SearchBar: React.FC<Props> = ({
   const isCurrentSaved = useSavedSearchesStore((s) => s.isCurrentSaved);
 
   useEffect(() => {
+    // Tags are no longer exposed as a discovery criterion. Clear any value
+    // kept in memory during a hot reload so it cannot act as a hidden filter.
+    if (what.tags.length > 0) {
+      setWhat({ tags: [] });
+    }
+  }, [setWhat, what.tags]);
+
+  useEffect(() => {
     void hydrateSavedSearches();
   }, [hydrateSavedSearches]);
 
   const taxonomyLabels = useMemo(
-    () => ({ categories, subcategories, tags }),
-    [categories, subcategories, tags],
+    () => ({ categories, subcategories }),
+    [categories, subcategories],
   );
 
   const progress = useSharedValue(0);
@@ -261,8 +268,8 @@ export const SearchBar: React.FC<Props> = ({
 
   const summaryText = useMemo(() => {
     if (!applied || !hasSearchCriteria) return undefined;
-    return buildSearchSummary(filters, categories, subcategories, tags, surface);
-  }, [applied, categories, filters, hasSearchCriteria, subcategories, surface, tags]);
+    return buildSearchSummary(filters, categories, subcategories, surface);
+  }, [applied, categories, filters, hasSearchCriteria, subcategories, surface]);
 
   const sectionSummary = useMemo(() => {
     const whereLabel =
@@ -285,17 +292,13 @@ export const SearchBar: React.FC<Props> = ({
     const subcategoryLabel = !categoryLabel && what.subcategories.length
       ? subcategories.find((s) => s.id === what.subcategories[0])?.label
       : undefined;
-    const tagLabel = !categoryLabel && !subcategoryLabel && what.tags.length
-      ? tags.find((t) => t.slug === what.tags[0])?.label || what.tags[0]
-      : undefined;
     const extras: string[] = [];
     if (what.categories.length > 1) extras.push(`+${what.categories.length - 1} cat.`);
     if (what.subcategories.length) extras.push(`${what.subcategories.length} sous-cat.`);
-    if (what.tags.length) extras.push(`${what.tags.length} tag${what.tags.length > 1 ? 's' : ''}`);
-    const baseWhatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Toutes catégories';
+    const baseWhatLabel = categoryLabel || subcategoryLabel || 'Toutes catégories';
     const whatLabel = extras.length ? `${baseWhatLabel} · ${extras.join(', ')}` : baseWhatLabel;
     return { whereLabel, whenLabel, whatLabel };
-  }, [categories, includePast, subcategories, tags, what, when, where]);
+  }, [categories, includePast, subcategories, what, when, where]);
 
   const rangeValue: DateRangeValue = {
     startDate: when.startDate || null,
@@ -447,7 +450,7 @@ export const SearchBar: React.FC<Props> = ({
 
   const handleSaveCurrent = () => {
     if (!hasSearchCriteria) return;
-    const defaultTitle = buildSearchSummary(filters, categories, subcategories, tags, surface);
+    const defaultTitle = buildSearchSummary(filters, categories, subcategories, surface);
 
     const doSave = async (title?: string) => {
       await saveCurrent(taxonomyLabels, surface, title || defaultTitle);
@@ -974,23 +977,6 @@ export const SearchBar: React.FC<Props> = ({
                           </View>
                         </>
                       )}
-                      <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tags</Text>
-                      <View style={styles.rowWrap}>
-                        {tags.map((tag) => (
-                          <Chip
-                            key={tag.id}
-                            label={tag.label}
-                            active={what.tags.includes(tag.slug)}
-                            onPress={() => {
-                              const exists = what.tags.includes(tag.slug);
-                              const next = exists
-                                ? what.tags.filter((t) => t !== tag.slug)
-                                : [...what.tags, tag.slug];
-                              setWhat({ tags: next });
-                            }}
-                          />
-                        ))}
-                      </View>
                       <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tri</Text>
                       <View style={styles.rowWrap}>
                         <Chip

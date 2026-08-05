@@ -90,7 +90,6 @@ import { getEventLiveWindow } from '@/utils/event-status';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { getDistanceText } from '@/utils/sort-events';
-import { getVisibleEventTags } from '@/utils/event-card-display';
 import MapboxGL from '@rnmapbox/maps';
 
 const { width } = Dimensions.get('window');
@@ -1177,7 +1176,6 @@ export default function EventDetailScreen() {
     [event?.starts_at, event?.ends_at, event?.operating_hours, now],
   );
 
-  const visibleEventTags = useMemo(() => getVisibleEventTags(event?.tags), [event?.tags]);
 
   const practicalInfoRows = useMemo(() => {
     if (!event) return [] as Array<{ label: string; value: string; action?: () => void }>;
@@ -1708,16 +1706,6 @@ export default function EventDetailScreen() {
                 : `${Math.max(event.interests_count || 0, totalAttendees)} ami${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''} intéressé${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''}`}
             </Text>
           </View>
-          ) : null}
-
-          {visibleEventTags.length ? (
-            <View style={styles.tagsContainer}>
-              {visibleEventTags.map((tag, index) => (
-                <View key={`${tag}-${index}`} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
-                </View>
-              ))}
-            </View>
           ) : null}
 
           {practicalInfoRows.length > 0 ? (
@@ -2328,24 +2316,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.secondary,
     fontWeight: '700',
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  tag: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  tagText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
   },
   practicalCard: {
     marginBottom: spacing.lg,

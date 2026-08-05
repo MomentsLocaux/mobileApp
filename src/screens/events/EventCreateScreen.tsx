@@ -671,17 +671,6 @@ export default function EventCreateScreen() {
               </View>
             </View>
 
-            <Input
-              label="Tags (séparés par des virgules)"
-              placeholder="musique, concert, rock"
-              value={formData.tags.join(', ')}
-              onChangeText={(text) =>
-                updateFormData({
-                  tags: text.split(',').map((t) => t.trim()).filter(Boolean),
-                })
-              }
-            />
-
             <View>
               <Text style={styles.inputLabel}>Tarification</Text>
               <View style={styles.visibilityButtons}>

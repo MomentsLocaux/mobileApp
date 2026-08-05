@@ -37,7 +37,6 @@ import {
 import {
   formatDistanceLabel,
   getEventAccessLabel,
-  getEventContextTags,
   getEventDescriptionPreview,
   getEventImageUrls,
   getEventLocationLabel,
@@ -114,7 +113,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
   const categoryColor = getCategoryColor(event.category || '');
   const categoryTextColor = getCategoryTextColor(event.category || '');
-  const contextTags = getEventContextTags(event);
   const description = getEventDescriptionPreview(event.description, variant === 'compact' ? 0 : 140);
   const locationLabel = getEventLocationLabel(event);
   const distance = formatDistanceLabel(distanceKm, distanceLabel);
@@ -249,11 +247,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
               <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
                 <Text style={[styles.categoryText, { color: categoryTextColor }]}>{categoryLabel}</Text>
               </View>
-              {contextTags.map((tag) => (
-                <View key={tag} style={styles.contextBadge}>
-                  <Text style={styles.contextText}>{tag}</Text>
-                </View>
-              ))}
             </View>
 
             {showHeart ? (
@@ -503,20 +496,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.4,
-  },
-  contextBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
-  contextText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: CARD_THEME.text,
   },
   favoriteButton: {
     width: 44,

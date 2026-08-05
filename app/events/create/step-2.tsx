@@ -14,7 +14,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
 import { CategorySelector } from '@/components/events/CategorySelector';
-import { TagsSelector } from '@/components/events/TagsSelector';
 import { VisibilitySelector } from '@/components/events/VisibilitySelector';
 import { OptionalInfoSection } from '@/components/events/OptionalInfoSection';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -32,7 +31,6 @@ function CreateEventStep2Inner() {
   const location = useCreateEventStore((s) => s.location);
   const category = useCreateEventStore((s) => s.category);
   const subcategory = useCreateEventStore((s) => s.subcategory);
-  const tags = useCreateEventStore((s) => s.tags);
   const visibility = useCreateEventStore((s) => s.visibility);
   const price = useCreateEventStore((s) => s.price);
   const contact = useCreateEventStore((s) => s.contact);
@@ -40,7 +38,6 @@ function CreateEventStep2Inner() {
   const privateAudienceIds = useCreateEventStore((s) => s.privateAudienceIds);
   const setCategory = useCreateEventStore((s) => s.setCategory);
   const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
-  const setTags = useCreateEventStore((s) => s.setTags);
   const setVisibility = useCreateEventStore((s) => s.setVisibility);
   const setPrice = useCreateEventStore((s) => s.setPrice);
   const setContact = useCreateEventStore((s) => s.setContact);
@@ -51,7 +48,6 @@ function CreateEventStep2Inner() {
 
   const sectionPositions = useRef({
     subcategory: 0,
-    tags: 0,
     visibility: 0,
     optional: 0,
   });
@@ -133,21 +129,10 @@ function CreateEventStep2Inner() {
             }}
             onSelectSubcategory={(value) => {
               setSubcategory(value);
-              requestAnimationFrame(() => scrollToSection('tags'));
+              requestAnimationFrame(() => scrollToSection('visibility'));
             }}
             onSubcategoryLayout={registerSection('subcategory')}
           />
-          <View onLayout={registerSection('tags')}>
-            <TagsSelector
-              selected={tags}
-              onChange={(next) => {
-                setTags(next);
-                if (next.length > 0) {
-                  requestAnimationFrame(() => scrollToSection('visibility'));
-                }
-              }}
-            />
-          </View>
           <View onLayout={registerSection('visibility')}>
             <VisibilitySelector
               value={visibility}

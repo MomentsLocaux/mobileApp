@@ -142,7 +142,9 @@ export function toEventFilters(
       what: {
         categories: filters.content.categories,
         subcategories: filters.content.subcategories,
-        tags: filters.content.tags,
+        // Retained in the data contract for backend compatibility, but no
+        // longer exposed as a mobile discovery criterion.
+        tags: [],
         query,
       },
     }
@@ -234,7 +236,6 @@ export function activeFilterCount(
   if (hasPlaceFilter(filters)) count += 1;
   if (filters.content.categories.length > 0) count += 1;
   if (filters.content.subcategories.length > 0) count += 1;
-  if (filters.content.tags.length > 0) count += 1;
   if (filters.content.query?.trim()) count += 1;
 
   const surface = options?.surface;
@@ -267,7 +268,7 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
   const query = filters.content.query?.trim();
   if (query) parts.push(`« ${query} »`);
 
-  const { categories, subcategories, tags } = filters.content;
+  const { categories, subcategories } = filters.content;
   if (categories.length === 1) {
     parts.push(categoryLabels?.[categories[0]] ?? '1 catégorie');
   } else if (categories.length > 1) {
@@ -278,10 +279,6 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
     parts.push(categoryLabels?.[subcategories[0]] ?? '1 sous-catégorie');
   } else if (subcategories.length > 1) {
     parts.push(`${subcategories.length} sous-catégories`);
-  }
-
-  if (tags.length > 0) {
-    parts.push(tags.length === 1 ? '1 tag' : `${tags.length} tags`);
   }
 
   if (includeMapMode && filters.mapMode !== 'standard') {

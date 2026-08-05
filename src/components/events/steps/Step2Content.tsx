@@ -2,7 +2,6 @@ import React, { useRef, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import { colors, spacing, typography } from '@/constants/theme';
 import { CategorySelector } from '@/components/events/CategorySelector';
-import { TagsSelector } from '@/components/events/TagsSelector';
 import { VisibilitySelector } from '@/components/events/VisibilitySelector';
 import { OptionalInfoSection } from '@/components/events/OptionalInfoSection';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -16,7 +15,6 @@ type Props = {
 export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props) => {
     const category = useCreateEventStore((s) => s.category);
     const subcategory = useCreateEventStore((s) => s.subcategory);
-    const tags = useCreateEventStore((s) => s.tags);
     const visibility = useCreateEventStore((s) => s.visibility);
     const privateAudienceIds = useCreateEventStore((s) => s.privateAudienceIds);
     const price = useCreateEventStore((s) => s.price);
@@ -24,7 +22,6 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
     const externalLink = useCreateEventStore((s) => s.externalLink);
     const setCategory = useCreateEventStore((s) => s.setCategory);
     const setSubcategory = useCreateEventStore((s) => s.setSubcategory);
-    const setTags = useCreateEventStore((s) => s.setTags);
     const setVisibility = useCreateEventStore((s) => s.setVisibility);
     const setPrivateAudienceIds = useCreateEventStore((s) => s.setPrivateAudienceIds);
     const setPrice = useCreateEventStore((s) => s.setPrice);
@@ -33,7 +30,6 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
 
     const sectionPositions = useRef({
         subcategory: 0,
-        tags: 0,
         visibility: 0,
         optional: 0,
     });
@@ -70,21 +66,10 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
                 }}
                 onSelectSubcategory={(value) => {
                     setSubcategory(value);
-                    requestAnimationFrame(() => scrollToSection('tags'));
+                    requestAnimationFrame(() => scrollToSection('visibility'));
                 }}
                 onSubcategoryLayout={registerSection('subcategory')}
             />
-            <View onLayout={registerSection('tags')}>
-                <TagsSelector
-                    selected={tags}
-                    onChange={(next) => {
-                        setTags(next);
-                        if (next.length > 0) {
-                            requestAnimationFrame(() => scrollToSection('visibility'));
-                        }
-                    }}
-                />
-            </View>
             <View onLayout={registerSection('visibility')}>
                 <VisibilitySelector
                     value={visibility}

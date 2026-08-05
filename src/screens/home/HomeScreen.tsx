@@ -133,7 +133,6 @@ export default function HomeScreen() {
   const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
-  const tags = useTaxonomyStore((s) => s.tags);
   const [refreshing, setRefreshing] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -496,7 +495,6 @@ export default function HomeScreen() {
         discoveryFilters,
         categories,
         subcategories,
-        tags,
         'home'
       );
       chips.push({
@@ -521,7 +519,6 @@ export default function HomeScreen() {
     showSearchResults,
     status,
     subcategories,
-    tags,
   ]);
 
   const expandedRadiusKm = Math.min(

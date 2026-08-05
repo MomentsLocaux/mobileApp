@@ -59,7 +59,7 @@ describe('discovery filter contract', () => {
     assert.equal(activeFilterCount(widerRadius), 1);
   });
 
-  it('summarizes every user-visible criteria axis', () => {
+  it('summarizes every user-visible criteria axis and ignores legacy tags', () => {
     const filters = createDefaultDiscoveryFilters();
     filters.when = { startDate: '2026-09-01', endDate: '2026-09-03' };
     filters.place = {
@@ -80,8 +80,9 @@ describe('discovery filter contract', () => {
         surface: 'map',
         categoryLabels: { music: 'Musique' },
       }),
-      '01/09–03/09 · Luxembourg · 25 km · « concert » · Musique · 1 tag · Date de début'
+      '01/09–03/09 · Luxembourg · 25 km · « concert » · Musique · Date de début'
     );
+    assert.equal(activeFilterCount(filters, { surface: 'map' }), 5);
   });
 
   it('summarizes one-sided custom date ranges', () => {
@@ -118,7 +119,6 @@ describe('discovery filter contract', () => {
       time: 'today',
       categories: ['music'],
       subcategories: ['jazz'],
-      tags: ['family'],
       name: 'concert',
     });
   });

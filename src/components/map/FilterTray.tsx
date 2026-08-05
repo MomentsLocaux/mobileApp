@@ -34,7 +34,6 @@ export function FilterTray({
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
-  const tags = useTaxonomyStore((s) => s.tags);
 
   const toggleCategory = (category: EventCategory) => {
     onFiltersChange({ category: filters.category === category ? undefined : category });
@@ -300,34 +299,6 @@ export function FilterTray({
                     onFiltersChange({ radiusKm: text ? Number(text) : undefined })
                   }
                 />
-              </View>
-              <Text style={[styles.sectionTitle, { marginTop: spacing.sm }]}>Tags</Text>
-              <View style={styles.chipContainer}>
-                {tags.map((tag) => (
-                  <TouchableOpacity
-                    key={tag.slug}
-                    style={[
-                      styles.chip,
-                      filters.tags?.includes(tag.slug) && styles.chipActive,
-                    ]}
-                    onPress={() => {
-                      const exists = filters.tags?.includes(tag.slug);
-                      const next = exists
-                        ? (filters.tags || []).filter((t) => t !== tag.slug)
-                        : ([...(filters.tags || []), tag.slug] as string[]);
-                      onFiltersChange({ tags: next });
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        filters.tags?.includes(tag.slug) && styles.chipTextActive,
-                      ]}
-                    >
-                      {tag.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
               </View>
             </View>
 
