@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(43, 191, 227, 0.12)',
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,

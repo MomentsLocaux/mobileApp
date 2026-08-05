@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   buyBtn: {
     marginTop: spacing.xs,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     alignItems: 'center',

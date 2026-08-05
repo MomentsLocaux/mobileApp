@@ -212,7 +212,7 @@ export default function BugReportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   content: {
     padding: spacing.lg,

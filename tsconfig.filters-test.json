@@ -22,7 +22,12 @@
     "src/screens/proposals/proposal-filtering.test.ts",
     "src/screens/proposals/proposal-category-display.test.ts",
     "src/screens/proposals/proposal-category-hints.test.ts",
-    "src/screens/proposals/proposal-session-history.test.ts"
+    "src/screens/proposals/proposal-session-history.test.ts",
+    "src/screens/roadtrip/roadtrip-geo.test.ts",
+    "src/screens/roadtrip/roadtrip-schedule.test.ts",
+    "src/screens/roadtrip/roadtrip-engine.test.ts",
+    "src/screens/roadtrip/roadtrip-program.test.ts",
+    "src/screens/roadtrip/roadtrip-timeline.test.ts"
   ],
   "exclude": ["supabase/functions/**/*"]
 }

@@ -7,14 +7,14 @@ export default function ProfileLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.brand.primary,
+          backgroundColor: colors.brand.page,
         },
         headerTintColor: colors.brand.text,
         headerTitleStyle: {
           fontWeight: '700',
         },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: colors.brand.primary },
+        contentStyle: { backgroundColor: colors.brand.page },
       }}
     >
       <Stack.Screen

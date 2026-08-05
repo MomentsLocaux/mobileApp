@@ -4,19 +4,38 @@ type ColorScale = Record<string | number, string>;
 
 export { brandFonts };
 
+/**
+ * Canonical palette = website charter (docs/charte-graphique.md / globals.css).
+ * Light UI: mint page, ink text, leaf accent.
+ *
+ * Semantic brand roles:
+ * - page          → app chrome / screen fill
+ * - primary       → ink (strong dark) — kept for legacy icon/text usages
+ * - secondary     → leaf accent / CTA fill
+ * - onAccent      → text/icons on secondary CTAs
+ */
+const PAGE = '#F4FBF6';
+const INK = '#1A3329';
+const ACCENT = '#7CB518';
+const SURFACE = '#E8F5E9';
+const MUTED = '#5B7A6A';
+const CARD = '#FFFFFF';
+const BERRY = '#E63946';
+const FOREST = '#243F34';
+
 export const colors: Record<string, ColorScale> = {
   primary: {
-    0: '#eef2ff',
-    50: '#e8edff',
-    100: '#d8e1ff',
-    200: '#becdff',
-    300: '#9eb3ff',
-    400: '#7592ff',
-    500: '#4d71ef',
-    600: '#2A4FE3',
-    700: '#2242be',
-    800: '#1b3498',
-    900: '#152971',
+    0: '#F4FBF6',
+    50: '#E8F5E9',
+    100: '#D4EBD8',
+    200: '#B5DDBB',
+    300: '#8FCA98',
+    400: '#6BB86F',
+    500: '#7CB518',
+    600: '#6A9A14',
+    700: '#557C10',
+    800: '#3F5C0C',
+    900: '#1A3329',
   },
   secondaryAccent: {
     0: '#FFFFFF',
@@ -32,81 +51,81 @@ export const colors: Record<string, ColorScale> = {
     900: '#FFFFFF',
   },
   background: {
-    0: '#F3F3F3',
-    50: '#F3F3F3',
-    100: '#F3F3F3',
-    200: '#F3F3F3',
-    300: '#F3F3F3',
-    400: '#F3F3F3',
-    500: '#F3F3F3',
-    600: '#F3F3F3',
-    700: '#F3F3F3',
-    800: '#F3F3F3',
-    900: '#F3F3F3',
+    0: PAGE,
+    50: PAGE,
+    100: PAGE,
+    200: PAGE,
+    300: PAGE,
+    400: PAGE,
+    500: PAGE,
+    600: PAGE,
+    700: PAGE,
+    800: PAGE,
+    900: PAGE,
   },
   textPrimary: {
-    0: '#1A1A1B',
-    50: '#1A1A1B',
-    100: '#1A1A1B',
-    200: '#1A1A1B',
-    300: '#1A1A1B',
-    400: '#1A1A1B',
-    500: '#1A1A1B',
-    600: '#1A1A1B',
-    700: '#1A1A1B',
-    800: '#1A1A1B',
-    900: '#1A1A1B',
+    0: INK,
+    50: INK,
+    100: INK,
+    200: INK,
+    300: INK,
+    400: INK,
+    500: INK,
+    600: INK,
+    700: INK,
+    800: INK,
+    900: INK,
   },
   textSecondary: {
-    0: '#65676B',
-    50: '#65676B',
-    100: '#65676B',
-    200: '#65676B',
-    300: '#65676B',
-    400: '#65676B',
-    500: '#65676B',
-    600: '#65676B',
-    700: '#65676B',
-    800: '#65676B',
-    900: '#65676B',
+    0: MUTED,
+    50: MUTED,
+    100: MUTED,
+    200: MUTED,
+    300: MUTED,
+    400: MUTED,
+    500: MUTED,
+    600: MUTED,
+    700: MUTED,
+    800: MUTED,
+    900: MUTED,
   },
   secondary: {
-    0: '#eef3ff',
-    50: '#e8edff',
-    100: '#d8e1ff',
-    200: '#becdff',
-    300: '#9eb3ff',
-    400: '#7592ff',
-    500: '#4d71ef',
-    600: '#2A4FE3',
-    700: '#2242be',
-    800: '#1b3498',
-    900: '#152971',
+    0: '#F4FBF6',
+    50: '#E8F5E9',
+    100: '#D4EBD8',
+    200: '#B5DDBB',
+    300: '#8FCA98',
+    400: '#6BB86F',
+    500: '#7CB518',
+    600: '#6A9A14',
+    700: '#557C10',
+    800: '#3F5C0C',
+    900: '#1A3329',
   },
   neutral: {
-    0: '#FFFFFF',
-    50: '#F3F3F3',
-    100: '#e8e9ec',
-    200: '#d8dade',
-    300: '#c4c8ce',
-    400: '#a4a9b1',
-    500: '#65676B',
-    600: '#4d4f55',
-    700: '#35373c',
-    800: '#25272a',
-    900: '#1A1A1B',
+    0: CARD,
+    50: PAGE,
+    100: SURFACE,
+    200: '#D5E6DA',
+    300: '#B7CFBE',
+    400: '#8AA896',
+    500: MUTED,
+    600: '#4A6556',
+    700: FOREST,
+    800: '#1E3A30',
+    900: INK,
   },
   error: {
     0: '#fff2f2',
     50: '#ffe9e9',
-    500: '#ff4d57',
+    500: BERRY,
     700: '#c92d36',
   },
   success: {
     0: '#edfdf3',
     50: '#e5fbef',
-    500: '#34C759',
-    700: '#1f8e3f',
+    500: ACCENT,
+    700: '#557C10',
   },
   warning: {
     0: '#fff8e8',
@@ -121,18 +140,38 @@ export const colors: Record<string, ColorScale> = {
     700: '#2f57cc',
   },
   brand: {
-    primary: '#0f1719',
-    secondary: '#2bbfe3',
-    surface: '#1a2426',
-    text: '#ffffff',
-    textSecondary: '#94a3b8',
-    success: '#10b981',
-    error: '#ef4444',
+    /** Light app chrome / screen fill. */
+    page: PAGE,
+    /**
+     * Strong ink. Legacy screens used `primary` as dark chrome;
+     * for fills prefer `page`. Icons/text may keep using `primary`.
+     */
+    primary: INK,
+    /** CTA / accent (leaf green). */
+    secondary: ACCENT,
+    /** Cards and elevated surfaces. */
+    surface: CARD,
+    /** Soft green wash behind cards. */
+    surfaceMuted: SURFACE,
+    /** Alias of ink. */
+    ink: INK,
+    /** Text on light surfaces. */
+    text: INK,
+    textSecondary: MUTED,
+    /**
+     * Text/icons on accent buttons.
+     * Charter prefers ink on leaf for WCAG; white kept for large CTAs if needed.
+     */
+    onAccent: INK,
+    success: ACCENT,
+    error: BERRY,
     warning: '#f59e0b',
     premium: '#D4AF37',
     premiumLight: '#F0D060',
     premiumMuted: 'rgba(212, 175, 55, 0.16)',
     premiumBorder: 'rgba(212, 175, 55, 0.55)',
+    /** Dark forest for rare inverted chips / phone chrome. */
+    forest: FOREST,
   },
 };
 
@@ -218,15 +257,9 @@ export const typography = {
   },
   label: {
     fontFamily: brandFonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600' as const,
     lineHeight: 18,
-  },
-  small: {
-    fontFamily: brandFonts.regular,
-    fontSize: 12,
-    fontWeight: '400' as const,
-    lineHeight: 16,
   },
   caption: {
     fontFamily: brandFonts.regular,
@@ -244,35 +277,35 @@ export const typography = {
 
 export const shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#1A3329',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.06,
     shadowRadius: 14,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: '#1A3329',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 20,
     elevation: 2,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: '#1A3329',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 24,
     elevation: 3,
   },
 };
 
 export const designTokens = {
-  primary: '#2A4FE3',
-  secondaryAccent: '#FFFFFF',
-  background: '#F3F3F3',
-  textPrimary: '#1A1A1B',
-  textSecondary: '#65676B',
-  success: '#34C759',
+  primary: ACCENT,
+  secondaryAccent: CARD,
+  background: PAGE,
+  textPrimary: INK,
+  textSecondary: MUTED,
+  success: ACCENT,
 } as const;
 
 export const minimumTouchTarget = 48;

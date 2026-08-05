@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(26, 36, 38, 0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.2)',
+    borderColor: 'rgba(124, 181, 24, 0.2)',
   },
   loadingSpinnerShell: {
     width: 58,
@@ -657,9 +657,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.35)',
+    borderColor: 'rgba(124, 181, 24, 0.35)',
   },
   loadingTitle: {
     ...typography.h5,
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
   },
   filterChipActive: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    backgroundColor: 'rgba(124, 181, 24, 0.16)',
   },
   filterChipText: {
     ...typography.bodySmall,

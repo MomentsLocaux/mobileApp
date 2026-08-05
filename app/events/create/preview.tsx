@@ -486,7 +486,7 @@ export default function CreateEventPreview() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   header: {
     height: 64,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.md,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
     gap: spacing.md,

@@ -282,7 +282,7 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   header: {
     flexDirection: 'row',
@@ -386,9 +386,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.3)',
+    borderColor: 'rgba(124, 181, 24,0.3)',
   },
   selectionCopy: {
     flex: 1,

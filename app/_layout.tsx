@@ -133,7 +133,7 @@ export default function RootLayout() {
         <Stack.Screen name="contests" />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Toast config={toastConfig} />
     </>
   );

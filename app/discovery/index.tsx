@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   banner: {
-    backgroundColor: 'rgba(43, 191, 227, 0.12)',
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -354,9 +354,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: 'rgba(43, 191, 227, 0.1)',
+    backgroundColor: 'rgba(124, 181, 24, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.25)',
+    borderColor: 'rgba(124, 181, 24, 0.25)',
   },
   premiumBannerTitle: {
     ...typography.body,

@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   },
   suggestionChipActive: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
   },
   suggestionText: {
     ...typography.bodySmall,
@@ -185,9 +185,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.4)',
+    borderColor: 'rgba(124, 181, 24,0.4)',
   },
   selectedText: {
     ...typography.caption,

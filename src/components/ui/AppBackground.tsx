@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, RadialGradient, Rect, Stop, Path, G } from 'react-native-svg';
+import { colors } from '@/constants/theme';
 
 interface AppBackgroundProps {
   style?: StyleProp<ViewStyle>;
   opacity?: number;
-  /** ADR_007 — soft identity wash over default dark chrome. */
+  /** Soft identity wash over the light page chrome. */
   accentColor?: string;
 }
 
@@ -18,13 +19,15 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+const PAGE = colors.brand.page as string;
+const SURFACE = colors.brand.surfaceMuted as string;
+
 export const AppBackground: React.FC<AppBackgroundProps> = ({
   style,
   opacity = 1,
   accentColor,
 }) => {
-  const accent = accentColor || '#2bbfe3';
-  // Unique gradient ids per accent to avoid SVG id collisions when multiple backgrounds mount.
+  const accent = accentColor || (colors.brand.secondary as string);
   const ids = useMemo(() => {
     const suffix = accent.replace('#', '');
     return {
@@ -41,9 +44,9 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
       <Svg width="100%" height="100%" viewBox="0 0 1440 3200" preserveAspectRatio="xMidYMid slice">
         <Defs>
           <LinearGradient id={ids.bg} x1="0" y1="0" x2="0" y2="3200">
-            <Stop offset="0" stopColor="#0f1719" />
-            <Stop offset="0.45" stopColor="#0b1214" />
-            <Stop offset="1" stopColor="#0f1719" />
+            <Stop offset="0" stopColor={PAGE} />
+            <Stop offset="0.45" stopColor={SURFACE} />
+            <Stop offset="1" stopColor={PAGE} />
           </LinearGradient>
           <RadialGradient
             id={ids.orbPrimary}
@@ -53,7 +56,7 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
             ry="620"
             gradientUnits="userSpaceOnUse"
           >
-            <Stop offset="0" stopColor={accent} stopOpacity="0.22" />
+            <Stop offset="0" stopColor={accent} stopOpacity="0.16" />
             <Stop offset="1" stopColor={accent} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient
@@ -64,7 +67,7 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
             ry="520"
             gradientUnits="userSpaceOnUse"
           >
-            <Stop offset="0" stopColor={accent} stopOpacity="0.14" />
+            <Stop offset="0" stopColor={accent} stopOpacity="0.1" />
             <Stop offset="1" stopColor={accent} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient
@@ -75,12 +78,12 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
             ry="520"
             gradientUnits="userSpaceOnUse"
           >
-            <Stop offset="0" stopColor={accent} stopOpacity="0.1" />
+            <Stop offset="0" stopColor={accent} stopOpacity="0.08" />
             <Stop offset="1" stopColor={accent} stopOpacity="0" />
           </RadialGradient>
           <LinearGradient id={ids.stripe} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.03" />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+            <Stop offset="0" stopColor={colors.brand.ink as string} stopOpacity="0.04" />
+            <Stop offset="1" stopColor={colors.brand.ink as string} stopOpacity="0" />
           </LinearGradient>
         </Defs>
 
@@ -89,7 +92,7 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
         <Circle cx="220" cy="920" r="520" fill={`url(#${ids.orbSecondary})`} />
         <Circle cx="1080" cy="1980" r="520" fill={`url(#${ids.orbSoft})`} />
 
-        <G opacity="0.3">
+        <G opacity="0.35">
           <Path
             d="M-120 300C280 80 460 220 840 120C1080 58 1280 90 1560 240V340C1280 200 1080 170 840 230C460 330 280 180 -120 400V300Z"
             fill={`url(#${ids.stripe})`}
@@ -104,7 +107,7 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
           />
         </G>
 
-        <G opacity="0.12">
+        <G opacity="0.1">
           <Circle cx="180" cy="210" r="6" fill={accent} />
           <Circle cx="380" cy="340" r="4" fill={accent} />
           <Circle cx="1280" cy="640" r="5" fill={accent} />
@@ -117,8 +120,7 @@ export const AppBackground: React.FC<AppBackgroundProps> = ({
           <Circle cx="680" cy="3000" r="4" fill={accent} />
         </G>
 
-        {/* Soft top wash so tab/chrome reads the identity tint */}
-        <Rect x="0" y="0" width="1440" height="420" fill={withAlpha(accent, 0.06)} />
+        <Rect x="0" y="0" width="1440" height="420" fill={withAlpha(accent, 0.04)} />
       </Svg>
     </View>
   );

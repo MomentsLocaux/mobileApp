@@ -639,7 +639,7 @@ function ProposalSummary({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.brand.primary },
+  root: { flex: 1, backgroundColor: colors.brand.page },
   centeredState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
   loaderHalo: { width: 116, height: 116, borderRadius: 58, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl, backgroundColor: '#122c33', borderWidth: 1, borderColor: '#1f5360' },
   stateEyebrow: { ...typography.label, fontSize: 11, letterSpacing: 1.4, color: colors.brand.secondary, textAlign: 'center' },

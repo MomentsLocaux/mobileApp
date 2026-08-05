@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   ambassadorBadgeText: {
     ...typography.caption,
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     borderColor: colors.brand.primary,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   chipText: {
     ...typography.caption,
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 4,

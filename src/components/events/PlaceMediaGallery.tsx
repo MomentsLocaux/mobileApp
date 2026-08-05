@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: HERO_HEIGHT,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   heroImage: {
     width,

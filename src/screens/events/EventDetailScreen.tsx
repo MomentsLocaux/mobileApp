@@ -1945,7 +1945,7 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
@@ -2048,7 +2048,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
   },
   infoContent: {
     marginLeft: spacing.md,
@@ -2116,8 +2116,8 @@ const styles = StyleSheet.create({
   },
   routeButton: {
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.5)',
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    borderColor: 'rgba(124, 181, 24,0.5)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
@@ -2188,8 +2188,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.45)',
-    backgroundColor: 'rgba(43,191,227,0.1)',
+    borderColor: 'rgba(124, 181, 24,0.45)',
+    backgroundColor: 'rgba(124, 181, 24,0.1)',
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
@@ -2396,7 +2396,7 @@ const styles = StyleSheet.create({
   peerAvatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43, 191, 227, 0.2)',
+    backgroundColor: 'rgba(124, 181, 24, 0.2)',
   },
   peerAvatarInitial: {
     ...typography.caption,
@@ -2415,7 +2415,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand.secondary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    backgroundColor: 'rgba(43,191,227,0.1)',
+    backgroundColor: 'rgba(124, 181, 24,0.1)',
   },
   followButtonText: {
     ...typography.bodySmall,

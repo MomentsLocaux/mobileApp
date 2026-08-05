@@ -1204,7 +1204,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   container: {
     flex: 1,
@@ -1330,7 +1330,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43, 191, 227, 0.14)',
+    backgroundColor: 'rgba(124, 181, 24, 0.14)',
   },
   valueCopy: {
     flex: 1,
@@ -1400,8 +1400,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   intentRowActive: {
-    borderColor: 'rgba(43,191,227,0.45)',
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    borderColor: 'rgba(124, 181, 24,0.45)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
   },
   intentCopy: {
     flex: 1,
@@ -1473,9 +1473,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.3)',
+    borderColor: 'rgba(124, 181, 24,0.3)',
   },
   selectionCopy: {
     flex: 1,

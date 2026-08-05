@@ -72,9 +72,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43, 191, 227, 0.12)',
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.28)',
+    borderColor: 'rgba(124, 181, 24, 0.28)',
     marginBottom: spacing.xs,
   },
   title: {

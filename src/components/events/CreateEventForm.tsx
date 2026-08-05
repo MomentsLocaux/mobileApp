@@ -679,8 +679,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeBtnActive: {
-    backgroundColor: 'rgba(43,191,227,0.2)',
-    borderColor: 'rgba(43,191,227,0.45)',
+    backgroundColor: 'rgba(124, 181, 24,0.2)',
+    borderColor: 'rgba(124, 181, 24,0.45)',
   },
   modeText: {
     ...typography.bodySmall,
@@ -703,8 +703,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   dayChipActive: {
-    backgroundColor: 'rgba(43,191,227,0.2)',
-    borderColor: 'rgba(43,191,227,0.5)',
+    backgroundColor: 'rgba(124, 181, 24,0.2)',
+    borderColor: 'rgba(124, 181, 24,0.5)',
   },
   dayChipText: {
     ...typography.caption,
@@ -746,9 +746,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.4)',
+    borderColor: 'rgba(124, 181, 24,0.4)',
   },
   addBtnText: {
     ...typography.caption,

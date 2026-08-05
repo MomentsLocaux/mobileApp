@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     gap: spacing.md,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   card: {
     borderRadius: EVENT_CARD_RADIUS,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   detail: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   detailBody: {
     padding: spacing.lg,

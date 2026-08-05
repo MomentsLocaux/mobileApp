@@ -84,7 +84,7 @@ export const GuestGateModal = ({ visible, title, onClose, onSignUp, onSignIn }: 
           ]}
         >
           <LinearGradient
-            colors={['rgba(43,191,227,0.18)', 'rgba(26,36,38,0)']}
+            colors={['rgba(124, 181, 24,0.18)', 'rgba(26,36,38,0)']}
             style={styles.glow}
             pointerEvents="none"
           />

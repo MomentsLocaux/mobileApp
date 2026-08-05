@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   sheetMeta: { ...typography.caption, color: colors.neutral[400] },
   voteBtn: {
     marginTop: spacing.sm,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',

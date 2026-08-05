@@ -251,7 +251,7 @@ export const NavigationOptionsSheet: React.FC<Props> = ({
           ]}
         >
           <LinearGradient
-            colors={['rgba(43,191,227,0.18)', 'rgba(26,36,38,0)']}
+            colors={['rgba(124, 181, 24,0.18)', 'rgba(26,36,38,0)']}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.sheetGlow}
@@ -425,8 +425,8 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   optionCardAccent: {
-    backgroundColor: 'rgba(43,191,227,0.12)',
-    borderColor: 'rgba(43,191,227,0.35)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
+    borderColor: 'rgba(124, 181, 24,0.35)',
   },
   optionIcon: {
     width: 44,

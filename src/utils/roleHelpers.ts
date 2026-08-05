@@ -62,9 +62,9 @@ export const getRoleBadgeColor = (role: UserRole) => {
     case 'particulier':
     default:
       return {
-        bg: 'rgba(43, 191, 227, 0.16)',
+        bg: 'rgba(124, 181, 24, 0.16)',
         text: '#7DD8F0',
-        border: 'rgba(43, 191, 227, 0.35)',
+        border: 'rgba(124, 181, 24, 0.35)',
       };
   }
 };

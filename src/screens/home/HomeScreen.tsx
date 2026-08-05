@@ -773,11 +773,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: colors.brand.primary, // Removed to allow AppBackground to show
+    // backgroundColor: colors.brand.page, // Removed to allow AppBackground to show
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   loadingText: {
     ...typography.body,
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-    // backgroundColor: colors.brand.primary, // Removed for uniformity
+    // backgroundColor: colors.brand.page, // Removed for uniformity
     zIndex: 10,
   },
   headerTop: {
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderRadius: 8,
     padding: 2,
   },
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.brand.primary, // Create a gap effect
+    backgroundColor: colors.brand.page, // Create a gap effect
     alignItems: 'center',
     justifyContent: 'center',
     padding: 2,

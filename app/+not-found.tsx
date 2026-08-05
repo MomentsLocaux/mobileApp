@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   text: {
     ...typography.h4,

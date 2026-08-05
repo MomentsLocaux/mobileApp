@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   cardExpandedLocal: {
-    borderColor: 'rgba(43, 191, 227, 0.35)',
+    borderColor: 'rgba(124, 181, 24, 0.35)',
   },
   cardExpandedHabitue: {
     borderColor: 'rgba(16, 185, 129, 0.35)',
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   icon_local: {
-    backgroundColor: 'rgba(43, 191, 227, 0.14)',
+    backgroundColor: 'rgba(124, 181, 24, 0.14)',
   },
   icon_habitue: {
     backgroundColor: 'rgba(16, 185, 129, 0.14)',
@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(43, 191, 227, 0.16)',
+    backgroundColor: 'rgba(124, 181, 24, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.35)',
+    borderColor: 'rgba(124, 181, 24, 0.35)',
   },
   badgePremium: {
     backgroundColor: colors.brand.premiumMuted,

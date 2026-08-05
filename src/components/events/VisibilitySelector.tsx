@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   followerRowActive: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
   },
   avatar: {
     width: 28,

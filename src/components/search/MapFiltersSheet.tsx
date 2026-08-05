@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     position: 'absolute',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.25,

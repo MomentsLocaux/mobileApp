@@ -169,7 +169,7 @@ export function EventPhotoContributionModal({
           ]}
         >
           <LinearGradient
-            colors={['rgba(43,191,227,0.18)', 'rgba(26,36,38,0)']}
+            colors={['rgba(124, 181, 24,0.18)', 'rgba(26,36,38,0)']}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.sheetGlow}
@@ -408,9 +408,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.28)',
+    borderColor: 'rgba(124, 181, 24,0.28)',
     marginBottom: 3,
   },
   previewTitle: {
@@ -443,9 +443,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.28)',
+    borderColor: 'rgba(124, 181, 24,0.28)',
   },
   actionIconAccent: {
     backgroundColor: colors.brand.secondary,
@@ -477,9 +477,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   submitButtonDisabled: {
-    backgroundColor: 'rgba(43,191,227,0.14)',
+    backgroundColor: 'rgba(124, 181, 24,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.22)',
+    borderColor: 'rgba(124, 181, 24,0.22)',
   },
   submitText: {
     ...typography.body,

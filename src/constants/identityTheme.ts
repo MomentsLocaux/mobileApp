@@ -5,9 +5,9 @@ export const identityAccents = {
   discover: {
     key: 'discover' as const,
     label: 'Découvreur',
-    accent: '#2bbfe3',
-    accentMuted: 'rgba(43, 191, 227, 0.16)',
-    accentBorder: 'rgba(43, 191, 227, 0.45)',
+    accent: '#7CB518',
+    accentMuted: 'rgba(124, 181, 24, 0.16)',
+    accentBorder: 'rgba(124, 181, 24, 0.45)',
   },
   create: {
     key: 'create' as const,

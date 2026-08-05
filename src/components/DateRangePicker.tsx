@@ -160,7 +160,7 @@ export const DateRangePicker = ({ open, mode, value, onChange, onClose, context 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   header: {
     paddingHorizontal: spacing.md,
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 32,
-    backgroundColor: 'rgba(43,191,227,0.16)',
+    backgroundColor: 'rgba(124, 181, 24,0.16)',
     top: '50%',
     marginTop: -16,
   },

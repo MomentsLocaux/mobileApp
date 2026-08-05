@@ -449,7 +449,7 @@ export default function EventEchoesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.primary },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.page },
   tabRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   tab: {
     paddingHorizontal: spacing.md,
@@ -518,10 +518,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    backgroundColor: 'rgba(43,191,227,0.12)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.4)',
+    borderColor: 'rgba(124, 181, 24,0.4)',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },

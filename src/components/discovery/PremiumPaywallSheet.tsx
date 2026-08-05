@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     padding: spacing.lg,
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(43, 191, 227, 0.12)',
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   planCardHighlighted: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43, 191, 227, 0.08)',
+    backgroundColor: 'rgba(124, 181, 24, 0.08)',
   },
   planTitle: {
     ...typography.caption,

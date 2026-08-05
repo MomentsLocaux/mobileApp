@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   statsChipSurface: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },

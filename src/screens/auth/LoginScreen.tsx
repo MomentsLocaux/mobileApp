@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks';
-import { spacing, typography } from '../../constants/theme';
+import { colors, spacing, typography } from '../../constants/theme';
 import { AuthService } from '@/services/auth.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,12 @@ import type { SocialProvider } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
 
 const { width, height } = Dimensions.get('window');
+
+const INK = colors.brand.ink as string;
+const MUTED = colors.brand.textSecondary as string;
+const ACCENT = colors.brand.secondary as string;
+const ON_ACCENT = colors.brand.onAccent as string;
+const PAGE = colors.brand.page as string;
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -129,8 +135,13 @@ export default function LoginScreen() {
         resizeMode="cover"
       >
         <LinearGradient
-          colors={['rgba(15,23,25,0.25)', 'rgba(15,23,25,0.55)', 'rgba(15,23,25,0.92)']}
-          locations={[0, 0.45, 1]}
+          colors={[
+            'rgba(244,251,246,0.35)',
+            'rgba(244,251,246,0.55)',
+            'rgba(26,51,41,0.42)',
+            'rgba(26,51,41,0.78)',
+          ]}
+          locations={[0, 0.35, 0.7, 1]}
           style={styles.gradient}
         >
           <KeyboardAvoidingView
@@ -157,7 +168,7 @@ export default function LoginScreen() {
                   {showForm ? (
                     <View style={styles.inputsWrapper}>
                       <View style={styles.inputContainer}>
-                        <Ionicons name="mail-outline" size={20} color="rgba(255,255,255,0.6)" style={styles.inputIcon} />
+                        <Ionicons name="mail-outline" size={20} color={MUTED} style={styles.inputIcon} />
                         <Input
                           placeholder="Email"
                           value={email}
@@ -168,24 +179,24 @@ export default function LoginScreen() {
                           error={errors.email}
                           containerStyle={styles.inputFieldContainer}
                           style={styles.input}
-                          placeholderTextColor="rgba(255,255,255,0.5)"
+                          placeholderTextColor="rgba(26,51,41,0.45)"
                         />
                       </View>
 
                       <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color="rgba(255,255,255,0.6)" style={styles.inputIcon} />
+                        <Ionicons name="lock-closed-outline" size={20} color={MUTED} style={styles.inputIcon} />
                         <Input
                           placeholder="Mot de passe"
                           value={password}
                           onChangeText={setPassword}
                           secureTextEntry
                           showPasswordToggle
-                          toggleIconColor="rgba(255,255,255,0.6)"
+                          toggleIconColor={MUTED}
                           autoComplete="password"
                           error={errors.password}
                           containerStyle={styles.inputFieldContainer}
                           style={styles.input}
-                          placeholderTextColor="rgba(255,255,255,0.5)"
+                          placeholderTextColor="rgba(26,51,41,0.45)"
                         />
                       </View>
 
@@ -224,6 +235,7 @@ export default function LoginScreen() {
                   <SocialLoginButtons
                     onProviderPress={handleSocialLogin}
                     disabled={isLoading || biometricLoading}
+                    variant="light"
                   />
 
                   <TouchableOpacity
@@ -252,7 +264,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: PAGE,
   },
   backgroundImage: {
     flex: 1,
@@ -285,22 +297,22 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 18,
     marginBottom: spacing.md,
-    shadowColor: '#2bbfe3',
+    shadowColor: ACCENT,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
   },
   appName: {
     ...typography.h1,
-    color: '#fff',
+    color: INK,
     fontSize: 32,
     fontWeight: '700',
     marginBottom: spacing.xs,
   },
   tagline: {
     ...typography.body,
-    color: 'rgba(255,255,255,0.8)',
+    color: MUTED,
     fontSize: 16,
   },
   formContainer: {
@@ -315,10 +327,10 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.88)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(26,51,41,0.12)',
     paddingHorizontal: spacing.md,
   },
   inputIcon: {
@@ -329,7 +341,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   input: {
-    color: '#fff',
+    color: INK,
     borderWidth: 0,
     backgroundColor: 'transparent',
     height: 50,
@@ -339,28 +351,28 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   forgotButtonText: {
-    color: 'rgba(255,255,255,0.85)',
+    color: INK,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
   primaryButton: {
-    backgroundColor: '#fff',
+    backgroundColor: ACCENT,
     height: 56,
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: INK,
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
   },
   primaryButtonText: {
-    color: '#000',
+    color: ON_ACCENT,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -370,11 +382,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.72)',
   },
   secondaryButtonText: {
-    color: '#fff',
+    color: INK,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -383,9 +395,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   guestButtonText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.92)',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
@@ -395,13 +407,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   footerText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 14,
   },
   linkText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
 });

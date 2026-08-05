@@ -33,10 +33,10 @@ export interface FilterChipTone {
 
 export const filterColors = {
   accent: colors.brand.secondary,
-  /** Foreground colour to use on top of `accent` (replaces hardcoded #0f1719). */
-  onAccent: colors.brand.primary,
+  /** Foreground colour to use on top of `accent` (ink on leaf — charter WCAG). */
+  onAccent: colors.brand.onAccent,
   surface: colors.brand.surface,
-  background: colors.brand.primary,
+  background: colors.brand.page,
   border: hexToRgba(colors.brand.text, 0.08),
   text: colors.brand.text,
   textSecondary: colors.brand.textSecondary,

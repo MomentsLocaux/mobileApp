@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(26, 36, 38, 0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.2)',
+    borderColor: 'rgba(124, 181, 24, 0.2)',
   },
   spinnerShell: {
     width: 68,
@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderWidth: 1,
-    borderColor: 'rgba(43, 191, 227, 0.35)',
+    borderColor: 'rgba(124, 181, 24, 0.35)',
   },
   title: {
     ...typography.h5,

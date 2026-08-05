@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   },
   quickChipActive: {
     borderColor: colors.brand.primary,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   quickChipText: {
     ...typography.bodySmall,

@@ -366,7 +366,7 @@ function CreateEventStep1Inner() {
   }
 
   if (!allowCreateFlow) {
-    return <SafeAreaView style={{ flex: 1, backgroundColor: colors.brand.primary }} />;
+    return <SafeAreaView style={{ flex: 1, backgroundColor: colors.brand.page }} />;
   }
 
   return (
@@ -445,7 +445,7 @@ export default function CreateEventStep1() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   nextBtn: {
     backgroundColor: colors.brand.secondary,

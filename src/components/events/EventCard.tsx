@@ -54,15 +54,15 @@ import { EventImageCarousel } from './EventImageCarousel';
 /** Tokens alignés DESIGN.md (§2 Couleurs, §4 Boutons/Cards). */
 const CARD_THEME = {
   accent: colors.brand.secondary,
-  accentSoft: 'rgba(43, 191, 227, 0.12)',
-  accentBorder: 'rgba(43, 191, 227, 0.35)',
+  accentSoft: 'rgba(124, 181, 24, 0.12)',
+  accentBorder: 'rgba(124, 181, 24, 0.35)',
   text: colors.brand.text,
   textSecondary: colors.brand.textSecondary,
   surface: colors.brand.surface,
   primary: colors.brand.primary,
   success: colors.brand.success,
   error: colors.brand.error,
-  onAccent: colors.neutral[0],
+  onAccent: colors.brand.onAccent,
 };
 
 export interface EventCardProps {
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   mediaWrap: {
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   mediaImage: {
     width: '100%',
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   },
   locationTextTappable: {
     textDecorationLine: 'underline',
-    textDecorationColor: 'rgba(43, 191, 227, 0.45)',
+    textDecorationColor: 'rgba(124, 181, 24, 0.45)',
   },
   distanceInline: {
     ...typography.caption,

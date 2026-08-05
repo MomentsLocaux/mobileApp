@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   segmentButtonActive: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderColor: colors.brand.primary,
   },
   segmentText: {
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   perkItemActive: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderColor: colors.brand.primary,
   },
   perkIconWrap: {

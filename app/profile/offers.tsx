@@ -258,9 +258,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(43,191,227,0.14)',
+    backgroundColor: 'rgba(124, 181, 24,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.35)',
+    borderColor: 'rgba(124, 181, 24,0.35)',
   },
   statusText: {
     ...typography.caption,

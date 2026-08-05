@@ -300,7 +300,7 @@ function KpiTile({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.brand.primary },
+  root: { flex: 1, backgroundColor: colors.brand.page },
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl + 8,

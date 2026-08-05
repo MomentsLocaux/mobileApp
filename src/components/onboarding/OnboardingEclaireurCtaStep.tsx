@@ -58,7 +58,7 @@ export function OnboardingEclaireurCtaStep({ onUnlock }: Props) {
 
       <View style={styles.proofCard}>
         <LinearGradient
-          colors={['rgba(43,191,227,0.18)', 'rgba(212,175,55,0.14)']}
+          colors={['rgba(124, 181, 24,0.18)', 'rgba(212,175,55,0.14)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(43, 191, 227, 0.12)',
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
   },
   benefitCopy: {
     flex: 1,

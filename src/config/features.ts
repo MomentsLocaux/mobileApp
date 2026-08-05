@@ -54,6 +54,11 @@ export const features = {
   ),
   /** V2 — contests */
   contests: process.env.EXPO_PUBLIC_FEATURE_CONTESTS === 'true',
+  /**
+   * Spike — Roadtrip planner (events along a planned journey).
+   * Independent from the Discovery Engine: never gate on `discovery`.
+   */
+  roadtrip: process.env.EXPO_PUBLIC_FEATURE_ROADTRIP === 'true',
 } as const;
 
 export type FeatureFlag = keyof typeof features;

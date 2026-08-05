@@ -225,6 +225,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     backgroundColor: colors.neutral[800],
   },
-  voteBtnActive: { backgroundColor: colors.brand.primary + '22' },
+  voteBtnActive: { backgroundColor: colors.brand.page + '22' },
   voteText: { ...typography.caption, color: colors.neutral[100] },
 });

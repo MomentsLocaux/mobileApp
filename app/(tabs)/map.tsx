@@ -962,13 +962,13 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
     flexDirection: 'column',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   searchSlot: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     zIndex: 20,
   },
   searchHeaderRow: {
@@ -1004,11 +1004,11 @@ const styles = StyleSheet.create({
   contentColumn: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   mapLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   mapDimOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 10,
     overflow: 'hidden',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     borderTopLeftRadius: SHEET_JUNCTION_RADIUS,
     borderTopRightRadius: SHEET_JUNCTION_RADIUS,
     minHeight: VIEWPORT_PEEK_HEIGHT,

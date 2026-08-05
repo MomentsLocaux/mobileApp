@@ -76,7 +76,7 @@ interface Props {
   hasLocation?: boolean;
 }
 
-const SHEET_SURFACE = colors.brand.primary;
+const SHEET_SURFACE = colors.brand.page;
 const SCROLL_EDGE_THRESHOLD = 2;
 const LIST_COLLAPSE_PULL_THRESHOLD = 28;
 const LIST_EXPAND_PULL_THRESHOLD = 28;

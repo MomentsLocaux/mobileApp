@@ -1243,7 +1243,7 @@ const styles = StyleSheet.create({
   },
   expandedContainer: {
     position: 'absolute',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 24,
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
   cardActive: {
     backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(43,191,227,0.42)',
+    borderColor: 'rgba(124, 181, 24,0.42)',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1501,7 +1501,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: 'rgba(43,191,227,0.16)',
+    backgroundColor: 'rgba(124, 181, 24,0.16)',
     borderColor: colors.brand.secondary,
   },
   checkboxMark: {
@@ -1571,7 +1571,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginHorizontal: spacing.lg,
     textAlign: 'center',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
     paddingTop: spacing.sm,
   },
   footer: {
@@ -1582,7 +1582,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderTopWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   resetText: {
     ...typography.body,

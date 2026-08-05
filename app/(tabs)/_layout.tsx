@@ -216,7 +216,7 @@ export default function TabsLayout() {
           tabBarShowLabel: false,
           sceneStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
-            backgroundColor: colors.brand.primary,
+            backgroundColor: colors.brand.page,
             borderTopColor: accent.accentBorder,
             height: 76,
             paddingBottom: 8,
@@ -278,7 +278,7 @@ export default function TabsLayout() {
                 <Map size={size} color={tabIconColor(focused)} strokeWidth={focused ? 2.4 : 2} />
               ),
             tabBarStyle: {
-              backgroundColor: colors.brand.primary,
+              backgroundColor: colors.brand.page,
               borderTopWidth: 0,
               borderTopColor: 'transparent',
               elevation: 0,
@@ -458,6 +458,16 @@ export default function TabsLayout() {
                 }}
               />
             )}
+            {features.roadtrip ? (
+              <DrawerLink
+                icon={MapPinned}
+                label="Roadtrip"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/roadtrip' as any);
+                }}
+              />
+            ) : null}
             {canCreateEvents ? (
               <DrawerLink
                 icon={PlusCircle}
@@ -735,7 +745,7 @@ const DrawerLink = ({
   >
     <IconCmp
       size={20}
-      color={iconColor || (active ? colors.brand.secondary : 'rgba(255,255,255,0.7)')}
+      color={iconColor || (active ? colors.brand.secondary : colors.brand.textSecondary)}
       strokeWidth={2}
     />
     <View style={styles.linkLabelWrapper}>
@@ -756,7 +766,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   tabAvatar: {
     width: 26,
@@ -775,7 +785,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   tabIconSlotActive: {
-    backgroundColor: 'rgba(43, 191, 227, 0.18)',
+    backgroundColor: 'rgba(124, 181, 24, 0.18)',
   },
   profileTabIconWrap: {
     width: 32,
@@ -814,12 +824,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     width: '78%',
-    backgroundColor: '#0f1719', // Deep dark brand background
-    padding: 0, // Reset padding to handle footer correctly
+    backgroundColor: colors.brand.page,
+    padding: 0,
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.05)',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(26, 51, 41, 0.08)',
   },
 
   drawerHeader: {
@@ -836,7 +846,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -847,18 +857,18 @@ const styles = StyleSheet.create({
   drawerName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.brand.text,
     marginBottom: 2,
   },
   drawerEmail: {
     fontSize: 13,
-    color: '#587588', // Muted slate blue/grey
+    color: colors.brand.textSecondary,
   },
   drawerModeSwitch: {
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(26, 51, 41, 0.1)',
   },
   drawerPremiumPill: {
     flexDirection: 'row',
@@ -900,10 +910,10 @@ const styles = StyleSheet.create({
   linkLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#94a3b8',
+    color: colors.brand.textSecondary,
   },
   linkBadge: {
-    backgroundColor: '#2bbfe3',
+    backgroundColor: colors.brand.secondary,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -911,7 +921,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   linkBadgeText: {
-    color: '#000',
+    color: colors.brand.onAccent,
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -928,7 +938,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     borderWidth: 2,
-    borderColor: '#2bbfe3',
+    borderColor: '#7CB518',
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -957,40 +967,40 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#325868', // Dark Cyan/Blue specific to Stitch design
+    color: colors.brand.textSecondary,
     marginBottom: 8,
     marginLeft: 24,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   linkRowActive: {
-    backgroundColor: 'rgba(43, 191, 227, 0.15)', // More visible active bg
+    backgroundColor: 'rgba(124, 181, 24, 0.15)',
     borderRadius: 12,
   },
   linkLabelActive: {
-    color: '#2bbfe3',
+    color: colors.brand.secondary,
     fontWeight: '700',
   },
   drawerFooter: {
     marginTop: 'auto',
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
+    borderTopColor: 'rgba(26, 51, 41, 0.08)',
     padding: 24,
-    backgroundColor: '#0b1113', // Slightly darker footer
+    backgroundColor: colors.brand.surfaceMuted,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#162024',
+    backgroundColor: colors.brand.surface,
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: 'rgba(26, 51, 41, 0.12)',
   },
   logoutText: {
-    color: '#94a3b8',
+    color: colors.brand.text,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -998,7 +1008,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontSize: 10,
-    color: '#475569',
+    color: colors.brand.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     fontWeight: '600',
@@ -1012,7 +1022,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 20,
     borderWidth: 4,
-    borderColor: colors.brand.primary, // Add border to match dark background
+    borderColor: colors.brand.page,
   },
   createButtonDisabled: {
     backgroundColor: colors.brand.surface,

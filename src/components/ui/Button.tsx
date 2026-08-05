@@ -102,8 +102,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.secondary,
   },
   secondary: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 0,
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 51, 41, 0.12)',
   },
   danger: {
     backgroundColor: colors.error[500],
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryText: {
-    color: '#0f1719', // Dark text on bright secondary button
+    color: colors.brand.onAccent,
   },
   secondaryText: {
     color: colors.brand.text,

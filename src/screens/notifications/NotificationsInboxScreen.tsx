@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   },
   itemUnread: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(43, 191, 227, 0.05)',
+    backgroundColor: 'rgba(124, 181, 24, 0.05)',
   },
   itemHeader: {
     flexDirection: 'row',

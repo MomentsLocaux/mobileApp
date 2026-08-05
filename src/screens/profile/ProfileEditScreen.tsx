@@ -292,13 +292,13 @@ export default function ProfileEditScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.page,
   },
   header: {
     alignItems: 'center',
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   coverPlaceholder: {
-    backgroundColor: 'rgba(43,191,227,0.08)',
+    backgroundColor: 'rgba(124, 181, 24,0.08)',
   },
   coverOverlay: {
     position: 'absolute',
