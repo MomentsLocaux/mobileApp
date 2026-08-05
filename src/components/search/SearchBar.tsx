@@ -22,7 +22,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { X, MapPin, Calendar, Tag, ChevronRight, Search, Bookmark, Clock, Trash2 } from 'lucide-react-native';
+import { X, MapPin, Calendar, Tag, ChevronRight, Search, Bookmark, Clock } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
@@ -102,8 +102,6 @@ export const SearchBar: React.FC<Props> = ({
   const [memberResults, setMemberResults] = useState<CommunityMember[]>([]);
   const [memberLoading, setMemberLoading] = useState(false);
   const barRef = useRef<View | null>(null);
-  const whereInputRef = useRef<TextInput | null>(null);
-  const memberInputRef = useRef<TextInput | null>(null);
 
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
@@ -123,6 +121,7 @@ export const SearchBar: React.FC<Props> = ({
   const setWhat = useDiscoveryFiltersStore((s) => s.setContent);
   const setSort = useDiscoveryFiltersStore((s) => s.setSort);
   const addHistory = useDiscoveryFiltersStore((s) => s.addPlaceHistory);
+  const removePlaceHistory = useDiscoveryFiltersStore((s) => s.removePlaceHistory);
   const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
   const resetSearch = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
   const sortBy = sort[surface].sortBy;
@@ -412,13 +411,6 @@ export const SearchBar: React.FC<Props> = ({
         Motion.duration.micro,
         withTiming(1, createEnterTiming(Motion.duration.fast))
       );
-      setTimeout(() => {
-        if (searchMode === 'members') {
-          memberInputRef.current?.focus();
-        } else {
-          whereInputRef.current?.focus();
-        }
-      }, 60);
     });
   };
 
@@ -621,7 +613,6 @@ export const SearchBar: React.FC<Props> = ({
                 <View style={styles.memberPanel}>
                   <Text style={styles.memberLabel}>Nom</Text>
                   <TextInput
-                    ref={memberInputRef}
                     placeholder="Rechercher un membre"
                     placeholderTextColor={colors.brand.textSecondary}
                     value={memberQuery}
@@ -674,7 +665,6 @@ export const SearchBar: React.FC<Props> = ({
                       onPress={() => setActiveSection('where')}
                     >
                       <TextInput
-                        ref={whereInputRef}
                         placeholder="Ville, adresse ou lieu"
                         placeholderTextColor={colors.brand.textSecondary}
                         value={query}
@@ -753,26 +743,28 @@ export const SearchBar: React.FC<Props> = ({
                             <>
                               <Text style={styles.meta}>Enregistrées</Text>
                               {savedSearches.map((item) => (
-                                <TouchableOpacity
-                                  key={item.id}
-                                  style={styles.savedRow}
-                                  onPress={() => applySnapshot(item)}
-                                  onLongPress={() => confirmRemove(item)}
-                                  accessibilityRole="button"
-                                  accessibilityLabel={`Appliquer ${item.title}`}
-                                >
-                                  <Bookmark size={16} color={colors.brand.secondary} />
-                                  <Text style={styles.resultText} numberOfLines={2}>
-                                    {item.title}
-                                  </Text>
+                                <View key={item.id} style={styles.savedRow}>
                                   <TouchableOpacity
-                                    onPress={() => confirmRemove(item)}
-                                    hitSlop={8}
-                                    accessibilityLabel="Supprimer la recherche"
+                                    style={styles.savedRowMain}
+                                    onPress={() => applySnapshot(item)}
+                                    onLongPress={() => confirmRemove(item)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Appliquer ${item.title}`}
                                   >
-                                    <Trash2 size={14} color={colors.brand.textSecondary} />
+                                    <Bookmark size={16} color={colors.brand.secondary} />
+                                    <Text style={styles.resultText} numberOfLines={2}>
+                                      {item.title}
+                                    </Text>
                                   </TouchableOpacity>
-                                </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.historyRemoveButton}
+                                    onPress={() => confirmRemove(item)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Supprimer ${item.title}`}
+                                  >
+                                    <X size={16} color={colors.brand.textSecondary} />
+                                  </TouchableOpacity>
+                                </View>
                               ))}
                             </>
                           ) : null}
@@ -782,19 +774,27 @@ export const SearchBar: React.FC<Props> = ({
                                 Récents
                               </Text>
                               {recentSearches.map((item) => (
-                                <TouchableOpacity
-                                  key={item.id}
-                                  style={styles.savedRow}
-                                  onPress={() => applySnapshot(item)}
-                                  onLongPress={() => confirmRemove(item)}
-                                  accessibilityRole="button"
-                                  accessibilityLabel={`Appliquer ${item.title}`}
-                                >
-                                  <Clock size={16} color={colors.brand.textSecondary} />
-                                  <Text style={styles.resultText} numberOfLines={2}>
-                                    {item.title}
-                                  </Text>
-                                </TouchableOpacity>
+                                <View key={item.id} style={styles.savedRow}>
+                                  <TouchableOpacity
+                                    style={styles.savedRowMain}
+                                    onPress={() => applySnapshot(item)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Appliquer ${item.title}`}
+                                  >
+                                    <Clock size={16} color={colors.brand.textSecondary} />
+                                    <Text style={styles.resultText} numberOfLines={2}>
+                                      {item.title}
+                                    </Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.historyRemoveButton}
+                                    onPress={() => void removeSavedSearch(item.id)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Supprimer ${item.title}`}
+                                  >
+                                    <X size={16} color={colors.brand.textSecondary} />
+                                  </TouchableOpacity>
+                                </View>
                               ))}
                             </>
                           ) : null}
@@ -804,16 +804,28 @@ export const SearchBar: React.FC<Props> = ({
                         <View style={styles.history}>
                           <Text style={styles.meta}>Lieux récents</Text>
                           {where.history.map((h) => (
-                            <TouchableOpacity
-                              key={h}
-                              style={styles.result}
-                              onPress={() => {
-                                setWhere({ location: undefined });
-                                setQuery(h);
-                              }}
-                            >
-                              <Text style={styles.resultText}>{h}</Text>
-                            </TouchableOpacity>
+                            <View key={h} style={styles.savedRow}>
+                              <TouchableOpacity
+                                style={styles.savedRowMain}
+                                onPress={() => {
+                                  setWhere({ location: undefined });
+                                  setQuery(h);
+                                }}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Rechercher ${h}`}
+                              >
+                                <Clock size={16} color={colors.brand.textSecondary} />
+                                <Text style={styles.resultText}>{h}</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.historyRemoveButton}
+                                onPress={() => removePlaceHistory(h)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Supprimer ${h}`}
+                              >
+                                <X size={16} color={colors.brand.textSecondary} />
+                              </TouchableOpacity>
+                            </View>
                           ))}
                         </View>
                       ) : null}
@@ -1527,10 +1539,22 @@ const styles = StyleSheet.create({
   savedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  savedRowMain: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  historyRemoveButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   metaSpaced: {
     marginTop: spacing.md,

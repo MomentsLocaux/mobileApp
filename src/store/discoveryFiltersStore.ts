@@ -33,6 +33,7 @@ export interface DiscoveryFiltersState extends DiscoveryFilters {
   setSearchApplied: (applied: boolean) => void;
   commitSearch: () => void;
   addPlaceHistory: (label: string) => void;
+  removePlaceHistory: (label: string) => void;
   clearSearchCriteria: () => void;
   resetCriteria: () => void;
   reset: () => void;
@@ -120,6 +121,11 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set) => (
       const withoutDuplicate = state.placeHistory.filter((item) => item !== trimmed);
       return { placeHistory: [trimmed, ...withoutDuplicate].slice(0, 5) };
     }),
+
+  removePlaceHistory: (label) =>
+    set((state) => ({
+      placeHistory: state.placeHistory.filter((item) => item !== label),
+    })),
 
   clearSearchCriteria: () =>
     set((state) => {

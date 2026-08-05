@@ -72,4 +72,14 @@ describe('discovery filter store', () => {
     assert.deepEqual(current.sort.map, { sortBy: 'popularity', sortOrder: 'desc' });
     assert.equal(current.mapMode, 'satellite');
   });
+
+  it('removes one recent place without clearing the others', () => {
+    const store = useDiscoveryFiltersStore.getState();
+    store.addPlaceHistory('Luxembourg');
+    store.addPlaceHistory('Metz');
+
+    store.removePlaceHistory('Luxembourg');
+
+    assert.deepEqual(useDiscoveryFiltersStore.getState().placeHistory, ['Metz']);
+  });
 });
