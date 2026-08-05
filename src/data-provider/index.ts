@@ -36,8 +36,10 @@ export const dataProvider: DataProvider = {
   spendLumo: (payload) => supabaseProvider.spendLumo(payload),
 
   toggleFavorite: (eventId) => supabaseProvider.toggleFavorite(eventId),
+  removeFavorite: (eventId) => supabaseProvider.removeFavorite(eventId),
   toggleInterest: (eventId) => supabaseProvider.toggleInterest(eventId),
   like: (eventId) => supabaseProvider.like(eventId),
+  unlike: (eventId) => supabaseProvider.unlike(eventId),
   likeComment: (commentId) => supabaseProvider.likeComment(commentId),
   likeMedia: (mediaId) => supabaseProvider.likeMedia(mediaId),
 

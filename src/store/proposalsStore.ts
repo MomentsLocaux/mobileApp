@@ -48,8 +48,18 @@ interface ProposalsState {
   setDateWindow: (dateWindow: ProposalDateWindow) => void;
   beginLoading: (options?: { resetSession?: boolean }) => void;
   setPool: (pool: EventWithCreator[]) => void;
-  applyDecision: (event: EventWithCreator, decision: ProposalDecision) => void;
-  reviseDecision: (sessionId: string, eventId: string, decision: ProposalDecision) => void;
+  applyDecision: (
+    event: EventWithCreator,
+    decision: ProposalDecision,
+    options?: { heartCreatedBySession?: boolean },
+  ) => void;
+  reviseDecision: (
+    sessionId: string,
+    eventId: string,
+    decision: ProposalDecision,
+    options?: { heartCreatedBySession?: boolean },
+  ) => void;
+  deleteSessions: (sessionIds: string[]) => void;
   pauseSession: () => void;
   resumeSession: (sessionId?: string) => void;
   startNewSession: () => void;
@@ -134,14 +144,14 @@ export const useProposalsStore = create<ProposalsState>()(
           selectedSessionId: null,
         }));
       },
-      applyDecision: (event, decision) =>
+      applyDecision: (event, decision, options) =>
         set((state) => {
           const activeSession = state.activeSessionId
             ? state.sessions.find((session) => session.id === state.activeSessionId)
             : null;
           if (!activeSession) return state;
 
-          const updatedSession = recordProposalDecision(activeSession, event, decision);
+          const updatedSession = recordProposalDecision(activeSession, event, decision, options);
           const derived = getProposalSessionEvents(updatedSession);
           return {
             sessions: keepRecentProposalSessions(
@@ -155,11 +165,11 @@ export const useProposalsStore = create<ProposalsState>()(
             ...derived,
           };
         }),
-      reviseDecision: (sessionId, eventId, decision) =>
+      reviseDecision: (sessionId, eventId, decision, options) =>
         set((state) => {
           const target = state.sessions.find((session) => session.id === sessionId);
           if (!target) return state;
-          const updated = reviseProposalDecision(target, eventId, decision);
+          const updated = reviseProposalDecision(target, eventId, decision, options);
           const sessions = keepRecentProposalSessions(
             state.sessions.map((session) => session.id === sessionId ? updated : session),
           );
@@ -167,6 +177,38 @@ export const useProposalsStore = create<ProposalsState>()(
           return shouldSyncCurrent
             ? { sessions, ...getProposalSessionEvents(updated) }
             : { sessions };
+        }),
+      deleteSessions: (sessionIds) =>
+        set((state) => {
+          const deletedIds = new Set(sessionIds);
+          const sessions = state.sessions.filter((session) => !deletedIds.has(session.id));
+          if (sessions.length === state.sessions.length) return state;
+
+          const activeSessionDeleted = state.activeSessionId
+            ? deletedIds.has(state.activeSessionId)
+            : false;
+          const selectedSessionDeleted = state.selectedSessionId
+            ? deletedIds.has(state.selectedSessionId)
+            : false;
+
+          if (sessions.length === 0) {
+            return {
+              sessions,
+              phase: 'wizard',
+              wizardStep: 0,
+              ...emptySessionState,
+              activeSessionId: null,
+              selectedSessionId: null,
+            };
+          }
+
+          return {
+            sessions,
+            ...(activeSessionDeleted ? emptySessionState : {}),
+            activeSessionId: activeSessionDeleted ? null : state.activeSessionId,
+            selectedSessionId: selectedSessionDeleted ? null : state.selectedSessionId,
+            phase: activeSessionDeleted && state.phase !== 'history' ? 'entry' : state.phase,
+          };
         }),
       pauseSession: () => set({ phase: 'entry', selectedSessionId: null }),
       resumeSession: (sessionId) => {
@@ -217,7 +259,7 @@ export const useProposalsStore = create<ProposalsState>()(
     }),
     {
       name: 'proposals-preferences-store',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => persistStorage),
       partialize: (state) => ({
         preferences: state.preferences,

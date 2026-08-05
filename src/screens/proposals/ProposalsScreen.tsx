@@ -37,13 +37,19 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventWithCreator } from '@/types/database';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { getEventImageUrls, getHumanizedDate } from '@/utils/event-card-display';
-import { ensureEventHearted, syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import {
+  ensureEventHearted,
+  removeEventHeart,
+  syncHeartStores,
+  toggleEventHeart,
+} from '@/utils/event-heart';
 import { haptics } from '@/utils/haptics';
 import { fetchProposalPool } from './proposal-pool';
 import { ProposalSwipeDeck } from './ProposalSwipeDeck';
 import { ProposalWizard } from './ProposalWizard';
 import { ProposalHistory } from './ProposalHistory';
 import { ProposalSessionEntry } from './ProposalSessionEntry';
+import { getSessionCreatedHeartEvents } from './proposal-session-history';
 import type { ProposalDecision, ProposalPreferences } from './proposal.types';
 
 const MIN_LOADING_TRANSITION_MS = 550;
@@ -90,11 +96,13 @@ export default function ProposalsScreen() {
   const showHistory = useProposalsStore((state) => state.showHistory);
   const selectHistorySession = useProposalsStore((state) => state.selectHistorySession);
   const editPreferences = useProposalsStore((state) => state.editPreferences);
+  const deleteSessions = useProposalsStore((state) => state.deleteSessions);
 
   const [wantsCurrentLocation, setWantsCurrentLocation] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processingDecision, setProcessingDecision] = useState(false);
   const [historyBusyEventId, setHistoryBusyEventId] = useState<string | null>(null);
+  const [historyDeleteBusy, setHistoryDeleteBusy] = useState(false);
   const [cardRevision, setCardRevision] = useState(0);
   const requestIdRef = useRef(0);
 
@@ -203,7 +211,9 @@ export default function ProposalsScreen() {
       };
       const after = await ensureEventHearted(userId, event, before);
       syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
-      applyDecision(event, 'like');
+      applyDecision(event, 'like', {
+        heartCreatedBySession: !before.isLiked && !before.isFavorite,
+      });
     } catch (error) {
       console.warn('[Proposals] heart failed', error);
       setCardRevision((value) => value + 1);
@@ -248,7 +258,10 @@ export default function ProposalsScreen() {
         after = await toggleEventHeart(userId, event, before);
       }
       syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
-      reviseDecision(sessionId, eventId, nextDecision);
+      reviseDecision(sessionId, eventId, nextDecision, {
+        heartCreatedBySession:
+          nextDecision === 'like' && !before.isLiked && !before.isFavorite,
+      });
       haptics.selection();
     } catch (error) {
       console.warn('[Proposals] history revision failed', error);
@@ -257,6 +270,72 @@ export default function ProposalsScreen() {
       setHistoryBusyEventId(null);
     }
   }, [historyBusyEventId, profile?.id, reviseDecision, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
+
+  const deleteProposalHistory = useCallback(async (
+    sessionIds: string[],
+    removeCreatedHearts: boolean,
+  ) => {
+    if (historyDeleteBusy) return;
+    const targetIds = new Set(sessionIds);
+    const targetSessions = useProposalsStore.getState().sessions.filter((item) =>
+      targetIds.has(item.id),
+    );
+    if (targetSessions.length === 0) return;
+
+    const userId = profile?.id || user?.id || session?.user?.id;
+    if (removeCreatedHearts && !userId) {
+      Alert.alert(
+        'Connexion requise',
+        'Reconnecte-toi pour retirer les coups de cœur liés à ces sessions.',
+      );
+      return;
+    }
+
+    setHistoryDeleteBusy(true);
+    try {
+      if (removeCreatedHearts && userId) {
+        const events = getSessionCreatedHeartEvents(targetSessions);
+        for (const event of events) {
+          const before = {
+            isLiked: useLikesStore.getState().isLiked(event.id),
+            isFavorite: useFavoritesStore.getState().isFavorite(event.id),
+          };
+          const after = await removeEventHeart(userId, event.id);
+          syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+        }
+      }
+      deleteSessions(sessionIds);
+      haptics.selection();
+    } catch (error) {
+      console.warn('[Proposals] history deletion failed', error);
+      Alert.alert(
+        'Suppression incomplète',
+        'Certains coups de cœur n’ont pas pu être retirés. L’historique a été conservé pour te permettre de réessayer.',
+      );
+    } finally {
+      setHistoryDeleteBusy(false);
+    }
+  }, [deleteSessions, historyDeleteBusy, profile?.id, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
+
+  const confirmHistoryDeletion = useCallback((sessionIds: string[]) => {
+    const count = sessionIds.length;
+    Alert.alert(
+      count > 1 ? 'Supprimer tout l’historique ?' : 'Supprimer cette session ?',
+      'Tu peux conserver tes coups de cœur, ou retirer aussi ceux créés pendant ces sessions. Tes autres favoris resteront intacts.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Garder les favoris',
+          onPress: () => void deleteProposalHistory(sessionIds, false),
+        },
+        {
+          text: 'Retirer les favoris',
+          style: 'destructive',
+          onPress: () => void deleteProposalHistory(sessionIds, true),
+        },
+      ],
+    );
+  }, [deleteProposalHistory]);
 
   if (!hasHydrated) {
     return (
@@ -345,9 +424,12 @@ export default function ProposalsScreen() {
           sessions={sessions}
           selectedSessionId={selectedSessionId}
           busyEventId={historyBusyEventId}
+          deleteBusy={historyDeleteBusy}
           onBack={showEntry}
           onSelectSession={selectHistorySession}
           onResume={resumeSession}
+          onDeleteSession={(sessionId) => confirmHistoryDeletion([sessionId])}
+          onDeleteAll={() => confirmHistoryDeletion(sessions.map((item) => item.id))}
           onRevise={(sessionId, eventId, decision) => void handleReviseDecision(sessionId, eventId, decision)}
           onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
         />
