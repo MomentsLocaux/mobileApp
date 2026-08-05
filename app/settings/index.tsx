@@ -13,6 +13,7 @@ import {
   Compass,
   RotateCcw,
   PlusCircle,
+  ShieldCheck,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
@@ -118,6 +119,19 @@ export default function SettingsScreen() {
           label="Gérer les notifications"
           icon={Bell}
           onPress={() => router.push('/settings/notifications' as any)}
+          noBorder
+        />
+      </SettingsSectionCard>
+
+      <SettingsSectionCard
+        title="Autorisations"
+        icon={ShieldCheck}
+        description="Consulter et modifier les accès accordés à Moments Locaux."
+      >
+        <SettingsRow
+          label="Gérer les autorisations de l’application"
+          icon={ShieldCheck}
+          onPress={() => router.push('/settings/permissions' as any)}
           noBorder
         />
       </SettingsSectionCard>
