@@ -63,7 +63,11 @@ import { EventsService } from '../../services/events.service';
 import { useAuth } from '../../hooks';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import { getCategoryLabel } from '../../constants/categories';
+import {
+  getCategoryColor,
+  getCategoryLabel,
+  getCategoryTextColor,
+} from '../../constants/categories';
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
@@ -1364,8 +1368,20 @@ export default function EventDetailScreen() {
         <View style={styles.heroContainer}>
           <PlaceMediaGallery images={mediaImages} communityImages={communityMediaImages} onAddPhoto={handleAddPhoto}>
             <View style={styles.heroBadges}>
-              <View style={styles.heroBadge}>
-                <Text style={styles.heroBadgeText}>{getCategoryLabel(event.category || '')}</Text>
+              <View
+                style={[
+                  styles.heroBadge,
+                  { backgroundColor: getCategoryColor(event.category || '') },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.heroBadgeText,
+                    { color: getCategoryTextColor(event.category || '') },
+                  ]}
+                >
+                  {getCategoryLabel(event.category || '')}
+                </Text>
               </View>
               {GAMIFICATION_ENABLED &&
               EarlyAccessService.isWindowActive(event.early_access_until) ? (
