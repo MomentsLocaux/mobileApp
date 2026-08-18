@@ -26,6 +26,7 @@ Companion surfaces in MVP: **moderation WebConsole** + **marketing site vitrine*
 |---|---|---|---|
 | `FEATURE_SOCIAL_PEERS` | **ON** (`=false` to hide) | MVP | Membres, peer follow, aimé par suivis |
 | `FEATURE_EVENT_CREATE` | off | V1 | Create, mes events, ModeSwitch |
+| `FEATURE_EVENT_SUGGEST` | off | V1 | Suggestion affiche (LLM vision), découplé de create |
 | `FEATURE_CHECKIN` | off | V1 | QR / geo check-in |
 | `FEATURE_OFFERS` | off | V1 | Nos offres |
 | `FEATURE_DIFFUSEUR` | off | V1 | Professionnel / Diffuseur |

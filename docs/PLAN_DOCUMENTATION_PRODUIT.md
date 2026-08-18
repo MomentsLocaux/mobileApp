@@ -17,6 +17,7 @@
 | D3 | Spécification fonctionnelle — Console d’administration | PO, ops, QA, modérateurs (référentiel) | `Moderation-WebConsole` | **Livré** → `docs/SPEC_FONCTIONNELLE_CONSOLE_ADMIN.md` |
 | D4 | Spécification technique — Console d’administration | Front eng., security, DevOps | `Moderation-WebConsole` | **Livré** → `docs/SPEC_TECHNIQUE_CONSOLE_ADMIN.md` |
 | D5 | User Guide — Console d’administration | Modérateurs / admins opérationnels | `Moderation-WebConsole` | **Livré** → `docs/USER_GUIDE_CONSOLE_ADMIN.md` |
+| D6 | Stack IA opérationnelle (équipe ~12) | Fondateur, eng, ops, sales, CS | `mobileApp` | **Livré** → `project-management/ops/AI_OPERATING_STACK.md` |
 
 **Ordre de génération** : D2 → D3 → D4 → D5 (terminé).
 

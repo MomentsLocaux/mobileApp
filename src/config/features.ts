@@ -3,7 +3,7 @@
  *
  * Store-ready MVP defaults (when env unset):
  * - socialPeers ON
- * - eventCreate / checkin / offers / diffuseur OFF (V1)
+ * - eventCreate / eventSuggest / checkin / offers / diffuseur OFF (V1)
  * - gamification / discovery / contests OFF (V2)
  *
  * Convention:
@@ -31,6 +31,11 @@ export const features = {
   socialPeers: process.env.EXPO_PUBLIC_FEATURE_SOCIAL_PEERS !== 'false',
   /** V1 — event creation, ModeSwitch, mes events, create hub */
   eventCreate: process.env.EXPO_PUBLIC_FEATURE_EVENT_CREATE === 'true',
+  /**
+   * V1 — suggest an event from a poster (LLM vision prefill, user confirms).
+   * Independent from eventCreate: catalog contribution, not organizer create.
+   */
+  eventSuggest: process.env.EXPO_PUBLIC_FEATURE_EVENT_SUGGEST === 'true',
   /** V1 — QR / geo check-in + creator QR share */
   checkin: process.env.EXPO_PUBLIC_FEATURE_CHECKIN === 'true',
   /** V1 — Nos offres / Habitué–Éclaireur paywall surfaces */

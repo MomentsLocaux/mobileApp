@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted — 2026-07-26. Complète les sinks boutique de [ADR_004](../decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md). Orthogonal à [ADR_006](../decisions/ADR_006_DIFFUSEUR_B2B_OFFER.md) (packs € Diffuseur ≠ Boutique Lumo).
+Accepted — 2026-07-26. Complète les sinks boutique de [ADR_004](../decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md). Orthogonal à [ADR_006](../decisions/ADR_006_DIFFUSEUR_B2B_OFFER.md) (packs € Diffuseur ≠ Boutique Lumo) et à [OFFER_CATALOG_PASS_LUMO.md](./OFFER_CATALOG_PASS_LUMO.md) (SKU magasin).  
+**Amended — 2026-08-17** : rayon Accès = early + VIP ; `pass_extra_stamp` retiré.
 
 ## Accès
 
@@ -12,7 +13,7 @@ Accepted — 2026-07-26. Complète les sinks boutique de [ADR_004](../decisions/
 
 ## Principes
 
-1. Sink utile d’abord : **boosts + accès ≥ 70 %** des dépenses Lumo ; cosmétiques &lt; 30 %.
+1. Sink utile d’abord : mix **45 % in-app / 35 % Pass Lumo / 20 % cosmétique + buffer** (ADR 004 amendement 2026-08-17). Cosmétiques &lt; 20 % de ce mix.
 2. Pas de conversion Lumo → €. Pas de cash-out.
 3. Pas de packs Lumo € en v1 boutique (M13 = phase 2, après calibration inflation).
 4. Earn cible ~40–70 Lumo / semaine → un Boost 24h (100) ≈ 2–3 semaines d’activité.
@@ -23,15 +24,17 @@ Accepted — 2026-07-26. Complète les sinks boutique de [ADR_004](../decisions/
 | Rayon | Contenu |
 |-------|---------|
 | **Visibilité** | Boosts event + Highlight communauté |
-| **Accès** | Early access + tampon Pass bonus |
+| **Accès** | Early access + **VIP event** |
 | **Style** | Cadres / badges profil |
+
+Les SKU magasin **ne sont pas** dans cette boutique. Ils vivent dans [OFFER_CATALOG_PASS_LUMO.md](./OFFER_CATALOG_PASS_LUMO.md) (Pass Lumo).
 
 ### Règles UX
 
-- `event_boost_*` et `early_access_unlock` : **pas** de consommation one-tap depuis la liste seule → CTA « Choisir un événement » / redirection Mes événements (ou fiche event).
+- `event_boost_*`, `early_access_unlock` et `event_vip_unlock` : **pas** de consommation one-tap depuis la liste seule → CTA « Choisir un événement » / redirection Mes événements (ou fiche event).
 - Sous chaque prix : solde Lumo + estimation « ~X sorties » (basée sur `checkin_base` = 20).
 - Afficher séparément les **boosts gagnés** créateur (M4) — hors catalogue payant Lumo.
-- Progression Pass / Ambassadeur : visibles, **jamais vendues en €**.
+- Progression Pass Lumo / Ambassadeur : visibles, **jamais vendues en €**. CTA Pass Lumo → boutiques partenaires, pas un tampon.
 
 ## Catalogue
 
@@ -49,8 +52,10 @@ Accepted — 2026-07-26. Complète les sinks boutique de [ADR_004](../decisions/
 |-----|-------|-------|-----------|-------|---------------|
 | `event_boost_72h` | Visibilité | Boost week-end | **240** | Remonte 72h | Max 1 boost durée / event ; compte dans cap boosts actifs user |
 | `community_highlight_7d` | Visibilité | Highlight communauté | **60** | Mise en avant feed / cercle 7j | — |
-| `pass_extra_stamp` | Accès | Tampon Pass bonus | **80** | +1 tampon vers Pass du mois | **1 / mois / user** |
+| `event_vip_unlock` | Accès | Accès VIP | **100** | Palier VIP si l’event opt-in | Quota places orga ; **pas** un SKU magasin |
 | `avatar_frame_eclaireur` | Style | Cadre Éclaireur | **90** | Cadre avatar | Habitué+ (ou réservé Éclaireur — calibrer en UAT) |
+
+**Supprimé (2026-08-17)** : `pass_extra_stamp` — le Pass tampon n’existe plus ; le streak crédite +40 Lumo (ADR 004 M5).
 
 ### v2 (plus tard)
 
@@ -63,7 +68,8 @@ Accepted — 2026-07-26. Complète les sinks boutique de [ADR_004](../decisions/
 | Mécanisme | Source | Monnaie |
 |-----------|--------|---------|
 | Boost créateur gagné (M4) | Check-ins sur event passé ≥ N | Crédit inventaire (pas Lumo shop) |
-| Pass Habitué (M5) | 3 check-ins / mois | Progression |
+| Pass Lumo (M15) | Habitué+ ; spend Lumo chez un partenaire | Voir `OFFER_CATALOG_PASS_LUMO.md` |
+| Streak 3 check-ins (M5) | 3 check-ins / mois | +40 Lumo (pas un tampon) |
 | Badge Ambassadeur (M3) | Score quartier | Palier Habitué |
 
 ### Phase 2 — M13 (hors ce catalogue)
@@ -75,9 +81,8 @@ Packs IAP Lumo / boost € pour confort créateurs — **après** stabilisation 
 | Règle | Valeur |
 |-------|--------|
 | Cap boosts actifs simultanés / user | **2** |
-| Cap `pass_extra_stamp` | **1 / mois** |
 | Cosmétiques | Rotation OK ; aucun effet ranking |
-| KPI % spend boosts vs cosmétique | Boosts **≥ 70 %** |
+| KPI mix spend | In-app **45 %** · Pass Lumo **35 %** · cosmétique+buffer **20 %** |
 | KPI délai 1er spend | &lt; **21 jours** après 1er check-in |
 
 ## Mapping ADR 004
@@ -86,16 +91,17 @@ Packs IAP Lumo / boost € pour confort créateurs — **après** stabilisation 
 |--------|---------------|
 | M9 | `event_boost_24h`, `event_boost_72h` |
 | M2 | `early_access_unlock` |
+| M14 | `event_vip_unlock` |
 | M10 | `avatar_frame_local`, `avatar_frame_eclaireur`, `profile_badge_season` |
 | Highlight (sink ADR) | `community_highlight_7d` |
-| M5 (accélération) | `pass_extra_stamp` |
+| M5 / M15 | Hors cette boutique — streak Lumo + `OFFER_CATALOG_PASS_LUMO.md` |
 | M13 | Packs € — phase 2, hors table |
 
 ## Implémentation (ticket SHOP-V1)
 
-1. Seed `shop_items` v1 (`event_boost_72h`, `community_highlight_7d`, `pass_extra_stamp`, `avatar_frame_eclaireur`).
-2. UX boutique : grouper par 3 rayons ; CTA event-scoped pour boosts / early access.
-3. RPC / effets : durée 72h sur `active_boosts` / `boosted_until` ; highlight 7j ; grant tampon Pass avec cap mensuel.
+1. Seed `shop_items` v1 (`event_boost_72h`, `community_highlight_7d`, `event_vip_unlock`, `avatar_frame_eclaireur`). Ne plus seeder `pass_extra_stamp`.
+2. UX boutique : grouper par 3 rayons ; CTA event-scoped pour boosts / early access / VIP.
+3. RPC / effets : durée 72h sur `active_boosts` / `boosted_until` ; highlight 7j ; VIP = entitlement event + quota orga.
 4. Ne pas activer sur UAT/prod sans validation humaine (règle migrations).
 
 ### Migrations DEV
@@ -109,6 +115,7 @@ DEV (`prymkgkafaovhzopslea`) : appliquer après validation. UAT/prod : **pas** s
 
 ## Related
 
+- `project-management/roadmap/OFFER_CATALOG_PASS_LUMO.md`
 - `project-management/decisions/ADR_004_LUMO_ECONOMY_FREEMIUM.md`
 - `project-management/decisions/ADR_006_DIFFUSEUR_B2B_OFFER.md`
 - `project-management/roadmap/MVP_TICKETS.md` — `SHOP-V1`, `MVP-LUMO-006`

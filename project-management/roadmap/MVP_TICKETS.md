@@ -1430,31 +1430,41 @@ Notes: **Done 2026-07-22 on DEV** — `user_local_status` + RPCs `refresh_user_l
 
 ### ID: MVP-LUMO-008
 
-Titre: Pass partenaire / streak sorties (M1/M5) — valeur IRL
+Titre: Pass Lumo — boutiques partenaires, bons SKU, caisse magasin (M15)
 
 Priorité: Post-MVP
 
-Source audit: `ADR_004`
+Source audit: `ADR_004` amendement 2026-08-17, `OFFER_CATALOG_PASS_LUMO.md`
 
-Responsable / agent recommandé: Product Owner MVP, GDPR / Store Compliance Officer
+Responsable / agent recommandé: Product Owner MVP, GDPR / Store Compliance Officer, Mobile Reliability Engineer
 
-Type d'action: Feature + partnerships
+Type d'action: Feature + partnerships + ops caisse
 
-Fichiers probablement concernés: `partner_rewards`, redemption admin web, UX Pass
+Fichiers probablement concernés: `partners`, catalogue SKU (évolution `partner_rewards`), `lumo_vouchers` (remplace Pass tampon `user_partner_passes`), RPCs `buy_partner_sku` / `cashier_*`, UX Pass Lumo, Caisse web
 
-Description: Modèle partenaires + tampons/Pass débloqués par check-ins / streak mensuel 3 sorties. Sans partenaire pilote, limiter à UX “bientôt” ou 1 ville pilote.
+Description: |
+  Habitué débloque Lumo **et** Pass Lumo (entitlement boutiques). Plus de tampon « 3 check-ins = 1 Pass ».
+  Chaque partenaire a une boutique (grille de catégorie + perso ±20 %). User dépense Lumo → bon QR/code 6 car. TTL 7 j → staff honore en **Caisse Pass Lumo** (URL+PIN).
+  **Financement :** le partenaire paie le SKU (COGS/marge = CAC). ML ne rembourse pas. 0,99 € Habitué = la clé, pas le croissant.
+  Fallback pilote : desk ops `admin_redeem_voucher` si pas de téléphone caisse.
 
-Critères d'acceptation: au moins 1 partenaire pilote OU feature gated ; redemption anti-fraude ; CGU partenaires.
+Critères d'acceptation:
+- [ ] Au moins 1 partenaire pilote **ou** feature gated (`partner_pass_redemption_enabled`)
+- [ ] Achat SKU : débit Lumo + bon `issued` lié à `partner_id` ; caps user 120 Lumo IRL / mois
+- [ ] Caisse : lookup + Valider (`redeemed`) + Indisponible (refund Lumo)
+- [ ] Double scan impossible ; mauvais magasin rejeté ; expire 7 j → refund
+- [ ] Streak 3 check-ins / mois → +40 Lumo (plus de Pass tampon)
+- [ ] Contrat partenaire signé avant `active=true` ; CGU user sans cours Lumo/€
 
-Commandes de vérification: parcours check-in → Pass → QR redemption.
+Commandes de vérification: check-in → solde → achat croissant 40 L → scan caisse → re-scan rejeté ; expire unused → refund.
 
-Risques: Promesse IRL sans stock partenaire.
+Risques: Promesse IRL sans stock ; partenaire qui refuse les bons ; confusion Diffuseur / Caisse.
 
-Dépendances: `MVP-LUMO-004` ; admin web minimal pour redemption.
+Dépendances: `MVP-LUMO-004` ; `ADMIN-LUMO-002` (catalogue + identifiants caisse) ; `ADMIN-LUMO-003` (file bons + caisse + fallback ops).
 
-Branche Git recommandée: `feat/post-mvp-gamification`
+Branche Git recommandée: `feat/post-mvp-pass-lumo`
 
-Notes: Bloquant pour la promesse “gain réel” — prioriser un partenaire avant large release. **Partial on main** — schéma partners/pass/streak + UX « bientôt » ; redemption off (`partner_pass_redemption_enabled=false`). Admin web : tickets `ADMIN-LUMO-001`…`003` dans `MomentsLocaux---Moderation-WebConsole/GAMIFICATION_ADMIN_TICKETS.md`. **ADMIN-LUMO-001** — migration `20260728_admin_lumo_rpc_rls.sql` versionnée ; **applied DEV** 2026-07-22 (`prymkgkafaovhzopslea`) — UAT/prod non appliqués.
+Notes: **Rewrite 2026-08-17** — obsoletes le Pass tampon partiel on main. Schéma `user_partner_passes` à migrer vers `lumo_vouchers`. Flag redemption off tant qu’un partenaire pilote + caisse ne sont pas live. Listing 19/39 € HT = hypothèse business plan, hors ce ticket.
 
 ### ID: MVP-LUMO-009
 
@@ -1601,7 +1611,7 @@ Type d'action: Feature / seed
 
 Fichiers probablement concernés: `shop_items`, `buy_item`, `active_boosts`, `app/(tabs)/shop.tsx`, `src/services/shop.service.ts`, pass RPC
 
-Description: Seed items v1 (`event_boost_72h` 240, `community_highlight_7d` 60, `pass_extra_stamp` 80, `avatar_frame_eclaireur` 90) ; UX 3 rayons Visibilité / Accès / Style ; CTA event-scoped pour boosts et early access ; caps (2 boosts actifs / user ; 1 tampon Pass bonus / mois). Compte Particulier Habitué+ only (ADR 007). Libellé UI **Boutique Lumo** — jamais confondre avec Packs Diffuseur.
+Description: Seed items v1 (`event_boost_72h` 240, `community_highlight_7d` 60, `event_vip_unlock` 100, `avatar_frame_eclaireur` 90) ; UX 3 rayons Visibilité / Accès / Style ; CTA event-scoped pour boosts, early access et VIP. **Plus de `pass_extra_stamp`.** Compte Particulier Habitué+ only (ADR 007). Libellé UI **Boutique Lumo** — jamais confondre avec Packs Diffuseur ni Pass Lumo magasin.
 
 Critères d'acceptation: items listés achetables sous flag gamification + Habitué ; effets 72h / highlight 7j / tampon appliqués ; cosmétiques sans power-up ranking ; route shop bloquée pour Professionnel.
 
@@ -1832,3 +1842,62 @@ Dépendances: `DIFF-PRO` ; CGU B2B.
 Branche Git recommandée: `feat/post-mvp-diffuseur-billing`
 
 Notes: Collectivités / OT = devis annuel possible (mêmes entitlements Pro). Stub livré : ledger + RPC `apply_diffuseur_sku` + edge `diffuseur-billing-webhook` + simulation mock mobile. Stripe Checkout = adaptateur futur (mêmes SKUs). Apply DEV après validation humaine.
+
+### ID: DIFF-J0
+
+Titre: Parcours Diffuseur J0 — brancher app + console + liste d’attente site (sans recoder le wizard)
+
+Priorité: Post-MVP — **premier lot implémentation** (avant Stripe live / sièges / sync SIT)
+
+Source audit: `ADR_006`, `ADR_007`, `ID-ONBOARD`, `DIFF-HOME`, `DIFF-ORG`, `DIFF-PRO`, `DIFF-BILL`, `DIFF-CONNECTOR-LEAD`
+
+Responsable / agent recommandé: Mobile Reliability Engineer + Supabase Security Architect (migrations) ; console = même stack que `ADMIN-LUMO-*`
+
+Type d'action: Wire-up cross-repo (mobileApp + WebConsole + website)
+
+Fichiers probablement concernés:
+- `mobileApp/supabase/migrations/20260802`–`20260806` (apply DEV après validation humaine)
+- `mobileApp/src/config/features.ts`, `eas.json`, `.env*`
+- `mobileApp/src/screens/onboarding/OnboardingScreen.tsx`, `DiffuseurHomeScreen.tsx`, `diffuseur.service.ts`
+- `MomentsLocaux---Moderation-WebConsole/src/types/database.types.ts`, `UsersList.tsx`, `App.tsx`, `MainLayout.tsx` (nouvelle section orgs / leads)
+- `moments-locaux-website` formulaire d’intérêt + copy roadmap Diffuseur
+
+Description: |
+  L’app a déjà le wizard Professionnel, le dashboard, les packs mock et les analytics — derrière `FEATURE_DIFFUSEUR` (éteint). Les tables orga / sièges / ledger / connecteur sont en migrations non appliquées sans go humain. La console n’a **aucune** surface Diffuseur (types users encore sur `association`). Le site n’a qu’une liste d’attente générique.
+
+  **Ce ticket = rendre un parcours J0 réel en DEV**, pas reconstruire le produit.
+
+  Ordre :
+  1. Base — confirmer / appliquer `20260802`–`20260806` en DEV ; RLS orga (Free 1 siège / Pro 5 ; pas de fuite cross-org).
+  2. App — allumer `FEATURE_DIFFUSEUR` **et** `FEATURE_EVENT_CREATE` en DEV seulement ; smoke wizard → orga Gratuit → dashboard ; empty state J0 (publier **ou** relier l’agenda) ; corriger le CTA connecteur dashboard qui pointe vers `/profile/diffuseur` (packs) au lieu du formulaire connecteur.
+  3. Console — régénérer types profiles (`pro_subtype`, plus de rôle `association`) ; section **Diffuseurs** (orga, plan, sièges, bouton badge Vérifié) ; file leads connecteur (`sit_pending` / `custom_requested`, Pro d’abord) ; action devis → `apply_diffuseur_sku(provider=manual_devis)`. ≠ Partenaires Pass Lumo ≠ Prospects CRM.
+  4. Site — taguer le formulaire d’intérêt voisin vs professionnel + type d’orga ; recaler la copy roadmap (Gratuit d’abord, pas « équipe + analytics » comme déjà live). **Pas** de wizard d’identité web.
+
+Critères d'acceptation:
+- [ ] Migrations 20260802–20260806 appliquées **DEV** après validation humaine ; UAT/prod non touchés
+- [ ] Compte Professionnel DEV : wizard (welcome → subtype obligatoire → connecteur skippable) → orga `diffuseur_plan=free` → tab Accueil = dashboard (pas le fil)
+- [ ] Empty state J0 : une action claire publier **ou** relier ; pas de tutoriel overlay
+- [ ] CTA « Configurer un connecteur » ouvre le formulaire / état connecteur, pas l’écran packs
+- [ ] Onglets Favoris / Boutique Lumo / Habitué absents sur le compte pro
+- [ ] Console : liste orgas + fiche (plan, sièges, Vérifié manuel) + file leads connecteur
+- [ ] Console utilisateurs : filtre `association` retiré ; `pro_subtype` visible
+- [ ] Devis manuel en console applique les mêmes entitlements que le mock mobile (RPC existante)
+- [ ] Site : source `professionnel` (+ subtype optionnel) sur la liste d’attente ; copy Diffuseur alignée Gratuit J0
+- [ ] `FEATURE_DIFFUSEUR` reste **false** sur les profils EAS store-ready / preview public
+
+Hors scope (tickets existants / suivants) :
+- Stripe Checkout live + portail web (`DIFF-BILL`)
+- Invitation sièges + `events.organization_id` (publier au nom de l’orga)
+- Sync SIT réelle (`ADR_005` / OT-P0)
+- Wizard d’identité sur le site
+- Confondre Partenaire Pass Lumo / Caisse IRL avec un compte Diffuseur
+
+Commandes de vérification: `npm run typecheck` + `npm run lint` (mobileApp et WebConsole) ; parcours onboarding DEV (OT vs non-OT, skip connecteur) ; RLS fixtures Free/Pro ; smoke console orga + lead ; formulaire site source=pro.
+
+Risques: Allumer le flag sur un build store ; appliquer les migrations hors DEV ; mélanger Partenaires / Prospects / Diffuseurs dans la console ; vendre Pro sur le site alors que J0 = Gratuit.
+
+Dépendances: `ID-ONBOARD`, `DIFF-HOME`, `DIFF-ORG`, `DIFF-CONNECTOR-LEAD` (code déjà en repo) ; go humain migrations (`AGENTS.md`).
+
+Branche Git recommandée: `feat/diff-j0-wire` (mobileApp) + `feat/diff-j0-admin` (WebConsole) + `feat/diff-j0-waitlist` (website) — 3 PRs, même epic.
+
+Notes: Inventaire full-stack discuté 2026-08-18. Ne pas recoder le wizard mobile. Ne pas créer d’inscription web. Premier écran vide guidé ≠ tutoriel.

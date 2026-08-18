@@ -86,9 +86,9 @@ function PassScreenInner() {
           <View style={styles.iconBadge}>
             <Ticket size={22} color={colors.brand.secondary} />
           </View>
-          <Text style={styles.title}>Pass Habitué</Text>
+          <Text style={styles.title}>Pass Lumo</Text>
           <Text style={styles.subtitle}>
-            3 sorties check-in ce mois = un Pass week-end pour des avantages IRL.
+            Tes Lumo se dépensent dans l’app et, quand les partenaires sont live, chez eux : tu achètes un bon, tu le présentes en caisse.
           </Text>
         </View>
 
@@ -97,7 +97,7 @@ function PassScreenInner() {
         ) : (
           <>
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Streak du mois</Text>
+              <Text style={styles.cardTitle}>Ce mois</Text>
               <Text style={styles.meta}>
                 {done}/{stamps} check-ins distincts
                 {status?.periodKey ? ` · ${status.periodKey}` : ''}
@@ -115,13 +115,13 @@ function PassScreenInner() {
               </View>
               <Text style={styles.message}>
                 {status?.redemptionLive
-                  ? 'La redemption est active chez les partenaires pilotes.'
-                  : 'Bientôt disponible : cafés, bars et commerces locaux. Aucune promesse IRL active tant que le pilote n’est pas ouvert.'}
+                  ? 'Choisis un partenaire, dépense tes Lumo, montre le bon en caisse. Le commerçant honore l’avantage — Moments Locaux ne le facture pas.'
+                  : 'Bientôt : boutiques chez des cafés, commerces et lieux locaux. Tes check-ins remplissent déjà ton wallet. Aucune promesse IRL tant que le pilote n’est pas ouvert.'}
               </Text>
               {status?.streakUnlocked ? (
                 <Text style={styles.unlocked}>
-                  Streak débloqué
-                  {status.pass?.status ? ` · statut ${status.pass.status}` : ''}
+                  Streak du mois : +40 Lumo
+                  {status.pass?.status ? ` · ${status.pass.status}` : ''}
                 </Text>
               ) : (
                 <Text style={styles.meta}>Continue à faire des check-ins pour débloquer ton Pass.</Text>

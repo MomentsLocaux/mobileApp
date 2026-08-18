@@ -93,7 +93,9 @@ const CGU_LUMO_SECTION = [
   'Le Lumo mesure et récompense certains comportements utiles (par ex. check-in validé, missions). Il n’a aucune valeur monétaire, n’est pas convertible en euros, n’est pas remboursable et ne constitue pas un instrument de paiement.',
   'Les soldes, gains et dépenses de Lumo sont déterminés exclusivement côté serveur. L’utilisateur ne peut pas exiger un crédit manuel.',
   'Des objets virtuels (boosts de visibilité, éléments cosmétiques) peuvent être obtenus contre du Lumo ou gagnés selon des règles publiées dans l’app. Un boost n’assure pas un nombre d’inscrits.',
-  'Le « Pass quartier » et les avantages partenaires IRL ne sont proposés que lorsqu’un partenaire pilote est contractuellement actif. Tant que la redemption n’est pas ouverte, l’app peut afficher une progression « bientôt » sans promesse d’avantage immédiat.',
+  'Le « Pass Lumo » donne accès aux boutiques de commerces partenaires. L’utilisateur peut y dépenser du Lumo contre un bon (QR / code) à présenter en magasin. L’avantage (remise, article offert, etc.) est fourni et financé par le partenaire, pas par Moments Locaux. Moments Locaux ne convertit pas le Lumo en euros, ne rembourse pas le partenaire, et n’affiche pas de cours Lumo/€.',
+  'Les bons ont une durée limitée. Un bon non utilisé peut être annulé (Lumo recrédité) selon les règles publiées dans l’app. Un bon déjà utilisé ne peut pas l’être une seconde fois.',
+  'Le Pass Lumo et les avantages partenaires IRL ne sont proposés que lorsqu’un partenaire pilote est contractuellement actif. Tant que la redemption n’est pas ouverte, l’app peut afficher une progression « bientôt » sans promesse d’avantage immédiat.',
   'Moments Locaux peut modifier, suspendre ou retirer les règles Lumo, missions, boosts ou Pass pour des raisons d’abus, d’équilibre économique, de conformité ou de disponibilité partenaires, dans le respect du droit applicable.',
   'La suppression du compte peut entraîner la perte du solde Lumo, des objets virtuels et des Pass non utilisés, selon la politique de suppression du compte.',
 ];

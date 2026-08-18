@@ -40,6 +40,7 @@ The mobile MVP is limited to **local event discovery** (browse / social / trust 
 ## Hidden Or Guarded In Mobile MVP (flags default off — code retained)
 
 - Event creation, mes events, ModeSwitch (`FEATURE_EVENT_CREATE` → V1).
+- Event suggestion from poster (`FEATURE_EVENT_SUGGEST` → V1, independent of create).
 - QR/location check-in (`FEATURE_CHECKIN` → V1).
 - Nos offres / Habitué upsells (`FEATURE_OFFERS` → V1).
 - Professionnel onboarding, Diffuseur packs/analytics (`FEATURE_DIFFUSEUR` → V1).
@@ -100,6 +101,7 @@ Product decision during store stabilization:
 |---|---|
 | Creator-follow / followed-creator-published notifs / creator rankings | Out (scraper) |
 | `FEATURE_EVENT_CREATE` | V1 |
+| `FEATURE_EVENT_SUGGEST` | V1 (indépendant de create ; LLM vision, pas de Vision API) |
 | `FEATURE_CHECKIN` / `FEATURE_OFFERS` / `FEATURE_DIFFUSEUR` | V1 |
 | Contact matching (“who’s on the app”) via hashed emails/phones | V1+ (opt-in identifiers; never gate signup on phone) |
 | `FEATURE_GAMIFICATION` / Discovery Engine / contests | V2 |

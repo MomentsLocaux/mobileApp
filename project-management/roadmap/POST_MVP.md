@@ -5,6 +5,7 @@ Phased against mobile feature flags (`src/config/features.ts`). See ADR_002 Amen
 ## V1 (flags off in MVP — flip when ready)
 
 - `FEATURE_EVENT_CREATE` — création mobile, mes events, ModeSwitch.
+- `FEATURE_EVENT_SUGGEST` — suggestion catalogue depuis une affiche (LLM vision → formulaire prérempli → confirm utilisateur). **Découplé de `FEATURE_EVENT_CREATE`**. Pas de Vision API. Insert `pending` + `creator_id` système. Lumo : crédit silencieux à l’approbation modo ; wallet UI reste V2.
 - `FEATURE_CHECKIN` — QR / géoloc.
 - `FEATURE_OFFERS` — Nos offres / Habitué–Éclaireur (IAP).
 - `FEATURE_DIFFUSEUR` — Professionnel + packs / analytics.
@@ -30,12 +31,13 @@ Phased against mobile feature flags (`src/config/features.ts`). See ADR_002 Amen
 
 - Subscriptions B2C : Local → Habitué → Éclaireur (ADR 004).
 - **Moments Diffuseur** (B2B) : ADR_006 ; identité ADR_007.
-- Tickets B2B : `DIFF-ORG`, `DIFF-PRO`, `DIFF-BILL` ; identité : `ID-ONBOARD`, `ID-MODE-SWITCH`, `ID-GUARDS`
+- Tickets B2B : `DIFF-J0` (wire-up DEV app + console + liste d’attente), `DIFF-ORG`, `DIFF-PRO`, `DIFF-BILL` ; identité : `ID-ONBOARD`, `ID-MODE-SWITCH`, `ID-GUARDS`
 
 ### Web hors MVP produit
 
 - Portail partenaires / création web (console modération + vitrine restent MVP).
 - Analytics avancés, offline, ML trust.
+- Stack IA opérationnelle (équipe ~12, outils par métier) : `project-management/ops/AI_OPERATING_STACK.md`
 
 ## Principe
 

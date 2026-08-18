@@ -3,7 +3,8 @@
 ## Status
 
 Accepted — 2026-07-22 (montants P0 et nommage Local → Habitué → Éclaireur validés produit).  
-**Amended — 2026-07-26** : couches = engagement *personne* (voisin) ; orthogonales au rôle créateur ; pas de SKU « Organisateur Habitué+ » ; « Pro » réservé à Diffuseur Pro (ADR 006).
+**Amended — 2026-07-26** : couches = engagement *personne* (voisin) ; orthogonales au rôle créateur ; pas de SKU « Organisateur Habitué+ » ; « Pro » réservé à Diffuseur Pro (ADR 006).  
+**Amended — 2026-08-17** : Habitué débloque **Lumo** + **Pass Lumo** (entitlement boutiques partenaires). Plus de Pass tampon mensuel. Dual sink = Boutique Lumo (app) + Boutique Pass Lumo (SKU par partenaire). IRL **financé et honoré par le partenaire** ; ML ne rembourse pas. Caisse partenaire (QR / code 6 car.). Taux interne 20 Lumo ≈ 1 € faciale — jamais un cours public.
 
 ## Context
 
@@ -26,11 +27,11 @@ Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-P
 
 2. **Lumo est une monnaie d’engagement local**, pas un jeu arcade. Elle mesure et récompense les comportements utiles au quartier (présence, création fiable, contribution utile).
 
-3. **Toute récompense Lumo doit avoir un débouché dual** : valeur in-app **et** valeur réelle (accès, économie, statut, remplissage d’événement). Les sinks purement cosmétiques sont secondaires.
+3. **Toute récompense Lumo doit avoir un débouché dual** : **Boutique Lumo** (in-app : boost, early access, VIP event, cosmétique) **et Boutique Pass Lumo** (SKU IRL chez un partenaire). Les sinks purement cosmétiques restent secondaires. Mix spend cible : **45 % in-app / 35 % partenaires / 20 % cosmétique + buffer**.
 
-4. **Pas de conversion Lumo → €.** Pas de cash-out. Les packs Lumo payants sont reportés en phase 2 après stabilisation de l’économie.
+4. **Pas de conversion Lumo → €. Pas de cash-out. Pas de cours public.** Un taux **interne** (20 Lumo ≈ 1 € de valeur faciale partenaire) sert uniquement à calibrer les grilles SKU. L’app affiche des prix en Lumo, jamais « 1 Lumo = x € ». Packs Lumo payants = phase 2 (M13).
 
-5. **Éclaireur est orthogonal en *produit Discovery*** mais **incrémental en entitlements** : Éclaireur ⇒ Habitué ⇒ Local. Habitué = abo engagement (check-in, Lumo, Pass…). Éclaireur = profondeur Discovery + tout Habitué. L’abo Éclaireur ne doit pas créer de pay-to-win Lumo massif (au plus ×1.1 soft). Entitlements : `moments_locaux_habitue` (Habitué), `moments_locaux_plus` (Éclaireur, ex-libellé Moments Locaux+).
+5. **Éclaireur est orthogonal en *produit Discovery*** mais **incrémental en entitlements** : Éclaireur ⇒ Habitué ⇒ Local. Habitué = abo engagement : check-in, earn/spend Lumo, **Pass Lumo** (accès boutiques partenaires), Boutique Lumo. Éclaireur = profondeur Discovery + tout Habitué. L’abo Éclaireur ne doit pas créer de pay-to-win Lumo massif (au plus ×1.1 soft). Entitlements : `moments_locaux_habitue` (Habitué), `moments_locaux_plus` (Éclaireur, ex-libellé Moments Locaux+).
 
 6. **Source de vérité backend uniquement** : crédits/débits via RPC `SECURITY DEFINER` atomiques + `lumo_rules`. Le client ne décide jamais du montant. Feature flag `GAMIFICATION_ENABLED` (défaut off tant que post-MVP).
 
@@ -46,11 +47,19 @@ Sans cette spec, réactiver shop/missions/wallet (tickets `MVP-POST-003`, `MVP-P
 
 12. **« Pro » réservé à Diffuseur Pro (ADR 006)** *(amendement 2026-07-26)* : le rôle `professionnel` / UI « Organisateur » n’implique pas un usage commercial. Spectre créateur hors Diffuseur : **partage de talent** (sans bénéfice) → **micro-vente** (ex. produits fait maison, hors ticketing app) → **solo régulier**. Seul **Moments Diffuseur Pro** est le SKU « Pro » commercial structure.
 
+13. **Habitué débloque Lumo et Pass Lumo** *(amendement 2026-08-17)* : Lumo = monnaie unique. Pass Lumo = entitlement d’ouvrir les boutiques partenaires et d’y dépenser du Lumo. Ce n’est **pas** un tampon « 3 check-ins = 1 avantage ». Le streak 3 check-ins / mois crédite **+40 Lumo** une fois (M5).
+
+14. **L’IRL est financé par le partenaire, honoré en caisse, jamais remboursé par ML** *(amendement 2026-08-17)* : l’abo 0,99 € paie la clé, pas le croissant. Achat SKU = débit Lumo + bon (`issued`, QR + code 6 car., TTL 7 j). En magasin le staff scanne / saisit via **Caisse Pass Lumo** (URL+PIN, ≠ Diffuseur) puis Valider (brûle le bon) ou Indisponible (refund Lumo). Détail : `OFFER_CATALOG_PASS_LUMO.md`.
+
+15. **Chaque partenaire a sa boutique**, amorcée par une **grille de catégorie** (12 verticales), personnalisable ±20 % Lumo dans la bande. % toujours capés en € + panier mini. Cap IRL user **120 Lumo / mois**. Quota mensuel partenaire = son budget CAC.
+
+16. **VIP event = sink in-app, pas magasin** *(amendement 2026-08-17)* : ~100 Lumo, orga opt-in, places limitées. Financé par l’organisateur (expérience), pas par un commerçant Pass Lumo.
+
 ## Modèle en 3 couches
 
 ```
 Local (gratuit : carte, events, création, social — sans check-in)
-  → Habitué (abo : check-in + Lumo + missions + Pass + early access)
+  → Habitué (abo : check-in + Lumo + Pass Lumo + missions + Boutique Lumo)
     → Éclaireur (abo : Discovery approfondie + tout Habitué)
 ```
 
@@ -67,7 +76,7 @@ Phrase marketing (couches voisin) :
 | Couche | Nom marketing | Tagline | Rôle produit | Monétisation |
 |--------|---------------|---------|--------------|--------------|
 | 1 | **Local** | Explore ton quartier | Acquisition / boucle locale gratuite **personne** | Gratuit |
-| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement voisin + Lumo + Pass + check-in | **0,99 €/mois · 9,99 €/an** (abo) — inclut Local |
+| 2 | **Habitué** | Plus tu sors, plus tu débloques | Engagement voisin + Lumo + **Pass Lumo** + check-in | **0,99 €/mois · 9,99 €/an** (abo) — inclut Local |
 | 3 | **Éclaireur** | Découvre autrement | Depth Discovery | **2,99 €/mois · 19,99 €/an** — inclut Habitué + Local |
 
 ### Vocabulaire — ne pas confondre
@@ -75,8 +84,12 @@ Phrase marketing (couches voisin) :
 | Terme | Nature | Usage |
 |-------|--------|--------|
 | **Local** | Couche 1 (tous les comptes) | Gratuit — sans check-in ; **création autorisée** |
-| **Habitué** | Couche 2 / abo engagement **personne** | 0,99 €/mois · 9,99 €/an ; check-in / Lumo / Pass / Boutique — **pas** un pack créateur |
-| **Lumo** | Monnaie | Earn / spend — jamais le nom d’une couche |
+| **Habitué** | Couche 2 / abo engagement **personne** | 0,99 €/mois · 9,99 €/an ; check-in / Lumo / **Pass Lumo** / Boutique Lumo — **pas** un pack créateur |
+| **Lumo** | Monnaie | Earn / spend — jamais le nom d’une couche ; jamais un cours € public |
+| **Pass Lumo** | Entitlement Habitué | Droit d’ouvrir les boutiques partenaires et d’y dépenser du Lumo — **pas** un tampon mensuel |
+| **Boutique Pass Lumo** | Catalogue SKU / partenaire | Grille de catégorie + perso ±20 % ; bon QR 7 j |
+| **Caisse Pass Lumo** | Outil staff magasin | URL+PIN ; scan / code ; Valider ou Indisponible — ≠ Diffuseur |
+| **Bon SKU** | Voucher | Lumo déjà débité ; one-shot ; lié à un `partner_id` |
 | **Ambassadeur** | Badge / palier *dans* Habitué (M3) | Statut quartier, pas une 4ᵉ couche |
 | **Éclaireur** | Couche 3 / abo Discovery | 2,99 €/mois · 19,99 €/an ; inclut Habitué ; code = `moments_locaux_plus` |
 | **Organisateur** | Rôle UI (`professionnel`) | Créateur solo — talent / micro-vente / régulier ; **≠ Pro commercial** |
@@ -88,11 +101,11 @@ Phrase marketing (couches voisin) :
 
 Si une seule vague post-MVP : livrer ces 5 avant missions complexes / leaderboards nationaux.
 
-1. Check-in → tampon / Pass partenaire  
-2. Early access events  
-3. Statut quartier / badge Ambassadeur (palier Habitué, pas une couche)  
-4. Boost gagné pour créateurs (visibilité)  
-5. Streak de sorties mensuel (pas streak de login)
+1. Check-in → Lumo (preuve de présence)
+2. Early access events
+3. Statut quartier / badge Ambassadeur (palier Habitué, pas une couche)
+4. Boost gagné pour créateurs (visibilité)
+5. Pass Lumo — boutiques partenaires (SKU + caisse) + streak bonus Lumo
 
 ## Matrice métier
 
@@ -108,12 +121,12 @@ Colonnes :
 
 | ID | Mécanisme | Trigger earn / règle | Sink / dépense | Valeur in-app | Valeur réelle (IRL) | Métrique principale | Priorité |
 |----|-----------|----------------------|----------------|---------------|---------------------|---------------------|----------|
-| M1 | Preuve de présence | Check-in geo/QR validé → +15–25 Lumo ; max 1/event/user ; cap journalier | Accumulation vers Pass / tampon partenaire | Feedback immédiat “+X Lumo · tampon” | Réduction, café offert, file prioritaire, goodie partenaire | Check-ins / user / 30j ; % check-ins → Pass débloqué | P0 |
+| M1 | Preuve de présence | Check-in geo/QR validé → +15–25 Lumo ; max 1/event/user ; cap journalier | Spend Boutique Lumo **ou** Boutique Pass Lumo | Feedback immédiat “+X Lumo” | Matière première des SKU magasin (20 L ≈ 1 € faciale) | Check-ins / user / 30j ; % users avec ≥1 spend IRL | P0 |
 | M2 | Early access | Solde Lumo / badge Ambassadeur (Habitué) ou mission hebdo | Dépenser Lumo **ou** statut pour révéler event 24–48h avant public | FOMO, feed “avant tout le monde” | Place limitée, exclusivité sociale locale | Taux d’inscription early vs public ; no-show early | P0 |
 | M3 | Statut quartier (badge Ambassadeur) | Score agrégé (check-ins + events tenus + contributions) sur période / zone — *palier dans Habitué* | Pas un sink monétaire ; seuil de palier | Badge profil, filtre communauté locale | Crédibilité IRL, invitations à co-organiser, confiance inscrits | Users avec badge actif ; follows / event après badge | P0 |
 | M4 | Boost créateur gagné | Event passé avec N check-ins réussis (participants Habitués) → crédit boost organique | Activer boost 24–48h sur prochain event | Visibilité carte/liste **sans abo créateur** | Remplissage réel de l’événement | Taux de remplissage avant/après boost ; events avec ≥N check-ins | P0 |
-| M5 | Streak de sorties | 3 check-ins distincts dans le mois (rayon / ville) | Déblocage Pass week-end (auto ou spend symbolique) | Progression mensuelle visible | Pass partenaires week-end / apéro offert | % users atteignant streak ; rétention M1/M2 | P0 |
-| M6 | Mission daily légère | Ex. 1 favori + 1 vue détail event → +10–15 Lumo ; 1/jour | Alimente M1/M2 | Habitude douce sans spam | Indirect (accélère Pass) | Daily active mission completion rate | P1 |
+| M5 | Streak de sorties | 3 check-ins distincts dans le mois (rayon / ville) | **+40 Lumo** once / mois (plus de Pass tampon) | Progression mensuelle visible | Accélère un SKU partenaire, ne le donne pas | % users atteignant streak ; rétention M1 | P0 |
+| M6 | Mission daily légère | Ex. 1 favori + 1 vue détail event → +10–15 Lumo ; 1/jour | Alimente Boutique Lumo / Pass Lumo | Habitude douce sans spam | Indirect | Daily active mission completion rate | P1 |
 | M7 | Mission weekly | 3 check-ins **ou** 1 event publié approuvé → +50–80 Lumo | Alimente early access / boost | Objectif semaine clair | Accès / avantages plus rapides | Weekly mission completion ; correlation check-ins | P1 |
 | M8 | Contribution UGC utile | Photo / tip approuvé (modération web) → +20 Lumo | — | Crédit “photo par @x” sur l’event | Preuve sociale pour les suivants ; expo partenaires | % médias approuvés ; views sur events avec UGC | P1 |
 | M9 | Boutique boost payant (Lumo) | Habitué+ **qui a aussi un event** — sink voisin, pas monétisation créateur | Spend 80–150 Lumo → `active_boosts` 24h | Contrôle ponctuel de visibilité | Plus d’inscrits IRL | Lumo spent on boosts ; ROAS remplissage | P1 |
@@ -121,6 +134,8 @@ Colonnes :
 | M11 | Cercles / défis collectifs | Challenge cercle mensuel (ex. 10 check-ins jazz) | Récompense collective (unlock event privé) | Appartenance, feed cercle | Apéro / event privé partenaire | Taille cercles actifs ; participation challenges | P2 |
 | M12 | Parrainage voisin | Filleul actif (check-in ou event sous 14j) → +100 Lumo ; cap mensuel | — | Progression réseau | Élargissement communauté locale réelle | K-factor local ; % filleuls activés | P2 |
 | M13 | Packs Lumo / boost € | Achat IAP (phase 2 seulement) — **confort Habitué**, pas SKU « créateur Pro » | Crédit wallet ou boost direct | Confort spend sans farm | Visibilité payante assumée | ARPU Habitué ; inflation Lumo post-IAP | Phase 2 |
+| M14 | VIP event | Event orga opt-in + quota places | Spend ~100 Lumo | Accès palier VIP | Expérience IRL **financée par l’orga**, pas ML | Conversion VIP ; no-show VIP | P0 |
+| M15 | Boutique Pass Lumo | Habitué+ ; SKU partenaire (grille catégorie) | Spend Lumo → bon QR 7 j → caisse | Choix magasin | Avantage IRL **financé par le partenaire** | % Lumo spent IRL ; redemptions / quota partenaire | P0 |
 
 ### Visibilité créateur — qui paie quoi *(amendement 2026-07-26)*
 
@@ -137,6 +152,7 @@ Colonnes :
 | Trigger `lumo_rules` | Amount | Caps / anti-abus |
 |----------------------|--------|------------------|
 | `checkin` | 15–25 | 1 / event / user ; cooldown journalier global |
+| `streak_monthly` | 40 | 1 / mois calendaire si ≥3 check-ins distincts |
 | `mission_daily` | 10–15 | 1 / jour UTC user |
 | `mission_weekly` | 50–80 | 1 / semaine |
 | `event_published_approved` | 40–60 | 1–2 / semaine |
@@ -145,12 +161,39 @@ Colonnes :
 
 | Sink shop / action | Coût Lumo | Effet |
 |--------------------|-----------|-------|
-| Boost event 24h | 80–150 | Puits principal |
-| Early-bird unlock (si payant Lumo) | 30–50 | Accès anticipé |
+| Boost event 24h | 80–150 | Puits in-app |
+| Early-bird unlock | 30–50 | Accès anticipé |
+| VIP event (M14) | ~100 | Palier orga opt-in |
+| SKU Pass Lumo (M15) | 20–220 selon grille | Bon magasin, financé partenaire |
 | Cadre / badge profil | 40–100 | Cosmétique |
 | Highlight communauté 7j | 60 | Social |
 
-**Équilibre cible :** user actif moyen ~40–70 Lumo / semaine gagnés ; un boost ≈ 2–3 semaines d’activité. Ratio earned/spent global cible **1.2–1.5**.
+**Équilibre cible :** user actif moyen ~40–70 Lumo / semaine gagnés (~200 / mois) ; cap IRL **120 Lumo / mois**. Mix spend **45 % in-app / 35 % Pass Lumo / 20 % cosmétique + buffer**. Ratio earned/spent global cible **1.2–1.5**. Un croissant partenaire = 40 Lumo = 2 check-ins. Un VIP = ~2 semaines.
+
+## Financement et caisse Pass Lumo *(amendement 2026-08-17)*
+
+Détail : `project-management/roadmap/OFFER_CATALOG_PASS_LUMO.md`.
+
+**Qui paie**
+
+| Quoi | Qui paie | Ce que ça donne |
+|------|----------|-----------------|
+| 0,99 € / mois | L’utilisateur | Le droit de gagner et dépenser des Lumo — **pas** le cadeau magasin |
+| Lumo | Personne — ça se gagne | 20 Lumo par check-in, etc. |
+| Croissant / remise | **Le commerçant** | Le cadeau. **Moments Locaux ne rembourse jamais.** |
+| VIP sur un event | L’organisateur (la place) | Dans l’app, pas en magasin |
+| Être plus visible dans l’app | Le commerçant, plus tard, s’il veut | **Pas obligatoire** pour offrir des cadeaux |
+
+Le commerçant choisit combien de cadeaux par mois. Compteur plein → « plus de cadeaux ce mois-ci ».
+
+**En magasin**
+
+QR du commerce à la caisse. Le client scanne, choisit l’offre. Les Lumo sont mis de côté 90 secondes.
+
+- **Cadeau** (croissant) : il montre l’écran. Le commerçant donne l’article sans le facturer.
+- **Remise** (sport, resto) : le commerçant enlève **5 €** (pas un % tout seul) sur **son** ticket, puis appuie sur le téléphone du client. Là seulement les Lumo sont dépensés. S’il n’appuie pas : Lumo rendus.
+
+Pas d’appli commerçant. Pas de bon acheté à la maison.
 
 ## Anti-patterns (non-objectifs)
 
@@ -164,6 +207,13 @@ Colonnes :
 - **Présenter Habitué comme monétisation créateur** (M9 = sink voisin optionnel, M4 = levier organique) *(amendement 2026-07-26)*  
 - **Appeler « Pro » un Organisateur / talent / micro-vente** — « Pro » = Diffuseur Pro uniquement (ADR 006) *(amendement 2026-07-26)*  
 - Mélanger packs € Diffuseur et Boutique / packs Lumo  
+- **Rembourser un partenaire pour un SKU honoré** ou vendre Habitué comme « 1 € = 6 € de cadeaux ML » *(amendement 2026-08-17)*  
+- Afficher un cours public Lumo → €  
+- % magasin sans cap €  
+- Encaisser du Lumo au comptoir  
+- Faire installer une appli au commerçant (un QR imprimé suffit)  
+- Une remise en % sans plafond en euros, ou sans tap du commerçant sur le téléphone du client  
+- Garder un Pass tampon mensuel à côté des SKU Lumo *(amendement 2026-08-17)*  
 
 ## Conséquences techniques
 
@@ -181,7 +231,7 @@ Colonnes :
 - Métadonnées de caps sur `lumo_rules` (ou table `lumo_rule_caps`)  
 - Idempotence crédits : contrainte unique `(user_id, source, item_type, item_id)` quand pertinent  
 - Paliers statut quartier (table ou vue `user_local_status`)  
-- Partenaires / Pass : modèle `partner_rewards` + redemption (admin web)  
+- Partenaires / Pass : `partners` + offres + bons 90 s. QR magasin (deep link). RPCs : choisir l’offre (Lumo mis de côté), confirmer cadeau / tap commerçant « j’enlève X € », libérer au timeout.  
 - RLS : wallet & transactions owner-only ; pas d’exposition publique `lumo_total` tant que gamification non assumée  
 
 ### Tickets liés
@@ -196,7 +246,8 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 
 - Ne pas promettre monnaie virtuelle / boosts / IAP dans les CGU **avant** activation réelle du flag.  
 - Quand activé : section CGU dédiée (pas de cash-out, nature virtuelle, perte possible à suppression compte selon politique).  
-- Partenaires IRL : contrat simple (valeur, durée, anti-fraude redemption).  
+- Partenaires IRL : contrat (SKU, quota, le partenaire finance, anti-fraude, TTL). Copy store : prix en Lumo only.  
+- Ne jamais écrire qu’un Lumo a une valeur en euros pour l’utilisateur.  
 
 ## KPIs globaux
 
@@ -207,8 +258,10 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 | Délai medián 1er spend Lumo | < 21 jours après 1er check-in |
 | Conversion Local → Éclaireur | Funnel Discovery (ADR 003) |
 | Activation Habitué (≥1 earn Lumo / 30j) | Engagement couche 2 |
-| % spend Lumo sur boosts vs cosmétique | Boosts ≥ 70% |
-| Signal abus (multi-check-in, farm) | Alerte + caps |
+| % spend in-app / Pass Lumo / cosmétique | 45 / 35 / 20 |
+| Cap IRL respecté | ≤ 120 Lumo / user / 30j |
+| Taux honorer vs « indisponible » partenaire | Suivi ; abus → pause boutique |
+| Signal abus (multi-check-in, farm, double scan) | Alerte + caps |
 
 ## Consequences
 
@@ -234,11 +287,11 @@ Branche recommandée doc/impl : `feat/post-mvp-wallet-lumo` puis `feat/post-mvp-
 4. ~~`MVP-LUMO-005`…`006` — missions + boost~~ **Done 2026-07-22 on DEV**.  
 5. ~~`MVP-LUMO-007` — Ambassadeur / statut quartier~~ **Done 2026-07-22 on DEV**.  
 6. Branches en attente de merge : `feat/post-mvp-lumo-early-access` (009), `feat/post-mvp-lumo-ux-011` (011), `feat/post-mvp-lumo-remaining-010-008-012` (010 + 008 partiel + 012).  
-7. `MVP-LUMO-008` redemption IRL réelle (partenaire pilote + admin web).  
+7. `MVP-LUMO-008` **rewrite 2026-08-17** : boutiques Pass Lumo + bons SKU + caisse partenaire (plus de Pass tampon).  
 8. Seed / flags UAT–prod.  
 9. *(2026-07-26)* Aligner copy boutique / paywalls créateur sur décisions 9–12 (pas d’exigence Habitué pour publier ; M9 contextualisé « voisin qui publie »).  
 10. *(2026-07-26)* Optionnel : amendement miroir ADR 006 + ticket rename UI Organisateur → Créateur (enum `professionnel` conservé).  
-11. *(2026-07-26)* Mettre à jour `OFFER_CATALOG_LUMO_SHOP.md` (accès Habitué = personne, pas rôle Découvreur).  
+11. ~~*(2026-07-26)* Mettre à jour `OFFER_CATALOG_LUMO_SHOP.md`~~ + **2026-08-17** `OFFER_CATALOG_PASS_LUMO.md`.  
 
 Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-access` (DEV appliqué) — **pas mergé main** tant que non validé.  
 
@@ -254,7 +307,8 @@ Note: `MVP-LUMO-009` early access est sur branche `feat/post-mvp-lumo-early-acce
 | `MISSION_DAILY` / `CONTEST_WIN` | legacy | 150 / 1200 | false |
 
 Shop ADR (seed live) : `event_boost_24h` (100), `avatar_frame_local` skin (60) ; early access `early_access_unlock` (40).  
-Catalogue boutique étendu (v1/v2, rayons, caps) : `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md` — ticket `SHOP-V1`.  
+Catalogue boutique in-app : `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md` — ticket `SHOP-V1`.  
+Catalogue Pass Lumo (financement + caisse + 12 grilles) : `project-management/roadmap/OFFER_CATALOG_PASS_LUMO.md` — ticket `MVP-LUMO-008`.  
 Missions ADR : Sortie du jour (12), Week-end local (60).
 
 RPC live : `earn_lumo(p_amount int, p_reason text, p_metadata jsonb)`, `spend_lumo(p_amount int, p_item_type text, p_item_id uuid, p_metadata jsonb)`, `buy_item(p_item_key text)`.
@@ -268,6 +322,7 @@ RPC live : `earn_lumo(p_amount int, p_reason text, p_metadata jsonb)`, `spend_lu
 | Date | Changement |
 |------|------------|
 | 2026-07-26 | Décisions 9–12 : couches = axe personne ; publier sans Habitué ; pas de SKU Organisateur Habitué+ ; « Pro » = Diffuseur Pro. Matrice M4/M9/M13 + table leviers visibilité. Anti-patterns naming. |
+| 2026-08-17 | Décisions 13–16 : Pass Lumo entitlement ; IRL financé partenaire + caisse URL+PIN ; grilles catégorie ; VIP in-app. M1/M5/M14/M15. Plus de Pass tampon. |
 
 ## Related
 
@@ -276,6 +331,7 @@ RPC live : `earn_lumo(p_amount int, p_reason text, p_metadata jsonb)`, `spend_lu
 - `ADR_006_DIFFUSEUR_B2B_OFFER.md` — offre B2B Professionnel / Diffuseur (orthogonal Lumo)  
 - `ADR_007_ACCOUNT_IDENTITY_MODES.md` — Particulier vs Professionnel ; modes B2C  
 - `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md` — catalogue Boutique Lumo  
+- `project-management/roadmap/OFFER_CATALOG_PASS_LUMO.md` — boutiques partenaires, financement, caisse  
 - `project-management/roadmap/POST_MVP.md`  
 - `project-management/roadmap/MVP_TICKETS.md` (`MVP-POST-002`…`004`, `MVP-LUMO-001`…`012`, `SHOP-V1`, `ID-*`, `DIFF-*`)  
 - `supabase/diagnostics/20260721_lumo_rules_seed_proposal.sql`  

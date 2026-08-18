@@ -14,7 +14,7 @@ La monétisation B2C (ADR 004) clarifie aussi : **découverte = compte Particuli
 Parallèlement :
 
 - OT / Apidae = connecteur **gratuit** (flywheel contenu) ;
-- WebConsole **Partenaires Pass IRL** ≠ comptes Diffuseur ;
+- WebConsole **Partenaires Pass Lumo** (boutiques SKU + caisse) ≠ comptes Diffuseur ;
 - pas encore d’orgs / sièges / entitlements B2B en base.
 
 ## Decision
@@ -51,7 +51,7 @@ Copy par vertical (même SKU Pro) :
 | **`pro_subtype`** | Typologie sous Professionnel | Indépendant, Association, Lieu, OT, Collectivité |
 | **Moments Diffuseur** | Famille d’offre B2B | Free / Pro / packs |
 | **`institutionnel` / Structure** | Legacy | Migrer → Professionnel + subtype ; **interdit** en UI niveau 1 |
-| **Partenaire Pass** | Rewards IRL | Admin — ≠ Diffuseur |
+| **Partenaire Pass Lumo** | Boutiques IRL (SKU + caisse) | Admin + Caisse URL+PIN — ≠ Diffuseur. Le partenaire **finance** le SKU. |
 
 ## Modèle hybride
 
@@ -127,6 +127,7 @@ Orthogonal à ADR 004 / M13 (packs Lumo € phase 2).
 | Objectif | Engagement / présence | Portée / équipe / crédibilité |
 
 Catalogue Boutique Lumo : `project-management/roadmap/OFFER_CATALOG_LUMO_SHOP.md`.  
+Catalogue Pass Lumo (financement + caisse) : `project-management/roadmap/OFFER_CATALOG_PASS_LUMO.md`.  
 Identité comptes : `ADR_007_ACCOUNT_IDENTITY_MODES.md`.
 
 ## Impacts techniques (phasés)
@@ -163,7 +164,7 @@ Identité comptes : `ADR_007_ACCOUNT_IDENTITY_MODES.md`.
 - Découverte / Lumo sur compte Professionnel.
 - Vendre Diffuseur en IAP mobile.
 - Mélanger packs € Diffuseur et Boutique Lumo.
-- Confondre Partenaire Pass et Diffuseur.
+- Confondre Partenaire Pass Lumo et Diffuseur. Le partenaire n’a pas besoin d’un compte Diffuseur pour honorer un bon.
 - Garder « Structure » / `institutionnel` comme audience au même niveau que Professionnel.
 
 ## Conséquences
