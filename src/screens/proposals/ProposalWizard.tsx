@@ -103,7 +103,7 @@ export function ProposalWizard({
   }, [query]);
 
   const canContinue = step !== 1 || Boolean(preferences.anchor);
-  const actionLabel = step === 2 ? 'Générer mes propositions' : 'Continuer';
+  const actionLabel = step === 2 ? 'Générer' : 'Continuer';
   const selectedCategoryCount = preferences.categoryIds.length;
   const allCategoriesSelected =
     categories.length > 0 && categories.every((category) => preferences.categoryIds.includes(category.id));
@@ -387,7 +387,14 @@ export function ProposalWizard({
           accessibilityRole="button"
           accessibilityState={{ disabled: !canContinue }}
         >
-          <Text style={styles.primaryButtonText}>{actionLabel}</Text>
+          <Text
+            style={styles.primaryButtonText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
+            {actionLabel}
+          </Text>
           {step === 2 ? <Sparkles size={18} color={colors.brand.primary} /> : null}
         </TouchableOpacity>
       </View>
@@ -461,8 +468,8 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.neutral[200], backgroundColor: colors.brand.page },
   backButton: { minHeight: 54, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
   backButtonText: { ...typography.label, color: colors.brand.text },
-  primaryButton: { flex: 1, minHeight: 54, flexDirection: 'row', gap: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, backgroundColor: colors.brand.secondary },
+  primaryButton: { flex: 1, minHeight: 54, flexDirection: 'row', gap: spacing.sm, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, backgroundColor: colors.brand.secondary },
   primaryButtonFull: { flex: 1 },
   primaryButtonDisabled: { opacity: 0.4 },
-  primaryButtonText: { ...typography.bodyBold, color: colors.brand.onAccent },
+  primaryButtonText: { ...typography.bodyBold, color: colors.brand.onAccent, flexShrink: 1 },
 });

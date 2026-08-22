@@ -746,15 +746,19 @@ export default function MapScreen() {
   }, [fitToRadius, userLocation]);
 
   useEffect(() => {
-    if (locationLoading) return;
     if (userLocation && !hasCenteredOnUserRef.current) {
       hasCenteredOnUserRef.current = true;
-      // Camera move triggers one programmatic viewport fetch — skip ensureInitial here.
       recenterToUser();
-      return;
+      // Force a viewport fetch — do not rely only on programmatic bounds callbacks
+      // (unchanged bbox after fit can otherwise skip the first load).
+      const timer = setTimeout(() => {
+        void refreshBounds();
+      }, 700);
+      return () => clearTimeout(timer);
     }
+    if (locationLoading) return;
     void ensureInitialViewportLoad();
-  }, [ensureInitialViewportLoad, locationLoading, recenterToUser, userLocation]);
+  }, [ensureInitialViewportLoad, locationLoading, recenterToUser, refreshBounds, userLocation]);
 
   const handleMapReady = useCallback(() => {
     void ensureInitialViewportLoad();
@@ -781,15 +785,7 @@ export default function MapScreen() {
     return sortEvents(displaySheetEvents, sortBy, sortCenter, sortOrder);
   }, [displaySheetEvents, sheetStatus, sortBy, sortCenter, sortOrder]);
 
-  if (locationLoading && !userLocation) {
-    return (
-      <GestureHandlerRootView style={styles.loadingContainer}>
-        <AppBackground />
-        <ActivityIndicator size="large" color={colors.brand.secondary} />
-        <Text style={styles.fallbackText}>Obtention de votre position...</Text>
-      </GestureHandlerRootView>
-    );
-  }
+  const showLocationOverlay = locationLoading && !userLocation;
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -841,6 +837,13 @@ export default function MapScreen() {
               onMapBackgroundPress={handleMapBackgroundPress}
               activeEventId={activeEventId}
             />
+
+            {showLocationOverlay ? (
+              <View style={styles.locationOverlay} pointerEvents="none">
+                <ActivityIndicator size="large" color={colors.brand.secondary} />
+                <Text style={styles.fallbackText}>Obtention de votre position...</Text>
+              </View>
+            ) : null}
 
             {viewportFetchError ? (
               <View style={styles.mapErrorBanner}>
@@ -1032,6 +1035,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
+    gap: spacing.sm,
+  },
+  locationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(244, 251, 246, 0.72)',
+    zIndex: 20,
     gap: spacing.sm,
   },
   fallbackText: {

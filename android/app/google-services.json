@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "767089428620",
+    "project_id": "moments-locaux-51112",
+    "storage_bucket": "moments-locaux-51112.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767089428620:android:1dc1327766e24e8848d3a9",
+        "android_client_info": {
+          "package_name": "com.momentslocs.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMJudL3ImISlvvUbmmTuB8APSx0xYcyfQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

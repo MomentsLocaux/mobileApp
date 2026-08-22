@@ -94,10 +94,13 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
-  const fallbackDisplayName = useMemo(
-    () => profile?.display_name || profile?.email || user?.email || '',
-    [profile?.display_name, profile?.email, user?.email],
-  );
+  const fallbackDisplayName = useMemo(() => {
+    const fromProfile = profile?.display_name?.trim();
+    if (fromProfile) return fromProfile;
+    const email = profile?.email || user?.email || '';
+    const localPart = email.split('@')[0]?.trim();
+    return localPart || '';
+  }, [profile?.display_name, profile?.email, user?.email]);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
@@ -141,6 +144,7 @@ export default function OnboardingScreen() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
   const profilePersisted = useRef(false);
+  const displayNameSeededRef = useRef(Boolean(fallbackDisplayName.trim()));
 
   const isProfessionnel = features.diffuseur && accountKind === 'professionnel';
   const canCreate =
@@ -243,11 +247,13 @@ export default function OnboardingScreen() {
     }
   }, [profile, refreshProfile, user]);
 
+  // One-shot seed when profile/email arrives after mount — never re-fill after user clears.
   useEffect(() => {
-    if (!displayName.trim() && fallbackDisplayName.trim()) {
-      setDisplayName(fallbackDisplayName);
-    }
-  }, [displayName, fallbackDisplayName]);
+    if (displayNameSeededRef.current) return;
+    if (!fallbackDisplayName.trim()) return;
+    displayNameSeededRef.current = true;
+    setDisplayName((current) => (current.trim() ? current : fallbackDisplayName));
+  }, [fallbackDisplayName]);
 
   useEffect(() => {
     if (stepIndex >= steps.length) {

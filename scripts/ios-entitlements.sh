@@ -3,9 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TARGET="$ROOT/ios/boltexponativewind/boltexponativewind.entitlements"
-PERSONAL="$ROOT/ios/boltexponativewind/boltexponativewind.personal-team.entitlements"
-PAID="$ROOT/ios/boltexponativewind/boltexponativewind.paid-team.entitlements"
+TARGET="$ROOT/ios/MomentsLocaux/MomentsLocaux.entitlements"
+PERSONAL="$ROOT/ios/MomentsLocaux/MomentsLocaux.personal-team.entitlements"
+PAID="$ROOT/ios/MomentsLocaux/MomentsLocaux.paid-team.entitlements"
 
 usage() {
   echo "Usage: $0 personal|paid"

@@ -15,7 +15,10 @@ export const useLocation = () => {
   } = useLocationStore();
 
   const getCurrentLocation = useCallback(async () => {
-    setLoading(true);
+    const hadFix = !!useLocationStore.getState().currentLocation;
+    if (!hadFix) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const location = await Location.getCurrentPositionAsync({
@@ -32,7 +35,12 @@ export const useLocation = () => {
   }, [setCurrentLocation, setError, setLoading]);
 
   const requestLocationPermission = useCallback(async () => {
-    setLoading(true);
+    const { currentLocation: existing, permissionGranted: alreadyGranted } =
+      useLocationStore.getState();
+    const softRefresh = alreadyGranted && !!existing;
+    if (!softRefresh) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -47,6 +55,7 @@ export const useLocation = () => {
         });
         if (lastKnown) {
           setCurrentLocation(lastKnown);
+          setLoading(false);
         }
         await getCurrentLocation();
       } else {

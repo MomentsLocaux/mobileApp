@@ -19,5 +19,5 @@ curl -X POST "$SUPABASE_URL/storage/v1/object/avatar/branding/moments-locaux-org
 
 Status:
 
-- DEV (`prymkgkafaovhzopslea`): seeded 2026-07-23
+- DEV (`prymkgkafaovhzopslea`): re-seeded 2026-08-06 with handshake logo (`assets/images/icon.png`, fond `#F4FBF6`)
 - UAT: upload required when promoting
