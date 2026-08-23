@@ -10,11 +10,12 @@
   Note syntaxe Brevo : pas de {% if params.xxx %} (erreur parser sur le « . »).
   Garder uniquement {{ params.xxx }} pour les substitutions.
 
-  Image (Storage public DEV) :
+  Image (Storage public DEV — réuploader assets/images/icon.png si besoin) :
   https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/moments-locaux-organizer.png
 
   Charte (alignée mobile / website) :
-    page #F4FBF6 · ink #1A3329 · leaf #7CB518 · muted #5B7A6A · surface #FFFFFF
+    page #F4FBF6 · surface #E8F5E9 · ink #1A3329 · accent #7CB518 · muted #5B7A6A · card #FFFFFF
+    CTA : fond accent + texte ink
 
   Note : avec SMTP Supabase seul, ce template Brevo n’est PAS utilisé automatiquement.
   Pour l’utiliser : Auth Hook "Send Email" → Edge Function → API Brevo (templateId).

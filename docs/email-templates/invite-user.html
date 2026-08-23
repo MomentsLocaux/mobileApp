@@ -1,8 +1,8 @@
 <!--
-  Supabase → Authentication → Email Templates → Confirm signup
+  Supabase → Authentication → Email Templates → Invite user
 
   Objet suggéré :
-  Bienvenue sur Moments Locaux — confirmez votre email
+  Vous êtes invité·e sur Moments Locaux
 
   Coller le HTML ci-dessous (du <!DOCTYPE> jusqu’à </html>) dans le champ Body.
   Variable Supabase : {{ .ConfirmationURL }}
@@ -12,7 +12,7 @@
     accent #7CB518 · muted #5B7A6A · link #557C10 · border #D5E6DA
     CTA : fond accent + texte ink (contraste WCAG)
 
-  Image (Storage public DEV — réuploader icon.png si l’avatar n’est pas encore à jour) :
+  Image (Storage public DEV) :
   https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/moments-locaux-organizer.png
 -->
 <!DOCTYPE html>
@@ -21,7 +21,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>Bienvenue sur Moments Locaux</title>
+    <title>Vous êtes invité·e sur Moments Locaux</title>
   </head>
   <body style="margin:0;padding:0;background-color:#F4FBF6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4FBF6;padding:32px 16px;">
@@ -41,7 +41,7 @@
                   Moments Locaux
                 </p>
                 <h1 style="margin:10px 0 0 0;font-size:24px;line-height:1.3;color:#1A3329;font-weight:700;">
-                  Bienvenue
+                  Vous êtes invité·e
                 </h1>
               </td>
             </tr>
@@ -49,10 +49,10 @@
             <tr>
               <td style="padding:28px 32px 8px 32px;color:#1A3329;">
                 <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
-                  Encore une étape pour rejoindre la vie près de chez vous.
+                  Quelqu’un vous ouvre les portes de la vie près de chez vous.
                 </p>
                 <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#5B7A6A;">
-                  Confirmez votre adresse email pour activer votre compte et commencer à découvrir les moments autour de vous.
+                  Acceptez l’invitation pour créer votre compte et rejoindre Moments Locaux.
                 </p>
 
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 28px auto;">
@@ -62,7 +62,7 @@
                         href="{{ .ConfirmationURL }}"
                         style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#1A3329;text-decoration:none;border-radius:999px;"
                       >
-                        Confirmer mon email
+                        Accepter l’invitation
                       </a>
                     </td>
                   </tr>
@@ -75,7 +75,7 @@
                   <a href="{{ .ConfirmationURL }}" style="color:#557C10;text-decoration:underline;">{{ .ConfirmationURL }}</a>
                 </p>
                 <p style="margin:0;font-size:13px;line-height:1.5;color:#5B7A6A;">
-                  Ce lien expire bientôt. Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement ce message.
+                  Ce lien est personnel et expire bientôt. Si vous n’attendiez pas cette invitation, ignorez simplement ce message.
                 </p>
               </td>
             </tr>

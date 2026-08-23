@@ -13,7 +13,7 @@ const CGU_TEXT = [
   '',
   '1. ÉDITEUR',
   'L’application Moments Locaux est éditée par l’équipe Moments Locaux.',
-  'Contact support et privacy : contact@moments-locaux.com',
+  'Contact support et privacy : hello@moments-locaux.com',
   '',
   '2. OBJET',
   'Les présentes CGU définissent les conditions d’accès et d’utilisation de l’application mobile Moments Locaux.',
@@ -83,7 +83,7 @@ const CGU_TEXT = [
   'Les présentes CGU sont régies par le droit français.',
   '',
   '17. CONTACT',
-  'Pour toute question, signalement de contenu tiers ou demande relative aux droits : contact@moments-locaux.com',
+  'Pour toute question, signalement de contenu tiers ou demande relative aux droits : hello@moments-locaux.com',
 ];
 
 const CGU_LUMO_SECTION = [

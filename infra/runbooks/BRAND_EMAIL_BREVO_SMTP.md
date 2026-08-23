@@ -16,7 +16,7 @@ Related: `docs/notifications/CHANNELS.md`, `infra/urls/ENVIRONMENT_URLS.md`.
 | --- | -------- | ----- |
 | Auth (Supabase SMTP From) | `ne-pas-repondre@moments-locaux.com` | No accents in the local part (deliverability). Stick to this address. |
 | Display name | `Moments Locaux` | Shown in inbox |
-| Support / privacy (in-app copy) | `contact@moments-locaux.com` | Zimbra OVH or Brevo — separate from Auth SMTP |
+| Support / privacy (in-app copy) | `hello@moments-locaux.com` | Zimbra OVH or Brevo — separate from Auth SMTP |
 | Marketing (later) | Prefer another subdomain / From | Do **not** mix with Auth reputation |
 
 Canonical domain for sending: **`moments-locaux.com`** (not `.app` / `.fr` redirects).
@@ -84,7 +84,7 @@ Save. Then raise Auth **rate limits** (default after custom SMTP is still conser
 | Separate marketing sender | If newsletters | Different From / subdomain so Auth reputation stays clean |
 | CAPTCHA on Auth | Before public signup | Supabase Auth CAPTCHA (bots burn SMTP reputation) |
 | Apple / Google OAuth consoles | Ongoing | App name “Moments Locaux”, privacy URLs on `moments-locaux.com` when live |
-| `contact@` mailbox | Soon | OVH Zimbra or Brevo — already referenced in app legal copy |
+| `hello@` mailbox | Soon | OVH Zimbra or Brevo — already referenced in app legal copy |
 
 ---
 

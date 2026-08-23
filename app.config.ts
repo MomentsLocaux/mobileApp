@@ -64,6 +64,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.momentslocs.app',
     versionCode: ANDROID_VERSION_CODE,
     softwareKeyboardLayoutMode: 'resize',
+    adaptiveIcon: {
+      foregroundImage: './assets/images/icon.png',
+      backgroundColor: '#F4FBF6',
+    },
     // Required for FCM / Expo push on Android (file from Firebase Console).
     googleServicesFile: './google-services.json',
     permissions: [
