@@ -1,4 +1,4 @@
--- SCRUM-106 — Event suggest from poster: monthly IA usage quota (draft — do NOT apply without human validation)
+-- SCRUM-106 — Event suggest from poster: monthly IA usage quota
 -- Tracks authenticated user poster analyses per calendar month (UTC).
 
 create table if not exists public.event_suggest_usage (

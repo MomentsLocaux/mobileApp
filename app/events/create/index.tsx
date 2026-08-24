@@ -1,10 +1,10 @@
 import { CreateEventStepper } from '@/components/events/CreateEventStepper';
-import { RequireCreateAccess } from '@/components/identity/RequireCreateAccess';
+import { RequireEventFormAccess } from '@/components/identity/RequireEventFormAccess';
 
 export default function CreateEventScreen() {
   return (
-    <RequireCreateAccess>
+    <RequireEventFormAccess>
       <CreateEventStepper />
-    </RequireCreateAccess>
+    </RequireEventFormAccess>
   );
 }

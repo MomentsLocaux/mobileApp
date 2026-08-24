@@ -44,6 +44,14 @@ export default function EventsLayout() {
           animation: 'slide_from_bottom',
         }}
       />
+      <Stack.Screen
+        name="suggest-from-poster/index"
+        options={{
+          title: 'Depuis une affiche',
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
     </Stack>
   );
 }
