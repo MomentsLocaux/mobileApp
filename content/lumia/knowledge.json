@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-24",
+  "product": "Moments Locaux",
+  "assistant": "Lumia",
+  "articles": [
+    {
+      "id": "home",
+      "category": "usage",
+      "title": "Accueil et fil",
+      "keywords": ["accueil", "home", "fil", "feed", "liste", "moments"],
+      "body": "L’accueil montre les moments près de toi. Tu filtres par statut, dates et thèmes, puis tu ouvres une fiche d’événement pour le détail."
+    },
+    {
+      "id": "map",
+      "category": "usage",
+      "title": "Carte",
+      "keywords": ["carte", "map", "geoloc", "autour", "territoire", "pin", "marqueur"],
+      "body": "Ouvre l’onglet Carte (icône carte en bas). Tu vois les moments sur le territoire, tu filtres, tu tapes un point pour le détail. La poignée en bas liste aussi les résultats."
+    },
+    {
+      "id": "search",
+      "category": "usage",
+      "title": "Recherche et filtres",
+      "keywords": ["recherch", "filtre", "tri", "rayon", "search"],
+      "body": "La barre de recherche (accueil ou carte) combine lieu, dates et thèmes. Les filtres s’additionnent : tu peux garder « à venir » et chercher un mot-clé."
+    },
+    {
+      "id": "favorites",
+      "category": "usage",
+      "title": "Favoris",
+      "keywords": ["favori", "coeur", "aimer", "sauvegard"],
+      "body": "Pour garder un moment : le cœur sur la carte ou la fiche. Retrouve-les dans l’onglet Favoris (icône cœur en bas)."
+    },
+    {
+      "id": "proposals",
+      "category": "usage",
+      "title": "Propositions",
+      "keywords": ["proposition", "swipe", "idee", "wand", "baguette"],
+      "body": "L’onglet Propositions (baguette) te glisse des idées à explorer. Tu peux garder, passer, ou ouvrir le détail. Ce n’est pas une billetterie."
+    },
+    {
+      "id": "profile",
+      "category": "usage",
+      "title": "Profil",
+      "keywords": ["profil", "avatar", "nom", "affichage", "bio"],
+      "body": "L’icône en bas à droite ouvre le menu, puis ton profil. Pour modifier nom, photo ou infos : Paramètres → Modifier le profil."
+    },
+    {
+      "id": "settings",
+      "category": "usage",
+      "title": "Paramètres",
+      "keywords": ["parametr", "reglage", "settings", "notification", "permission", "autorisation"],
+      "body": "Menu profil (bas droite) → Paramètres. Tu gères notifications, autorisations, confidentialité, et tu peux revoir la config de ton profil."
+    },
+    {
+      "id": "notifications",
+      "category": "usage",
+      "title": "Notifications",
+      "keywords": ["notif", "alerte", "push", "cloche"],
+      "body": "La cloche en haut de l’accueil ouvre tes notifications. Pour la fréquence et les thèmes : Paramètres → Gérer les notifications."
+    },
+    {
+      "id": "account",
+      "category": "usage",
+      "title": "Compte connexion déconnexion",
+      "keywords": ["compte", "connexion", "deconnexion", "logout", "login"],
+      "body": "Connexion / déconnexion : menu profil. La suppression de compte et les données personnelles sont dans Paramètres → Confidentialité & données."
+    },
+    {
+      "id": "report",
+      "category": "usage",
+      "title": "Signalement",
+      "keywords": ["signaler", "signalement", "abus", "report", "moderation"],
+      "body": "Tu peux signaler un événement, un commentaire ou un profil depuis leur écran (menu ⋯). La modération admin n’est pas dans l’app mobile : elle est traitée côté équipe via un outil web séparé."
+    },
+    {
+      "id": "bug-support",
+      "category": "usage",
+      "title": "Bug et support",
+      "keywords": ["bug", "support", "aide", "contact", "probleme", "crash"],
+      "body": "Pour un bug d’app : menu profil → Bug / support (ou l’écran prévu dans Paramètres). Décris le souci ; ce n’est pas un canal pour inventer des fonctionnalités ni pour de la modération admin."
+    },
+    {
+      "id": "community",
+      "category": "usage",
+      "title": "Membres et follow",
+      "keywords": ["communaute", "membre", "suivre", "follow", "ami"],
+      "feature_flag": "socialPeers",
+      "body": "Les membres se trouvent dans le menu profil → Membres. Tu peux chercher et suivre des profils. L’invite d’amis passe par le partage de lien, sans accès à tes contacts."
+    },
+    {
+      "id": "create-event-on",
+      "category": "usage",
+      "title": "Créer un moment (si activé)",
+      "keywords": ["creer", "publier", "organiser", "bouton plus", "creation"],
+      "feature_flag": "eventCreate",
+      "feature_flag_value": true,
+      "body": "Pour publier un moment, le bouton + au centre de la barre ouvre le parcours de création. Les publications suivent un statut (brouillon, en attente, publié, refusé, archivé)."
+    },
+    {
+      "id": "create-event-off",
+      "category": "usage",
+      "title": "Création désactivée (MVP découverte)",
+      "keywords": ["creer", "publier", "organiser", "bouton plus", "creation"],
+      "feature_flag": "eventCreate",
+      "feature_flag_value": false,
+      "body": "Dans la configuration actuelle, l’app est centrée sur la découverte : pas de publication côté mobile. Tu explores l’accueil, la carte et les favoris."
+    },
+    {
+      "id": "checkin",
+      "category": "usage",
+      "title": "Check-in",
+      "keywords": ["checkin", "check-in", "qr", "sur place", "presence"],
+      "feature_flag": "checkin",
+      "body": "Le check-in (QR / géoloc sur place) n’est disponible que si la fonctionnalité est activée sur ton build. Sinon, cette option n’apparaît pas dans l’app."
+    },
+    {
+      "id": "lumia-role",
+      "category": "usage",
+      "title": "Rôle de Lumia",
+      "keywords": ["lumia", "chatbot", "assistant", "chat", "toi"],
+      "body": "Je t’aide à utiliser Moments Locaux et à trouver des moments déjà publiés. Je n’invente pas d’événements, je ne vends pas de tickets, et je ne parle pas à ta place aux autres membres. Je m’appuie uniquement sur la base de connaissances produit et sur les événements publiés fournis."
+    },
+    {
+      "id": "rgpd-where",
+      "category": "legal",
+      "title": "RGPD et données personnelles — où aller",
+      "keywords": ["rgpd", "donnees", "personnel", "privacy", "confidentialite", "export", "supprim", "droit"],
+      "body": "Pour CGU, politique de confidentialité, export ou suppression de compte : Paramètres → Confidentialité & données. Lumia ne remplace pas ces documents et ne donne pas de conseil juridique. Pour une demande précise sur tes données, utilise les écrans prévus ou le support."
+    },
+    {
+      "id": "cgu",
+      "category": "legal",
+      "title": "CGU",
+      "keywords": ["cgu", "conditions", "generales", "utilisation", "contrat", "legal"],
+      "body": "Les Conditions Générales d’Utilisation sont consultables dans Paramètres → Confidentialité & données (lien CGU). Je peux t’indiquer où les lire ; je ne les résume pas de façon exhaustive et je n’interprète pas un litige."
+    },
+    {
+      "id": "privacy-policy",
+      "category": "legal",
+      "title": "Politique de confidentialité",
+      "keywords": ["politique", "confidentialite", "vie privee", "traitement", "cnil"],
+      "body": "La politique de confidentialité est dans Paramètres → Confidentialité & données. Elle décrit le traitement des données. Pour exercer un droit (accès, effacement…), passe par les écrans export / suppression ou le support — pas via une promesse inventée dans le chat."
+    },
+    {
+      "id": "account-deletion",
+      "category": "legal",
+      "title": "Suppression de compte",
+      "keywords": ["supprimer compte", "suppression", "effacer", "fermer compte", "delete account"],
+      "body": "La suppression de compte se fait dans Paramètres → Confidentialité & données → supprimer le compte. C’est un parcours in-app prévu ; je ne peux pas supprimer ton compte depuis le chat."
+    },
+    {
+      "id": "offers-mvp",
+      "category": "offers",
+      "title": "Offres et abonnements (état produit)",
+      "keywords": ["offre", "abonnement", "prix", "tarif", "payant", "premium", "habitue", "eclaireur", "nos offres", "cout", "euro"],
+      "body": "Moments Locaux prévoit des niveaux Local / Habitué / Éclaireur (carte des avantages dans l’app quand « Nos offres » est activé). Sur le MVP mobile store-ready, l’écran offres peut être désactivé (flag). Je ne cite aucun prix inventé : s’il n’y a pas de fiche tarifaire validée dans ma base, je dis de regarder Nos offres dans l’app ou d’attendre l’activation de l’écran."
+    },
+    {
+      "id": "offers-matrix",
+      "category": "offers",
+      "title": "Différences Local Habitué Éclaireur (fonctionnel, sans prix)",
+      "keywords": ["local", "habitue", "eclaireur", "tier", "niveau", "gamification", "lumo", "boutique", "mission", "decouverte"],
+      "feature_flag": "offers",
+      "body": "Sans parler de prix : Local couvre carte, fil, recherche, favoris, signalement, CGU. Habitué ajoute typiquement check-in, Lumo, boutique, missions, pass, accès anticipé. Éclaireur ajoute les capacités découverte (idées maintenant, zone, reco, insights, badge premium). Les surfaces exactes dépendent des flags du build."
+    },
+    {
+      "id": "no-ticketing",
+      "category": "policy",
+      "title": "Pas de billetterie",
+      "keywords": ["billet", "ticket", "reserver", "reservation", "payer place", "acheter"],
+      "body": "Moments Locaux n’est pas une billetterie. Je ne vends pas de places et je ne garantis pas une place à un événement. Pour un événement payant externe, regarde le lien éventuel sur la fiche — s’il n’y en a pas, je ne l’invente pas."
+    },
+    {
+      "id": "no-invent-events",
+      "category": "policy",
+      "title": "Pas d’événements inventés",
+      "keywords": ["inventer", "existe", "y a t il", "trouver evenement"],
+      "body": "Je ne propose que des moments déjà publiés fournis par la base. S’il n’y a aucun résultat, je le dis clairement et je suggère de reformuler (ville, thème) ou d’ouvrir la carte."
+    },
+    {
+      "id": "out-of-scope",
+      "category": "policy",
+      "title": "Hors sujet",
+      "keywords": ["recette", "cuisine", "actu", "medical", "sante", "politique", "devoir", "code"],
+      "body": "Je ne réponds pas aux sujets hors Moments Locaux (cuisine, actu générale, médical, devoirs scolaires, etc.). Je recentre poliment sur l’usage de l’app ou la recherche de moments publiés."
+    }
+  ]
+}

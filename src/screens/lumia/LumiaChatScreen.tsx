@@ -17,7 +17,7 @@ import { features } from '@/config/features';
 import { LUMIA_NAME } from '@/constants/lumia';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import {
-  askLumiaLocal,
+  askLumia,
   LUMIA_CHAT_WELCOME,
   type LumiaChatReply,
 } from '@/services/lumia-chat.service';
@@ -49,7 +49,7 @@ export default function LumiaChatScreen() {
     setMessages((prev) => [...prev, userMsg]);
     setBusy(true);
     try {
-      const reply: LumiaChatReply = await askLumiaLocal(text);
+      const reply: LumiaChatReply = await askLumia(text);
       setMessages((prev) => [
         ...prev,
         {

@@ -1,0 +1,33 @@
+---
+id: guide-navigation
+title: Navigation et onglets principaux
+category: usage
+---
+
+# Navigation dans Moments Locaux
+
+Moments Locaux est une app de **découverte locale** de moments (événements) près de chez toi. Ce n’est pas une billetterie.
+
+## Barre du bas (onglets)
+
+- **Accueil** — fil / liste des moments, filtres dates et thèmes, accès recherche et cloche notifications.
+- **Carte** — moments sur le territoire (Mapbox), filtres, tap sur un pin pour le détail, liste en bas (poignée).
+- **Propositions** (baguette) — idées à explorer en swipe (garder, passer, ouvrir). Ce n’est pas un achat de places.
+- **Favoris** (cœur) — moments sauvegardés via le cœur sur une carte ou une fiche.
+- **Profil / menu** (icône en bas à droite) — profil, paramètres, membres (si activé), déconnexion, bug / support.
+
+## Recherche et filtres
+
+La recherche (accueil ou carte) combine lieu, dates, thèmes et mots-clés. Les filtres **s’additionnent** : tu peux garder « à venir » et chercher un mot en même temps.
+
+Les recherches récentes peuvent être mémorisées **localement** sur l’appareil (pas d’alerte push « nouveaux résultats » en MVP).
+
+## Fiche événement
+
+Depuis une carte ou la liste : titre, lieu, dates, description, partage, favori / like, commentaires (si disponibles), section « Aimé par vos suivis » si le social pairs est activé.
+
+L’organisateur affiché sur les moments importés OpenAgenda est **Moments Locaux** : pas de « suivre l’organisateur » en MVP.
+
+## Lumia (assistant)
+
+Si le chat Lumia est activé dans le build (`EXPO_PUBLIC_FEATURE_LUMIA_CHAT=true`), une entrée (Sparkles) permet d’ouvrir l’assistant pour l’aide app et la recherche de moments **déjà publiés**.

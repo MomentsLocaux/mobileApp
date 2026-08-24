@@ -1,11 +1,27 @@
 import { LUMIA_NAME } from '@/constants/lumia';
+import { supabase } from '@/lib/supabase/client';
 import { EventsService } from '@/services/events.service';
-import { matchAppHelp } from '@/services/lumia-help';
+import { lumiaFeatureFlagsForApi, matchAppHelp } from '@/services/lumia-help';
 import type { EventWithCreator } from '@/types/database';
 
 export type LumiaChatReply = {
   text: string;
   events: EventWithCreator[];
+  quota?: { limit: number; remaining: number | null; period: string } | null;
+};
+
+type LumiaChatEdgeSuccess = {
+  ok: true;
+  text: string;
+  event_ids?: string[];
+  quota?: { limit: number; remaining: number | null; period: string };
+};
+
+type LumiaChatEdgeError = {
+  ok?: false;
+  code?: string;
+  message?: string;
+  quota?: { limit: number; remaining: number | null; period: string };
 };
 
 const STOP_WORDS = new Set([
@@ -132,6 +148,68 @@ export async function askLumiaLocal(query: string): Promise<LumiaChatReply> {
     text: `Je n’ai pas trouvé de moment publié pour « ${trimmed} », et ce n’est pas une question d’usage que je reconnais encore. Reformule : « comment ouvrir la carte », ou un thème / une ville. Je n’invente jamais d’événement.`,
     events: [],
   };
+}
+
+/** Prefer Edge Function (OpenAI + DB grounding); fall back to local matcher if offline/errors. */
+export async function askLumia(query: string): Promise<LumiaChatReply> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return askLumiaLocal(trimmed);
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke<LumiaChatEdgeSuccess | LumiaChatEdgeError>(
+      'lumia-chat',
+      {
+        body: {
+          message: trimmed,
+          feature_flags: lumiaFeatureFlagsForApi(),
+        },
+      },
+    );
+
+    if (error) {
+      const response = (error as { context?: Response }).context;
+      if (response) {
+        try {
+          const payload = (await response.json()) as LumiaChatEdgeError;
+          if (payload?.message) {
+            return {
+              text: payload.message,
+              events: [],
+              quota: payload.quota ?? null,
+            };
+          }
+        } catch {
+          // Fall through to local.
+        }
+      }
+      return askLumiaLocal(trimmed);
+    }
+
+    if (!data || data.ok !== true || typeof (data as LumiaChatEdgeSuccess).text !== 'string') {
+      const err = data as LumiaChatEdgeError | null;
+      if (err?.message) {
+        return { text: err.message, events: [], quota: err.quota ?? null };
+      }
+      return askLumiaLocal(trimmed);
+    }
+
+    const success = data as LumiaChatEdgeSuccess;
+    const ids = Array.isArray(success.event_ids) ? success.event_ids.filter(Boolean) : [];
+    const events = ids.length ? await EventsService.getEventsByIds(ids) : [];
+    const ordered = ids
+      .map((id) => events.find((event) => event.id === id))
+      .filter((event): event is EventWithCreator => Boolean(event));
+
+    return {
+      text: success.text,
+      events: ordered,
+      quota: success.quota ?? null,
+    };
+  } catch {
+    return askLumiaLocal(trimmed);
+  }
 }
 
 export const LUMIA_CHAT_WELCOME = `Salut, je suis ${LUMIA_NAME}. Je t’aide à utiliser Moments Locaux (carte, favoris, compte, signalement…) et à trouver des moments déjà publiés. Je n’invente pas d’événements et je ne vends pas de tickets.`;
