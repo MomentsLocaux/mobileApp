@@ -230,6 +230,10 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             onVisibleBoundsChange?.(next, meta);
           } else if (meta?.isUserInteraction) {
             onVisibleBoundsChange?.(next, meta);
+          } else if (meta && !meta.isUserInteraction) {
+            // Programmatic camera settled on unchanged bbox — still notify so
+            // refreshAfter / first-open bootstrap can complete.
+            onVisibleBoundsChange?.(next, meta);
           }
         }
       } catch (e) {

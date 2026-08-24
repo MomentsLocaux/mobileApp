@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -62,6 +63,16 @@ export default function TabsLayout() {
   const showB2cGamification = GAMIFICATION_ENABLED && !isProfessionnelAccount;
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const tabBarBottomPad = Math.max(insets.bottom, 8);
+  const tabBarHeight = 60 + tabBarBottomPad;
+  const tabBarStyleBase = {
+    backgroundColor: colors.brand.page,
+    borderTopColor: accent.accentBorder,
+    height: tabBarHeight,
+    paddingBottom: tabBarBottomPad,
+    paddingTop: 8,
+  } as const;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -215,13 +226,7 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: colors.brand.textSecondary,
           tabBarShowLabel: false,
           sceneStyle: { backgroundColor: 'transparent' },
-          tabBarStyle: {
-            backgroundColor: colors.brand.page,
-            borderTopColor: accent.accentBorder,
-            height: 76,
-            paddingBottom: 8,
-            paddingTop: 8,
-          },
+          tabBarStyle: tabBarStyleBase,
           tabBarItemStyle: {
             flex: 1,
           },
@@ -278,14 +283,11 @@ export default function TabsLayout() {
                 <Map size={size} color={tabIconColor(focused)} strokeWidth={focused ? 2.4 : 2} />
               ),
             tabBarStyle: {
-              backgroundColor: colors.brand.page,
+              ...tabBarStyleBase,
               borderTopWidth: 0,
               borderTopColor: 'transparent',
               elevation: 0,
               shadowOpacity: 0,
-              height: 76,
-              paddingBottom: 8,
-              paddingTop: 8,
             },
           }}
         />
@@ -297,7 +299,10 @@ export default function TabsLayout() {
                   title: '',
                   tabBarButton: () => (
                     <TouchableOpacity
-                      style={[styles.createButton, { backgroundColor: accent.accent }]}
+                      style={[
+                        styles.createButton,
+                        { backgroundColor: accent.accent, marginBottom: 12 + insets.bottom },
+                      ]}
                       activeOpacity={0.85}
                       onPress={() => {
                         if (isGuest) {
@@ -1020,7 +1025,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
     borderWidth: 4,
     borderColor: colors.brand.page,
   },
