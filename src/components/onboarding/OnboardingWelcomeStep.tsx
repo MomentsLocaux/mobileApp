@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Briefcase, Compass, Heart, Sparkles } from 'lucide-react-native';
 import type { AccountKind } from '@/constants/accountIdentity';
+import { LUMIA_INTRO } from '@/constants/lumiaTour';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
@@ -52,6 +53,7 @@ export function OnboardingWelcomeStep({
     return (
       <View style={styles.wrap}>
         <View style={[styles.panel, styles.panelFun, styles.panelActive]}>
+          <Text style={styles.lumiaIntro}>{LUMIA_INTRO}</Text>
           <View style={styles.bullets}>
             {MVP_NEXT.map((line) => (
               <View key={line} style={styles.bulletRow}>
@@ -93,6 +95,7 @@ export function OnboardingWelcomeStep({
           <Text style={styles.panelTitleFun}>Particulier</Text>
         </View>
         <Text style={styles.panelPromiseFun}>{MVP_PROMISE}</Text>
+        <Text style={styles.lumiaIntro}>{LUMIA_INTRO}</Text>
         <View style={styles.bullets}>
           {PARTICULIER_NEXT.map((line) => (
             <View key={line} style={styles.bulletRow}>
@@ -204,6 +207,11 @@ const styles = StyleSheet.create({
   panelPromiseFormal: {
     ...typography.body,
     color: colors.brand.textSecondary,
+    lineHeight: 22,
+  },
+  lumiaIntro: {
+    ...typography.body,
+    color: colors.brand.text,
     lineHeight: 22,
   },
   bullets: {

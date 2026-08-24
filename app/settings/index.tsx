@@ -13,6 +13,7 @@ import {
   Compass,
   RotateCcw,
   PlusCircle,
+  Sparkles,
   ShieldCheck,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -22,6 +23,7 @@ import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
+import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -29,9 +31,11 @@ export default function SettingsScreen() {
   const { enableCreation, savingMode, showModeSwitch, canOptInToCreation } =
     useAccountIdentity();
 
+  const requestLumiaReplay = useLumiaTourStore((s) => s.requestReplay);
+
   const handleReplayOnboarding = () => {
     Alert.alert(
-      'Rejouer l’onboarding',
+      'Revoir la config du profil',
       'Vous allez revoir les étapes de configuration du profil. Vous pourrez quitter à tout moment.',
       [
         { text: 'Annuler', style: 'cancel' },
@@ -43,6 +47,22 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleReplayLumiaTour = () => {
+    Alert.alert(
+      'Rejouer le tour Lumia',
+      'Lumia te refait le tour de l’accueil, de la carte et des autres onglets. Tu pourras passer à tout moment.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Rejouer',
+          onPress: () => {
+            requestLumiaReplay();
+            router.replace('/(tabs)' as any);
+          },
+        },
+      ],
+    );
+  };
   const handleEnableCreation = () => {
     Alert.alert(
       'Activer la création',
@@ -108,7 +128,12 @@ export default function SettingsScreen() {
           />
         ) : null}
         <SettingsRow
-          label="Rejouer l’onboarding"
+          label="Rejouer le tour Lumia"
+          icon={Sparkles}
+          onPress={handleReplayLumiaTour}
+        />
+        <SettingsRow
+          label="Revoir la config du profil"
           icon={RotateCcw}
           onPress={handleReplayOnboarding}
         />
