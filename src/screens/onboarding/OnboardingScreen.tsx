@@ -30,7 +30,7 @@ import { AppBackground, Button, MotionReveal } from '../../components/ui';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
 import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
-import { OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
+import { MVP_PROMISE, OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
 import {
   OnboardingCreateWhyStep,
   type CreateIntent,
@@ -658,7 +658,7 @@ export default function OnboardingScreen() {
                 ? 'Reprenez les étapes de configuration de votre profil'
                 : features.diffuseur
                   ? 'Pour vous montrer ce qui se passe près de vous'
-                  : 'Ici on ne vend pas de ticket, on crée du lien avec le monde qui nous entoure'}
+                  : MVP_PROMISE}
             </Text>
           </MotionReveal>
         ) : isMarketingStep ? (
@@ -1305,19 +1305,28 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
   },
   input: {
-    ...typography.body,
+    fontFamily: typography.body.fontFamily,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     backgroundColor: colors.brand.surface,
     borderWidth: 1,
     borderColor: colors.neutral[200],
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    lineHeight: 22,
-    minHeight: 52,
+    paddingTop: 14,
+    paddingBottom: 18,
+    minHeight: 56,
     color: colors.brand.text,
+    overflow: 'visible',
+    ...(Platform.OS === 'android'
+      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
+      : null),
   },
   textArea: {
-    height: 100,
+    minHeight: 108,
+    height: 108,
+    paddingTop: 14,
+    paddingBottom: 18,
     textAlignVertical: 'top',
   },
   errorText: {

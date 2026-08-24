@@ -30,8 +30,8 @@ const PROFESSIONNEL_NEXT = [
   'Accéder à votre tableau de bord de présence',
 ];
 
-const MVP_PROMISE =
-  'Ici on ne vend pas de ticket, on crée du lien avec le monde qui nous entoure.';
+export const MVP_PROMISE =
+  'Ici, on crée du lien avec le monde qui nous entoure.';
 
 /**
  * Welcome — dual door when Diffuseur is on; single discovery pitch otherwise (MVP).

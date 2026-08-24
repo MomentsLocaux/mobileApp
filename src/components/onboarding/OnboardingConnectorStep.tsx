@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Link2, Plug } from 'lucide-react-native';
 import type { ProSubtype } from '@/constants/accountIdentity';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
@@ -157,13 +157,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   input: {
+    fontFamily: typography.body.fontFamily,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm + 4,
+    paddingBottom: spacing.md,
+    minHeight: 52,
     color: colors.brand.text,
-    ...typography.body,
+    overflow: 'visible',
+    ...(Platform.OS === 'android'
+      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
+      : null),
   },
   primaryBtn: {
     flexDirection: 'row',

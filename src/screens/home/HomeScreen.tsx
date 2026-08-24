@@ -145,7 +145,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
   const firstName = profile?.display_name?.trim().split(/\s+/)[0];
-  const greeting = firstName ? `Salut, ${firstName} 👋` : 'Salut 👋';
+  const greeting = firstName ? `Salut, ${firstName}` : 'Salut';
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
