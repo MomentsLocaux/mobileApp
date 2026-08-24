@@ -21,8 +21,11 @@ Le build mobile active ou cache des surfaces via des **flags** (variables d’en
 | `FEATURE_DISCOVERY` | off | Discovery Engine, reco avancées |
 | `FEATURE_CONTESTS` | off | Concours |
 | `FEATURE_LUMIA_CHAT` | off | Entrée chat Lumia |
+| `FEATURE_EVENT_SUGGEST` | off | Ajouter depuis une affiche (IA → formulaire suggestion) |
 
 Redémarrer Metro après changement de flag en dev.
+
+`FEATURE_EVENT_SUGGEST` est **indépendant** de `FEATURE_EVENT_CREATE` : un utilisateur en mode découverte peut signaler un événement repéré sans activer la création organisateur.
 
 ## Comment répondre si l’utilisateur demande une feature off
 

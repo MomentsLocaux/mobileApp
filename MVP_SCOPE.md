@@ -32,6 +32,8 @@ Companion surfaces in MVP: **moderation WebConsole** + **marketing site vitrine*
 | `FEATURE_GAMIFICATION` | off | V2 | Lumo / shop / missions / pass |
 | `FEATURE_DISCOVERY` | off | V2 | Discovery Engine |
 | `FEATURE_CONTESTS` | off | V2 | Concours |
+| `FEATURE_LUMIA_CHAT` | off | Post-MVP | Lumia assistant chat |
+| `FEATURE_EVENT_SUGGEST` | off | V1 | Suggest event from poster (AI prefill) |
 
 ## Out of MVP (scraper reality)
 
