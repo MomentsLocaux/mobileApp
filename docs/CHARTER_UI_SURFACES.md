@@ -38,6 +38,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Map markers | `src/components/map/CategoryEventMarker.tsx` | Harsh white stroke / disc halo |
 | Onboarding category cards | `src/components/onboarding/OnboardingThemesStep.tsx` | Borders `#334155`; select-all |
 | Onboarding text fields | `src/screens/onboarding/OnboardingScreen.tsx`, `OnboardingConnectorStep.tsx` | No `lineHeight` on `TextInput`; extra bottom padding so descenders (g/p/y) are not clipped |
+| Lumia chat | `src/screens/lumia/LumiaChatScreen.tsx` | Flag off = hidden; light bubbles, leaf send — no dark glass |
 | Profile edit identity row | `src/screens/profile/ProfileEditScreen.tsx` | Hide “Profil : Particulier” |
 | Community invite | `src/screens/community/CommunityScreen.tsx` | Header “Inviter un ami” |
 | Organizer avatar fallback | `src/constants/branding.ts` + assets | Keep in sync with app icon |

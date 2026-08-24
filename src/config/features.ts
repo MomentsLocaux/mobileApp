@@ -59,6 +59,11 @@ export const features = {
    * Independent from the Discovery Engine: never gate on `discovery`.
    */
   roadtrip: process.env.EXPO_PUBLIC_FEATURE_ROADTRIP === 'true',
+  /**
+   * Post-MVP — Lumia conversational chat.
+   * Default OFF. No entry point when unset/false.
+   */
+  lumiaChat: process.env.EXPO_PUBLIC_FEATURE_LUMIA_CHAT === 'true',
 } as const;
 
 export type FeatureFlag = keyof typeof features;

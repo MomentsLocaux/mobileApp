@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Search } from 'lucide-react-native';
+import { Bell, Search, Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useLocation } from '@/hooks';
@@ -22,6 +22,7 @@ import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography } from '@/constants/theme';
+import { features } from '@/config/features';
 import {
   DEFAULT_DISCOVERY_STATUS,
   DISCOVERY_DEFAULT_RADIUS_KM,
@@ -648,19 +649,31 @@ export default function HomeScreen() {
             <Text style={styles.headerTitle}>Moments Locaux</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.notificationBtn}
-            onPress={() => router.push('/notifications' as any)}
-            accessibilityRole="button"
-            accessibilityLabel={
-              unreadNotifications > 0
-                ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? 's' : ''}`
-                : 'Notifications'
-            }
-          >
-            <Bell size={20} color={colors.brand.secondary} />
-            {unreadNotifications > 0 ? <View style={styles.notificationBadge} /> : null}
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            {features.lumiaChat ? (
+              <TouchableOpacity
+                style={styles.notificationBtn}
+                onPress={() => router.push('/lumia-chat' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Parler à Lumia"
+              >
+                <Sparkles size={20} color={colors.brand.secondary} />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={styles.notificationBtn}
+              onPress={() => router.push('/notifications' as any)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                unreadNotifications > 0
+                  ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? 's' : ''}`
+                  : 'Notifications'
+              }
+            >
+              <Bell size={20} color={colors.brand.secondary} />
+              {unreadNotifications > 0 ? <View style={styles.notificationBadge} /> : null}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.searchContainer}>
@@ -826,6 +839,11 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.brand.text,
     lineHeight: 24,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   notificationBtn: {
     width: 40,
