@@ -127,7 +127,7 @@ export default function LumiaChatScreen() {
         <View style={styles.composer}>
           <TextInput
             style={styles.input}
-            placeholder="Ex. concert à Lyon ce week-end"
+            placeholder="Ex. comment ouvrir la carte, ou concert à Lyon"
             placeholderTextColor={colors.brand.textSecondary}
             value={draft}
             onChangeText={setDraft}

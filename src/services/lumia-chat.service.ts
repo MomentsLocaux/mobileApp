@@ -1,5 +1,6 @@
 import { LUMIA_NAME } from '@/constants/lumia';
 import { EventsService } from '@/services/events.service';
+import { matchAppHelp } from '@/services/lumia-help';
 import type { EventWithCreator } from '@/types/database';
 
 export type LumiaChatReply = {
@@ -101,24 +102,36 @@ export function matchEventsLocally(
 export async function askLumiaLocal(query: string): Promise<LumiaChatReply> {
   const trimmed = query.trim();
   if (!trimmed) {
-    return { text: 'Dis-moi ce que tu cherches — un lieu, un thème, un moment.', events: [] };
+    return {
+      text: 'Pose-moi une question sur l’app (carte, favoris, compte…) ou décris un moment que tu cherches.',
+      events: [],
+    };
+  }
+
+  const help = matchAppHelp(trimmed);
+  if (help?.preferHelp) {
+    return { text: help.answer, events: [] };
   }
 
   const catalog = await EventsService.listEvents({ limit: 80 });
   const events = matchEventsLocally(trimmed, catalog);
 
-  if (!events.length) {
+  if (events.length) {
+    const names = events.map((event) => event.title).join(', ');
     return {
-      text: `Je n’ai rien trouvé parmi les moments publiés pour « ${trimmed} ». Reformule, ou ouvre la carte — je n’invente jamais un événement.`,
-      events: [],
+      text: `Voici ce que j’ai parmi les moments publiés : ${names}. Tu peux ouvrir une fiche ci-dessous.`,
+      events,
     };
   }
 
-  const names = events.map((event) => event.title).join(', ');
+  if (help) {
+    return { text: help.answer, events: [] };
+  }
+
   return {
-    text: `Voici ce que j’ai parmi les moments publiés : ${names}. Tape un titre pour ouvrir le détail.`,
-    events,
+    text: `Je n’ai pas trouvé de moment publié pour « ${trimmed} », et ce n’est pas une question d’usage que je reconnais encore. Reformule : « comment ouvrir la carte », ou un thème / une ville. Je n’invente jamais d’événement.`,
+    events: [],
   };
 }
 
-export const LUMIA_CHAT_WELCOME = `Salut, je suis ${LUMIA_NAME}. Demande-moi un moment près de toi (thème, ville, week-end). Je ne te propose que des événements déjà publiés dans l’app.`;
+export const LUMIA_CHAT_WELCOME = `Salut, je suis ${LUMIA_NAME}. Je t’aide à utiliser Moments Locaux (carte, favoris, compte, signalement…) et à trouver des moments déjà publiés. Je n’invente pas d’événements et je ne vends pas de tickets.`;
