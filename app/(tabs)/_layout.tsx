@@ -52,6 +52,10 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
 import { EventsService } from '@/services/events.service';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { LumiaTourOverlay } from '@/components/lumia/LumiaTourOverlay';
+import { useLumiaTour } from '@/hooks/useLumiaTour';
+import type { LumiaTourStep } from '@/constants/lumiaTour';
+
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
@@ -80,6 +84,13 @@ export default function TabsLayout() {
   const drawerProgress = useSharedValue(0);
   useTaxonomy();
   const isGuest = !isAuthenticated;
+  const { visible: lumiaTourVisible, steps: lumiaTourSteps, dismiss: dismissLumiaTour } = useLumiaTour();
+
+  const handleLumiaTourStep = useCallback((step: LumiaTourStep) => {
+    if (step.href) {
+      router.navigate(step.href as any);
+    }
+  }, [router]);
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
@@ -710,6 +721,12 @@ export default function TabsLayout() {
           closeGuestGate();
           router.push('/auth/login' as any);
         }}
+      />
+      <LumiaTourOverlay
+        visible={lumiaTourVisible}
+        steps={lumiaTourSteps}
+        onDismiss={dismissLumiaTour}
+        onStepChange={handleLumiaTourStep}
       />
     </>
   );
