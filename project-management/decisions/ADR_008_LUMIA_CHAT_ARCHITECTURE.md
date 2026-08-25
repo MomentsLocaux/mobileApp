@@ -85,7 +85,7 @@ Ten fixed questions (`content/lumia/golden-questions.md`) must pass before treat
 | `search_events` quality | SCRUM-59 |
 | Guardrails | SCRUM-98 |
 | Quota | SCRUM-103 |
-| RGPD chat logs | SCRUM-100 |
+| RGPD chat logs | SCRUM-100 → ADR 009 |
 | Entry points | SCRUM-101 (carte) |
 
 ## Consequences

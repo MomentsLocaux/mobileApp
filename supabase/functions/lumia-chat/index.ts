@@ -21,6 +21,7 @@ import ragChunksJson from './rag-chunks.json' with { type: 'json' };
  * 3) LLM answers ONLY from tool + RAG context
  * 4) event_ids ⊆ search_events results
  *
+ * SCRUM-100 / RGPD: never persist chat transcripts; never log message content.
  * Docs SSOT: content/lumia/docs/*.md
  * Ingest:    node scripts/ingest-lumia-rag.mjs
  */
@@ -38,6 +39,12 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+/** Operational logs only — never include user message / LLM prompt bodies (SCRUM-100). */
+function logOps(event: string, detail?: string) {
+  const safe = detail ? detail.replace(/\s+/g, ' ').slice(0, 120) : '';
+  console.log(safe ? `[lumia-chat] ${event} ${safe}` : `[lumia-chat] ${event}`);
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -167,7 +174,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (usageError) {
-      console.log('[lumia-chat] quota read error', usageError);
+      logOps('quota_read_error', usageError.message ?? String(usageError.code ?? ''));
       return jsonResponse(
         {
           ok: false,
@@ -202,7 +209,7 @@ serve(async (req) => {
     );
 
     if (upsertError) {
-      console.log('[lumia-chat] quota write error', upsertError);
+      logOps('quota_write_error', upsertError.message ?? String(upsertError.code ?? ''));
       return jsonResponse(
         {
           ok: false,
@@ -214,8 +221,8 @@ serve(async (req) => {
     }
 
     quotaRemaining = Math.max(0, MONTHLY_QUOTA - (count + 1));
-  } catch (quotaErr) {
-    console.log('[lumia-chat] quota exception', quotaErr);
+  } catch (_quotaErr) {
+    logOps('quota_exception');
     return jsonResponse(
       {
         ok: false,
@@ -233,8 +240,8 @@ serve(async (req) => {
   if (route.useAppHelp) {
     try {
       docHits = await runAppHelp(supabase, message);
-    } catch (ragErr) {
-      console.log('[lumia-chat] app_help failed', ragErr);
+    } catch (_ragErr) {
+      logOps('app_help_failed');
       return jsonResponse(
         { ok: false, message: 'Lumia est momentanément indisponible. Réessaie dans un instant.' },
         502,
@@ -250,8 +257,8 @@ serve(async (req) => {
       const result = await searchEvents(supabase, message, payload.city ?? null, 8);
       candidateEvents = result.events;
       searchMeta = result.query;
-    } catch (searchErr) {
-      console.log('[lumia-chat] search_events failed', searchErr);
+    } catch (_searchErr) {
+      logOps('search_events_failed');
     }
   }
 
@@ -300,8 +307,7 @@ serve(async (req) => {
     });
 
     if (!openaiRes.ok) {
-      const errBody = await openaiRes.text();
-      console.log('[lumia-chat] openai error', openaiRes.status, errBody.slice(0, 400));
+      logOps('openai_http_error', String(openaiRes.status));
       return jsonResponse(
         { ok: false, message: 'Lumia est momentanément indisponible. Réessaie dans un instant.' },
         502,
@@ -310,8 +316,8 @@ serve(async (req) => {
 
     const openaiJson = await openaiRes.json();
     openaiText = openaiJson?.choices?.[0]?.message?.content ?? '';
-  } catch (err) {
-    console.log('[lumia-chat] openai fetch failed', err);
+  } catch (_err) {
+    logOps('openai_fetch_failed');
     return jsonResponse(
       { ok: false, message: 'Lumia est momentanément indisponible. Réessaie dans un instant.' },
       502,

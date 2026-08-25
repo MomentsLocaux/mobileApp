@@ -29,6 +29,15 @@ Pour exercer un droit (accès, rectification, suppression) au-delà des écrans 
 
 Email (Auth), profil, favoris, likes, follows, commentaires, signalements, bug reports, notifications, vues, check-ins (si activés), médias (avatars, couvertures), géolocalisation selon autorisations.
 
+## Assistant Lumia (si activé dans le build)
+
+- Les messages du chat **ne sont pas enregistrés** en base Moments Locaux.
+- Ils restent en mémoire sur l’appareil pendant la session d’écran.
+- Un **compteur de quota** (ex. 20 messages / mois) peut être stocké sans le texte des messages.
+- Pour répondre, la question peut être envoyée temporairement à un prestataire d’IA.
+- **Export de compte :** l’historique Lumia n’est **pas** inclus (non persisté).
+- Support / privacy : **hello@moments-locaux.com** — voir aussi [Politique de confidentialité](/settings/privacy/policy) et [CGU](/settings/legal/cgu).
+
 ## Suppression de compte
 
 **Paramètres → Confidentialité & données → Supprimer mon compte.**

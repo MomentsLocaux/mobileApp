@@ -5,6 +5,7 @@ import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { colors, spacing, typography } from '@/constants/theme';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { features } from '@/config/features';
 
 const CGU_TEXT = [
   'CONDITIONS GÉNÉRALES D’UTILISATION',
@@ -98,8 +99,21 @@ const CGU_LUMO_SECTION = [
   'La suppression du compte peut entraîner la perte du solde Lumo, des objets virtuels et des Pass non utilisés, selon la politique de suppression du compte.',
 ];
 
+const CGU_LUMIA_SECTION = [
+  '',
+  'ASSISTANT LUMIA',
+  'Lorsque l’assistant conversationnel Lumia est activé, l’utilisateur peut poser des questions pour s’orienter dans l’application ou rechercher des moments déjà publiés.',
+  'Lumia ne vend pas de billets, n’invente pas d’événements et n’accède pas à la modération admin. Les réponses s’appuient sur une base documentaire produit et sur les événements publiés.',
+  'L’historique de conversation n’est pas stocké côté serveur ; un quota mensuel de messages peut s’appliquer. Les détails de traitement figurent dans la Politique de confidentialité.',
+  'Support : hello@moments-locaux.com',
+];
+
 export default function CguScreen() {
-  const lines = GAMIFICATION_ENABLED ? [...CGU_TEXT, ...CGU_LUMO_SECTION] : CGU_TEXT;
+  const lines = [
+    ...CGU_TEXT,
+    ...(GAMIFICATION_ENABLED ? CGU_LUMO_SECTION : []),
+    ...(features.lumiaChat ? CGU_LUMIA_SECTION : []),
+  ];
 
   return (
     <SettingsLayout title="CGU">
