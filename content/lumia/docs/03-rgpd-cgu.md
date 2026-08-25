@@ -11,13 +11,13 @@ Moments Locaux est soumis au droit français. Lumia **n’est pas un avocat** : 
 ## Où lire les documents
 
 **Paramètres → Informations légales**
-- Conditions Générales d’Utilisation (CGU)
-- Mentions légales
-- Politique des cookies
+- [Conditions Générales d’Utilisation (CGU)](/settings/legal/cgu)
+- [Mentions légales](/settings/legal/mentions)
+- [Politique des cookies](/settings/legal/cookies)
 
 **Paramètres → Confidentialité & données**
-- Politique de confidentialité
-- Supprimer mon compte
+- [Politique de confidentialité](/settings/privacy/policy)
+- [Supprimer mon compte](/settings/privacy/delete)
 
 ## Contact
 

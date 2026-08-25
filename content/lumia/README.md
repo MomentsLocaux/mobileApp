@@ -103,13 +103,19 @@ Migration draft : `supabase/migrations/20260824_lumia_doc_rag_pgvector.sql`
 
 ---
 
+## Architecture cible
+
+Voir [ADR 008](../../project-management/decisions/ADR_008_LUMIA_CHAT_ARCHITECTURE.md) : prompt + RAG docs + tools (`search_events`) + golden eval.
+
+Éval obligatoire : [golden-questions.md](./golden-questions.md).
+
 ## Checklist avant merge
 
 - [ ] Fiche relue (pas de prix / promesse non validée)
 - [ ] `node scripts/ingest-lumia-rag.mjs` OK
 - [ ] Deploy `lumia-chat` sur dev
-- [ ] 2–3 questions manuelles dans l’app
-- [ ] Ticket Jira SCRUM-96 / SCRUM-104 mis à jour si changement de scope
+- [ ] Golden questions (au moins 1, 2, 5, 7) OK
+- [ ] Ticket Jira SCRUM-96 / SCRUM-104 / SCRUM-97 mis à jour si changement de scope
 
 ---
 

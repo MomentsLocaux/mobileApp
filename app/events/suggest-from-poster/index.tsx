@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Camera, ImageIcon, Sparkles } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { RequireEventSuggestAccess } from '@/components/identity/RequireEventSuggestAccess';
@@ -23,14 +23,23 @@ import {
   applyPosterDraftToCreateStore,
   mapPosterExtractionToStoreDraft,
 } from '@/utils/poster-extract-mapper';
+import {
+  isEventSubmissionSource,
+  type EventSubmissionSource,
+} from '@/types/event-submission';
 
 function SuggestFromPosterContent() {
   const router = useRouter();
+  const { source: sourceParam } = useLocalSearchParams<{ source?: string }>();
+  const resolvedSource: EventSubmissionSource = isEventSubmissionSource(sourceParam)
+    ? sourceParam
+    : 'community_suggest';
   const { user } = useAuth();
   const { pickImage, takePhoto } = useImagePicker();
   const loadTaxonomy = useTaxonomyStore((s) => s.load);
 
   const resetStore = useCreateEventStore((s) => s.reset);
+  const setSubmissionSource = useCreateEventStore((s) => s.setSubmissionSource);
   const setTitle = useCreateEventStore((s) => s.setTitle);
   const setDescription = useCreateEventStore((s) => s.setDescription);
   const setStartDate = useCreateEventStore((s) => s.setStartDate);
@@ -60,7 +69,14 @@ function SuggestFromPosterContent() {
           const { result } = pipeline;
           if (result.code === 'quota_exceeded') {
             Alert.alert('Limite atteinte', result.message, [
-              { text: 'Saisie manuelle', onPress: () => router.replace('/events/create') },
+              {
+                text: 'Saisie manuelle',
+                onPress: () => {
+                  resetStore();
+                  setSubmissionSource(resolvedSource);
+                  router.replace('/events/create');
+                },
+              },
               { text: 'OK', style: 'cancel' },
             ]);
             return;
@@ -71,8 +87,9 @@ function SuggestFromPosterContent() {
             {
               text: 'Saisie manuelle',
               onPress: () => {
+                resetStore();
+                setSubmissionSource(resolvedSource);
                 if (pipeline.upload) {
-                  resetStore();
                   setCoverImage({
                     storagePath: pipeline.upload.storagePath,
                     publicUrl: pipeline.upload.publicUrl,
@@ -93,6 +110,7 @@ function SuggestFromPosterContent() {
         });
 
         resetStore();
+        setSubmissionSource(resolvedSource);
         applyPosterDraftToCreateStore(
           draft,
           {
@@ -135,7 +153,14 @@ function SuggestFromPosterContent() {
           'Analyse indisponible. Tu peux saisir l’événement manuellement.',
           [
             { text: 'Annuler', style: 'cancel' },
-            { text: 'Saisie manuelle', onPress: () => router.replace('/events/create') },
+            {
+              text: 'Saisie manuelle',
+              onPress: () => {
+                resetStore();
+                setSubmissionSource(resolvedSource);
+                router.replace('/events/create');
+              },
+            },
           ],
         );
       } finally {
@@ -158,6 +183,8 @@ function SuggestFromPosterContent() {
       setContact,
       setExternalLink,
       setCoverImage,
+      setSubmissionSource,
+      resolvedSource,
       router,
     ],
   );
@@ -174,6 +201,7 @@ function SuggestFromPosterContent() {
 
   const onManual = () => {
     resetStore();
+    setSubmissionSource(resolvedSource);
     router.replace('/events/create');
   };
 
@@ -182,7 +210,9 @@ function SuggestFromPosterContent() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <Sparkles size={32} color={colors.brand.secondary} />
-          <Text style={styles.title}>Scanner une affiche</Text>
+          <Text style={styles.title}>
+            {resolvedSource === 'organizer_create' ? 'Scanner une affiche' : 'Proposer depuis une affiche'}
+          </Text>
           <Text style={styles.subtitle}>
             Photographie ou importe une affiche, un flyer ou une capture d’écran. L’IA préremplit le
             formulaire — tu vérifies avant de publier.

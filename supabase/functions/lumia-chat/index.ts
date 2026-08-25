@@ -4,21 +4,25 @@ import {
   embedQuery,
   formatRagForPrompt,
   retrieveByEmbedding,
+  RAG_MIN_SCORE,
   type RagPack,
 } from './rag.ts';
+import { GREETING_REPLY, buildLumiaSystemPrompt } from './prompt.ts';
+import { isGreeting, routeLumiaMessage } from './route.ts';
+import { searchEvents, type EventRow } from './search-events.ts';
+import { filterLumiaActions } from './deeplinks.ts';
 import ragChunksJson from './rag-chunks.json' with { type: 'json' };
 
 /**
- * Lumia chat — documentary RAG (prod)
+ * Lumia chat — ADR 008 minimal agent
  *
- * 1) Embed user question (OpenAI embeddings)
- * 2) Semantic retrieve over documentary chunks (pre-ingested markdown)
- * 3) Optionally search published events in DB
- * 4) LLM answers ONLY from retrieved docs + events
+ * 1) Guard: greeting → fixed reply
+ * 2) Route: useAppHelp (RAG) / useSearchEvents (tool)
+ * 3) LLM answers ONLY from tool + RAG context
+ * 4) event_ids ⊆ search_events results
  *
  * Docs SSOT: content/lumia/docs/*.md
  * Ingest:    node scripts/ingest-lumia-rag.mjs
- * Future:    pgvector table (migration draft, human-applied)
  */
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -35,50 +39,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-type EventRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  city: string | null;
-  address: string | null;
-  category: string | null;
-  starts_at: string | null;
-  status: string | null;
-};
-
-const STOP_WORDS = new Set([
-  'le',
-  'la',
-  'les',
-  'un',
-  'une',
-  'des',
-  'de',
-  'du',
-  'au',
-  'aux',
-  'et',
-  'ou',
-  'a',
-  'en',
-  'dans',
-  'sur',
-  'pour',
-  'par',
-  'ce',
-  'cet',
-  'cette',
-  'quoi',
-  'que',
-  'qui',
-  'faire',
-  'pres',
-  'chez',
-  'moi',
-  'nous',
-  'toi',
-]);
-
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -86,34 +46,46 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function normalize(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .trim();
-}
-
-function tokens(query: string): string[] {
-  return normalize(query)
-    .split(/\s+/)
-    .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
-}
-
-function scoreEvent(event: EventRow, queryTokens: string[]): number {
-  const hay = normalize(
-    [event.title, event.description, event.city, event.address, event.category]
-      .filter(Boolean)
-      .join(' '),
-  );
-  return queryTokens.reduce((score, token) => (hay.includes(token) ? score + 1 : score), 0);
-}
-
 function periodYm(now = new Date()): string {
   const y = now.getUTCFullYear();
   const m = String(now.getUTCMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
+}
+
+async function runAppHelp(
+  supabase: ReturnType<typeof createClient>,
+  message: string,
+): Promise<ReturnType<typeof retrieveByEmbedding>> {
+  const queryEmbedding = await embedQuery(OPENAI_API_KEY, EMBED_MODEL, message);
+
+  const { data: dbHits, error: dbErr } = await supabase.rpc('match_lumia_doc_chunks', {
+    query_embedding: queryEmbedding,
+    match_count: 6,
+    match_threshold: RAG_MIN_SCORE,
+  });
+
+  if (!dbErr && Array.isArray(dbHits) && dbHits.length) {
+    return dbHits.map(
+      (row: {
+        id: string;
+        doc_id: string;
+        title: string;
+        category: string;
+        content: string;
+        score: number;
+      }) => ({
+        id: row.id,
+        doc_id: row.doc_id,
+        title: row.title,
+        category: row.category,
+        content: row.content,
+        embedding: [],
+        score: row.score,
+      }),
+    );
+  }
+
+  return retrieveByEmbedding(RAG_PACK, queryEmbedding, 6, RAG_MIN_SCORE);
 }
 
 serve(async (req) => {
@@ -171,8 +143,21 @@ serve(async (req) => {
     );
   }
 
+  // --- Layer 4: greeting guard ---
+  if (isGreeting(message)) {
+    return jsonResponse({
+      ok: true,
+      text: GREETING_REPLY,
+      event_ids: [],
+      events: [],
+      quota: null,
+      route: { isGreeting: true },
+    });
+  }
+
   const period = periodYm();
   let quotaRemaining: number | null = null;
+
   try {
     const { data: usageRow, error: usageError } = await supabase
       .from('lumia_chat_usage')
@@ -181,108 +166,101 @@ serve(async (req) => {
       .eq('period_ym', period)
       .maybeSingle();
 
-    if (!usageError) {
-      const count = usageRow?.request_count ?? 0;
-      if (count >= MONTHLY_QUOTA) {
-        return jsonResponse(
-          {
-            ok: false,
-            code: 'quota_exceeded',
-            message: `Tu as utilisé ton quota Lumia pour ce mois (${MONTHLY_QUOTA} demandes). Reviens le mois prochain.`,
-            quota: { limit: MONTHLY_QUOTA, remaining: 0, period },
-          },
-          429,
-        );
-      }
-      const { error: upsertError } = await supabase.from('lumia_chat_usage').upsert(
+    if (usageError) {
+      console.log('[lumia-chat] quota read error', usageError);
+      return jsonResponse(
         {
-          user_id: userId,
-          period_ym: period,
-          request_count: count + 1,
-          updated_at: new Date().toISOString(),
+          ok: false,
+          code: 'service_error',
+          message: 'Quota Lumia indisponible. Réessaie dans un instant.',
         },
-        { onConflict: 'user_id,period_ym' },
+        503,
       );
-      if (!upsertError) {
-        quotaRemaining = Math.max(0, MONTHLY_QUOTA - (count + 1));
-      }
     }
+
+    const count = usageRow?.request_count ?? 0;
+    if (count >= MONTHLY_QUOTA) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: 'quota_exceeded',
+          message: `Tu as utilisé ton quota Lumia pour ce mois (${MONTHLY_QUOTA} messages). Reviens le mois prochain.`,
+          quota: { limit: MONTHLY_QUOTA, remaining: 0, period },
+        },
+        429,
+      );
+    }
+
+    const { error: upsertError } = await supabase.from('lumia_chat_usage').upsert(
+      {
+        user_id: userId,
+        period_ym: period,
+        request_count: count + 1,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,period_ym' },
+    );
+
+    if (upsertError) {
+      console.log('[lumia-chat] quota write error', upsertError);
+      return jsonResponse(
+        {
+          ok: false,
+          code: 'service_error',
+          message: 'Quota Lumia indisponible. Réessaie dans un instant.',
+        },
+        503,
+      );
+    }
+
+    quotaRemaining = Math.max(0, MONTHLY_QUOTA - (count + 1));
   } catch (quotaErr) {
-    console.log('[lumia-chat] quota table unavailable', quotaErr);
-  }
-
-  // --- Documentary RAG ---
-  let docHits: ReturnType<typeof retrieveByEmbedding> = [];
-  try {
-    const queryEmbedding = await embedQuery(OPENAI_API_KEY, EMBED_MODEL, message);
-
-    // Prefer DB match when migration applied; else bundled chunks.
-    const { data: dbHits, error: dbErr } = await supabase.rpc('match_lumia_doc_chunks', {
-      query_embedding: queryEmbedding,
-      match_count: 6,
-      match_threshold: 0.25,
-    });
-
-    if (!dbErr && Array.isArray(dbHits) && dbHits.length) {
-      docHits = dbHits.map((row: {
-        id: string;
-        doc_id: string;
-        title: string;
-        category: string;
-        content: string;
-        score: number;
-      }) => ({
-        id: row.id,
-        doc_id: row.doc_id,
-        title: row.title,
-        category: row.category,
-        content: row.content,
-        embedding: [],
-        score: row.score,
-      }));
-    } else {
-      docHits = retrieveByEmbedding(RAG_PACK, queryEmbedding, 6, 0.25);
-    }
-  } catch (ragErr) {
-    console.log('[lumia-chat] RAG retrieve failed', ragErr);
+    console.log('[lumia-chat] quota exception', quotaErr);
     return jsonResponse(
-      { ok: false, message: 'Lumia est momentanément indisponible. Réessaie dans un instant.' },
-      502,
+      {
+        ok: false,
+        code: 'service_error',
+        message: 'Quota Lumia indisponible. Réessaie dans un instant.',
+      },
+      503,
     );
   }
 
-  const docCategories = new Set(docHits.map((h) => h.category));
-  const looksLikeEventSearch =
-    tokens(message).length > 0 &&
-    !docCategories.has('legal') &&
-    !/\b(cgu|rgpd|prix|tarif|abonnement|parametr|comment|supprim(er)? (mon )?compte)\b/.test(
-      normalize(message),
-    );
+  const route = routeLumiaMessage(message);
 
+  // --- Layer 2: app_help (RAG) ---
+  let docHits: ReturnType<typeof retrieveByEmbedding> = [];
+  if (route.useAppHelp) {
+    try {
+      docHits = await runAppHelp(supabase, message);
+    } catch (ragErr) {
+      console.log('[lumia-chat] app_help failed', ragErr);
+      return jsonResponse(
+        { ok: false, message: 'Lumia est momentanément indisponible. Réessaie dans un instant.' },
+        502,
+      );
+    }
+  }
+
+  // --- Layer 3: search_events tool ---
   let candidateEvents: EventRow[] = [];
-  if (looksLikeEventSearch) {
-    const queryTokens = tokens(message);
-    const orFilter = queryTokens
-      .slice(0, 5)
-      .map((t) => `title.ilike.%${t}%,city.ilike.%${t}%,description.ilike.%${t}%`)
-      .join(',');
+  let searchMeta: Awaited<ReturnType<typeof searchEvents>>['query'] | null = null;
+  if (route.useSearchEvents) {
+    try {
+      const result = await searchEvents(supabase, message, payload.city ?? null, 8);
+      candidateEvents = result.events;
+      searchMeta = result.query;
+    } catch (searchErr) {
+      console.log('[lumia-chat] search_events failed', searchErr);
+    }
+  }
 
-    const { data: rows, error: eventsError } = await supabase
-      .from('events')
-      .select('id,title,description,city,address,category,starts_at,status')
-      .eq('status', 'published')
-      .or(orFilter)
-      .limit(40);
-
-    if (eventsError) {
-      console.log('[lumia-chat] events query error', eventsError);
-    } else if (Array.isArray(rows)) {
-      candidateEvents = (rows as EventRow[])
-        .map((event) => ({ event, score: scoreEvent(event, queryTokens) }))
-        .filter((row) => row.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 8)
-        .map((row) => row.event);
+  // If we skipped RAG but search returned nothing and message looks like usage, fetch docs as fallback
+  if (!docHits.length && !candidateEvents.length && !route.useAppHelp) {
+    try {
+      docHits = await runAppHelp(supabase, message);
+    } catch {
+      // ignore
     }
   }
 
@@ -294,34 +272,12 @@ serve(async (req) => {
     starts_at: e.starts_at,
   }));
 
-  const docsBlock = formatRagForPrompt(docHits);
-
-  const systemPrompt = `Tu es Lumia, assistante de Moments Locaux (France). Tutoiement, ton clair.
-
-Tu es un LLM ancré sur une BASE DOCUMENTAIRE (extraits fournis) + une liste d’événements publiés.
-RÈGLES DURES :
-1) Réponds UNIQUEMENT à partir des extraits documentaires et/ou des events fournis.
-2) N’invente aucun prix, event, id, ni règle absente des extraits.
-3) Juridique / RGPD : oriente vers les parcours cités dans les docs ; pas de conseil juridique.
-4) Partenaire / Diffuseur / pro / collaboration B2B :
-   - Vocabulaire public validé : **Moments Partenaire** (accueillir, attention) vs **Moments Diffuseur** (publier des événements). Cumulables.
-   - Moments Partenaire ≠ régie pub ≠ coupons génériques (cf. extraits site).
-   - Ouverture espaces pro : après lancement app ; candidature dès maintenant via hello@moments-locaux.com.
-   - Ne pas inventer tarifs, quotas ou parcours in-app pro si extraits disent flag off / ouverture future.
-   - Pass Lumo in-app = côté habitant ; ne remplace pas le discours B2B Moments Partenaire.
-5) Hors sujet → refuse et recentre.
-6) Pas de billetterie.
-
-Français, max ~120 mots.
-JSON STRICT unique :
-{"text":"...","event_ids":["uuid",...]}
-event_ids ⊆ events fournis, sinon [].`;
-
   const userPrompt = JSON.stringify({
     message,
-    documentary_excerpts: docsBlock,
-    events: catalogForPrompt,
-    city: payload.city ?? null,
+    tool_app_help: formatRagForPrompt(docHits),
+    tool_search_events: catalogForPrompt,
+    search_meta: searchMeta,
+    city_hint: payload.city ?? null,
   });
 
   let openaiText = '';
@@ -337,7 +293,7 @@ event_ids ⊆ events fournis, sinon [].`;
         temperature: 0.2,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: buildLumiaSystemPrompt() },
           { role: 'user', content: userPrompt },
         ],
       }),
@@ -362,13 +318,16 @@ event_ids ⊆ events fournis, sinon [].`;
     );
   }
 
-  let parsed: { text?: string; event_ids?: string[] } = {};
+  let parsed: { text?: string; event_ids?: string[]; actions?: unknown } = {};
   try {
     parsed = JSON.parse(openaiText);
   } catch {
     parsed = {
-      text: docHits[0]?.content?.slice(0, 400) ?? 'Je n’ai pas compris. Reformule ta question.',
+      text:
+        docHits[0]?.content?.slice(0, 400) ??
+        'Je n’ai pas compris. Reformule : question sur l’app, ou un moment / une ville.',
       event_ids: [],
+      actions: [],
     };
   }
 
@@ -377,10 +336,12 @@ event_ids ⊆ events fournis, sinon [].`;
     ? parsed.event_ids.filter((id) => typeof id === 'string' && allowed.has(id)).slice(0, 5)
     : [];
 
+  const actions = filterLumiaActions(parsed.actions);
+
   const text =
     typeof parsed.text === 'string' && parsed.text.trim()
       ? parsed.text.trim()
-      : 'Je n’ai pas trouvé d’extrait documentaire assez proche. Reformule ou ouvre Paramètres / la carte.';
+      : 'Je n’ai pas trouvé d’info assez proche. Reformule ou ouvre Paramètres / la carte.';
 
   const events = candidateEvents
     .filter((e) => eventIds.includes(e.id))
@@ -393,16 +354,27 @@ event_ids ⊆ events fournis, sinon [].`;
       status: e.status,
     }));
 
+  // Auto-chip for each returned event if model forgot actions
+  for (const e of events) {
+    const href = `/events/${e.id}`;
+    if (!actions.some((a) => a.href === href) && actions.length < 3) {
+      actions.push({ href, label: e.title.slice(0, 48) });
+    }
+  }
+
   return jsonResponse({
     ok: true,
     text,
     event_ids: eventIds,
     events,
+    actions,
+    route,
     rag: {
       model: RAG_PACK.model,
       chunk_ids: docHits.map((h) => h.id),
       scores: docHits.map((h) => Number(h.score.toFixed(3))),
     },
+    search_meta: searchMeta,
     quota: {
       limit: MONTHLY_QUOTA,
       remaining: quotaRemaining,

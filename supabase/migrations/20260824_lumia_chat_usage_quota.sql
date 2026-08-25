@@ -1,5 +1,5 @@
--- SCRUM-103 — Lumia chat monthly quota (draft — do NOT apply without human validation)
--- Tracks authenticated user requests per calendar month (UTC).
+-- SCRUM-103 — Lumia chat monthly quota (20/user/calendar month UTC)
+-- Written only by Edge Function lumia-chat (service role).
 
 create table if not exists public.lumia_chat_usage (
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -11,6 +11,9 @@ create table if not exists public.lumia_chat_usage (
 
 alter table public.lumia_chat_usage enable row level security;
 
--- No client policies: only service role (Edge Function) reads/writes usage.
+-- Defense in depth: no Data API access for clients (Edge uses service role).
+revoke all on table public.lumia_chat_usage from anon, authenticated;
+grant all on table public.lumia_chat_usage to service_role;
+
 comment on table public.lumia_chat_usage is
-  'Lumia chatbot monthly request counters; written by Edge Function lumia-chat only.';
+  'Lumia chatbot monthly request counters (default limit 20/user/month UTC); written by Edge Function lumia-chat only.';

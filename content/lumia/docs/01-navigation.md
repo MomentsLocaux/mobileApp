@@ -10,8 +10,10 @@ Moments Locaux est une app de **découverte locale** de moments (événements) p
 
 ## Barre du bas (onglets)
 
+Pour **ouvrir la carte** : tape l’onglet **Carte** dans la barre du bas, ou ouvre [la Carte](/(tabs)/map). C’est l’écran carte / map de Moments Locaux.
+
 - **Accueil** — fil / liste des moments, filtres dates et thèmes, accès recherche et cloche notifications.
-- **Carte** — moments sur le territoire (Mapbox), filtres, tap sur un pin pour le détail, liste en bas (poignée).
+- **Carte** — moments sur le territoire (Mapbox), filtres, tap sur un pin pour le détail, liste en bas (poignée). Comment aller sur la carte ? Onglet Carte en bas.
 - **Propositions** (baguette) — idées à explorer en swipe (garder, passer, ouvrir). Ce n’est pas un achat de places.
 - **Favoris** (cœur) — moments sauvegardés via le cœur sur une carte ou une fiche.
 - **Profil / menu** (icône en bas à droite) — profil, paramètres, membres (si activé), déconnexion, bug / support.

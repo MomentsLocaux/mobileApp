@@ -17,6 +17,9 @@ import { EventsService } from '@/services/events.service';
 import type { EventWithCreator } from '@/types/database';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AppBackground, EventCardSkeleton, ScreenHeader } from '@/components/ui';
+import { features } from '@/config/features';
+import { labelForSubmissionSource } from '@/types/event-submission';
+import type { EventSubmissionSource } from '@/types/event-submission';
 
 type StatusMeta = {
   label: string;
@@ -153,7 +156,10 @@ export default function MyEventsScreen() {
     <View style={styles.safe}>
       <AppBackground />
       <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
-        <ScreenHeader title="Mes évènements" onBack={() => router.back()} />
+        <ScreenHeader
+          title={features.eventSuggest && features.eventCreate ? 'Mes contributions' : 'Mes événements'}
+          onBack={() => router.back()}
+        />
 
         {loading && !refreshing ? (
           <View style={styles.skeletonWrap}>
@@ -167,7 +173,11 @@ export default function MyEventsScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />}
             ListEmptyComponent={
               <View style={styles.centerState}>
-                <Text style={styles.centerText}>Aucun évènement créé.</Text>
+                <Text style={styles.centerText}>
+                  {features.eventSuggest && !features.eventCreate
+                    ? 'Aucune proposition pour le moment.'
+                    : 'Aucun événement pour le moment.'}
+                </Text>
               </View>
             }
             renderItem={({ item }) => {
@@ -176,7 +186,10 @@ export default function MyEventsScreen() {
               const isEditable = item.status === 'draft' || item.status === 'refused';
               const isRefused = item.status === 'refused';
               const refusalReason = item.refusal_reason?.trim() || null;
-              const editHref = `/events/create/step-1?edit=${item.id}`;
+              const editHref = `/events/create?edit=${item.id}`;
+              const source = (item.submission_source ?? 'organizer_create') as EventSubmissionSource;
+              const sourceLabel = labelForSubmissionSource(source);
+              const showSourceBadge = features.eventSuggest;
 
               return (
                 <TouchableOpacity
@@ -186,7 +199,7 @@ export default function MyEventsScreen() {
                   }
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel={`${item.title || 'Sans titre'}, ${statusMeta.label}`}
+                  accessibilityLabel={`${item.title || 'Sans titre'}, ${sourceLabel}, ${statusMeta.label}`}
                 >
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
@@ -196,6 +209,19 @@ export default function MyEventsScreen() {
                       <Text style={[styles.statusText, { color: statusMeta.textColor }]}>{statusMeta.label}</Text>
                     </View>
                   </View>
+
+                  {showSourceBadge ? (
+                    <View
+                      style={[
+                        styles.sourceBadge,
+                        source === 'community_suggest'
+                          ? styles.sourceBadgeSuggest
+                          : styles.sourceBadgeOrganize,
+                      ]}
+                    >
+                      <Text style={styles.sourceBadgeText}>{sourceLabel}</Text>
+                    </View>
+                  ) : null}
 
                   <View style={styles.metaRow}>
                     <MapPin size={14} color={colors.brand.textSecondary} />
@@ -276,6 +302,24 @@ const styles = StyleSheet.create({
   statusText: {
     ...typography.caption,
     fontWeight: '700',
+  },
+  sourceBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    marginBottom: 2,
+  },
+  sourceBadgeOrganize: {
+    backgroundColor: 'rgba(124, 181, 24, 0.15)',
+  },
+  sourceBadgeSuggest: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+  },
+  sourceBadgeText: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.brand.text,
   },
   metaRow: {
     flexDirection: 'row',

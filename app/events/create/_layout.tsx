@@ -1,9 +1,9 @@
 import { Stack } from 'expo-router';
-import { FeatureGate } from '@/components/FeatureGate';
+import { EventFormLayoutGate } from '@/components/identity/EventFormLayoutGate';
 
 export default function EventCreateLayout() {
   return (
-    <FeatureGate flag="eventCreate">
+    <EventFormLayoutGate>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="step-1" />
@@ -11,6 +11,6 @@ export default function EventCreateLayout() {
         <Stack.Screen name="step-3" />
         <Stack.Screen name="preview" />
       </Stack>
-    </FeatureGate>
+    </EventFormLayoutGate>
   );
 }

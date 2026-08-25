@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,14 +12,16 @@ import {
   View,
 } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
-import { Sparkles } from 'lucide-react-native';
 import { AppBackground, ScreenHeader } from '@/components/ui';
+import { LumiaRichText } from '@/components/lumia/LumiaRichText';
 import { features } from '@/config/features';
-import { LUMIA_NAME } from '@/constants/lumia';
+import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
+import { isAllowedLumiaHref } from '@/constants/lumia-deeplinks';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import {
   askLumia,
   LUMIA_CHAT_WELCOME,
+  type LumiaAction,
   type LumiaChatReply,
 } from '@/services/lumia-chat.service';
 import type { EventWithCreator } from '@/types/database';
@@ -28,6 +31,7 @@ type ChatMessage = {
   role: 'lumia' | 'user';
   text: string;
   events?: EventWithCreator[];
+  actions?: LumiaAction[];
 };
 
 const INITIAL: ChatMessage[] = [
@@ -40,6 +44,19 @@ export default function LumiaChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [quota, setQuota] = useState<{
+    limit: number;
+    remaining: number | null;
+    period: string;
+  } | null>(null);
+
+  const openHref = useCallback(
+    (href: string) => {
+      if (!isAllowedLumiaHref(href)) return;
+      router.push(href as any);
+    },
+    [router],
+  );
 
   const send = useCallback(async () => {
     const text = draft.trim();
@@ -50,6 +67,9 @@ export default function LumiaChatScreen() {
     setBusy(true);
     try {
       const reply: LumiaChatReply = await askLumia(text);
+      if (reply.quota) {
+        setQuota(reply.quota);
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -57,6 +77,7 @@ export default function LumiaChatScreen() {
           role: 'lumia',
           text: reply.text,
           events: reply.events,
+          actions: reply.actions,
         },
       ]);
     } catch {
@@ -72,6 +93,13 @@ export default function LumiaChatScreen() {
       setBusy(false);
     }
   }, [busy, draft]);
+
+  const quotaLabel =
+    quota && typeof quota.remaining === 'number'
+      ? quota.remaining === 0
+        ? `Quota atteint (${quota.limit}/mois)`
+        : `${quota.remaining} message${quota.remaining > 1 ? 's' : ''} restant${quota.remaining > 1 ? 's' : ''} ce mois`
+      : null;
 
   if (!features.lumiaChat) {
     return <Redirect href="/(tabs)" />;
@@ -96,18 +124,39 @@ export default function LumiaChatScreen() {
             <View style={[styles.bubble, item.role === 'user' ? styles.bubbleUser : styles.bubbleLumia]}>
               {item.role === 'lumia' ? (
                 <View style={styles.lumiaTag}>
-                  <Sparkles size={12} color={colors.brand.secondary} />
+                  <Image source={LUMIA_AVATAR_LOCAL} style={styles.lumiaTagAvatar} />
                   <Text style={styles.lumiaTagText}>{LUMIA_NAME}</Text>
                 </View>
               ) : null}
-              <Text style={item.role === 'user' ? styles.bubbleUserText : styles.bubbleText}>
-                {item.text}
-              </Text>
+              {item.role === 'lumia' ? (
+                <LumiaRichText style={styles.bubbleText} onLinkPress={openHref}>
+                  {item.text}
+                </LumiaRichText>
+              ) : (
+                <Text style={styles.bubbleUserText}>{item.text}</Text>
+              )}
+              {item.actions?.length ? (
+                <View style={styles.actionsRow}>
+                  {item.actions.map((action) => (
+                    <Pressable
+                      key={action.href}
+                      style={styles.actionChip}
+                      onPress={() => openHref(action.href)}
+                      accessibilityRole="button"
+                      accessibilityLabel={action.label}
+                    >
+                      <Text style={styles.actionChipText} numberOfLines={1}>
+                        {action.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
               {item.events?.map((event) => (
                 <Pressable
                   key={event.id}
                   style={styles.eventChip}
-                  onPress={() => router.push(`/events/${event.id}` as any)}
+                  onPress={() => openHref(`/events/${event.id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`Ouvrir ${event.title}`}
                 >
@@ -124,34 +173,40 @@ export default function LumiaChatScreen() {
             </View>
           )}
         />
-        <View style={styles.composer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex. comment ouvrir la carte, ou concert à Lyon"
-            placeholderTextColor={colors.brand.textSecondary}
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={() => {
-              void send();
-            }}
-            returnKeyType="send"
-            editable={!busy}
-          />
-          <Pressable
-            style={[styles.send, (!draft.trim() || busy) && styles.sendDisabled]}
-            onPress={() => {
-              void send();
-            }}
-            disabled={!draft.trim() || busy}
-            accessibilityRole="button"
-            accessibilityLabel="Envoyer"
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.brand.onAccent} size="small" />
-            ) : (
-              <Text style={styles.sendText}>OK</Text>
-            )}
-          </Pressable>
+        <View style={styles.composerWrap}>
+          {quotaLabel ? <Text style={styles.quotaHint}>{quotaLabel}</Text> : null}
+          <View style={styles.composer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex. comment ouvrir la carte, ou concert à Lyon"
+              placeholderTextColor={colors.brand.textSecondary}
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={() => {
+                void send();
+              }}
+              returnKeyType="send"
+              editable={!busy && quota?.remaining !== 0}
+            />
+            <Pressable
+              style={[
+                styles.send,
+                (!draft.trim() || busy || quota?.remaining === 0) && styles.sendDisabled,
+              ]}
+              onPress={() => {
+                void send();
+              }}
+              disabled={!draft.trim() || busy || quota?.remaining === 0}
+              accessibilityRole="button"
+              accessibilityLabel="Envoyer"
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.brand.onAccent} size="small" />
+              ) : (
+                <Text style={styles.sendText}>OK</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -189,7 +244,29 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   lumiaTag: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  lumiaTagAvatar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
   lumiaTagText: { ...typography.caption, color: colors.brand.textSecondary, fontWeight: '600' },
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  actionChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.brand.secondary,
+  },
+  actionChipText: {
+    ...typography.caption,
+    color: colors.brand.onAccent,
+    fontWeight: '700',
+  },
   eventChip: {
     marginTop: spacing.xs,
     padding: spacing.sm,
@@ -198,10 +275,19 @@ const styles = StyleSheet.create({
   },
   eventChipTitle: { ...typography.bodySmall, color: colors.brand.text, fontWeight: '600' },
   eventChipMeta: { ...typography.caption, color: colors.brand.textSecondary },
+  composerWrap: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  quotaHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+  },
   composer: {
     flexDirection: 'row',
     gap: spacing.sm,
-    padding: spacing.md,
     alignItems: 'center',
   },
   input: {

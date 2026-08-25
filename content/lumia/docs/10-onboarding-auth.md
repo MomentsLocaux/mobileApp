@@ -33,4 +33,6 @@ Paramètres → Confidentialité & données → Supprimer mon compte (voir fiche
 
 ## Lumia et le compte
 
-Lumia ne crée pas de compte, ne réinitialise pas de mot de passe, ne supprime pas de compte. Elle indique les écrans prévus.
+Lumia ne crée pas de compte, ne change **pas** l’email, ne réinitialise pas de mot de passe, ne supprime pas de compte. Elle indique uniquement les écrans réellement disponibles.
+
+**Changement d’email :** impossible in-app en MVP. Orienter vers hello@moments-locaux.com si besoin.

@@ -11,6 +11,7 @@ import type {
   RecommendationEvent,
   UserSubscription,
 } from '@/types/discovery.types';
+import type { EventSubmissionSource } from '@/types/event-submission';
 
 export type Json =
   | string
@@ -259,6 +260,8 @@ export interface Profile {
 export interface Event {
   id: string;
   creator_id: string;
+  /** organizer_create | community_suggest — see migration 20260825_events_submission_source.sql */
+  submission_source?: EventSubmissionSource;
   title: string;
   description: string;
   category: string | null;

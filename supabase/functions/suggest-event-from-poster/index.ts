@@ -24,7 +24,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_EVENT_SUGGEST_MODEL') ?? 'gpt-4o-mini';
-const MONTHLY_QUOTA = Number(Deno.env.get('EVENT_SUGGEST_MONTHLY_QUOTA') ?? '10');
+const MONTHLY_QUOTA = Number(Deno.env.get('EVENT_SUGGEST_MONTHLY_QUOTA') ?? '20');
 const MAX_BASE64_CHARS = 6_000_000; // ~4.5 MB binary
 
 const corsHeaders = {
@@ -265,13 +265,18 @@ serve(async (req) => {
     if (!openaiRes.ok) {
       const errBody = await openaiRes.text();
       console.log('[suggest-event-from-poster] openai error', openaiRes.status, errBody.slice(0, 500));
+      const isUnsupportedFormat =
+        openaiRes.status === 400 &&
+        /invalid_image_format|unsupported image|image format/i.test(errBody);
       return jsonResponse(
         {
           ok: false,
-          code: 'service_error',
-          message: 'Analyse indisponible pour le moment. Réessaie ou saisis manuellement.',
+          code: isUnsupportedFormat ? 'image_unreadable' : 'service_error',
+          message: isUnsupportedFormat
+            ? 'Format d’image non supporté. Réessaie avec une photo JPEG/PNG, ou saisis manuellement.'
+            : 'Analyse indisponible pour le moment. Réessaie ou saisis manuellement.',
         },
-        502,
+        isUnsupportedFormat ? 400 : 502,
       );
     }
 

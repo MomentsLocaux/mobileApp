@@ -54,6 +54,9 @@ export const useImagePicker = (): UseImagePickerResult => {
         allowsEditing: options?.allowsEditing ?? true,
         aspect: options?.aspect,
         quality: 0.8,
+        // Prefer JPEG/PNG on iOS instead of HEIC when the OS can convert.
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode?.Compatible,
       });
 
       if (result.canceled || !result.assets?.length) return null;
@@ -106,6 +109,8 @@ export const useImagePicker = (): UseImagePickerResult => {
         allowsEditing: options?.allowsEditing ?? true,
         aspect: options?.aspect,
         quality: 0.8,
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode?.Compatible,
       });
 
       if (result.canceled || !result.assets?.length) return null;

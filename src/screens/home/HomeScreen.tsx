@@ -10,13 +10,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Search, Sparkles } from 'lucide-react-native';
+import { Bell, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useLocation } from '@/hooks';
+import { useLumiaTourTarget } from '@/hooks/useLumiaTourTarget';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useDiscoveryFiltersStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
+import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
@@ -109,6 +111,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { canCreateNow, accent } = useAccountIdentity();
+  const headerProfileTour = useLumiaTourTarget('headerProfile');
+  const headerChatTour = useLumiaTourTarget(features.lumiaChat ? 'headerChat' : undefined);
+  const headerNotificationsTour = useLumiaTourTarget('headerNotifications');
   const {
     currentLocation,
     isLoading: locationLoading,
@@ -626,23 +631,29 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { marginTop: insets.top }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile')}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Ouvrir mon profil"
+          <View
+            ref={headerProfileTour.ref}
+            collapsable={false}
+            onLayout={headerProfileTour.onLayout}
           >
-            <View style={styles.headerAvatarContainer}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatar} />
-              ) : (
-                <View style={[styles.headerAvatar, { backgroundColor: colors.brand.secondary }]} />
-              )}
-              <View style={styles.headerAvatarIcon}>
-                <Image source={require('../../../assets/images/icon.png')} style={{ width: 12, height: 12 }} />
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/profile')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Ouvrir mon profil"
+            >
+              <View style={styles.headerAvatarContainer}>
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatar} />
+                ) : (
+                  <View style={[styles.headerAvatar, { backgroundColor: colors.brand.secondary }]} />
+                )}
+                <View style={styles.headerAvatarIcon}>
+                  <Image source={require('../../../assets/images/icon.png')} style={{ width: 12, height: 12 }} />
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerSubtitle}>{greeting}</Text>
@@ -651,28 +662,44 @@ export default function HomeScreen() {
 
           <View style={styles.headerActions}>
             {features.lumiaChat ? (
+              <View
+                ref={headerChatTour.ref}
+                collapsable={false}
+                onLayout={headerChatTour.onLayout}
+              >
+                <TouchableOpacity
+                  style={[styles.notificationBtn, styles.lumiaHeaderBtn]}
+                  onPress={() => router.push('/lumia-chat' as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Parler à ${LUMIA_NAME}`}
+                >
+                  <Image
+                    source={LUMIA_AVATAR_LOCAL}
+                    style={styles.lumiaHeaderAvatar}
+                    accessibilityIgnoresInvertColors
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <View
+              ref={headerNotificationsTour.ref}
+              collapsable={false}
+              onLayout={headerNotificationsTour.onLayout}
+            >
               <TouchableOpacity
                 style={styles.notificationBtn}
-                onPress={() => router.push('/lumia-chat' as any)}
+                onPress={() => router.push('/notifications' as any)}
                 accessibilityRole="button"
-                accessibilityLabel="Parler à Lumia"
+                accessibilityLabel={
+                  unreadNotifications > 0
+                    ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? 's' : ''}`
+                    : 'Notifications'
+                }
               >
-                <Sparkles size={20} color={colors.brand.secondary} />
+                <Bell size={20} color={colors.brand.secondary} />
+                {unreadNotifications > 0 ? <View style={styles.notificationBadge} /> : null}
               </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={styles.notificationBtn}
-              onPress={() => router.push('/notifications' as any)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                unreadNotifications > 0
-                  ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? 's' : ''}`
-                  : 'Notifications'
-              }
-            >
-              <Bell size={20} color={colors.brand.secondary} />
-              {unreadNotifications > 0 ? <View style={styles.notificationBadge} /> : null}
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -854,6 +881,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
+  },
+  lumiaHeaderBtn: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  lumiaHeaderAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   notificationBadge: {
     position: 'absolute',

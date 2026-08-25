@@ -54,11 +54,14 @@ export async function embedQuery(
   return json.data[0].embedding as number[];
 }
 
+/** Similarité cosinus : <0.32 bruit, ~0.38+ usage court OK, ~0.45+ fort. 0.25 trop bas (hello→Partenaire). */
+export const RAG_MIN_SCORE = 0.38;
+
 export function retrieveByEmbedding(
   pack: RagPack,
   queryEmbedding: number[],
   limit = 6,
-  minScore = 0.25,
+  minScore = RAG_MIN_SCORE,
 ): Array<RagChunk & { score: number }> {
   return pack.chunks
     .map((chunk) => ({

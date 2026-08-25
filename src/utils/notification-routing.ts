@@ -75,7 +75,7 @@ export function resolveNotificationRoute(
   }
 
   if (type === 'event_refused' || type === 'event_request_changes' || type === 'event_published') {
-    return features.eventCreate ? { href: '/profile/my-events' } : inbox();
+    return features.eventCreate || features.eventSuggest ? { href: '/profile/my-events' } : inbox();
   }
 
   if (

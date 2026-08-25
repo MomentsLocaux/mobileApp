@@ -21,8 +21,7 @@ export function useLumiaTour() {
     () =>
       buildLumiaTourSteps({
         isProfessionnel: accountKind === 'professionnel',
-        eventCreate: features.eventCreate,
-        socialPeers: features.socialPeers,
+        lumiaChat: features.lumiaChat,
       }),
     [accountKind],
   );

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import type { PosterExtractFailure, PosterExtractResult, PosterExtractSuccess } from '@/types/poster-extract';
+import { normalizePosterImageForVision } from '@/utils/normalize-poster-image';
 
 const EDGE_FUNCTION = 'suggest-event-from-poster';
 const POSTER_UPLOAD_BUCKET = 'event-media';
@@ -9,24 +10,21 @@ export type UploadPosterImageResult = {
   publicUrl: string;
 };
 
-/** Upload poster image to Storage (reused as event cover). */
+/** Upload poster image to Storage as JPEG (reused as event cover). */
 export async function uploadPosterImage(
   userId: string,
   localUri: string,
-  mimeType?: string,
+  _mimeType?: string,
 ): Promise<UploadPosterImageResult> {
-  const response = await fetch(localUri);
+  // Always JPEG: OpenAI vision rejects HEIC and other non-listed formats.
+  const normalized = await normalizePosterImageForVision(localUri);
+  const response = await fetch(normalized.uri);
   const arrayBuffer = await response.arrayBuffer();
-  const ext = localUri.split('.').pop()?.split('?')[0] || 'jpg';
-  const fileName = `poster-${Date.now()}.${ext}`;
+  const fileName = `poster-${Date.now()}.${normalized.ext}`;
   const filePath = `event-covers/${userId}/${fileName}`;
-  const contentType =
-    mimeType ||
-    response.headers.get('content-type') ||
-    (ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg');
 
   const { error: uploadError } = await supabase.storage.from(POSTER_UPLOAD_BUCKET).upload(filePath, arrayBuffer, {
-    contentType,
+    contentType: normalized.mimeType,
     upsert: true,
   });
   if (uploadError) throw uploadError;

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { EventSubmissionSource } from '@/types/event-submission';
 import type {
   EventScheduleModeMobile,
   EventTimeSlot,
@@ -11,7 +12,7 @@ type CoverImage = {
 };
 
 export type GalleryImage = {
-  id?: string; // DB id if existing
+  id?: string;
   storagePath: string;
   publicUrl: string;
   status: 'existing' | 'added' | 'removed';
@@ -48,6 +49,9 @@ interface CreateEventState {
   scheduleFixedSlots: EventTimeSlot[];
   scheduleVariableDays: VariableSchedules;
   privateAudienceIds: string[];
+  /** Intent at publish time → events.submission_source */
+  submissionSource: EventSubmissionSource;
+  setSubmissionSource: (source: EventSubmissionSource) => void;
   setCoverImage: (img: CoverImage | undefined) => void;
   setTitle: (title: string) => void;
   setStartDate: (date?: string) => void;
@@ -96,10 +100,12 @@ const initialState = {
   scheduleFixedSlots: [{ start: '09:00', end: '18:00' }] as EventTimeSlot[],
   scheduleVariableDays: {} as VariableSchedules,
   privateAudienceIds: [] as string[],
+  submissionSource: 'organizer_create' as EventSubmissionSource,
 };
 
 export const useCreateEventStore = create<CreateEventState>((set) => ({
   ...initialState,
+  setSubmissionSource: (submissionSource) => set({ submissionSource }),
   setCoverImage: (coverImage) => set({ coverImage }),
   setTitle: (title) => set({ title }),
   setStartDate: (startDate) => set({ startDate }),

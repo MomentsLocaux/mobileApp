@@ -10,13 +10,15 @@ category: usage
 
 Menu profil (bas droite) → voir son profil public.
 
-**Modifier le profil** : Paramètres → Modifier le profil (nom, photo, bio, etc.).
+**Modifier le profil** : [Modifier le profil](/profile/edit) — nom d’affichage, photo, bio, etc.
+
+**Email :** l’adresse email du compte est **fixe** dans l’app MVP. Il n’existe **pas** d’écran pour changer d’email. Ne jamais indiquer qu’on peut « modifier l’email » dans Paramètres. En cas de besoin (perte d’accès, erreur de saisie à l’inscription) : contacter **hello@moments-locaux.com**.
 
 ## Paramètres (menu profil → Paramètres)
 
 Sections principales :
 
-- **Compte** — modifier le profil, rejouer l’onboarding.
+- **Compte** — modifier le profil (pas l’email), rejouer l’onboarding.
 - **Notifications** — Gérer les notifications (fréquence, thèmes, proximité, activité sociale…).
 - **Autorisations** — Gérer les autorisations de l’application (localisation, notifications push, etc.).
 - **Confidentialité & données** — politique de confidentialité, suppression de compte.

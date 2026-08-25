@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send, Sparkles } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
@@ -27,10 +27,9 @@ import { getProfileIdentityLabel } from '../../src/utils/roleHelpers';
 import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { useDiffuseur } from '@/hooks/useDiffuseur';
-import { profileCanCreate } from '@/utils/accountIdentity';
 import { DIFFUSEUR_PLANS } from '@/constants/diffuseur';
-import Toast from 'react-native-toast-message';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -42,10 +41,10 @@ export default function ProfileScreen() {
     savingMode,
     setActiveMode,
     accent,
-    canCreate,
     accountKind,
   } = useAccountIdentity();
   const { organization, entitlements, plan, memberCount, loading: diffuseurLoading } = useDiffuseur();
+  const { showPosterSuggestDrawer, showMyEvents, routes } = useEventPublishSurfaces();
   const isProfessionnelAccount = accountKind === 'professionnel';
   const isGuest = !session;
 
@@ -86,14 +85,6 @@ export default function ProfileScreen() {
   };
 
   const handleViewMyEvents = () => {
-    if (!profileCanCreate(profile)) {
-      Toast.show({
-        type: 'info',
-        text1: 'Mes événements',
-        text2: 'Disponible si vous activez la création sur votre profil Particulier.',
-      });
-      return;
-    }
     router.push('/profile/my-events' as any);
   };
 
@@ -297,7 +288,20 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             )}
-            {canCreate ? (
+            {showPosterSuggestDrawer && !isProfessionnelAccount ? (
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() =>
+                  router.push(`${routes.posterSuggest}?source=community_suggest` as any)
+                }
+              >
+                <Sparkles size={18} color={accent.accent} />
+                <Text style={[styles.linkText, { color: accent.accent }]}>
+                  Proposer depuis une affiche
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {showMyEvents ? (
               <TouchableOpacity style={styles.linkButton} onPress={handleViewMyEvents}>
                 <Calendar size={18} color={accent.accent} />
                 <Text style={[styles.linkText, { color: accent.accent }]}>Mes événements</Text>

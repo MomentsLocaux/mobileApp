@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Simulate Lumia reply (same RAG + LLM as Edge Function, no auth/events DB).
+ * Simulate Lumia reply (ADR 008: prompt + RAG app_help, no DB events).
  * Usage: node scripts/test-lumia-query.mjs "ta question"
  */
 import fs from 'node:fs';
@@ -12,6 +12,15 @@ const ROOT = path.resolve(__dirname, '..');
 const RAG_FILE = path.join(ROOT, 'supabase/functions/lumia-chat/rag-chunks.json');
 const MODEL = process.env.OPENAI_LUMIA_MODEL || 'gpt-4o-mini';
 const EMBED_MODEL = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
+const MIN_SCORE = 0.38;
+
+const SYSTEM_PROMPT = `Tu es Lumia, assistante de Moments Locaux (France). Tutoiement, ton clair et utile.
+Tu réponds UNIQUEMENT à partir de tool_app_help (extraits) et tool_search_events (ici vide en simu locale).
+RÈGLES : réponds à la question ; n’évoque un sujet QUE s’il est dans les extraits ; n’invente rien ; pas de billetterie ; hors sujet → refuse.
+En MVP on ne change PAS l’email in-app. Si la question porte sur l’email : dis que c’est impossible in-app et oriente hello@moments-locaux.com.
+Quand tu cites un écran réellement utile, utilise un lien Markdown [libellé](href) depuis : [CGU](/settings/legal/cgu), [Confidentialité](/settings/privacy/policy), [Supprimer mon compte](/settings/privacy/delete), [Carte](/(tabs)/map), [Paramètres](/settings), [Modifier le profil](/profile/edit).
+actions = [] sauf si tu ouvres vraiment l’écran cité.
+JSON STRICT: {"text":"...","event_ids":[],"actions":[]}`;
 
 function loadEnv() {
   const envPath = path.join(ROOT, '.env');
@@ -30,7 +39,9 @@ function loadEnv() {
 }
 
 function cosine(a, b) {
-  let dot = 0, na = 0, nb = 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     na += a[i] * a[i];
@@ -56,6 +67,13 @@ async function embed(apiKey, text) {
   return (await res.json()).data[0].embedding;
 }
 
+function routeLocal(message) {
+  const GREETING_RE =
+    /^(hello|hi|hey|yo|hola|bonjour|bonsoir|salut|coucou|hey\s+lumia|salut\s+lumia|bonjour\s+lumia)([\s!.?…]*)?$/i;
+  if (GREETING_RE.test(message.trim())) return { isGreeting: true, useAppHelp: false };
+  return { isGreeting: false, useAppHelp: true };
+}
+
 async function main() {
   loadEnv();
   const message = process.argv.slice(2).join(' ').trim();
@@ -69,23 +87,36 @@ async function main() {
     process.exit(1);
   }
 
+  const route = routeLocal(message);
+  if (route.isGreeting) {
+    console.log(
+      JSON.stringify(
+        {
+          question: message,
+          text: 'Salut ! Content de te voir. Tu cherches un moment près de chez toi, ou tu as une question sur l’app ? Je t’écoute.',
+          event_ids: [],
+          sources: [],
+          route,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
   const pack = JSON.parse(fs.readFileSync(RAG_FILE, 'utf8'));
   const queryEmb = await embed(apiKey, message);
   const hits = pack.chunks
     .map((c) => ({ ...c, score: cosine(queryEmb, c.embedding) }))
-    .filter((c) => c.score >= 0.25)
+    .filter((c) => c.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
 
-  const systemPrompt = `Tu es Lumia, assistante de Moments Locaux (France). Tutoiement, ton clair.
-Tu réponds UNIQUEMENT à partir des extraits documentaires et/ou events fournis. N'invente rien.
-Partenaire/Diffuseur/pro : distinguer Pass IRL vs Diffuseur orga ; si tarifs/contrat absents → hello@moments-locaux.com.
-JSON STRICT: {"text":"...","event_ids":[]}`;
-
   const userPrompt = JSON.stringify({
     message,
-    documentary_excerpts: formatRag(hits),
-    events: [],
+    tool_app_help: formatRag(hits),
+    tool_search_events: [],
   });
 
   const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -96,7 +127,7 @@ JSON STRICT: {"text":"...","event_ids":[]}`;
       temperature: 0.2,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
     }),
@@ -104,12 +135,20 @@ JSON STRICT: {"text":"...","event_ids":[]}`;
   if (!chatRes.ok) throw new Error(await chatRes.text());
   const parsed = JSON.parse((await chatRes.json()).choices[0].message.content);
 
-  console.log(JSON.stringify({
-    question: message,
-    text: parsed.text,
-    event_ids: parsed.event_ids || [],
-    sources: hits.map((h) => ({ id: h.id, score: Number(h.score.toFixed(3)) })),
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        question: message,
+        text: parsed.text,
+        event_ids: parsed.event_ids || [],
+        actions: parsed.actions || [],
+        sources: hits.map((h) => ({ id: h.id, score: Number(h.score.toFixed(3)) })),
+        route,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 main().catch((e) => {

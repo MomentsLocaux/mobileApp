@@ -1,12 +1,19 @@
 import { LUMIA_NAME } from '@/constants/lumia';
+import {
+  isAllowedLumiaHref,
+  normalizeLumiaHref,
+} from '@/constants/lumia-deeplinks';
 import { supabase } from '@/lib/supabase/client';
 import { EventsService } from '@/services/events.service';
 import { lumiaFeatureFlagsForApi, matchAppHelp } from '@/services/lumia-help';
 import type { EventWithCreator } from '@/types/database';
 
+export type LumiaAction = { href: string; label: string };
+
 export type LumiaChatReply = {
   text: string;
   events: EventWithCreator[];
+  actions?: LumiaAction[];
   quota?: { limit: number; remaining: number | null; period: string } | null;
 };
 
@@ -14,6 +21,7 @@ type LumiaChatEdgeSuccess = {
   ok: true;
   text: string;
   event_ids?: string[];
+  actions?: LumiaAction[];
   quota?: { limit: number; remaining: number | null; period: string };
 };
 
@@ -77,6 +85,18 @@ function tokens(query: string): string[] {
     .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
 }
 
+const GREETING_RE =
+  /^(hello|hi|hey|yo|hola|bonjour|bonsoir|salut|coucou|hey\s+lumia|salut\s+lumia|bonjour\s+lumia)([\s!.?…]*)?$/i;
+
+export const LUMIA_CHAT_WELCOME = `Salut, je suis ${LUMIA_NAME} ! Dis-moi ce que tu cherches près de chez toi, ou pose-moi une question sur l’app — carte, favoris, compte… Je suis là pour t’aider.`;
+
+const GREETING_REPLY =
+  `Salut ! Content de te voir. Tu cherches un moment près de chez toi, ou tu as une question sur l’app ? Je t’écoute.`;
+
+function isGreeting(message: string): boolean {
+  return GREETING_RE.test(message.trim());
+}
+
 function eventHaystack(event: EventWithCreator): string {
   return normalize(
     [
@@ -124,6 +144,10 @@ export async function askLumiaLocal(query: string): Promise<LumiaChatReply> {
     };
   }
 
+  if (isGreeting(trimmed)) {
+    return { text: GREETING_REPLY, events: [] };
+  }
+
   const help = matchAppHelp(trimmed);
   if (help?.preferHelp) {
     return { text: help.answer, events: [] };
@@ -150,11 +174,29 @@ export async function askLumiaLocal(query: string): Promise<LumiaChatReply> {
   };
 }
 
+function filterClientActions(raw: LumiaAction[] | undefined): LumiaAction[] {
+  if (!Array.isArray(raw)) return [];
+  const out: LumiaAction[] = [];
+  for (const item of raw) {
+    const href = typeof item?.href === 'string' ? normalizeLumiaHref(item.href) : null;
+    const label = typeof item?.label === 'string' ? item.label.trim() : '';
+    if (!href || !label || !isAllowedLumiaHref(href)) continue;
+    if (out.some((a) => a.href === href)) continue;
+    out.push({ href, label: label.slice(0, 48) });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 /** Prefer Edge Function (OpenAI + DB grounding); fall back to local matcher if offline/errors. */
 export async function askLumia(query: string): Promise<LumiaChatReply> {
   const trimmed = query.trim();
   if (!trimmed) {
     return askLumiaLocal(trimmed);
+  }
+
+  if (isGreeting(trimmed)) {
+    return { text: GREETING_REPLY, events: [], actions: [] };
   }
 
   try {
@@ -177,6 +219,7 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
             return {
               text: payload.message,
               events: [],
+              actions: [],
               quota: payload.quota ?? null,
             };
           }
@@ -190,7 +233,7 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
     if (!data || data.ok !== true || typeof (data as LumiaChatEdgeSuccess).text !== 'string') {
       const err = data as LumiaChatEdgeError | null;
       if (err?.message) {
-        return { text: err.message, events: [], quota: err.quota ?? null };
+        return { text: err.message, events: [], actions: [], quota: err.quota ?? null };
       }
       return askLumiaLocal(trimmed);
     }
@@ -202,14 +245,21 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
       .map((id) => events.find((event) => event.id === id))
       .filter((event): event is EventWithCreator => Boolean(event));
 
+    const actions = filterClientActions(success.actions);
+    for (const event of ordered) {
+      const href = `/events/${event.id}`;
+      if (!actions.some((a) => a.href === href) && actions.length < 3) {
+        actions.push({ href, label: event.title.slice(0, 48) });
+      }
+    }
+
     return {
       text: success.text,
       events: ordered,
+      actions,
       quota: success.quota ?? null,
     };
   } catch {
     return askLumiaLocal(trimmed);
   }
 }
-
-export const LUMIA_CHAT_WELCOME = `Salut, je suis ${LUMIA_NAME}. Je t’aide à utiliser Moments Locaux (carte, favoris, compte, signalement…) et à trouver des moments déjà publiés. Je n’invente pas d’événements et je ne vends pas de tickets.`;

@@ -26,6 +26,7 @@ import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import { useEventsStore } from '@/store';
+import { EventSuggestEntryButton } from '@/components/events/EventSuggestEntryButton';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 
@@ -57,6 +58,7 @@ export const CreateEventStepper = () => {
     const externalLink = useCreateEventStore((s) => s.externalLink);
     const videoLink = useCreateEventStore((s) => s.videoLink);
     const gallery = useCreateEventStore((s) => s.gallery);
+    const submissionSource = useCreateEventStore((s) => s.submissionSource);
     const resetStore = useCreateEventStore((s) => s.reset);
 
     const canProceedStep1 = useMemo(
@@ -195,6 +197,7 @@ export const CreateEventStepper = () => {
                 contact_phone,
                 status: 'pending',
                 creator_id: user?.id,
+                submission_source: submissionSource,
             };
 
             if (edit) {
@@ -211,12 +214,15 @@ export const CreateEventStepper = () => {
 
             resetStore();
             haptics.success();
+            const isSuggest = submissionSource === 'community_suggest';
             Toast.show({
                 type: 'success',
-                text1: edit ? 'Événement mis à jour' : 'Événement créé',
+                text1: edit ? 'Événement mis à jour' : isSuggest ? 'Proposition envoyée' : 'Événement créé',
                 text2: edit
                     ? 'Ton événement a été mis à jour avec succès.'
-                    : 'Ton événement a été créé et sera vérifié avant publication.',
+                    : isSuggest
+                      ? 'Merci ! Votre proposition sera vérifiée avant publication.'
+                      : 'Ton événement a été créé et sera vérifié avant publication.',
             });
             router.replace('/profile/my-events' as any);
         } catch (e) {
@@ -228,15 +234,16 @@ export const CreateEventStepper = () => {
     };
 
     const getTitle = () => {
+        const isSuggest = submissionSource === 'community_suggest';
         switch (currentStep) {
             case 0:
-                return 'Créer un événement';
+                return isSuggest ? 'Proposer un événement' : 'Créer un événement';
             case 1:
-                return "Détails de l'événement";
+                return isSuggest ? "Détails de l'événement repéré" : "Détails de l'événement";
             case 2:
                 return 'Prévisualisation';
             default:
-                return 'Créer un événement';
+                return isSuggest ? 'Proposer un événement' : 'Créer un événement';
         }
     };
 
@@ -357,7 +364,10 @@ export const CreateEventStepper = () => {
                     onPageSelected={handlePageChange}
                 >
                     <View key="0" style={{ flex: 1 }}>
-                        <Step1Content onValidate={setFormValid} />
+                        <EventSuggestEntryButton visible={submissionSource !== 'community_suggest'} />
+                        <View style={{ flex: 1 }}>
+                            <Step1Content onValidate={setFormValid} />
+                        </View>
                     </View>
                     <View key="1" style={{ flex: 1 }}>
                         <Step2Content />

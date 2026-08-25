@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { EventSuggestEntryButton } from '@/components/events/EventSuggestEntryButton';
 import { CoverImageUploader } from '@/components/events/CoverImageUploader';
 import { AdditionalImagesUploader } from '@/components/events/AdditionalImagesUploader';
 import { CreateEventForm } from '@/components/events/CreateEventForm';
@@ -403,6 +404,7 @@ function CreateEventStep1Inner() {
           scrollEventThrottle={16}
         >
           <Text style={styles.sectionTitle}>Informations de base</Text>
+          <EventSuggestEntryButton />
           <CoverImageUploader />
           <AdditionalImagesUploader />
           <CreateEventForm

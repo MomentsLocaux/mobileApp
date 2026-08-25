@@ -1,19 +1,27 @@
 import { Redirect } from 'expo-router';
 import { features } from '@/config/features';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
+import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 
-/** Tab stub — only enter create flow when FEATURE_EVENT_CREATE is on (ADR_007). */
+/**
+ * Tab stub for deep links to /(tabs)/create.
+ * Prefer the FAB + EventContributeSheet; this only handles direct navigation.
+ */
 export default function CreateTabRedirect() {
   const { canCreateNow, canCreate } = useAccountIdentity();
+  const { routes, canOrganize } = useEventPublishSurfaces();
 
-  if (!features.eventCreate) {
+  if (!features.eventCreate && !features.eventSuggest) {
     return <Redirect href="/(tabs)/map" />;
   }
 
-  if (canCreateNow) {
-    return <Redirect href="/events/create/step-1" />;
+  if (features.eventSuggest && !canOrganize) {
+    return <Redirect href={`${routes.posterSuggest}?source=community_suggest` as any} />;
   }
 
-  // Discover-only or discover mode → bounce to profile (switch / explain).
+  if (canCreateNow) {
+    return <Redirect href={routes.eventFormStepper} />;
+  }
+
   return <Redirect href={canCreate ? '/(tabs)/profile' : '/(tabs)/map'} />;
 }

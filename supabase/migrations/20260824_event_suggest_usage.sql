@@ -13,4 +13,4 @@ alter table public.event_suggest_usage enable row level security;
 
 -- No client policies: only service role (Edge Function suggest-event-from-poster) reads/writes usage.
 comment on table public.event_suggest_usage is
-  'Poster-to-event suggestion monthly analysis counters; written by Edge Function suggest-event-from-poster only.';
+  'Poster-to-event suggestion monthly analysis counters (default limit 20/user/month UTC); written by Edge Function suggest-event-from-poster only.';

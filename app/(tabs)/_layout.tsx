@@ -28,7 +28,7 @@ import {
   Package,
   WandSparkles,
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -44,6 +44,9 @@ import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { features } from '@/config/features';
+import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
+import { EventContributeSheet } from '@/components/events/EventContributeSheet';
+import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAuth } from '../../src/hooks';
@@ -54,13 +57,19 @@ import { EventsService } from '@/services/events.service';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { LumiaTourOverlay } from '@/components/lumia/LumiaTourOverlay';
 import { useLumiaTour } from '@/hooks/useLumiaTour';
-import type { LumiaTourStep } from '@/constants/lumiaTour';
+import {
+  LUMIA_TOUR_TARGET_RADIUS,
+  type LumiaTourStep,
+  type LumiaTourTargetId,
+} from '@/constants/lumiaTour';
+import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
   const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
+  const publishSurfaces = useEventPublishSurfaces();
   const canCreateEvents = canCreateNow;
   const isProfessionnelAccount = accountKind === 'professionnel';
   /** B2C Habitué/Lumo surfaces — never on Professionnel accounts (ADR_007). */
@@ -78,19 +87,64 @@ export default function TabsLayout() {
     paddingTop: 8,
   } as const;
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [contributeOpen, setContributeOpen] = useState(false);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
+  const resetCreateStore = useCreateEventStore((s) => s.reset);
+  const setSubmissionSource = useCreateEventStore((s) => s.setSubmissionSource);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [hasMyEventsShortcut, setHasMyEventsShortcut] = useState(false);
   const drawerProgress = useSharedValue(0);
   useTaxonomy();
   const isGuest = !isAuthenticated;
   const { visible: lumiaTourVisible, steps: lumiaTourSteps, dismiss: dismissLumiaTour } = useLumiaTour();
+  const setTourTarget = useLumiaTourStore((s) => s.setTarget);
+  const bumpTourMeasure = useLumiaTourStore((s) => s.bumpMeasure);
+  const targetRefs = useRef<Partial<Record<LumiaTourTargetId, View | null>>>({});
 
-  const handleLumiaTourStep = useCallback((step: LumiaTourStep) => {
-    if (step.href) {
-      router.navigate(step.href as any);
-    }
-  }, [router]);
+  const setTargetRef = useCallback(
+    (id: LumiaTourTargetId) => (node: View | null) => {
+      targetRefs.current[id] = node;
+    },
+    [],
+  );
+
+  const measureTourTargets = useCallback(() => {
+    (Object.keys(targetRefs.current) as LumiaTourTargetId[]).forEach((id) => {
+      const node = targetRefs.current[id];
+      if (!node) return;
+      node.measureInWindow((x, y, width, height) => {
+        if (width <= 0 || height <= 0) return;
+        const radius = Math.min(LUMIA_TOUR_TARGET_RADIUS[id], width / 2, height / 2);
+        setTourTarget(id, { x, y, width, height, radius });
+      });
+    });
+  }, [setTourTarget]);
+
+  const handleLumiaTourStep = useCallback(
+    (step: LumiaTourStep) => {
+      if (step.href) {
+        router.navigate(step.href as any);
+      }
+      requestAnimationFrame(() => {
+        measureTourTargets();
+        bumpTourMeasure();
+        setTimeout(() => {
+          measureTourTargets();
+          bumpTourMeasure();
+        }, 280);
+      });
+    },
+    [router, measureTourTargets, bumpTourMeasure],
+  );
+
+  useEffect(() => {
+    if (!lumiaTourVisible) return;
+    const frame = requestAnimationFrame(() => {
+      measureTourTargets();
+      setTimeout(measureTourTargets, 280);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [lumiaTourVisible, lumiaTourSteps, measureTourTargets]);
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
@@ -126,7 +180,7 @@ export default function TabsLayout() {
   }, [loadUnreadNotifications]);
 
   const loadMyEventsShortcut = useCallback(async () => {
-    if (!features.eventCreate || !profile?.id || isGuest) {
+    if ((!features.eventCreate && !features.eventSuggest) || !profile?.id || isGuest) {
       setHasMyEventsShortcut(false);
       return;
     }
@@ -163,8 +217,15 @@ export default function TabsLayout() {
     return focused ? accent.accent : colors.brand.textSecondary;
   };
 
-  const renderTabIconSlot = (focused: boolean, content: React.ReactNode) => (
+  const renderTabIconSlot = (
+    focused: boolean,
+    content: React.ReactNode,
+    targetId?: LumiaTourTargetId,
+  ) => (
     <View
+      ref={targetId ? setTargetRef(targetId) : undefined}
+      collapsable={false}
+      onLayout={targetId ? measureTourTargets : undefined}
       style={[
         styles.tabIconSlot,
         focused && { backgroundColor: accent.accentMuted },
@@ -177,7 +238,7 @@ export default function TabsLayout() {
   const renderProtectedTabButton = (
     props: any,
     gateTitle: string,
-    onAllowed?: () => void
+    onAllowed?: () => void,
   ) => {
     const {
       style,
@@ -254,7 +315,8 @@ export default function TabsLayout() {
                   <Briefcase size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
                 ) : (
                   <HouseHeart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
-                )
+                ),
+                'home',
               ),
             tabBarButton: (props) =>
               renderProtectedTabButton(
@@ -277,7 +339,8 @@ export default function TabsLayout() {
                         size={size}
                         color={tabIconColor(focused, isGuest)}
                         strokeWidth={focused ? 2.4 : 2}
-                      />
+                      />,
+                      'proposals',
                     ),
                   tabBarButton: (props) =>
                     renderProtectedTabButton(props, 'Créer vos propositions'),
@@ -291,7 +354,8 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused, size }) =>
               renderTabIconSlot(
                 focused,
-                <Map size={size} color={tabIconColor(focused)} strokeWidth={focused ? 2.4 : 2} />
+                <Map size={size} color={tabIconColor(focused)} strokeWidth={focused ? 2.4 : 2} />,
+                'map',
               ),
             tabBarStyle: {
               ...tabBarStyleBase,
@@ -305,30 +369,41 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="create"
           options={
-            features.eventCreate && canCreateEvents
+            publishSurfaces.showCenterTabAction
               ? {
                   title: '',
                   tabBarButton: () => (
-                    <TouchableOpacity
-                      style={[
-                        styles.createButton,
-                        { backgroundColor: accent.accent, marginBottom: 12 + insets.bottom },
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() => {
-                        if (isGuest) {
-                          openGuestGate('Créer un événement');
-                          return;
-                        }
-                        router.push('/events/create/step-1' as any);
-                      }}
-                    >
-                      <PlusCircle size={28} color="#0f1719" />
-                    </TouchableOpacity>
+                    <View style={styles.createTargetWrap}>
+                      <TouchableOpacity
+                        style={[
+                          styles.createButton,
+                          { backgroundColor: accent.accent, marginBottom: 12 + insets.bottom },
+                        ]}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel="Ajouter un événement"
+                        onPress={() => {
+                          haptics.selection();
+                          if (isGuest) {
+                            openGuestGate('Ajouter un événement');
+                            return;
+                          }
+                          // Organizer-only (no suggest): go straight to form.
+                          if (publishSurfaces.canOrganize && !publishSurfaces.eventSuggest) {
+                            resetCreateStore();
+                            setSubmissionSource('organizer_create');
+                            router.push(publishSurfaces.routes.eventFormStepper as any);
+                            return;
+                          }
+                          setContributeOpen(true);
+                        }}
+                      >
+                        <PlusCircle size={28} color="#0f1719" />
+                      </TouchableOpacity>
+                    </View>
                   ),
                 }
               : {
-                  // Remove tab slot entirely so remaining icons tighten (ADR_007 Découvreur)
                   href: null,
                 }
           }
@@ -343,7 +418,8 @@ export default function TabsLayout() {
                   tabBarIcon: ({ focused, size }) =>
                     renderTabIconSlot(
                       focused,
-                      <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                      <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />,
+                      'favorites',
                     ),
                   tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
                 }
@@ -374,7 +450,8 @@ export default function TabsLayout() {
                       </Text>
                     </View>
                   ) : null}
-                </View>
+                </View>,
+                'menu',
               ),
             tabBarButton: (props) =>
               renderProtectedTabButton(props, 'Accéder à votre profil', () => toggleDrawer(true)),
@@ -484,13 +561,23 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
-            {canCreateEvents ? (
+            {publishSurfaces.showCenterTabAction ? (
               <DrawerLink
                 icon={PlusCircle}
-                label="Créer un événement"
+                label="Ajouter un événement"
                 onPress={() => {
                   toggleDrawer(false);
-                  router.push('/events/create/step-1' as any);
+                  if (isGuest) {
+                    openGuestGate('Ajouter un événement');
+                    return;
+                  }
+                  if (publishSurfaces.canOrganize && !publishSurfaces.eventSuggest) {
+                    resetCreateStore();
+                    setSubmissionSource('organizer_create');
+                    router.push(publishSurfaces.routes.eventFormStepper as any);
+                    return;
+                  }
+                  setContributeOpen(true);
                 }}
               />
             ) : null}
@@ -663,14 +750,14 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
-            {features.eventCreate &&
-              (canCreate || hasMyEventsShortcut || isProfessionnelAccount) && (
+            {publishSurfaces.showMyEvents &&
+              (canCreate || hasMyEventsShortcut || isProfessionnelAccount || features.eventSuggest) && (
               <DrawerLink
                 icon={MapPinned}
                 label="Mes événements"
                 onPress={() => {
                   toggleDrawer(false);
-                  router.push('/profile/my-events' as any);
+                  router.push(publishSurfaces.routes.myEvents as any);
                 }}
               />
             )}
@@ -709,6 +796,12 @@ export default function TabsLayout() {
         </View>
       </Animated.View>
 
+      <EventContributeSheet
+        visible={contributeOpen}
+        onClose={() => setContributeOpen(false)}
+        isGuest={isGuest}
+        onRequireAuth={(title) => openGuestGate(title)}
+      />
       <GuestGateModal
         visible={guestGate.visible}
         title={guestGate.title}
@@ -1034,6 +1127,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     fontWeight: '600',
+  },
+  createTargetWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   createButton: {
     width: 64,
