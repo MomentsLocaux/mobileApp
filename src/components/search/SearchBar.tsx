@@ -34,6 +34,7 @@ import { useSavedSearchesStore } from '@/store/savedSearchesStore';
 import { MapboxService } from '@/services/mapbox.service';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { features } from '@/config/features';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import { useLocationStore } from '@/store';
@@ -122,7 +123,8 @@ export const SearchBar: React.FC<Props> = ({
   const addHistory = useDiscoveryFiltersStore((s) => s.addPlaceHistory);
   const removePlaceHistory = useDiscoveryFiltersStore((s) => s.removePlaceHistory);
   const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
-  const resetSearch = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
+  /** « Tout effacer » resets status + criteria (shared rule with MapFiltersSheet). */
+  const resetSearch = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const sortBy = sort[surface].sortBy;
   const sortOrder = sort[surface].sortOrder;
 
@@ -256,6 +258,12 @@ export const SearchBar: React.FC<Props> = ({
     [place, what, when]
   );
   const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchSlice), [searchSlice]);
+  const allCategoriesSelected = useMemo(
+    () =>
+      categories.length > 0 &&
+      categories.every((cat) => what.categories.includes(cat.id)),
+    [categories, what.categories]
+  );
   const effectiveRadiusKm = useMemo(
     () => resolveEffectiveRadiusKm(place, userCoords),
     [place, userCoords]
@@ -289,12 +297,15 @@ export const SearchBar: React.FC<Props> = ({
     const categoryLabel = what.categories.length
       ? categories.find((c) => c.id === what.categories[0])?.label
       : undefined;
-    const subcategoryLabel = !categoryLabel && what.subcategories.length
-      ? subcategories.find((s) => s.id === what.subcategories[0])?.label
-      : undefined;
+    const subcategoryLabel =
+      features.subcategories && !categoryLabel && what.subcategories.length
+        ? subcategories.find((s) => s.id === what.subcategories[0])?.label
+        : undefined;
     const extras: string[] = [];
     if (what.categories.length > 1) extras.push(`+${what.categories.length - 1} cat.`);
-    if (what.subcategories.length) extras.push(`${what.subcategories.length} sous-cat.`);
+    if (features.subcategories && what.subcategories.length) {
+      extras.push(`${what.subcategories.length} sous-cat.`);
+    }
     const baseWhatLabel = categoryLabel || subcategoryLabel || 'Toutes catégories';
     const whatLabel = extras.length ? `${baseWhatLabel} · ${extras.join(', ')}` : baseWhatLabel;
     return { whereLabel, whenLabel, whatLabel };
@@ -667,13 +678,15 @@ export const SearchBar: React.FC<Props> = ({
                       icon={<MapPin size={18} color={colors.brand.textSecondary} />}
                       onPress={() => setActiveSection('where')}
                     >
-                      <TextInput
-                        placeholder="Ville, adresse ou lieu"
-                        placeholderTextColor={colors.brand.textSecondary}
-                        value={query}
-                        onChangeText={setQuery}
-                        style={styles.input}
-                      />
+                      <View style={styles.inputFrame}>
+                        <TextInput
+                          placeholder="Ville, adresse ou lieu"
+                          placeholderTextColor={colors.brand.textSecondary}
+                          value={query}
+                          onChangeText={setQuery}
+                          style={styles.inputInFrame}
+                        />
+                      </View>
                       <View style={styles.row}>
                         <Chip
                           label="À proximité"
@@ -909,7 +922,35 @@ export const SearchBar: React.FC<Props> = ({
                         onChangeText={(value) => setWhat({ query: value })}
                         style={styles.input}
                       />
-                      <Text style={styles.sectionLabel}>Catégories</Text>
+                      <View style={styles.sectionLabelRow}>
+                        <Text style={styles.sectionLabel}>Catégories</Text>
+                        {categories.length > 0 ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (allCategoriesSelected) {
+                                setWhat({ categories: [], subcategories: [] });
+                                return;
+                              }
+                              setWhat({
+                                categories: categories.map((cat) => cat.id),
+                              });
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              allCategoriesSelected
+                                ? 'Tout désélectionner'
+                                : 'Tout sélectionner'
+                            }
+                            hitSlop={8}
+                          >
+                            <Text style={styles.sectionLabelAction}>
+                              {allCategoriesSelected
+                                ? 'Tout désélectionner'
+                                : 'Tout sélectionner'}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
                       <View style={styles.rowWrap}>
                         {categories.map((cat) => {
                           const categoryColor = getCategoryColor(cat.id);
@@ -942,7 +983,7 @@ export const SearchBar: React.FC<Props> = ({
                           );
                         })}
                       </View>
-                      {what.categories.length > 0 && (
+                      {features.subcategories && what.categories.length > 0 && (
                         <>
                           <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Sous-catégories</Text>
                           <View style={styles.rowWrap}>
@@ -1348,6 +1389,22 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     ...typography.body,
   },
+  inputFrame: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  inputInFrame: {
+    ...typography.body,
+    color: colors.brand.text,
+    padding: 0,
+    margin: 0,
+  },
   row: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -1517,6 +1574,17 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  sectionLabelAction: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    fontWeight: '600',
   },
   history: {
     marginTop: spacing.sm,

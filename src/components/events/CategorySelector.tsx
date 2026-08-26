@@ -4,6 +4,7 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { getCategoryLucideIcon } from '@/constants/category-visuals';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { features } from '@/config/features';
 
 type Props = {
   selected?: string;
@@ -59,7 +60,7 @@ export const CategorySelector = ({
         })}
       </ScrollView>
 
-      {selected && onSelectSubcategory && (
+      {features.subcategories && selected && onSelectSubcategory && (
         <View style={styles.subSection} onLayout={onSubcategoryLayout}>
           <Text style={styles.title}>Sous-catégorie</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>

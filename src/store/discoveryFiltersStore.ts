@@ -139,6 +139,7 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set) => (
       };
     }),
 
+  /** Full reset of discovery criteria including status (Map / SearchBar « Tout effacer »). */
   resetCriteria: () =>
     set((state) => ({
       ...resetDiscoveryCriteria(state),

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { MapFilters } from '../types/filters';
+import { features } from '../config/features';
 
 interface FilterState {
   filters: MapFilters;
@@ -38,8 +39,10 @@ export const useFilterStore = create<FilterState>((set, get) => ({
 
     if (filters.category) count++;
     if (filters.categories && filters.categories.length > 0) count++;
-    if (filters.subcategory) count++;
-    if (filters.subcategories && filters.subcategories.length > 0) count++;
+    if (features.subcategories) {
+      if (filters.subcategory) count++;
+      if (filters.subcategories && filters.subcategories.length > 0) count++;
+    }
     if (filters.time || filters.startDate || filters.endDate) count++;
     if (filters.freeOnly) count++;
     if (filters.paidOnly) count++;

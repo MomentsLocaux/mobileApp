@@ -1,5 +1,10 @@
 import { useCallback } from 'react';
-import { resolveEffectiveRadiusKm, resolveSearchCenter } from '@/utils/search-helpers';
+import { clampMapRecenterRadiusKm } from '@/constants/map-screen';
+import type { MapBounds } from '@/types/map-events';
+import {
+  resolveSearchTargetBounds,
+  type SearchTargetBounds,
+} from '@/utils/search-helpers';
 import type { DiscoveryFilters } from '@/utils/discovery-filters';
 
 type UserLocation = { latitude: number; longitude: number } | null;
@@ -9,29 +14,19 @@ type Params = {
   userLocation: UserLocation;
   syncSearchState: () => void;
   setStatus: (status: 'loading') => void;
-  fitToRadius: (latitude: number, longitude: number, radiusKm: number) => unknown;
+  fitToRadius: (latitude: number, longitude: number, radiusKm: number) => MapBounds;
   refreshBounds: () => Promise<void>;
 };
 
-type SearchTargetBounds = {
-  latitude: number;
-  longitude: number;
-  radiusKm: number;
-};
+export type { SearchTargetBounds };
+export { resolveSearchTargetBounds };
 
-function resolveSearchTargetBounds(
+/** Adapter: full discovery filters → place/radius camera target. */
+export function resolveDiscoverySearchTargetBounds(
   filters: DiscoveryFilters,
   userLocation: UserLocation
 ): SearchTargetBounds | null {
-  const center = resolveSearchCenter(filters.place, userLocation);
-  const effectiveRadius = resolveEffectiveRadiusKm(filters.place, userLocation);
-  if (!center || effectiveRadius === undefined) return null;
-
-  return {
-    latitude: center.latitude,
-    longitude: center.longitude,
-    radiusKm: effectiveRadius,
-  };
+  return resolveSearchTargetBounds(filters.place, userLocation);
 }
 
 export function useMapSearchApply({
@@ -43,24 +38,27 @@ export function useMapSearchApply({
   refreshBounds,
 }: Params) {
   const moveMapToSearchBounds = useCallback(
-    (target: SearchTargetBounds) => {
-      fitToRadius(target.latitude, target.longitude, target.radiusKm);
-    },
+    (target: SearchTargetBounds): MapBounds =>
+      fitToRadius(
+        target.latitude,
+        target.longitude,
+        clampMapRecenterRadiusKm(target.radiusKm)
+      ),
     [fitToRadius]
   );
 
-  const applySearch = useCallback(() => {
+  const applySearch = useCallback((): MapBounds | null => {
     // SearchBar commits the shared lifecycle before invoking this callback.
     syncSearchState();
     setStatus('loading');
 
-    const targetBounds = resolveSearchTargetBounds(filters, userLocation);
+    const targetBounds = resolveDiscoverySearchTargetBounds(filters, userLocation);
     if (targetBounds) {
-      moveMapToSearchBounds(targetBounds);
-      return;
+      return moveMapToSearchBounds(targetBounds);
     }
 
     void refreshBounds();
+    return null;
   }, [
     filters,
     moveMapToSearchBounds,
@@ -70,5 +68,9 @@ export function useMapSearchApply({
     userLocation,
   ]);
 
-  return { applySearch, resolveSearchTargetBounds, moveMapToSearchBounds };
+  return {
+    applySearch,
+    resolveSearchTargetBounds: resolveDiscoverySearchTargetBounds,
+    moveMapToSearchBounds,
+  };
 }

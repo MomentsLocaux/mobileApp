@@ -70,6 +70,12 @@ export const features = {
    * Default OFF. No entry point when unset/false.
    */
   eventSuggest: process.env.EXPO_PUBLIC_FEATURE_EVENT_SUGGEST === 'true',
+  /**
+   * Discovery subcategory chips / create-form subcategory picker.
+   * Default OFF — taxonomy + DB wiring stay; UI hidden until we need them.
+   * Set EXPO_PUBLIC_FEATURE_SUBCATEGORIES=true to show again.
+   */
+  subcategories: process.env.EXPO_PUBLIC_FEATURE_SUBCATEGORIES === 'true',
 } as const;
 
 export type FeatureFlag = keyof typeof features;

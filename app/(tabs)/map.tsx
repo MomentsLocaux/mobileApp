@@ -24,8 +24,9 @@ import {
   useMapSocialActions,
   useMapMarkerPress,
 } from '@/hooks/map';
+import { useSearchThisArea } from '@/hooks/map/useSearchThisArea';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Navigation, SlidersHorizontal } from 'lucide-react-native';
+import { LocateFixed, SlidersHorizontal, Search } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,8 +47,10 @@ import {
   FONTOY_COORDS,
   FRANCE_CAMERA_BOUNDS,
   MAP_FIT_PADDING,
+  MAP_RECENTER_USER_RADIUS_KM,
   MAP_VIEW_PADDING,
   SIM_FALLBACK_COORDS,
+  clampMapRecenterRadiusKm,
 } from '@/constants/map-screen';
 import { SearchBar } from '../../src/components/search/SearchBar';
 import { MapFiltersSheet, hasMapActiveFilters } from '../../src/components/search/MapFiltersSheet';
@@ -92,6 +95,7 @@ export default function MapScreen() {
   const setMapMode = useDiscoveryFiltersStore((s) => s.setMapMode);
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
   const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
+  const clearSearchCriteria = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
   const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const { profile } = useAuth();
   const { favorites, toggleFavorite } = useFavoritesStore();
@@ -135,6 +139,7 @@ export default function MapScreen() {
   const isSheetDraggingRef = useRef(false);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const latestVisibleBoundsRef = useRef<MapBounds | null>(null);
+  const mapViewportSizeRef = useRef<{ width: number; height: number } | null>(null);
   const sideEffectsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSheetCameraSyncAtRef = useRef(0);
   const sheetCameraFollowActiveRef = useRef(false);
@@ -215,6 +220,14 @@ export default function MapScreen() {
     [discoveryFilters, userLocation]
   );
 
+  const searchThisAreaHandlersRef = useRef<{
+    onUserCameraSettled: (bounds: MapBounds) => void;
+    markZoneSearched: (bounds: MapBounds) => void;
+  }>({
+    onUserCameraSettled: () => undefined,
+    markZoneSearched: () => undefined,
+  });
+
   const { fetch, viewport, viewportFrozenRef, frozenViewportBoundsRef } = useMapScreenData({
     mapRef,
     isSheetDraggingRef,
@@ -222,6 +235,9 @@ export default function MapScreen() {
     clearFrozenViewport,
     freezeViewportResults,
     onUnlockViewport: () => setUnitCardEvent(null),
+    onUserViewportMoved: (bounds) => searchThisAreaHandlersRef.current.onUserCameraSettled(bounds),
+    onViewportSearched: (bounds) => searchThisAreaHandlersRef.current.markZoneSearched(bounds),
+    getMapViewportSize: () => mapViewportSizeRef.current,
     metaFilter,
     searchApplied,
     hasSearchCriteria,
@@ -246,29 +262,104 @@ export default function MapScreen() {
     handleBoundsChange,
     ensureInitialViewportLoad,
     refreshBounds,
+    refreshWithBounds,
     syncMapToFrozenViewport,
     lockViewportForSheet,
     fitToRadius,
     focusOnEvent,
+    unlockViewportFreeze,
     viewportBootstrappedRef,
   } = viewport;
 
-  const { applySearch } = useMapSearchApply({
-    filters: discoveryFilters,
-    userLocation,
-    syncSearchState: () => {
-      reapplyClientFilters({
-        metaFilter,
-        searchFilters,
-        searchApplied: true,
-        hasSearchCriteria,
-        includePast,
-      });
+  const {
+    showSearchThisArea,
+    markZoneSearched,
+    onUserCameraSettled,
+    searchThisArea,
+  } = useSearchThisArea({
+    searchBounds: (bounds) => {
+      cancelViewportFetch();
+      unlockViewportFreeze();
+
+      // Drop modal search (place / when / content) so the bbox owns the query.
+      if (useDiscoveryFiltersStore.getState().searchApplied) {
+        clearSearchCriteria();
+        const nextFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
+        reapplyClientFilters({
+          metaFilter,
+          searchFilters: toEventFilters(nextFilters, userLocation),
+          searchApplied: false,
+          hasSearchCriteria: false,
+          includePast: false,
+        });
+      }
+
+      refreshWithBounds(bounds, { applyChromeInset: true });
     },
-    setStatus,
-    fitToRadius,
-    refreshBounds,
+    getZoom: () => zoomRef.current,
   });
+
+  searchThisAreaHandlersRef.current = {
+    onUserCameraSettled: (bounds) => onUserCameraSettled(bounds, zoomRef.current),
+    markZoneSearched: (bounds) => markZoneSearched(bounds, zoomRef.current),
+  };
+
+  const { applySearch: applySearchBase, resolveSearchTargetBounds, moveMapToSearchBounds } =
+    useMapSearchApply({
+      filters: discoveryFilters,
+      userLocation,
+      syncSearchState: () => {
+        reapplyClientFilters({
+          metaFilter,
+          searchFilters,
+          searchApplied: true,
+          hasSearchCriteria,
+          includePast,
+        });
+      },
+      setStatus,
+      fitToRadius,
+      refreshBounds,
+    });
+  const moveMapToSearchBoundsRef = useRef(moveMapToSearchBounds);
+  moveMapToSearchBoundsRef.current = moveMapToSearchBounds;
+  const userLocationRef = useRef(userLocation);
+  userLocationRef.current = userLocation;
+  const fittedSearchRevisionRef = useRef<number | null>(null);
+  const recenterRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locationLoadingRef = useRef(locationLoading);
+  locationLoadingRef.current = locationLoading;
+
+  const scheduleRefreshWithBounds = useCallback(
+    (bounds: MapBounds) => {
+      if (recenterRefreshTimerRef.current) {
+        clearTimeout(recenterRefreshTimerRef.current);
+      }
+      recenterRefreshTimerRef.current = setTimeout(() => {
+        recenterRefreshTimerRef.current = null;
+        refreshWithBounds(bounds);
+      }, MAP_CAMERA_ANIMATION_MS + 250);
+    },
+    [refreshWithBounds]
+  );
+
+  useEffect(
+    () => () => {
+      if (recenterRefreshTimerRef.current) {
+        clearTimeout(recenterRefreshTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const applySearch = useCallback(() => {
+    unlockViewportFreeze();
+    const fittedBounds = applySearchBase();
+    fittedSearchRevisionRef.current = useDiscoveryFiltersStore.getState().searchRevision;
+    if (fittedBounds) {
+      scheduleRefreshWithBounds(fittedBounds);
+    }
+  }, [applySearchBase, scheduleRefreshWithBounds, unlockViewportFreeze]);
 
   const { applySheetSideEffects } = useMapSheetOrchestration({
     resultsSheetRef,
@@ -323,6 +414,8 @@ export default function MapScreen() {
         clearTimeout(sideEffectsTimerRef.current);
       }
       if (targetIdx === 0) {
+        // Peek: allow counts/markers to follow live viewport again.
+        unlockViewportFreeze();
         traceMapSheetPerf('syncMapToFrozenViewport', {
           reason: 'sheetClosing',
           paddingBottom: MAP_FIT_PADDING,
@@ -343,7 +436,7 @@ export default function MapScreen() {
         }
       }, SHEET_SIDE_EFFECTS_DELAY_MS);
     },
-    [applySheetSideEffects, sheetVisibleHeight, syncMapToFrozenViewport]
+    [applySheetSideEffects, sheetVisibleHeight, syncMapToFrozenViewport, unlockViewportFreeze]
   );
 
   const mapVisualStyle = useAnimatedStyle(() => {
@@ -384,6 +477,11 @@ export default function MapScreen() {
         scale: interpolate(sheetProgress.value, [0, 0.35], [1, 0.98], Extrapolation.CLAMP),
       },
     ],
+  }));
+
+  /** Keep the locate FAB above the results sheet peek / expanded height. */
+  const recenterFabStyle = useAnimatedStyle(() => ({
+    bottom: Math.max(VIEWPORT_PEEK_HEIGHT, sheetVisibleHeight.value) + spacing.md,
   }));
 
   const handleBoundsChangeWithCache = useCallback(
@@ -543,6 +641,7 @@ export default function MapScreen() {
 
   const handleWhenPresetChange = useCallback(
     (preset?: DatePreset) => {
+      unlockViewportFreeze();
       setWhen({
         preset,
         startDate: undefined,
@@ -578,12 +677,14 @@ export default function MapScreen() {
       refreshBounds,
       setSearchApplied,
       setWhen,
+      unlockViewportFreeze,
       userLocation,
     ]
   );
 
   const handleCategoriesChange = useCallback(
     (categories: string[], subcategories: string[]) => {
+      unlockViewportFreeze();
       setContent({ categories, subcategories });
       const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
       const nextFilters = toEventFilters(nextDiscoveryFilters, userLocation);
@@ -611,6 +712,7 @@ export default function MapScreen() {
       refreshBounds,
       setContent,
       setSearchApplied,
+      unlockViewportFreeze,
       userLocation,
     ]
   );
@@ -618,8 +720,8 @@ export default function MapScreen() {
   const handleMetaFilterChange = useCallback(
     (next: EventMetaFilter) => {
       const previous = discoveryStatus;
+      unlockViewportFreeze();
       setDiscoveryStatus(next);
-      clearFrozenViewport();
       const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
       const nextSearchFilters = toEventFilters(nextDiscoveryFilters, userLocation);
       const nextHasSearchCriteria = checkSearchCriteria({
@@ -642,17 +744,19 @@ export default function MapScreen() {
     },
     [
       cancelViewportFetch,
-      clearFrozenViewport,
       discoveryStatus,
       reapplyClientFilters,
       refreshBounds,
       setDiscoveryStatus,
+      unlockViewportFreeze,
       userLocation,
     ]
   );
 
   const handleResetFilters = useCallback(() => {
+    unlockViewportFreeze();
     resetCriteria();
+    fittedSearchRevisionRef.current = null;
     clearFrozenViewport();
     const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
     reapplyClientFilters({
@@ -670,6 +774,7 @@ export default function MapScreen() {
     reapplyClientFilters,
     refreshBounds,
     resetCriteria,
+    unlockViewportFreeze,
     userLocation,
   ]);
 
@@ -681,6 +786,10 @@ export default function MapScreen() {
   restoreViewportFromFrozenRef.current = restoreViewportFromFrozen;
   const setStatusRef = useRef(setStatus);
   setStatusRef.current = setStatus;
+  const unlockViewportFreezeRef = useRef(unlockViewportFreeze);
+  unlockViewportFreezeRef.current = unlockViewportFreeze;
+  const scheduleRefreshWithBoundsRef = useRef(scheduleRefreshWithBounds);
+  scheduleRefreshWithBoundsRef.current = scheduleRefreshWithBounds;
   useFocusEffect(
     useCallback(() => {
       // Keep this callback identity stable ([] + refs). Shared discovery criteria
@@ -691,14 +800,28 @@ export default function MapScreen() {
       }
 
       const latest = useDiscoveryFiltersStore.getState();
-      if (
-        latest.searchApplied &&
-        checkSearchCriteria({
-          place: latest.place,
-          when: latest.when,
-          content: latest.content,
-        })
-      ) {
+      const hasCriteria = checkSearchCriteria({
+        place: latest.place,
+        when: latest.when,
+        content: latest.content,
+      });
+
+      if (latest.searchApplied && hasCriteria) {
+        // Home Apply commits criteria without moving the map camera. On focus,
+        // fit once per searchRevision so the viewport matches the search disk.
+        const filters = selectDiscoveryFilters(latest);
+        const target = resolveSearchTargetBounds(filters, userLocationRef.current);
+        if (
+          target &&
+          fittedSearchRevisionRef.current !== latest.searchRevision
+        ) {
+          fittedSearchRevisionRef.current = latest.searchRevision;
+          setStatusRef.current('loading');
+          unlockViewportFreezeRef.current();
+          const fittedBounds = moveMapToSearchBoundsRef.current(target);
+          scheduleRefreshWithBoundsRef.current(fittedBounds);
+          return;
+        }
         void refreshBoundsRef.current();
         return;
       }
@@ -707,13 +830,15 @@ export default function MapScreen() {
         setStatusRef.current('browsing');
       }
       resultsSheetRef.current?.collapseToPeek();
-      // First open: onMapReady / location recenter own the bootstrap fetch.
-      // Re-focus only: refresh the visible bbox.
+
+      // First paint ownership: GPS recenter OR ensureInitial — not both.
       if (viewportBootstrappedRef.current) {
         void refreshBoundsRef.current();
-      } else {
-        void ensureInitialViewportLoadRef.current();
+        return;
       }
+      if (locationLoadingRef.current) return;
+      if (userLocationRef.current) return;
+      void ensureInitialViewportLoadRef.current();
     }, [viewportBootstrappedRef])
   );
 
@@ -740,29 +865,97 @@ export default function MapScreen() {
     }
   }, [focus, handleFeaturePress]);
 
-  const recenterToUser = useCallback(() => {
-    if (!userLocation) return;
-    fitToRadius(userLocation.latitude, userLocation.longitude, 7.5);
-  }, [fitToRadius, userLocation]);
+  const recenterToUser = useCallback((): MapBounds | null => {
+    if (!userLocation) return null;
+    unlockViewportFreeze();
+    return fitToRadius(
+      userLocation.latitude,
+      userLocation.longitude,
+      MAP_RECENTER_USER_RADIUS_KM
+    );
+  }, [fitToRadius, unlockViewportFreeze, userLocation]);
+
+  /** Search disk (clamped 1–20 km) if applied, otherwise user neighborhood disk. */
+  const handleRecenterPress = useCallback(() => {
+    cancelViewportFetch();
+    unlockViewportFreeze();
+
+    if (searchActive) {
+      const latest = useDiscoveryFiltersStore.getState();
+      const target = resolveSearchTargetBounds(
+        selectDiscoveryFilters(latest),
+        userLocation
+      );
+      if (target) {
+        const radiusKm = clampMapRecenterRadiusKm(target.radiusKm);
+        fittedSearchRevisionRef.current = latest.searchRevision;
+        setStatus('loading');
+        const fittedBounds = fitToRadius(target.latitude, target.longitude, radiusKm);
+        scheduleRefreshWithBounds(fittedBounds);
+        return;
+      }
+    }
+
+    const fittedBounds = recenterToUser();
+    if (fittedBounds) {
+      scheduleRefreshWithBounds(fittedBounds);
+    }
+  }, [
+    cancelViewportFetch,
+    fitToRadius,
+    recenterToUser,
+    resolveSearchTargetBounds,
+    scheduleRefreshWithBounds,
+    searchActive,
+    setStatus,
+    unlockViewportFreeze,
+    userLocation,
+  ]);
+
+  const canShowRecenterButton =
+    !searchExpanded &&
+    (Boolean(userLocation) ||
+      (searchActive &&
+        Boolean(
+          resolveSearchTargetBounds(discoveryFilters, userLocation)
+        )));
+
+  const recenterAccessibilityLabel = searchActive
+    ? 'Recentrer sur la zone de recherche'
+    : 'Recentrer sur ma position';
 
   useEffect(() => {
+    // Wait for location resolution so we don't race a France-wide ensureInitial
+    // against the GPS neighborhood fit.
+    if (locationLoading) return;
+
     if (userLocation && !hasCenteredOnUserRef.current) {
       hasCenteredOnUserRef.current = true;
-      recenterToUser();
-      // Force a viewport fetch — do not rely only on programmatic bounds callbacks
-      // (unchanged bbox after fit can otherwise skip the first load).
-      const timer = setTimeout(() => {
-        void refreshBounds();
-      }, 700);
-      return () => clearTimeout(timer);
+      const fittedBounds = recenterToUser();
+      if (fittedBounds) {
+        scheduleRefreshWithBounds(fittedBounds);
+      }
+      return;
     }
-    if (locationLoading) return;
-    void ensureInitialViewportLoad();
-  }, [ensureInitialViewportLoad, locationLoading, recenterToUser, refreshBounds, userLocation]);
+
+    if (!userLocation && !viewportBootstrappedRef.current) {
+      void ensureInitialViewportLoad();
+    }
+  }, [
+    ensureInitialViewportLoad,
+    locationLoading,
+    recenterToUser,
+    scheduleRefreshWithBounds,
+    userLocation,
+    viewportBootstrappedRef,
+  ]);
 
   const handleMapReady = useCallback(() => {
+    // GPS path owns first paint when a fix exists or is still loading.
+    if (viewportBootstrappedRef.current || hasCenteredOnUserRef.current) return;
+    if (locationLoadingRef.current || userLocationRef.current) return;
     void ensureInitialViewportLoad();
-  }, [ensureInitialViewportLoad]);
+  }, [ensureInitialViewportLoad, viewportBootstrappedRef]);
 
   useEffect(() => {
     if (!hasSearchCriteria && searchApplied) {
@@ -819,7 +1012,13 @@ export default function MapScreen() {
 
         <View
           style={styles.contentColumn}
-          onLayout={(event) => handleColumnLayout(event.nativeEvent.layout.height)}
+          onLayout={(event) => {
+            const { width, height } = event.nativeEvent.layout;
+            if (width > 0 && height > 0) {
+              mapViewportSizeRef.current = { width, height };
+            }
+            handleColumnLayout(height);
+          }}
         >
           <Animated.View style={[styles.mapLayer, mapVisualStyle]}>
             <MapWrapper
@@ -858,15 +1057,19 @@ export default function MapScreen() {
               </View>
             ) : null}
 
-            {userLocation && !searchExpanded ? (
-              <FloatingPressable
-                style={[styles.recenterTopButton, { bottom: spacing.md }]}
-                onPress={recenterToUser}
-                accessibilityRole="button"
-                accessibilityLabel="Recentrer sur ma position"
-              >
-                <Navigation size={18} color={colors.neutral[0]} />
-              </FloatingPressable>
+            {showSearchThisArea && !searchExpanded && sheetStatus !== 'loading' ? (
+              <View style={styles.searchThisAreaSlot} pointerEvents="box-none">
+                <FloatingPressable
+                  style={styles.searchThisAreaChip}
+                  onPress={searchThisArea}
+                  accessibilityRole="button"
+                  accessibilityLabel="Rechercher dans cette zone"
+                  animateEntrance={false}
+                >
+                  <Search size={16} color={colors.brand.onAccent} strokeWidth={2.4} />
+                  <Text style={styles.searchThisAreaText}>Rechercher dans cette zone</Text>
+                </FloatingPressable>
+              </View>
             ) : null}
           </Animated.View>
 
@@ -925,6 +1128,23 @@ export default function MapScreen() {
               hasLocation={!!userLocation}
             />
           </Animated.View>
+
+          {canShowRecenterButton ? (
+            <Animated.View
+              style={[styles.recenterFabSlot, recenterFabStyle]}
+              pointerEvents="box-none"
+            >
+              <FloatingPressable
+                style={styles.recenterFab}
+                onPress={handleRecenterPress}
+                accessibilityRole="button"
+                accessibilityLabel={recenterAccessibilityLabel}
+                animateEntrance={false}
+              >
+                <LocateFixed size={20} color={colors.brand.onAccent} />
+              </FloatingPressable>
+            </Animated.View>
+          ) : null}
         </View>
       </View>
 
@@ -1085,19 +1305,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textDecorationLine: 'underline',
   },
-  recenterTopButton: {
+  searchThisAreaSlot: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    alignItems: 'center',
+    zIndex: 28,
+  },
+  searchThisAreaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+  },
+  searchThisAreaText: {
+    color: colors.brand.onAccent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  recenterFabSlot: {
     position: 'absolute',
     right: spacing.md,
+    zIndex: 30,
+  },
+  recenterFab: {
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
     backgroundColor: colors.brand.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
   },
 });

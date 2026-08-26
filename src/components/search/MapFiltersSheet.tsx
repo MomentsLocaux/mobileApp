@@ -42,6 +42,9 @@ import {
   type FilterChipRowOption,
 } from '@/components/filters';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { features } from '@/config/features';
+import { useSettledViewportPeek } from '@/hooks/useSettledViewportPeek';
+import { getMapWaitingMessage } from '@/utils/map-peek-label';
 
 interface Props {
   visible: boolean;
@@ -63,8 +66,12 @@ interface Props {
   filters: DiscoveryFilters;
 }
 
-function formatResultsButtonLabel(count: number, isLoading = false): string {
-  if (isLoading) return 'Chargement…';
+function formatResultsButtonLabel(
+  count: number,
+  isWaiting = false,
+  waitingMessage = getMapWaitingMessage()
+): string {
+  if (isWaiting) return waitingMessage;
   if (count <= 0) return 'Afficher les 0 événements';
   if (count === 1) return "Afficher l'événement";
   return `Afficher les ${count} événements`;
@@ -105,15 +112,23 @@ export function MapFiltersSheet({
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const {
+    showWaiting: resultsWaiting,
+    displayCount: settledResultCount,
+    waitingMessage,
+  } = useSettledViewportPeek(resultCount, isLoadingResults);
 
   const visibleSubcategories = useMemo(
-    () => subcategories.filter((sub) => selectedCategories.includes(sub.category_id)),
+    () =>
+      features.subcategories
+        ? subcategories.filter((sub) => selectedCategories.includes(sub.category_id))
+        : [],
     [selectedCategories, subcategories]
   );
 
   const resultsButtonLabel = useMemo(
-    () => formatResultsButtonLabel(resultCount, isLoadingResults),
-    [isLoadingResults, resultCount]
+    () => formatResultsButtonLabel(settledResultCount, resultsWaiting, waitingMessage),
+    [resultsWaiting, settledResultCount, waitingMessage]
   );
 
   const categoryLabels = useMemo(() => {
@@ -121,9 +136,11 @@ export function MapFiltersSheet({
     categories.forEach((cat) => {
       labels[cat.id] = cat.label;
     });
-    subcategories.forEach((sub) => {
-      labels[sub.id] = sub.label;
-    });
+    if (features.subcategories) {
+      subcategories.forEach((sub) => {
+        labels[sub.id] = sub.label;
+      });
+    }
     return labels;
   }, [categories, subcategories]);
 
@@ -139,10 +156,8 @@ export function MapFiltersSheet({
 
   const searchHint = useMemo(() => {
     if (searchActive) return undefined;
-    return metaFilter !== 'all'
-      ? 'Les critères de recherche avancés sont actifs uniquement avec le statut « Tous ».'
-      : 'Pour lieu, dates précises ou texte libre, utilisez la barre de recherche.';
-  }, [metaFilter, searchActive]);
+    return 'Pour lieu, dates précises ou texte libre, utilisez la barre de recherche. Statut et filtres se combinent.';
+  }, [searchActive]);
 
   const categoryOptions = useMemo<FilterChipRowOption<string>[]>(
     () =>
@@ -338,7 +353,7 @@ export function MapFiltersSheet({
                 />
               </FilterSection>
 
-              {subcategoryOptions.length > 0 ? (
+              {features.subcategories && subcategoryOptions.length > 0 ? (
                 <FilterSection title="Sous-catégories">
                   <FilterChipRow
                     mode="multi"

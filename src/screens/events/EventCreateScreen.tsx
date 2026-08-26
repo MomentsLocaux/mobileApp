@@ -22,6 +22,7 @@ import { GeocodingService } from '../../services/geocoding.service';
 import { useAuth, useLocation } from '../../hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { features } from '@/config/features';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import type {
   EventFormData,
@@ -468,7 +469,7 @@ export default function EventCreateScreen() {
               </ScrollView>
             </View>
 
-            {formData.category && (
+            {features.subcategories && formData.category && (
               <View>
                 <Text style={styles.inputLabel}>Sous-catégorie</Text>
                 <ScrollView

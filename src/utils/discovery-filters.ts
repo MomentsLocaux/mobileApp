@@ -14,6 +14,7 @@ import {
 import type { EventFilters, SortOption, SortOrder } from '../types/filters';
 import { resolveEventTimeScope, type EventTimeScope } from './event-time-scope';
 import { buildFiltersFromSearch } from './search-filters';
+import { features } from '../config/features';
 
 export type DiscoverySurface = 'home' | 'map';
 
@@ -116,8 +117,13 @@ export function toEventFilters(
   filters: DiscoveryFilters,
   fallbackCoords?: DiscoveryCoords | null
 ): EventFilters {
-  const center =
-    filters.place.center ?? (filters.place.radiusKm !== undefined && fallbackCoords ? fallbackCoords : null);
+  // Default place is `{ center: null, radiusKm: 20 }` — that must NOT constrain
+  // map browse / category-only filters to a nearby disk. Only an explicit center
+  // or a non-default radius activates geo filtering (same rule as isPlaceFilterActive).
+  const placeActive = isPlaceFilterActive(filters.place);
+  const center = placeActive
+    ? filters.place.center ?? fallbackCoords ?? null
+    : filters.place.center ?? null;
   const query = filters.content.query?.trim();
 
   return buildFiltersFromSearch(
@@ -131,7 +137,9 @@ export function toEventFilters(
               label: filters.place.label ?? 'Autour de moi',
             }
           : undefined,
-        radiusKm: filters.place.radiusKm,
+      radiusKm: placeActive
+        ? filters.place.radiusKm ?? DISCOVERY_DEFAULT_RADIUS_KM
+        : undefined,
       },
       when: {
         preset: filters.when.preset,
@@ -141,7 +149,8 @@ export function toEventFilters(
       },
       what: {
         categories: filters.content.categories,
-        subcategories: filters.content.subcategories,
+        // Keep wiring; ignore stored subcats while the UI flag is off.
+        subcategories: features.subcategories ? filters.content.subcategories : [],
         // Retained in the data contract for backend compatibility, but no
         // longer exposed as a mobile discovery criterion.
         tags: [],
@@ -235,7 +244,7 @@ export function activeFilterCount(
   if (hasWhenFilter(filters)) count += 1;
   if (hasPlaceFilter(filters)) count += 1;
   if (filters.content.categories.length > 0) count += 1;
-  if (filters.content.subcategories.length > 0) count += 1;
+  if (features.subcategories && filters.content.subcategories.length > 0) count += 1;
   if (filters.content.query?.trim()) count += 1;
 
   const surface = options?.surface;
@@ -275,10 +284,12 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
     parts.push(`${categories.length} catégories`);
   }
 
-  if (subcategories.length === 1) {
-    parts.push(categoryLabels?.[subcategories[0]] ?? '1 sous-catégorie');
-  } else if (subcategories.length > 1) {
-    parts.push(`${subcategories.length} sous-catégories`);
+  if (features.subcategories) {
+    if (subcategories.length === 1) {
+      parts.push(categoryLabels?.[subcategories[0]] ?? '1 sous-catégorie');
+    } else if (subcategories.length > 1) {
+      parts.push(`${subcategories.length} sous-catégories`);
+    }
   }
 
   if (includeMapMode && filters.mapMode !== 'standard') {

@@ -11,6 +11,7 @@ import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { features } from '@/config/features';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../../types/filters';
 import type { EventCategory } from '../../types/database';
 
@@ -150,7 +151,7 @@ export function EventFilters({
             </ScrollView>
           </View>
 
-          {filters.category && (
+          {features.subcategories && filters.category && (
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Sous-catégories</Text>
               <ScrollView

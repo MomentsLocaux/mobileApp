@@ -111,6 +111,8 @@ describe('discovery filter contract', () => {
       query: ' concert ',
     };
 
+    // Subcategories stay in the store contract but are omitted from EventFilters
+    // while `features.subcategories` is off (UI-hidden, wiring preserved).
     assert.deepEqual(toEventFilters(filters), {
       includePast: false,
       centerLat: 49.61,
@@ -118,19 +120,15 @@ describe('discovery filter contract', () => {
       radiusKm: 25,
       time: 'today',
       categories: ['music'],
-      subcategories: ['jazz'],
       name: 'concert',
     });
   });
 
-  it('applies the default nearby radius when device coordinates are available', () => {
+  it('does not apply default nearby radius until place is explicitly active', () => {
     const filters = createDefaultDiscoveryFilters();
 
     assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
       includePast: false,
-      centerLat: 49.61,
-      centerLon: 6.13,
-      radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
     });
 
     filters.place.radiusKm = 25;
@@ -139,6 +137,16 @@ describe('discovery filter contract', () => {
       centerLat: 49.61,
       centerLon: 6.13,
       radiusKm: 25,
+    });
+  });
+
+  it('category-only filters do not inject a nearby radius on the map viewport', () => {
+    const filters = createDefaultDiscoveryFilters();
+    filters.content.categories = ['sport-loisirs-id'];
+
+    assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
+      includePast: false,
+      categories: ['sport-loisirs-id'],
     });
   });
 

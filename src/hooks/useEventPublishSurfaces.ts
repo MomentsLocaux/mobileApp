@@ -5,9 +5,12 @@ import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 /**
  * Unified "+" contribute entry (organizer create vs community suggest).
  *
+ * The center tab "+" stays visible as nav chrome even when publish features are
+ * off — tap then no-ops with a soft message (eventCreate stays disabled).
+ *
  * | eventCreate | eventSuggest | canCreateNow | FAB + behavior              |
  * |-------------|--------------|--------------|-----------------------------|
- * | off         | off          | —            | hidden                      |
+ * | off         | off          | —            | shown; soft "bientôt"       |
  * | off         | on           | —            | method sheet (suggest)      |
  * | on          | off          | yes          | direct organizer form       |
  * | on          | on           | yes          | intent sheet → method       |
@@ -21,7 +24,10 @@ export function useEventPublishSurfaces() {
   const eventSuggest = features.eventSuggest;
 
   const canOrganize = eventCreate && canCreateNow;
-  const showCenterTabAction = eventSuggest || canOrganize;
+  /** Always reserve the center "+" slot in the tab bar. */
+  const showCenterTabButton = true;
+  /** Real contribute flow available (suggest and/or organizer create). */
+  const canOpenContribute = eventSuggest || canOrganize;
   const needsIntentChooser = canOrganize && eventSuggest;
 
   const showOrganizerCreateDrawer = eventCreate && canCreate;
@@ -37,7 +43,10 @@ export function useEventPublishSurfaces() {
     eventSuggest,
     canOrganize,
     needsIntentChooser,
-    showCenterTabAction,
+    showCenterTabButton,
+    /** @deprecated Prefer showCenterTabButton + canOpenContribute */
+    showCenterTabAction: showCenterTabButton,
+    canOpenContribute,
     showOrganizerCreateDrawer,
     showPosterSuggestDrawer,
     showMyEvents,

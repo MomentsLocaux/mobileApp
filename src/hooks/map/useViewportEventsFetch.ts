@@ -23,23 +23,6 @@ const pickWhenFilters = (filters: EventFilters): EventFilters => ({
   endDate: filters.endDate,
 });
 
-const hasWhatFilters = (filters: EventFilters) =>
-  !!(
-    (filters.categories && filters.categories.length > 0) ||
-    (filters.subcategories && filters.subcategories.length > 0) ||
-    (filters.tags && filters.tags.length > 0) ||
-    filters.name
-  );
-
-const pickWhatFilters = (filters: EventFilters): EventFilters => ({
-  categories: filters.categories,
-  subcategories: filters.subcategories,
-  tags: filters.tags,
-  name: filters.name,
-});
-
-const hasBrowseFilters = (filters: EventFilters) => hasWhenFilters(filters) || hasWhatFilters(filters);
-
 export type ViewportFetchOptions = {
   immediate?: boolean;
   force?: boolean;
@@ -173,18 +156,14 @@ export function useViewportEventsFetch({
       const currentSortOrder = sortOrderRef.current;
       const currentSortCenter = sortCenterRef.current;
 
+      // Only filter when/what after an explicit Apply / sheet Afficher (searchApplied).
+      // Uncommitted SearchBar drafts must not leak onto the map browse layer.
       const effectiveSearchActive = currentSearchApplied && currentHasSearchCriteria;
       const effectiveFilters = effectiveSearchActive ? currentSearchFilters : {};
-      const browseFilters: EventFilters = {
-        ...pickWhenFilters(currentSearchFilters),
-        ...pickWhatFilters(currentSearchFilters),
-      };
 
       let filteredEvents = events;
       if (effectiveSearchActive) {
         filteredEvents = filterEvents(events, effectiveFilters, null);
-      } else if (hasBrowseFilters(browseFilters)) {
-        filteredEvents = filterEvents(events, browseFilters, null);
       }
 
       const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, currentMetaFilter);
@@ -208,12 +187,11 @@ export function useViewportEventsFetch({
 
       const currentUiState = useMapResultsUIStore.getState();
       if (currentUiState.sheetStatus === 'singleEvent') return;
-      if (viewportFrozenRef.current) return;
 
       const sheetEvents = dedupedEvents.slice(0, MAP_SHEET_LIST_LIMIT);
       displayViewportResults(sheetEvents, { totalCount: dedupedEvents.length });
     },
-    [displayViewportResults, mapRef, viewportFrozenRef]
+    [displayViewportResults, mapRef]
   );
 
   /** Re-run client filters/sort on the last RPC payload — no network, no loading flash. */
@@ -264,7 +242,9 @@ export function useViewportEventsFetch({
           searchActive: effectiveSearchActive,
           includePast: currentIncludePast,
         });
-        const whenOnlyFilters = pickWhenFilters(currentSearchFilters);
+        const whenOnlyFilters = effectiveSearchActive
+          ? pickWhenFilters(currentSearchFilters)
+          : {};
 
         const bboxParams = {
           ne: bounds.ne,
@@ -279,6 +259,7 @@ export function useViewportEventsFetch({
         const fetchViewport = async (timeScope: typeof bboxTimeScope) =>
           listMapViewportForMap(bboxParams, timeScope, {
             mergeUpcomingForDatePreset: mergeUpcomingForDatePreset && timeScope === 'current',
+            zoom: zoomRef.current,
           });
 
         let viewport = await fetchViewport(bboxTimeScope);

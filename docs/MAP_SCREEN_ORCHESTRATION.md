@@ -35,7 +35,10 @@ Map ready / focus screen
   → setShape + displayViewportResults
 ```
 
-Parallèle : si `userLocation` disponible, premier `recenterToUser()` (fit radius 7.5 km).
+Parallèle : si `userLocation` disponible, le GPS **possède** le 1er paint
+(`fitToRadius` + `refreshWithBounds` sur le disque calculé, rayon
+`MAP_RECENTER_USER_RADIUS_KM`). `ensureInitialViewportLoad` / `onMapReady` ne
+démarrent que s’il n’y a pas de fix GPS (évite le thrash France → quartier).
 
 ---
 
@@ -43,27 +46,33 @@ Parallèle : si `userLocation` disponible, premier `recenterToUser()` (fit radiu
 
 `MapWrapper` émet `onVisibleBoundsChange(bounds, { isUserInteraction? })`.
 
-Décision dans `handleBoundsChange` :
+Pattern **« Rechercher dans cette zone »** (Airbnb / Google Maps) :
 
 ```
 isUserInteraction?
   yes → clear programmatic state
-     → si frozen: unlockViewportFromUserPan + fetch force
-     → sinon: queueViewportFetch immediate force
+     → si frozen: unlock freeze (sans fetch)
+     → onUserViewportMoved → chip si hors zone cherchée
+     → PAS de fetch automatique
 
-isProgrammaticMoveRef?
-  yes → clear flag
-     → si pendingProgrammaticRefresh: queueViewportFetch force
-     → sinon: stop (pas de refetch)
+isProgrammaticMoveRef + pendingProgrammaticRefresh?
+  yes → fetch force + markZoneSearched
 
-viewportFrozenRef?
-  yes → stop
+bootstrap / refreshBounds / refreshWithBounds / filtres / recenter?
+  → fetch + markZoneSearched (chip masqué)
 
-isSheetDragging || bounds suppressed?
-  yes → stop
-
-sinon → queueViewportFetch (debounce 300 ms)
+chip tap?
+  → clearSearchCriteria si recherche modale active (pas d’historique)
+  → refreshWithBounds(pending, chrome inset) + markZoneSearched
 ```
+
+Seuils chip : centre déplacé ≳ 22 % de l’emprise cherchée, ou zoom Δ ≳ 0.85.
+
+Avant RPC / comptage peek, les bounds caméra sont **réduites** (chrome inset) :
+- bas ≈ hauteur peek sheet (+ petit gap) — la carte est full-bleed sous le tiroir
+- haut / gauche / droite ≈ marges écran (`MAP_QUERY_EDGE_INSET_PX`)
+
+Les disques `fitToRadius` (recenter / search lieu) ne passent **pas** par cet inset.
 
 ---
 
@@ -184,3 +193,25 @@ L’écran carte utilise `SHEET_LAYOUT_TIMING` (timing, pas spring) pour le resi
 | `cancelAllMapRequests()` | les deux |
 
 Utilisé au marker press, unmount, et avant certains changements sheet.
+
+---
+
+## Peek count (bottom sheet)
+
+Présentation via `useSettledViewportPeek` (sheet + bouton filtres) :
+
+| Phase | Affichage |
+|-------|-----------|
+| Avant 1er count validé | Message unique « On repère les événements autour de toi… » (même slot texte que le label final) |
+| Après validation | Dernier count figé ; les refetch `loading` **ne** réaffichent **pas** le message d’attente |
+| Mise à jour du nombre | Après fenêtre calme (~450 ms) sur la dernière valeur ; 1er commit ~900 ms pour absorber les fetchs chaînés |
+
+Source de vérité store : `visibleEventCount` / `sheetStatus === 'loading'`. Le peek ne lit plus `loading` une fois un count validé.
+
+---
+
+## Viewport fetch — couverture géographique
+
+`list_map_viewport` applique `ORDER BY` + `LIMIT` **dans** l’AABB. Sur une vue France, un seul fetch favorise un corridor d’événements.
+
+À faible zoom / grande emprise (`shouldUseViewportGrid`), le client découpe la bbox en **grille 2×2** et fusionne les résultats pour couvrir NW/NE/SW/SE.

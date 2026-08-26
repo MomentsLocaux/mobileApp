@@ -8,10 +8,22 @@ import { getBoundsFromRadiusKm } from '@/utils/search-helpers';
 import { MAP_FIT_PADDING, MAP_FOCUS_PADDING_BOTTOM } from '@/constants/map-screen';
 import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
+import {
+  insetMapBoundsForVisibleChrome,
+  type MapViewportSize,
+} from '@/utils/map-bounds';
 import type { useMapProgrammaticMove } from './useMapProgrammaticMove';
 import type { ViewportFetchOptions } from './useViewportEventsFetch';
 
 type ProgrammaticMove = ReturnType<typeof useMapProgrammaticMove>;
+
+type FetchViewportOptions = ViewportFetchOptions & {
+  /**
+   * When true (default), shrink camera bounds by peek sheet + edge margins
+   * before RPC / peek count. Set false for explicit geographic disks (fitToRadius).
+   */
+  applyChromeInset?: boolean;
+};
 
 type Params = {
   mapRef: RefObject<MapWrapperHandle | null>;
@@ -23,7 +35,13 @@ type Params = {
   clearFrozenViewport: () => void;
   freezeViewportResults: () => void;
   zoomRef: RefObject<number>;
+  /** Measured map column size — improves chrome inset accuracy. */
+  getMapViewportSize?: () => MapViewportSize | null;
   onUnlockViewport?: () => void;
+  /** User pan/zoom settled — do not fetch; parent may show “search this area”. */
+  onUserViewportMoved?: (bounds: MapBounds) => void;
+  /** A real search/fetch was queued for these bounds. */
+  onViewportSearched?: (bounds: MapBounds) => void;
 };
 
 export function useMapViewportController({
@@ -36,7 +54,10 @@ export function useMapViewportController({
   clearFrozenViewport,
   freezeViewportResults,
   zoomRef,
+  getMapViewportSize,
   onUnlockViewport,
+  onUserViewportMoved,
+  onViewportSearched,
 }: Params) {
   const initialViewportLoadInFlightRef = useRef(false);
   /** True after the first real viewport fetch was queued — avoids focus+ready+recenter triple load. */
@@ -55,6 +76,22 @@ export function useMapViewportController({
     viewportBootstrappedRef.current = true;
   }, []);
 
+  const fetchViewport = useCallback(
+    (bounds: MapBounds, options?: FetchViewportOptions) => {
+      const { applyChromeInset = true, ...fetchOptions } = options ?? {};
+      const queryBounds = applyChromeInset
+        ? insetMapBoundsForVisibleChrome(
+            bounds,
+            getMapViewportSize?.() ?? { width: 390, height: 700 }
+          )
+        : bounds;
+      queueViewportFetch(queryBounds, fetchOptions);
+      // Chip / “searched zone” tracks the camera AABB, not the inset query box.
+      onViewportSearched?.(bounds);
+    },
+    [getMapViewportSize, onViewportSearched, queueViewportFetch]
+  );
+
   const handleUserMapGestureStart = useCallback(() => {
     clearProgrammaticMoveState();
     programmatic.suppressBoundsRecalcUntilRef.current = 0;
@@ -66,9 +103,10 @@ export function useMapViewportController({
       clearFrozenViewport();
       onUnlockViewport?.();
       frozenViewportBoundsRef.current = bounds;
-      queueViewportFetch(bounds, { immediate: true, force: true });
+      // Airbnb pattern: unlock freeze, let the user confirm with “search this area”.
+      onUserViewportMoved?.(bounds);
     },
-    [clearFrozenViewport, onUnlockViewport, queueViewportFetch]
+    [clearFrozenViewport, onUnlockViewport, onUserViewportMoved, viewportFrozenRef, frozenViewportBoundsRef]
   );
 
   const handleBoundsChange = useCallback(
@@ -88,7 +126,7 @@ export function useMapViewportController({
         }
         frozenViewportBoundsRef.current = bounds;
         markViewportBootstrapped();
-        queueViewportFetch(bounds, { immediate: true, force: true });
+        onUserViewportMoved?.(bounds);
         return;
       }
 
@@ -98,7 +136,7 @@ export function useMapViewportController({
         if (pendingProgrammaticRefreshRef.current) {
           pendingProgrammaticRefreshRef.current = false;
           markViewportBootstrapped();
-          queueViewportFetch(bounds, { immediate: true, force: true });
+          fetchViewport(bounds, { immediate: true, force: true });
         }
         return;
       }
@@ -106,20 +144,24 @@ export function useMapViewportController({
       if (viewportFrozenRef.current) return;
       if (isSheetDraggingRef.current || isBoundsRecalcSuppressed()) return;
 
+      // Idle / padding settles after bootstrap: do not auto-refetch.
       frozenViewportBoundsRef.current = bounds;
-      markViewportBootstrapped();
-      queueViewportFetch(bounds);
+      if (!viewportBootstrappedRef.current) {
+        markViewportBootstrapped();
+        fetchViewport(bounds);
+      }
     },
     [
       clearProgrammaticMoveState,
+      fetchViewport,
       isBoundsRecalcSuppressed,
       isProgrammaticMoveRef,
       isSheetDraggingRef,
       mapRef,
       markViewportBootstrapped,
+      onUserViewportMoved,
       pendingProgrammaticRefreshRef,
       programmatic.suppressBoundsRecalcUntilRef,
-      queueViewportFetch,
       unlockViewportFromUserPan,
       viewportFrozenRef,
     ]
@@ -142,7 +184,7 @@ export function useMapViewportController({
         const bounds = await mapRef.current?.getVisibleBounds?.();
         if (!bounds) continue;
         markViewportBootstrapped();
-        queueViewportFetch(bounds, { immediate: true, force: true });
+        fetchViewport(bounds, { immediate: true, force: true });
         return;
       }
       useMapResultsUIStore.getState().setStatus('browsing');
@@ -169,7 +211,7 @@ export function useMapViewportController({
         }, 4000);
       }
     }
-  }, [isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
+  }, [fetchViewport, isProgrammaticMoveRef, mapRef, markViewportBootstrapped]);
 
   const refreshBounds = useCallback(async (options?: Pick<ViewportFetchOptions, 'metaFilter'>) => {
     traceMapSheetPerf('refreshBounds');
@@ -182,8 +224,48 @@ export function useMapViewportController({
     mapRef.current?.clearBoundsCache?.();
     frozenViewportBoundsRef.current = bounds;
     markViewportBootstrapped();
-    queueViewportFetch(bounds, { immediate: true, force: true, metaFilter: options?.metaFilter });
-  }, [clearFrozenViewport, isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
+    fetchViewport(bounds, { immediate: true, force: true, metaFilter: options?.metaFilter });
+  }, [clearFrozenViewport, fetchViewport, isProgrammaticMoveRef, mapRef, markViewportBootstrapped, viewportFrozenRef, frozenViewportBoundsRef]);
+
+  /**
+   * Fetch a known bbox (e.g. after fitToRadius) without racing getVisibleBounds.
+   * Canonical for locate FAB / search-disk camera moves.
+   * Default: no chrome inset (bounds are an explicit geo disk). Pass
+   * `applyChromeInset: true` for camera visible bounds (search this area).
+   */
+  const refreshWithBounds = useCallback(
+    (
+      bounds: MapBounds,
+      options?: Pick<ViewportFetchOptions, 'metaFilter'> & {
+        applyChromeInset?: boolean;
+      }
+    ) => {
+      traceMapSheetPerf('refreshWithBounds');
+      viewportFrozenRef.current = false;
+      clearFrozenViewport();
+      isProgrammaticMoveRef.current = false;
+      pendingProgrammaticRefreshRef.current = false;
+      mapRef.current?.clearBoundsCache?.();
+      frozenViewportBoundsRef.current = bounds;
+      markViewportBootstrapped();
+      fetchViewport(bounds, {
+        immediate: true,
+        force: true,
+        metaFilter: options?.metaFilter,
+        applyChromeInset: options?.applyChromeInset ?? false,
+      });
+    },
+    [
+      clearFrozenViewport,
+      fetchViewport,
+      isProgrammaticMoveRef,
+      mapRef,
+      markViewportBootstrapped,
+      pendingProgrammaticRefreshRef,
+      viewportFrozenRef,
+      frozenViewportBoundsRef,
+    ]
+  );
 
   const refitMapToFrozenViewport = useCallback(
     (
@@ -233,17 +315,28 @@ export function useMapViewportController({
   }, [freezeViewportResults, mapRef]);
 
   const fitToRadius = useCallback(
-    (latitude: number, longitude: number, radiusKm: number) => {
+    (latitude: number, longitude: number, radiusKm: number): MapBounds => {
       const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
       const coords = [
         { latitude: bounds.sw[1], longitude: bounds.sw[0] },
         { latitude: bounds.ne[1], longitude: bounds.ne[0] },
       ];
-      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, MAP_FIT_PADDING));
+      // refreshAfter false: caller schedules refreshWithBounds(bounds) so we don't
+      // race idle getVisibleBounds against the animation.
+      withProgrammaticMove(
+        () => mapRef.current?.fitToCoordinates(coords, MAP_FIT_PADDING),
+        { durationMs: MAP_CAMERA_ANIMATION_MS, refreshAfter: false }
+      );
       return bounds;
     },
     [mapRef, withProgrammaticMove]
   );
+
+  /** Clear freeze so peek counts / filter reapply can publish again. */
+  const unlockViewportFreeze = useCallback(() => {
+    viewportFrozenRef.current = false;
+    clearFrozenViewport();
+  }, [clearFrozenViewport, viewportFrozenRef]);
 
   const focusOnEvent = useCallback(
     (event: EventWithCreator, options?: { bumpZoom?: boolean }) => {
@@ -273,12 +366,14 @@ export function useMapViewportController({
     handleBoundsChange,
     ensureInitialViewportLoad,
     refreshBounds,
+    refreshWithBounds,
     refitMapToFrozenViewport,
     syncMapToFrozenViewport,
     lockViewportForSheet,
     fitToRadius,
     focusOnEvent,
     unlockViewportFromUserPan,
+    unlockViewportFreeze,
     viewportBootstrappedRef,
   };
 }

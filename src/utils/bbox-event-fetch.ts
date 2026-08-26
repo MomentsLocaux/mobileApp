@@ -2,10 +2,16 @@ import { EventsService } from '@/services/events.service';
 import {
   mergeFeatureCollections,
   type EventMapFeatureCollection,
+  type MapBounds,
 } from '@/types/map-events';
 import type { EventWithCreator } from '@/types/database';
 import type { FeatureCollection } from 'geojson';
 import type { EventTimeScope } from '@/utils/event-time-scope';
+import {
+  normalizeMapBounds,
+  shouldUseViewportGrid,
+  splitBoundsIntoGrid,
+} from '@/utils/map-bounds';
 
 type BboxParams = {
   ne: [number, number];
@@ -16,6 +22,12 @@ type BboxParams = {
 export type MapViewportPayload = {
   events: EventWithCreator[];
   featureCollection: EventMapFeatureCollection;
+};
+
+export type ListMapViewportOptions = {
+  mergeUpcomingForDatePreset?: boolean;
+  /** Used to decide tiled fetch on country / large-region zooms. */
+  zoom?: number | null;
 };
 
 /**
@@ -51,14 +63,25 @@ const isTransientViewportRpcFailure = (error: unknown) => {
   );
 };
 
-/**
- * Map viewport fetch. Currently forces legacy bbox + get_events_by_ids.
- * When USE_MAP_VIEWPORT_RPC is true, falls back on missing RPC / timeout.
- */
-export async function listMapViewportForMap(
+function mergeViewportPayloads(payloads: MapViewportPayload[]): MapViewportPayload {
+  const eventsById = new Map<string, EventWithCreator>();
+  for (const payload of payloads) {
+    for (const event of payload.events) {
+      if (event?.id) eventsById.set(event.id, event);
+    }
+  }
+  return {
+    events: Array.from(eventsById.values()),
+    featureCollection: mergeFeatureCollections(
+      ...payloads.map((payload) => payload.featureCollection)
+    ),
+  };
+}
+
+async function listMapViewportSingle(
   bbox: BboxParams,
   timeScope: EventTimeScope,
-  options?: { mergeUpcomingForDatePreset?: boolean }
+  options?: ListMapViewportOptions
 ): Promise<MapViewportPayload> {
   if (!USE_MAP_VIEWPORT_RPC) {
     return listMapViewportLegacyFallback(bbox, timeScope, options);
@@ -94,6 +117,40 @@ export async function listMapViewportForMap(
   }
 }
 
+/**
+ * Map viewport fetch. On wide zooms, tiles the bbox (2×2) so ORDER BY+LIMIT
+ * cannot collapse markers onto a single geographic corridor.
+ */
+export async function listMapViewportForMap(
+  bbox: BboxParams,
+  timeScope: EventTimeScope,
+  options?: ListMapViewportOptions
+): Promise<MapViewportPayload> {
+  const normalized = normalizeMapBounds({ ne: bbox.ne, sw: bbox.sw });
+  const request: BboxParams = {
+    ne: normalized.ne,
+    sw: normalized.sw,
+    limit: bbox.limit,
+  };
+
+  if (!shouldUseViewportGrid(normalized, options?.zoom)) {
+    return listMapViewportSingle(request, timeScope, options);
+  }
+
+  const cells = splitBoundsIntoGrid(normalized, 2, 2);
+  const perCell = Math.max(100, Math.ceil(bbox.limit / cells.length));
+  const payloads = await Promise.all(
+    cells.map((cell) =>
+      listMapViewportSingle(
+        { ne: cell.ne, sw: cell.sw, limit: perCell },
+        timeScope,
+        options
+      )
+    )
+  );
+  return mergeViewportPayloads(payloads);
+}
+
 /** Kept for search preview / legacy callers. */
 export async function listEventsByBBoxForMap(
   bbox: BboxParams,
@@ -119,7 +176,7 @@ export async function listEventsByBBoxForMap(
 async function listMapViewportLegacyFallback(
   bbox: BboxParams,
   timeScope: EventTimeScope,
-  options?: { mergeUpcomingForDatePreset?: boolean }
+  options?: ListMapViewportOptions
 ): Promise<MapViewportPayload> {
   const featureCollection = (await listEventsByBBoxForMap(bbox, timeScope, options)) || {
     type: 'FeatureCollection' as const,
@@ -137,4 +194,4 @@ async function listMapViewportLegacyFallback(
   };
 }
 
-export type { FeatureCollection };
+export type { FeatureCollection, MapBounds };

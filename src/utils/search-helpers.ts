@@ -1,4 +1,5 @@
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
+import { features } from '@/config/features';
 import type {
   DiscoveryContentFilter,
   DiscoveryPlaceFilter,
@@ -27,9 +28,10 @@ type Coords = { latitude: number; longitude: number };
 export const resolveMapViewportLimit = (zoom?: number | null): number => {
   const z = typeof zoom === 'number' && Number.isFinite(zoom) ? zoom : 12;
   if (z >= 13) return MAP_VIEWPORT_LIMIT_MAX; // neighborhood / city streets
-  if (z >= 11) return 1000; // agglomeration
-  if (z >= 9) return 700; // region
-  return 500; // country / wide
+  if (z >= 11) return 1200; // agglomeration
+  if (z >= 9) return 1000; // region
+  // Country / wide — max cap; tiled fetch spreads this across the bbox.
+  return MAP_VIEWPORT_LIMIT_MAX;
 };
 
 export type DiscoverySearchCriteria = {
@@ -52,7 +54,7 @@ export const hasSearchCriteria = (search: DiscoverySearchCriteria): boolean => {
     includePast;
   const hasWhat =
     search.content.categories.length > 0 ||
-    search.content.subcategories.length > 0 ||
+    (features.subcategories && search.content.subcategories.length > 0) ||
     !!search.content.query?.trim();
   return hasWhere || hasWhen || hasWhat;
 };
@@ -84,6 +86,27 @@ export const resolveSearchCenter = (
     return userCoords;
   }
   return null;
+};
+
+export type SearchTargetBounds = {
+  latitude: number;
+  longitude: number;
+  radiusKm: number;
+};
+
+/** Camera target for an applied place search (Map Apply + Home→Map focus). */
+export const resolveSearchTargetBounds = (
+  place: DiscoveryPlaceFilter,
+  userCoords?: Coords | null
+): SearchTargetBounds | null => {
+  const center = resolveSearchCenter(place, userCoords);
+  const effectiveRadius = resolveEffectiveRadiusKm(place, userCoords);
+  if (!center || effectiveRadius === undefined) return null;
+  return {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    radiusKm: effectiveRadius,
+  };
 };
 
 export const getBoundsFromRadiusKm = (latitude: number, longitude: number, radiusKm: number) => {

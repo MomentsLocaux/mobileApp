@@ -55,6 +55,22 @@ describe('discovery filter store', () => {
     assert.equal(current.searchApplied, false);
   });
 
+  it('Tout effacer (resetCriteria) also restores default status', () => {
+    const store = useDiscoveryFiltersStore.getState();
+    store.setStatus('upcoming');
+    store.setWhen({ preset: 'tomorrow' });
+    store.setContent({ categories: ['music'] });
+    store.commitSearch();
+
+    store.resetCriteria();
+
+    const current = useDiscoveryFiltersStore.getState();
+    assert.equal(current.status, 'live');
+    assert.deepEqual(current.when, {});
+    assert.deepEqual(current.content.categories, []);
+    assert.equal(current.searchApplied, false);
+  });
+
   it('resets all criteria while preserving each surface preference', () => {
     const store = useDiscoveryFiltersStore.getState();
     store.setStatus('upcoming');

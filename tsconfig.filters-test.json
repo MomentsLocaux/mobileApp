@@ -14,6 +14,8 @@
   },
   "include": [
     "src/utils/discovery-filters.test.ts",
+    "src/utils/map-bounds.test.ts",
+    "src/utils/map-search-this-area.test.ts",
     "src/utils/contextual-sort-labels.test.ts",
     "src/utils/favorite-events.test.ts",
     "src/utils/community-photo-eligibility.test.ts",

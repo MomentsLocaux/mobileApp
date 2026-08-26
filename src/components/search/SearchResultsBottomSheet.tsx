@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   PanResponder,
   InteractionManager,
@@ -21,6 +20,7 @@ import type { EventMetaFilter } from '../../utils/filter-events';
 import { SortControl } from '@/components/filters';
 import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
+import { useSettledViewportPeek } from '@/hooks/useSettledViewportPeek';
 import {
   VIEWPORT_PEEK_HEIGHT,
   VIEWPORT_HALF_SNAP_INDEX,
@@ -135,6 +135,12 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       snapIndex: clampedIndex,
     });
 
+    const {
+      showWaiting: peekWaiting,
+      displayCount: settledPeekCount,
+      waitingMessage,
+    } = useSettledViewportPeek(peekCount, isLoading);
+
     const hasEvents = events.length > 0;
     const isSheetExpandable =
       !isLoading && hasEvents && (mode === 'single' || peekCount > 0);
@@ -241,8 +247,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }));
 
     const peekTitle = useMemo(
-      () => formatViewportPeekLabel(peekCount, metaFilter, isLoading),
-      [isLoading, metaFilter, peekCount]
+      () =>
+        formatViewportPeekLabel(settledPeekCount, metaFilter, peekWaiting, {
+          waitingMessage,
+        }),
+      [metaFilter, peekWaiting, settledPeekCount, waitingMessage]
     );
 
     // Advanced search can still apply the otherwise API-only `created` sort:
@@ -433,20 +442,20 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     return (
       <View style={styles.container}>
         <View style={styles.sheetChrome} {...sheetChromeHandlers}>
-          <View style={[styles.handleArea, !isSheetExpandable && styles.handleAreaDisabled]}>
-            {isSheetExpandable ? <View style={styles.handleIndicator} /> : null}
+          <View style={styles.handleArea}>
+            <View
+              style={[
+                styles.handleIndicator,
+                !isSheetExpandable && styles.handleIndicatorHidden,
+              ]}
+            />
           </View>
 
           {isPeek ? (
             <View style={styles.peekHeader}>
-              {isLoading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color={colors.brand.secondary} size="small" />
-                  <Text style={styles.peekTitle}>{peekTitle}</Text>
-                </View>
-              ) : (
-                <Text style={styles.peekTitle}>{peekTitle}</Text>
-              )}
+              <Text style={styles.peekTitle} numberOfLines={2}>
+                {peekTitle}
+              </Text>
             </View>
           ) : null}
 
@@ -561,14 +570,8 @@ const styles = StyleSheet.create({
   handleArea: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 36,
+    height: 28,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  handleAreaDisabled: {
-    minHeight: spacing.sm,
-    paddingTop: spacing.xs,
-    paddingBottom: 0,
   },
   handleIndicator: {
     width: 40,
@@ -576,18 +579,21 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.28)',
   },
+  handleIndicatorHidden: {
+    backgroundColor: 'transparent',
+  },
   peekHeader: {
+    height: 44,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 40,
   },
   peekTitle: {
     ...typography.body,
     color: colors.brand.text,
     fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 22,
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -612,11 +618,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     marginTop: spacing.xs,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   listSlot: {
     flex: 1,

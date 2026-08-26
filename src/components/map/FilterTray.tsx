@@ -14,6 +14,7 @@ import type { MapFilters, TimeFilter, PopularityFilter, SortOption } from '../..
 import type { EventCategory } from '../../types/database';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { features } from '@/config/features';
 
 interface FilterTrayProps {
   filters: MapFilters;
@@ -149,7 +150,7 @@ export function FilterTray({
             </View>
           </View>
 
-          {filters.category && (
+          {features.subcategories && filters.category && (
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Sous-catégorie</Text>
               <View style={styles.chipContainer}>

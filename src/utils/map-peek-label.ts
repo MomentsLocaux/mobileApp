@@ -7,26 +7,41 @@ const META_SCOPE_LABELS: Record<EventMetaFilter, string> = {
   past: 'passés',
 };
 
-/** Above this count we use the "Plus de X" wording. */
-export const VIEWPORT_PEEK_PLUS_THRESHOLD = 100;
+/**
+ * First reveal: wait long enough to absorb bootstrap / chained viewport fetches
+ * before committing a count to the peek.
+ */
+export const VIEWPORT_COUNT_FIRST_SETTLE_MS = 900;
+
+/** Later updates: brief quiet window so intermediate publishes don't flicker the number. */
+export const VIEWPORT_COUNT_UPDATE_MS = 450;
+
+/** @deprecated Use VIEWPORT_COUNT_FIRST_SETTLE_MS / VIEWPORT_COUNT_UPDATE_MS */
+export const VIEWPORT_COUNT_SETTLE_MS = VIEWPORT_COUNT_FIRST_SETTLE_MS;
+
+/** Single wait copy — same typography/height slot as the final peek label. */
+export const MAP_WAITING_MESSAGE = 'On repère les événements autour de toi…';
+
+export function getMapWaitingMessage(): string {
+  return MAP_WAITING_MESSAGE;
+}
 
 export function formatViewportPeekLabel(
   count: number,
   metaFilter: EventMetaFilter = 'all',
-  isLoading = false
+  isWaiting = false,
+  options?: { waitingMessage?: string }
 ): string {
-  const scopeLabel = META_SCOPE_LABELS[metaFilter];
+  if (isWaiting) {
+    return options?.waitingMessage ?? MAP_WAITING_MESSAGE;
+  }
 
-  if (isLoading) return 'Chargement...';
+  const scopeLabel = META_SCOPE_LABELS[metaFilter];
 
   if (count <= 0) {
     return metaFilter === 'all'
       ? 'Aucun événement dans la zone'
       : `Aucun événement ${scopeLabel}`;
-  }
-
-  if (count > VIEWPORT_PEEK_PLUS_THRESHOLD) {
-    return `Plus de ${count} événement${count > 1 ? 's' : ''} ${scopeLabel}`;
   }
 
   return `${count} événement${count > 1 ? 's' : ''} ${scopeLabel}`;

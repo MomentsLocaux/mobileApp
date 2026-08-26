@@ -369,7 +369,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="create"
           options={
-            publishSurfaces.showCenterTabAction
+            publishSurfaces.showCenterTabButton
               ? {
                   title: '',
                   tabBarButton: () => (
@@ -386,6 +386,13 @@ export default function TabsLayout() {
                           haptics.selection();
                           if (isGuest) {
                             openGuestGate('Ajouter un événement');
+                            return;
+                          }
+                          if (!publishSurfaces.canOpenContribute) {
+                            Alert.alert(
+                              'Bientôt disponible',
+                              'L’ajout d’événements sera bientôt ouvert sur Moments Locaux.',
+                            );
                             return;
                           }
                           // Organizer-only (no suggest): go straight to form.
@@ -561,7 +568,7 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
-            {publishSurfaces.showCenterTabAction ? (
+            {publishSurfaces.canOpenContribute ? (
               <DrawerLink
                 icon={PlusCircle}
                 label="Ajouter un événement"

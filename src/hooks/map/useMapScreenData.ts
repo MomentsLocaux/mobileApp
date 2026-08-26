@@ -4,6 +4,7 @@ import type { MapWrapperHandle } from '@/components/map';
 import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import type { MapBounds } from '@/types/map-events';
+import type { MapViewportSize } from '@/utils/map-bounds';
 import { useMapProgrammaticMove } from './useMapProgrammaticMove';
 import { useViewportEventsFetch } from './useViewportEventsFetch';
 import { useMapViewportController } from './useMapViewportController';
@@ -17,6 +18,9 @@ type Params = {
   clearFrozenViewport: () => void;
   freezeViewportResults: () => void;
   onUnlockViewport?: () => void;
+  onUserViewportMoved?: (bounds: MapBounds) => void;
+  onViewportSearched?: (bounds: MapBounds) => void;
+  getMapViewportSize?: () => MapViewportSize | null;
   metaFilter: EventMetaFilter;
   searchApplied: boolean;
   hasSearchCriteria: boolean;
@@ -59,6 +63,9 @@ export function useMapScreenData(params: Params) {
     freezeViewportResults: params.freezeViewportResults,
     zoomRef: params.zoomRef,
     onUnlockViewport: params.onUnlockViewport,
+    onUserViewportMoved: params.onUserViewportMoved,
+    onViewportSearched: params.onViewportSearched,
+    getMapViewportSize: params.getMapViewportSize,
   });
 
   return {

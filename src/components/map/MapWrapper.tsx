@@ -222,9 +222,13 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     async (meta?: { isUserInteraction: boolean }) => {
       if (!mapViewRef.current) return;
       try {
+        // rnmapbox: [[rightLon, topLat], [leftLon, bottomLat]] ≈ [ne, sw] when north-up.
         const bounds = await mapViewRef.current.getVisibleBounds();
         if (Array.isArray(bounds) && bounds.length === 2) {
-          const next = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+          const next = {
+            ne: bounds[0] as [number, number],
+            sw: bounds[1] as [number, number],
+          };
           if (hasBoundsChanged(next)) {
             lastBoundsRef.current = next;
             onVisibleBoundsChange?.(next, meta);
@@ -362,9 +366,10 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         cameraRef.current?.fitBounds([minLon, minLat], [maxLon, maxLat], padding, MAP_CAMERA_ANIMATION_MS);
       },
       fitToBounds: (bounds, padding = 40, animationDuration = MAP_CAMERA_ANIMATION_MS) => {
+        // rnmapbox Camera.fitBounds(ne, sw, ...)
         cameraRef.current?.fitBounds(
-          [bounds.sw[0], bounds.sw[1]],
           [bounds.ne[0], bounds.ne[1]],
+          [bounds.sw[0], bounds.sw[1]],
           padding,
           animationDuration
         );
@@ -372,9 +377,13 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       getVisibleBounds: async () => {
         if (!mapViewRef.current) return null;
         try {
+          // rnmapbox: [[rightLon, topLat], [leftLon, bottomLat]] ≈ [ne, sw] when north-up.
           const bounds = await mapViewRef.current.getVisibleBounds();
           if (Array.isArray(bounds) && bounds.length === 2) {
-            return { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+            return {
+              ne: bounds[0] as [number, number],
+              sw: bounds[1] as [number, number],
+            };
           }
         } catch (e) {
           console.warn('getVisibleBounds failed', e);
@@ -592,20 +601,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
         {styleReady ? (
         <Mapbox.ShapeSource id="selected-event-source" shape={selectedEventShape}>
-          <Mapbox.CircleLayer
-            id="selected-event-halo"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              circleRadius: 20,
-              circleColor: colors.brand.secondary,
-              circleOpacity: 0.22,
-              circleStrokeWidth: 2.5,
-              circleStrokeColor: colors.brand.secondary,
-              circleStrokeOpacity: 0.9,
-              // Lift halo toward pin head (icon is bottom-anchored on the tip).
-              circleTranslate: [0, -16],
-            }}
-          />
           <Mapbox.SymbolLayer
             id="selected-event-marker"
             filter={['!', ['has', 'point_count']]}
