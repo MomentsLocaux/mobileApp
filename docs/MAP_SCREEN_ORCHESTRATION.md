@@ -2,6 +2,8 @@
 
 Ce document décrit la machine d’état implicite de l’écran carte (`app/(tabs)/map.tsx`) et des hooks extraits.
 
+**Données viewport** : les events carte passent par `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`** (fallback legacy bbox + `getByIds` si RPC indisponible / lente). Modèle produit cible (voir `docs/ARCHITECTURE_LAYER_1_ERASER.md`) : chip « Rechercher dans cette zone » plutôt qu’un refetch systématique à chaque pan.
+
 ## États principaux
 
 ### Store `useMapResultsUIStore`
