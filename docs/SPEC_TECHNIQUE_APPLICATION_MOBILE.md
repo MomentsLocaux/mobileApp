@@ -4,8 +4,8 @@
 |---|---|
 | **Produit** | Moments Locaux |
 | **Document** | Spécification technique — application mobile (D2) |
-| **Version** | 1.0 |
-| **Date** | 2026-07-23 |
+| **Version** | 1.1 |
+| **Date** | 2026-08-27 |
 | **Statut** | Vivant (rétro-ingénierie code + docs + audits) |
 | **Audience** | Mobile eng., QA tech, Supabase Security, Release |
 | **Complément** | Spec fonctionnelle D1 — `docs/SPEC_FONCTIONNELLE_APPLICATION_MOBILE.md` |
@@ -29,8 +29,9 @@ Décrire **comment** l’application mobile est construite : stack, architecture
 
 ## 2. Contexte produit (rappel technique)
 
-Boucle MVP : découvrir → consulter → créer/soumettre → interagir → check-in → signaler → notifications → compte.
+Boucle MVP : **découvrir** → consulter → interagir (favoris / commentaires / pairs) → signaler → notifications → compte.
 
+- Supply événements = scraper OpenAgenda + console (ADR 001 / 002). Création / check-in / offres / Diffuseur = **V1 flags off**.
 - Modération ops **hors mobile** (ADR 001) — routes `/moderation/*` redirigées.
 - Backend : **Supabase** (Auth, PostgREST, Realtime, Storage, Edge Functions).
 - Carte : **Mapbox** (`@rnmapbox/maps`).
@@ -67,6 +68,7 @@ Boucle MVP : découvrir → consulter → créer/soumettre → interagir → che
 
 - iOS : photothèque, caméra, localisation (when-in-use + always), Face ID ; background `location` + `remote-notification`.
 - Android : `ACCESS_*_LOCATION`, `CAMERA`, `POST_NOTIFICATIONS`, `READ_MEDIA_IMAGES` / storage ; `google-services.json`.
+- Écran runtime : `/settings/permissions`.
 
 **Garde-fou build** (`app.config.ts`) : refuse les `EXPO_PUBLIC_*` dont le nom suggère `SERVICE|SECRET|PRIVATE`.
 
@@ -80,11 +82,11 @@ Boucle MVP : découvrir → consulter → créer/soumettre → interagir → che
 app/                    # Routes file-based (Expo Router)
 src/
   components/           # UI réutilisable
-  config/               # Feature flags (*.flags.ts)
-  hooks/                # useAuth, push, etc.
+  config/               # features.ts (SoT) + *.flags.ts re-exports
+  hooks/                # useAuth, push, map, publish surfaces, etc.
   services/             # Accès données / API / Edge
   state/                # Stores actifs (ex. auth)
-  store/                # Stores legacy / UI (ex. map)
+  store/                # Stores UI (map, proposals, likes…)
   screens/              # Écrans parfois partagés avec routes
   types/                # Types domaine / DB
 supabase/
@@ -99,24 +101,36 @@ supabase/
 1. Chargement session / profil  
 2. Non auth → `/auth/login`  
 3. Auth + onboarding incomplet → `/onboarding`  
-4. Sinon → `/(tabs)/map`
+4. Sinon → `/(tabs)` (**Accueil** `index` via `initialRouteName="index"`)
 
-Root stack (`app/_layout.tsx`) : tabs, auth, events, notifications, settings, discovery/contests (flaggés), etc.
+Root stack (`app/_layout.tsx`) : tabs, auth, events, notifications, settings, discovery/contests/lumia/roadtrip (flaggés), etc.
 
 ### Feature flags
 
-| Flag | Fichier | Variable | Défaut |
-|---|---|---|---|
-| Gamification | `src/config/gamification.flags.ts` | `EXPO_PUBLIC_GAMIFICATION_ENABLED` | `false` (+ miroir serveur `app_config` possible) |
-| Discovery | `src/config/discovery.flags.ts` | `EXPO_PUBLIC_DISCOVERY_ENABLED` | `false` |
-| Discovery capture | idem | `EXPO_PUBLIC_DISCOVERY_CAPTURE_ENABLED` | `false` |
-| Concours | `src/config/contests.flags.ts` | `EXPO_PUBLIC_FEATURE_CONTESTS` | `false` |
+**Source de vérité** : `src/config/features.ts` (`EXPO_PUBLIC_FEATURE_*`).
 
-Si flag off : layouts / écrans concernés font `Redirect` vers `/(tabs)/map` (ou `/settings` pour certains placeholders).
+Fichiers legacy `src/config/gamification.flags.ts`, `discovery.flags.ts`, `contests.flags.ts` = **re-exports** de `features.*` (compat imports existants).
+
+| Flag (`features.*`) | Variable | Défaut | Phase |
+|---|---|---|---|
+| `socialPeers` | `EXPO_PUBLIC_FEATURE_SOCIAL_PEERS` | **ON** (sauf `=false`) | MVP |
+| `eventCreate` | `EXPO_PUBLIC_FEATURE_EVENT_CREATE` | off | V1 |
+| `checkin` | `EXPO_PUBLIC_FEATURE_CHECKIN` | off | V1 |
+| `offers` | `EXPO_PUBLIC_FEATURE_OFFERS` | off | V1 |
+| `diffuseur` | `EXPO_PUBLIC_FEATURE_DIFFUSEUR` | off | V1 |
+| `gamification` | `EXPO_PUBLIC_FEATURE_GAMIFICATION` (+ legacy `GAMIFICATION_ENABLED`) | off | V2 |
+| `discovery` | `EXPO_PUBLIC_FEATURE_DISCOVERY` (+ legacy) | off | V2 |
+| `discoveryCapture` | `EXPO_PUBLIC_FEATURE_DISCOVERY_CAPTURE` (+ legacy) | off | V2 |
+| `contests` | `EXPO_PUBLIC_FEATURE_CONTESTS` | off | V2 |
+| `roadtrip` | `EXPO_PUBLIC_FEATURE_ROADTRIP` | off | Spike |
+| `lumiaChat` | `EXPO_PUBLIC_FEATURE_LUMIA_CHAT` | off | Post-MVP |
+| `eventSuggest` | `EXPO_PUBLIC_FEATURE_EVENT_SUGGEST` | off | V1 |
+
+Si flag off : layouts / écrans concernés font `Redirect` vers `/(tabs)` ou `/(tabs)/map` (ou `/settings` pour certains placeholders). Onglet Créer masqué si `!eventCreate && !eventSuggest`.
 
 ### Data provider
 
-Façade Supabase côté client (clé **anon** uniquement). Check-in legacy HTTP et achats shop désactivés pour le MVP ; check-in = Edge `event-checkin`.
+Façade Supabase côté client (clé **anon** uniquement). Check-in legacy HTTP et achats shop désactivés pour le MVP ; check-in = Edge `event-checkin` (flag V1).
 
 ---
 
@@ -157,12 +171,15 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 
 | Function | Rôle |
 |---|---|
-| `event-checkin` | Check-in géoloc (rayon typ. ≤ 500 m) + effets optionnels Lumo |
+| `event-checkin` | Check-in géoloc (rayon typ. ≤ 500 m) + effets optionnels Lumo (V1 flag) |
 | `delete-account` | Suppression compte + nettoyage storage (service role **côté function**) |
 | `push-dispatch` | Sur INSERT `notifications` → Expo Push (APNs/FCM) |
 | `discovery-ingest` | Ingestion / clustering visites (flag Discovery) |
 | `discovery-score` | Ranking reco (flag Discovery) |
 | `subscription-webhook` | Webhooks abonnements (post-MVP / Discovery+) |
+| `lumia-chat` | Assistant conversationnel Lumia (flag `lumiaChat`) |
+| `suggest-event-from-poster` | Prefill IA depuis photo d’affiche (flag `eventSuggest`) |
+| `diffuseur-billing-webhook` | Webhooks facturation packs Diffuseur (flag `diffuseur` / V1) |
 
 ### 6.4 Storage buckets (env)
 
@@ -177,29 +194,37 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 
 ### 7.1 Événements
 
-- Service : `src/services/events.service.ts`
-- Création active : `app/events/create/*` (stepper) — **pas** le legacy `src/screens/events/EventCreateScreen.tsx`
+- Service : `src/services/events.service.ts` (+ `listMapViewport` → RPC)
+- Création active (V1) : `app/events/create/*` (stepper) — **pas** le legacy `src/screens/events/EventCreateScreen.tsx`
+- Suggestion affiche (V1) : `app/events/suggest-from-poster` + `event-poster-extract.service` → Edge `suggest-event-from-poster`
 - Statuts : `draft` → `pending` (soumission mobile) → `published` \| `refused` \| `archived` (console)
 - Édition UI : `draft` \| `refused` uniquement
 - Géocodage création : `geocoding.service.ts` / Mapbox
 - Médias : upload Storage + `event-media-submissions` pour échos
+- Corrections utilisateur : `event-correction.service.ts` + sheet (signalement / proposition de correction)
 
 ### 7.2 Carte
 
 - Écran : `app/(tabs)/map.tsx` + store UI map
-- Orchestration : `docs/MAP_SCREEN_ORCHESTRATION.md`
-- Flux : map ready → bounds → `queueViewportFetch` / `runViewportFetch` → markers ; debounce bounds ~300 ms ; freeze viewport si sheet / marker ; search → fit bounds + refresh ; deep-link `focus` → pipeline marker
+- Orchestration : `docs/MAP_SCREEN_ORCHESTRATION.md` ; architecture couche 1 : `docs/ARCHITECTURE_LAYER_1_ERASER.md`
+- **Chargement données** : helper `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`** (fallback bbox + `getByIds` si RPC indisponible)
+- **Modèle produit** : chip explicite « Rechercher dans cette zone » → fetch viewport ; **pas d’auto-fetch au pan** (évite spam RPC). Bootstrap initial / refresh programmatique (search fit, recenter, unlock) restent des triggers de fetch.
+- Filtres taxonomy / when / place : côté client après RPC
+- Freeze viewport si sheet / marker ; deep-link `focus` → pipeline marker
 - Annulation requêtes via `requestId`
 
-### 7.3 Social
+### 7.3 Social & propositions
 
 - `social.service.ts` : likes, favoris (cœur unifié côté UI)
-- `community.service.ts` : follow, membres, leaderboard
-- Profils : `/community/[id]`, `/creator/[id]` (hub analytics redirect hors MVP)
+- `community.service.ts` : follow pairs, membres, `listEventEngagedByFollowing` (RPC `list_event_engaged_by_following`)
+- Profils pairs : `/community/[id]` ; invite : `/profile/invite`
+- Drawer **Membres** → `/(tabs)/community` (flag `socialPeers`)
+- **Propositions** : `app/(tabs)/proposals` + `src/screens/proposals/*` + `store/proposalsStore` — pool via `listMapViewportForMap`
+- Hub créateur `/creator/*` analytics : redirect hors MVP
 
 ### 7.4 Check-in
 
-- `checkin.service.ts` → Edge `event-checkin`
+- `checkin.service.ts` → Edge `event-checkin` (**flag `checkin`**)
 - Modes : QR caméra et/ou distance géoloc
 - QR web / scheme : `EXPO_PUBLIC_EVENT_QR_*`
 
@@ -214,20 +239,29 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 |---|---|
 | Inbox | Table `notifications` + Realtime (`notifications.service.ts`) |
 | Push | `push.service.ts` (token Expo) + Edge `push-dispatch` |
-| Préférences | `preferences.service.ts` → `user_preferences` |
+| Préférences | `preferences.service.ts` → `user_preferences` ; UI masque `followed_creator` si `!eventCreate`, rewards si `!gamification` |
 | E-mail Auth | Brevo SMTP (signup / reset) — **pas** canal push produit |
 
 Détail : `docs/notifications/CHANNELS.md` ; runbook ops push sous `infra/` / docs runbooks.
 
-### 7.7 Profil / compte / bugs
+### 7.7 Profil / compte / bugs / permissions
 
 - `profile.service.ts`, `user.service.ts`
 - Delete : Edge `delete-account` depuis settings privacy
 - Bugs : `bugs.service.ts` → `bug_reports`
+- Autorisations OS : `app/settings/permissions.tsx`
 
-### 7.8 Modules dormants (code présent)
+### 7.8 Modules dormants / flaggés (code présent)
 
-`moderation.service.ts`, `lumo.service.ts`, `missions.service.ts`, `shop.service.ts`, `pass.service.ts`, `creatorStats` / `creatorFans`, `src/services/discovery/*` — gardés par flags / redirects ; achats shop provider bloqués en MVP.
+| Domaine | Entrées techniques | Flag |
+|---|---|---|
+| Gamification | `lumo`, `missions`, `shop`, `pass` services | `gamification` |
+| Discovery Engine | `src/services/discovery/*` | `discovery` / `discoveryCapture` |
+| Diffuseur | `diffuseur*.service`, billing webhook | `diffuseur` |
+| Lumia | `lumia-chat.service`, `lumia-help`, tour | `lumiaChat` |
+| Roadtrip | `src/services/roadtrip/*`, candidates RPC | `roadtrip` |
+| Modération mobile | `moderation.service.ts` | UI redirect (ADR 001) |
+| Creator stats/fans | `creatorStats`, `creatorFans`, boost | redirect / offers |
 
 ---
 
@@ -242,7 +276,7 @@ Détail : `docs/notifications/CHANNELS.md` ; runbook ops push sous `infra/` / do
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Clé anon |
 | `EXPO_PUBLIC_MAPBOX_TOKEN` | Token runtime Mapbox |
 | `EXPO_PUBLIC_SENTRY_DSN` | Prévu (SDK à brancher) |
-| Flags Discovery / Contests / Gamification | Voir §4 |
+| Flags Discovery / Contests / Gamification / Create / … | Voir §4 (`features.ts`) |
 | `EXPO_PUBLIC_EVENT_QR_*` | Base URL / scheme QR |
 
 Non publiques (CI / local) : tokens download Mapbox, `EAS_PROJECT_ID`, service role (Edge / scripts **uniquement**, jamais dans le binaire mobile).
@@ -333,16 +367,19 @@ Préférences user_preferences filtrant l’éligibilité côté génération / 
 | Parcours D1 | Points d’entrée techniques |
 |---|---|
 | Auth / OAuth / invité | `app/auth/*`, `auth.service`, `oauth.service`, `state/auth` |
-| Onboarding | `app/onboarding`, `profile.service` |
-| Carte / recherche | `app/(tabs)/map.tsx`, `mapbox.service`, orchestration doc |
-| Accueil / liste | `app/(tabs)/index` |
+| Onboarding Particulier | `app/onboarding`, `OnboardingScreen`, `profile.service` |
+| Accueil / liste | `app/(tabs)/index`, `HomeScreen` |
+| Propositions | `app/(tabs)/proposals`, `proposalsStore`, `proposal-pool` |
+| Carte / recherche | `app/(tabs)/map.tsx`, `listMapViewportForMap` → `list_map_viewport`, orchestration doc |
 | Fiche + échos | `app/events/[id]`, `echoes`, `comments`, media submissions |
-| Création / mes events | `app/events/create/*`, `profile/my-events`, `events.service` |
-| Social | `social.service`, `community.service` |
-| Check-in | `checkin.service` → `event-checkin` |
+| Social pairs | `community.service`, `social.service`, `/(tabs)/community`, `/community/[id]`, invite |
+| Création / mes events (V1) | `app/events/create/*`, `profile/my-events`, `events.service`, `useEventPublishSurfaces` |
+| Suggest affiche (V1) | `suggest-from-poster`, Edge `suggest-event-from-poster` |
+| Check-in (V1) | `checkin.service` → `event-checkin` |
 | Reports | `report.service` |
 | Notifications | `notifications.service`, `push.service`, `preferences.service` |
-| Settings / delete / bugs | `app/settings/*`, `delete-account`, `bugs.service` |
+| Settings / permissions / delete / bugs | `app/settings/*`, `delete-account`, `bugs.service` |
+| Lumia / Roadtrip | `lumia-chat`, `services/roadtrip/*` (flags) |
 
 ---
 
@@ -354,26 +391,30 @@ Préférences user_preferences filtrant l’éligibilité côté génération / 
 | NFR-T2 | Aucun secret service role dans le bundle | Review `app.config` + grep |
 | NFR-T3 | Flags post-MVP off par défaut | `.env.example` |
 | NFR-T4 | Routes admin inaccessibles | Redirect + smoke deep link |
-| NFR-T5 | Check-in et delete via Edge Functions | Tests manuels matrice |
+| NFR-T5 | Delete via Edge ; check-in via Edge quand flag V1 | Tests manuels matrice |
 | NFR-T6 | Push : permission OS + préférences | QA_MATRIX notifications |
 
 ---
 
 ## 14. Annexes
 
-### A. Inventaire `src/services/` (racine)
+### A. Inventaire `src/services/` (racine, extrait)
 
-`activity-log`, `auth`, `bugs`, `checkin`, `comments`, `community`, `creator-boost`, `creatorFans`, `creatorStats`, `early-access`, `event-card-stats`, `event-media-submissions`, `events`, `geocoding`, `local-status`, `lumo`, `mapbox`, `missions`, `moderation`, `notifications`, `oauth`, `pass`, `preferences`, `profile`, `push`, `report`, `shop`, `social`, `subscription`, `user` (+ dossier `discovery/`).
+MVP courants : `auth`, `oauth`, `profile`, `user`, `events`, `social`, `community`, `comments`, `notifications`, `push`, `preferences`, `report`, `bugs`, `geocoding`, `mapbox`, `saved-searches`, `proximity-alert`, `event-card-stats`, `event-media-submissions`, `event-correction`, `local-status`.
+
+Flaggés / annexes : `checkin` ; `event-poster-extract` ; `lumia-chat`, `lumia-help`, `lumia-tour` ; `roadtrip/*` ; `diffuseur*`, `subscription`, `early-access`, `creator-boost`, `creatorStats`, `creatorFans` ; `lumo`, `missions`, `shop`, `pass` ; `discovery/*` ; `moderation` (UI redirect).
 
 ### B. Routes gardées (patterns)
 
 | Pattern | Comportement |
 |---|---|
 | `/moderation/*` | → map |
-| `/creator/dashboard`, `/creator/fans` | → map |
-| Shop / missions / wallet / pass | → map si `!GAMIFICATION` |
-| `/discovery/*`, subscription discovery | → map / settings si `!DISCOVERY` |
-| `/contests/*` | → map si `!CONTESTS` |
+| `/creator/dashboard`, `/creator/fans` | → `/(tabs)` ou map |
+| Shop / missions / wallet / pass | → map si `!gamification` |
+| `/discovery/*`, subscription discovery | → map / settings si `!discovery` |
+| `/contests/*` | → map si `!contests` |
+| `/lumia-chat` | → `/(tabs)` si `!lumiaChat` |
+| Create / my-events | → map si `!eventCreate && !eventSuggest` |
 | Settings placeholders (email, sessions, export…) | → `/settings` |
 
 ### C. Dette technique connue
@@ -385,6 +426,7 @@ Préférences user_preferences filtrant l’éligibilité côté génération / 
 - Settings avancés = redirects
 - `expo-file-system/legacy` encore utilisé à certains endroits
 - Achats shop : throw / disabled en provider MVP
+- Orchestration carte : aligner entièrement le pan (auto-fetch historique) sur le modèle chip `list_map_viewport` documenté en architecture
 
 ---
 
@@ -394,8 +436,10 @@ Préférences user_preferences filtrant l’éligibilité côté génération / 
 |---|---|
 | D1 Spec fonctionnelle mobile | Comportement métier |
 | `MVP_SCOPE.md`, ADR 001/002 | Scope & décisions |
+| `src/config/features.ts` | Flags runtime |
 | `docs/PLAN_DOCUMENTATION_PRODUIT.md` | Plan D3–D5 |
 | `docs/MAP_SCREEN_ORCHESTRATION.md` | Détail carte |
+| `docs/ARCHITECTURE_LAYER_1_ERASER.md` | Couche 1 (carte / supply) |
 | `docs/notifications/CHANNELS.md` | Canaux notifs |
 | `docs/GIT_AND_ENVIRONMENTS.md` | Env DEV/UAT |
 | Audits Wave 1–2 | RLS, media, map, build, errors |
@@ -407,3 +451,4 @@ Préférences user_preferences filtrant l’éligibilité côté génération / 
 | Version | Date | Notes |
 |---|---|---|
 | 1.0 | 2026-07-23 | Première version D2 selon plan documentaire |
+| 1.1 | 2026-08-27 | Boucle découverte-first ; `features.ts` SoT ; bootstrap `/(tabs)` ; Edge + map `list_map_viewport` ; annexes proposals/lumia/roadtrip |

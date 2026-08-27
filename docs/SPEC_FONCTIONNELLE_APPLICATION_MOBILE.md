@@ -4,11 +4,17 @@
 |---|---|
 | **Produit** | Moments Locaux |
 | **Document** | Spécification fonctionnelle — application mobile |
-| **Version** | 1.0 |
-| **Date** | 2026-07-22 |
+| **Version** | 1.1 |
+| **Date** | 2026-08-27 |
 | **Statut** | Vivant (rétro-ingénierie code + ADRs + MVP_SCOPE) |
-| **Sources** | `MVP_SCOPE.md`, ADR 001/002, `app/`, `src/services`, audits Wave 1–3, console admin (périmètre complementary) |
-| **Périmètre** | MVP store-ready + modules flaggés (décrits comme hors navigation par défaut) |
+| **Sources** | `MVP_SCOPE.md`, ADR 001/002, `src/config/features.ts`, `app/`, `src/services`, audits Wave 1–3, console admin (périmètre complementary) |
+| **Périmètre** | MVP store-ready (découverte + social pairs) + modules flaggés (décrits comme hors navigation par défaut) |
+
+> **Amendement 2026-08-27** — Alignement code / `MVP_SCOPE.md` / ADR 002  
+> - **MVP visible** = découverte locale + social pairs (auth, onboarding Particulier, carte/liste, favoris, commentaires, Membres, aimé par suivis, invite share, notifs, signalements, compte).  
+> - **Supply événements** = scraper OpenAgenda (organisateur « Moments Locaux ») + **console web** de modération ; pas de création mobile obligatoire pour le store.  
+> - **Création / check-in / offres / Diffuseur** = V1 derrière flags (`FEATURE_EVENT_CREATE`, `FEATURE_CHECKIN`, etc., défaut **off**).  
+> - **Post-auth** → `/(tabs)` (onglet **Accueil** `index`), **pas** la carte.
 
 ---
 
@@ -18,24 +24,23 @@ Cette spécification décrit **ce que fait** l’application mobile Moments Loca
 
 Elle ne remplace pas :
 
-- la spécification technique mobile (stack, architecture, API, RLS) — *document planifié* ;
-- les spécifications de la console d’administration — *documents planifiés* ;
+- la spécification technique mobile (stack, architecture, API, RLS) — `docs/SPEC_TECHNIQUE_APPLICATION_MOBILE.md` ;
+- les spécifications de la console d’administration — *documents D3–D5* ;
 - les ADRs produit (`project-management/decisions/`).
 
 ---
 
 ## 2. Vision produit
 
-**Moments Locaux** est une application mobile de **découverte et de création d’événements locaux**. Elle permet à un habitant ou un créateur de :
+**Moments Locaux** est une application mobile de **découverte d’événements locaux** et de **lien entre voisins**. Pour le MVP store-ready, un habitant peut :
 
-1. découvrir ce qui se passe autour de lui (carte, liste, recherche) ;
-2. consulter une fiche événement et interagir (favori / intérêt, follow, commentaires / échos) ;
-3. créer et soumettre un événement à validation ;
-4. s’enregistrer sur place (check-in QR ou géolocalisation) ;
-5. signaler un contenu abusif ;
-6. gérer son profil, ses notifications et son compte (y compris suppression).
+1. découvrir ce qui se passe autour de lui (accueil, carte, recherche, filtres, propositions) ;
+2. consulter une fiche événement et interagir (favori / like, commentaires / échos, partage) ;
+3. suivre d’autres membres (pairs), voir « Aimé par vos suivis », inviter des amis via lien ;
+4. signaler un contenu abusif ;
+5. gérer son profil, ses notifications et son compte (y compris suppression).
 
-La **modération opérationnelle** (approuver / refuser / bannir) n’est **pas** dans le mobile : elle est portée par la **console web d’administration** (ADR 001).
+L’**offre d’événements** du MVP vient de l’ingestion OpenAgenda (organisateur Moments Locaux). La **création d’événements**, le **check-in**, les **offres** et le **Diffuseur** existent dans le code mais restent **flaggés off** (phase V1). La **modération opérationnelle** (approuver / refuser / bannir) n’est **pas** dans le mobile : elle est portée par la **console web d’administration** (ADR 001).
 
 ---
 
@@ -44,8 +49,8 @@ La **modération opérationnelle** (approuver / refuser / bannir) n’est **pas*
 | Persona | Objectif principal | Accès typique |
 |---|---|---|
 | **Invité** | Parcourir la carte et lire des événements | Sans compte ; actions sociales gated |
-| **Participant** | Découvrir, s’intéresser, check-in, suivre des créateurs | Compte authentifié, onboarding terminé |
-| **Créateur** (particulier / professionnel / institutionnel) | Publier des événements et suivre leur statut éditorial | Même base + « Mes événements » |
+| **Participant** (MVP) | Découvrir, s’intéresser, suivre des membres, commenter | Compte authentifié, onboarding Particulier terminé |
+| **Créateur / Diffuseur** (V1, flags) | Publier des événements, check-in, offres / packs | Surfaces visibles seulement si `eventCreate` / `checkin` / `offers` / `diffuseur` |
 | **Modérateur / Admin** | Rôles backend existants | **Aucune surface de modération** dans le mobile |
 
 ---
@@ -56,26 +61,39 @@ La **modération opérationnelle** (approuver / refuser / bannir) n’est **pas*
 
 - Authentification (email/mot de passe, OAuth social, biométrie si session sauvée, reset password)
 - Mode invité (carte / lecture limitée)
-- Onboarding (identité, rôle, localisation, avatar/cover, bio / réseaux)
-- Découverte carte (Mapbox) + accueil liste + recherche / filtres
-- Fiche événement, partage, échos (commentaires / photos communauté)
-- Création multi-étapes + brouillon + soumission
-- Statuts créateur : `draft`, `pending`, `published`, `refused`, `archived` + motif de refus
-- Favoris / like (cœur unifié), intérêt, follow
-- Profils communauté et créateur (public)
-- Check-in QR / géoloc
-- Notifications (inbox, push, préférences)
+- Onboarding **Particulier** : localisation, thèmes, avatar (pas d’intent création, pas Professionnel / Diffuseur)
+- Découverte : Accueil liste + carte Mapbox + recherche / filtres + recherches sauvées (local) + onglet **Propositions**
+- Fiche événement, partage, échos (commentaires / photos communauté) — organisateur affiché Moments Locaux (pas de follow créateur)
+- Favoris / like (cœur unifié), intérêt
+- **Social pairs** (`FEATURE_SOCIAL_PEERS`, défaut **on**) : drawer Membres, profil `/community/[id]`, « Aimé par vos suivis », invite amis (share sheet)
+- Notifications (inbox, push, préférences MVP : nearby, proximité live, rappels, activité sociale pairs, thèmes, budget/quiet)
 - Signalement événement / commentaire / média / profil
 - Profil, paramètres, bug report, CGU / privacy, suppression de compte
 
 ### 4.2 Hors navigation MVP (code présent, gardé / flaggé)
 
-| Module | Guard typique |
+Source de vérité : `src/config/features.ts` (les `*.flags.ts` legacy sont des re-exports).
+
+| Flag | Défaut | Phase | Surfaces |
+|---|---|---|---|
+| `FEATURE_SOCIAL_PEERS` | **ON** (`=false` pour masquer) | MVP | Membres, follow pairs, aimé par suivis |
+| `FEATURE_EVENT_CREATE` | off | V1 | Création, mes events, ModeSwitch, onglet Créer (orga) |
+| `FEATURE_CHECKIN` | off | V1 | Check-in QR / géoloc |
+| `FEATURE_OFFERS` | off | V1 | Nos offres / Habitué–Éclaireur |
+| `FEATURE_DIFFUSEUR` | off | V1 | Onboarding Professionnel / Diffuseur |
+| `FEATURE_GAMIFICATION` | off | V2 | Lumo / shop / missions / pass |
+| `FEATURE_DISCOVERY` | off | V2 | Discovery Engine |
+| `FEATURE_DISCOVERY_CAPTURE` | off | V2 | Capture fond (requiert discovery) |
+| `FEATURE_CONTESTS` | off | V2 | Concours |
+| `FEATURE_ROADTRIP` | off | Spike | Planificateur roadtrip |
+| `FEATURE_LUMIA_CHAT` | off | Post-MVP | Chat assistant Lumia |
+| `FEATURE_EVENT_SUGGEST` | off | V1 | Suggestion d’événement depuis une affiche (IA) |
+
+Autres gardes :
+
+| Module | Comportement |
 |---|---|
-| Boutique, missions, wallet Lumo, pass quartier | `EXPO_PUBLIC_GAMIFICATION_ENABLED` (défaut off) |
-| Discovery engine / Moments Locaux+ | `EXPO_PUBLIC_DISCOVERY_ENABLED` |
-| Concours | `EXPO_PUBLIC_FEATURE_CONTESTS` |
-| Analytics créateur / fans hub | Redirect vers map / profil |
+| Analytics créateur / fans hub | Redirect vers tabs / map |
 | Modération admin mobile | Redirect vers `/(tabs)/map` |
 | Settings avancés (email, sessions, export…) | Redirect vers `/settings` |
 
@@ -88,18 +106,18 @@ La **modération opérationnelle** (approuver / refuser / bannir) n’est **pas*
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Entrée applicative                    │
-│  Session ? → Onboarding ? → Tabs (Carte par défaut)     │
+│  Session ? → Onboarding ? → Tabs (Accueil par défaut)   │
 └─────────────────────────────────────────────────────────┘
          │
          ├── Auth (login / register / OAuth / invité)
-         ├── Onboarding (4 étapes)
-         ├── Découverte (Carte | Accueil | Favoris)
-         ├── Création événement (stepper → pending)
-         ├── Fiche événement + Échos + Check-in
-         ├── Social (follow, communauté, profils)
+         ├── Onboarding Particulier (location, thèmes, avatar)
+         ├── Découverte (Accueil | Propositions | Carte | Favoris)
+         ├── Fiche événement + Échos
+         ├── Social pairs (Membres, follow, invite, aimé par suivis)
          ├── Notifications + Préférences
          ├── Signalements + Bug report
-         └── Compte (profil, settings, légal, delete)
+         ├── Compte (profil, settings, légal, delete)
+         └── [V1 flags] Création / Check-in / Offres / Diffuseur
 ```
 
 ---
@@ -113,23 +131,26 @@ La **modération opérationnelle** (approuver / refuser / bannir) n’est **pas*
 | Chargement session | Splash / loading |
 | Non authentifié | `/auth/login` (ou carte en invité) |
 | Auth + onboarding incomplet | `/onboarding` |
-| Auth + onboarding OK | `/(tabs)/map` |
+| Auth + onboarding OK | `/(tabs)` → onglet **Accueil** (`index`) |
 
 ### 6.2 Onglets principaux
 
-| Onglet | Route | Auth |
+| Onglet | Route | Auth / garde |
 |---|---|---|
-| Accueil | `/(tabs)/index` | Requis (GuestGate) |
+| Accueil | `/(tabs)/index` | Requis (GuestGate) — **route initiale** post-auth |
+| Propositions | `/(tabs)/proposals` | Requis ; swipe / wizard de propositions autour de l’utilisateur |
 | Carte | `/(tabs)/map` | Ouvert invité |
-| Créer | CTA → `/events/create/step-1` | Requis |
+| Créer | CTA centre (sheet contribute / stepper) | Visible **seulement** si `eventCreate` (orga) et/ou `eventSuggest` |
 | Favoris | `/(tabs)/favorites` | Requis |
 | Profil | Ouvre le **drawer** | Requis pour actions compte |
 
+Quand `eventCreate` et `eventSuggest` sont off, l’onglet Créer est masqué (`href: null`).
+
 ### 6.3 Drawer (menu profil)
 
-Sections typiques : Découverte / Création / Mon profil / Communauté · Compte (Paramètres, Notifications) · Activité (Favoris, Mes événements…) · Assistance (Reporter un bug) · Déconnexion.
+Sections typiques : Découverte · **Membres** (si `socialPeers`) · Compte (Paramètres, Notifications, Autorisations) · Activité (Favoris ; Mes événements si flags create/suggest) · Assistance (Reporter un bug) · Déconnexion.
 
-Les entrées gamification / Discovery / Concours n’apparaissent que si le flag correspondant est actif.
+Les entrées gamification / Discovery / Concours / Lumia / Roadtrip / Diffuseur n’apparaissent que si le flag correspondant est actif.
 
 ---
 
@@ -153,51 +174,63 @@ Les entrées gamification / Discovery / Concours n’apparaissent que si le flag
 **Règles**
 
 - Une session expirée renvoie vers login.
-- Les actions sociales / création / check-in / report depuis l’invité ouvrent un **GuestGate** (inscription ou connexion).
+- Les actions sociales / propositions / favoris / report depuis l’invité ouvrent un **GuestGate** (inscription ou connexion). La création / check-in restent gated et **flaggés V1**.
 
 ### 7.2 Onboarding
 
 **Précondition** : utilisateur authentifié, `onboarding_completed = false`.
 
-Étapes attendues :
+**MVP (flags Diffuseur / create off)** — parcours Particulier :
 
-1. Identité + **rôle** : `particulier` | `professionnel` | `institutionnel`
+1. Bienvenue / identité (**Particulier** uniquement — pas de Professionnel)
 2. Localisation (home / zone de référence)
-3. Avatar et cover
-4. Bio et liens sociaux
+3. Thèmes d’intérêt (taxonomie découverte)
+4. Avatar
 
-**Post-condition** : `onboarding_completed = true` → accès aux tabs.
+Pas d’intent « je crée aussi », pas d’étape marketing offres, pas de typologie Diffuseur.
+
+**V1 si flags** : Professionnel (`diffuseur`), intent création Particulier (`eventCreate`), thèmes création, connecteur / offres selon `offers`.
+
+**Post-condition** : `onboarding_completed = true` → `/(tabs)` (Accueil).
 
 ### 7.3 Découverte d’événements
+
+#### Accueil (`/(tabs)/index`)
+
+- Feed / liste d’événements autour de l’utilisateur.
+- Recherche / accès carte.
+- Point d’entrée par défaut après auth + onboarding.
+
+#### Propositions (`/(tabs)/proposals`)
+
+- Wizard de préférences (catégories, rayon, ancre, fenêtre) puis deck swipe de propositions.
+- Pool basé sur le viewport / événements publiés (même supply découverte).
+- Sessions locales (pause / reprise / historique).
 
 #### Carte (`/(tabs)/map`)
 
 - Carte Mapbox centrée sur la zone utilisateur / viewport.
-- Chargement des événements de la zone visible (bbox).
+- Chargement des événements via RPC `list_map_viewport` (bbox) — détail technique D2 / `MAP_SCREEN_ORCHESTRATION.md`.
 - Clusters, pin, preview, ouverture fiche.
-- Recherche d’adresse / lieu.
+- Recherche d’adresse / lieu ; recherches récentes / sauvées (local).
 - Filtres (catégorie, temporalité, etc. selon UI courante).
-
-#### Accueil (`/(tabs)/index`)
-
-- Feed / liste d’événements.
-- Recherche textuelle.
-- Éléments sociaux (ex. stories créateurs) selon implémentation courante.
 
 #### Fiche événement (`/events/[id]`)
 
 Contenu attendu :
 
 - Cover, titre, dates / planning, lieu, catégorie, description
-- Créateur (lien profil)
-- Statut de publication (si pertinent pour le créateur)
-- Actions : cœur (like + favori), intérêt, follow, partage, signalement
-- Check-in (si événement publié et conditions remplies)
+- Organisateur (**Moments Locaux** en supply scraper — pas de follow créateur / orga)
+- Bloc **Aimé par vos suivis** (si `socialPeers` et données disponibles)
+- Actions : cœur (like + favori), intérêt, partage, signalement
 - Accès aux **Échos** (`/events/echoes`)
+- Check-in : seulement si `FEATURE_CHECKIN` (V1)
 
 **Règle de visibilité publique** : seuls les événements `published` (et règles de visibilité `public`) apparaissent en découverte pour le grand public.
 
-### 7.4 Cycle de vie d’un événement (créateur)
+### 7.4 Cycle de vie d’un événement (créateur) — **V1 / `eventCreate`**
+
+> **Hors MVP store-ready.** Surfaces actives seulement si `FEATURE_EVENT_CREATE=true` (et/ou `FEATURE_EVENT_SUGGEST` pour la suggestion affiche). Le supply MVP reste le scraper + console.
 
 ```
 draft ──soumission──► pending ──(console admin)──► published
@@ -210,35 +243,57 @@ published ──(admin)──► archived
 |---|---|---|---|
 | `draft` | Brouillon | Créateur | Éditable ; non visible en découverte |
 | `pending` | En validation | Créateur (soumission) | Visible dans « Mes événements » ; pas en découverte publique |
-| `published` | Publié | Modérateur (console) | Visible carte/liste/détail ; QR disponible |
+| `published` | Publié | Modérateur (console) | Visible carte/liste/détail ; QR disponible (si check-in V1) |
 | `refused` | Refusé | Modérateur | Motif affiché si disponible ; rééditable |
 | `archived` | Archivé | Modérateur | Hors découverte active |
 
-**Création** (`/events/create/*`)
+**Création** (`/events/create/*`) — flag `eventCreate`
 
 - Stepper multi-étapes (infos, lieu/dates, médias, preview).
 - Champs typiques : titre, cover, médias, dates / planning (`ponctuel` | `recurrent` | `permanent`), lieu Mapbox, catégorie / tags, visibilité `public` | `prive`, infos optionnelles (prix, contact…).
 - Sauvegarde brouillon possible.
 - CTA « Publier » → passage en **`pending`** (pas publication directe).
 
+**Suggestion depuis affiche** (`/events/suggest-from-poster`) — flag `eventSuggest` : préremplissage IA → formulaire create (indépendant de `eventCreate` pour l’entrée contribute).
+
 **Édition** : autorisée uniquement si `draft` ou `refused` (`canEditEvent`).
 
-**Mes événements** (`/profile/my-events`) : liste avec badges de statut + temporalité (À venir / En cours / Passé).
+**Mes événements** (`/profile/my-events`) : accessible si `eventCreate` ou `eventSuggest` ; liste avec badges de statut + temporalité (À venir / En cours / Passé).
 
 ### 7.5 Interactions sociales
+
+#### 7.5.1 Social pairs (MVP — `FEATURE_SOCIAL_PEERS`, défaut on)
+
+| Action | Description |
+|---|---|
+| **Membres** | Drawer → `/(tabs)/community` : recherche + follow d’autres utilisateurs (pas un classement créateurs) |
+| Profil membre | `/community/[id]` : follow / unfollow + signalement profil |
+| Aimé par vos suivis | Sur fiche événement : likes/favoris des personnes suivies (`list_event_engaged_by_following`) |
+| Inviter des amis | Share sheet système + lien app (`/profile/invite`) — **pas** de scan contacts, **pas** de téléphone à l’inscription |
+
+Hors MVP pairs : DMs, demandes d’amis, matching carnet d’adresses, follow organisateur Moments Locaux, rankings créateurs.
+
+#### 7.5.2 Interactions événement (MVP)
 
 | Action | Description |
 |---|---|
 | Cœur | Bascule like **et** favori (comportement unifié) |
 | Intérêt | Marquage d’intérêt dédié |
-| Follow / unfollow | Suivre un créateur ou membre |
-| Communauté | Liste / leaderboard membres (si exposé) |
-| Profil membre | `/community/[id]` |
+| Commentaires / échos | Thread + soumission photos communauté |
+| Partage | Share sheet événement |
+
+#### 7.5.3 Surfaces créateur (V1 / flags)
+
+| Action | Description |
+|---|---|
+| Follow créateur / orga | Non pertinent en supply scraper MVP ; ModeSwitch / mes events si `eventCreate` |
 | Profil créateur | `/creator/[id]` (public ; hub analytics redirigé hors MVP) |
 
-### 7.6 Check-in
+### 7.6 Check-in — **V1 / `FEATURE_CHECKIN`**
 
-**Préconditions** : utilisateur authentifié ; événement `published` ; proximité géographique et/ou scan QR valide.
+> **Hors MVP store-ready.** Entrées UI masquées si flag off.
+
+**Préconditions** : flag on ; utilisateur authentifié ; événement `published` ; proximité géographique et/ou scan QR valide.
 
 **Modes**
 
@@ -276,35 +331,42 @@ L’utilisateur authentifié peut signaler :
 |---|---|
 | Inbox | `/notifications` — liste, lu / non lu, navigation contextuelle |
 | Push | Enregistrement device + livraison (Expo / FCM via `push-dispatch`) |
-| Préférences | `/settings/notifications` — toggles par type, rayon géolocalisé, fréquence |
+| Préférences | `/settings/notifications` — toggles par type, rayon géolocalisé, fréquence, budget / quiet hours |
 
-**Types MVP-core (exemples)**
+**Types MVP-core (découverte + pairs)**
 
-- `event_published`, `event_soon`, `event_nearby_new`
-- `followed_creator_published`
-- `social_follow`, `social_like`
-- `event_refused`, `event_request_changes`
-- `warning_received`, `user_banned`
-- `media_approved`, `media_rejected`
-- `system`
+- `event_nearby_new`, proximité live, rappels (`event_soon`)
+- Activité sociale pairs : `social_follow`, `social_like` (si `socialPeers`)
+- Thèmes / préférences contenu
+- Compte / trust : `warning_received`, `user_banned`, `system`
+- Médias échos : `media_approved`, `media_rejected` (si soumis)
+
+**Types conditionnés flags / V1**
+
+- `followed_creator_published` — affiché dans préférences **seulement si `eventCreate`** (création mobile V1) ; hors MVP scraper (pas de follow orga Moments Locaux)
+- `event_published` / `event_refused` / `event_request_changes` — pertinents pour le créateur quand `eventCreate`
+- Récompenses / missions — seulement si `gamification`
 
 **Règles**
 
 - Les notifications de modération **ne doivent pas** ouvrir d’écrans admin mobile.
 - Le rayon « nearby » s’appuie sur la localisation de référence (onboarding / préférences).
 - Consentement / granularité alignés GDPR.
+- Pas d’alertes push « nouveaux résultats de recherche » hors MVP.
 
 ### 7.9 Profil, paramètres, légal, support
 
 | Fonction | Route / entrée |
 |---|---|
-| Profil | `/(tabs)/profile` |
+| Profil | `/(tabs)/profile` (drawer) |
 | Édition profil | `/profile/edit` |
 | Paramètres | `/settings` |
 | Préférences notifs | `/settings/notifications` |
+| Autorisations OS | `/settings/permissions` |
 | CGU / privacy / mentions | `/settings` → légal |
 | Reporter un bug | `/bug-report` |
 | Suppression de compte | `/settings/privacy/delete` → Edge `delete-account` |
+| Inviter des amis | `/profile/invite` (si `socialPeers`) |
 
 La suppression de compte est un prérequis **store-ready** (Apple / Google).
 
@@ -342,15 +404,16 @@ Statuts de soumission : `pending` \| `approved` \| `rejected` (validation côté
 
 ## 9. Règles métier transverses
 
-1. **Publication ≠ mise en ligne immédiate** : le créateur soumet (`pending`) ; seul un modérateur publie (`published`).
-2. **Découverte publique = `published`** (+ visibilité publique).
-3. **Réédition** limitée à `draft` / `refused`.
-4. **Invité** : lecture carte OK ; création et interactions sociales gated.
-5. **Onboarding obligatoire** avant l’usage authentifié complet.
+1. **Découverte publique = `published`** (+ visibilité publique) — supply MVP = scraper / console.
+2. **Publication créateur ≠ mise en ligne immédiate** (V1 `eventCreate`) : soumission `pending` ; seul un modérateur publie.
+3. **Réédition** limitée à `draft` / `refused` (surfaces create).
+4. **Invité** : lecture carte OK ; interactions sociales / propositions / favoris gated.
+5. **Onboarding Particulier obligatoire** avant l’usage authentifié complet.
 6. **Signalements** : écriture user ; lecture / traitement = admin (+ RLS).
 7. **UI hiding ≠ sécurité** : RLS et console admin font foi.
-8. **Feature flags** : Discovery / Concours / Gamification **off** par défaut en MVP.
+8. **Feature flags** : matrice §4.2 — seul `socialPeers` ON par défaut ; create / check-in / offers / diffuseur / gamification / discovery / contests / roadtrip / lumia / eventSuggest **off**.
 9. **Compte** : CGU / privacy accessibles ; delete account opérationnel pour stores.
+10. **Post-auth** : `/(tabs)` Accueil, pas la carte.
 
 ---
 
@@ -364,32 +427,42 @@ Statuts de soumission : `pending` \| `approved` \| `rejected` (validation côté
 | Accessibilité / store | Permissions iOS/Android justifiées ; suppression compte ; politiques légales |
 | Observabilité | Remontée d’erreurs (Sentry) sans fuite de secrets |
 
-*(Détail technique : spécification technique mobile planifiée.)*
+*(Détail technique : `docs/SPEC_TECHNIQUE_APPLICATION_MOBILE.md`.)*
 
 ---
 
 ## 11. Matrice de tests d’acceptance (MVP)
 
-Reprise et structuration de la matrice critique produit :
+Reprise et structuration de la matrice critique produit (`MVP_SCOPE.md`) :
 
 | # | Scénario | Résultat attendu |
 |---|---|---|
 | 1 | Créer un compte | Compte + session |
-| 2 | Login / logout | Session OK / coupée |
-| 3 | Onboarding complet | Accès tabs |
-| 4 | Recherche adresse + carte | Événements zone visibles |
-| 5 | Filtres / recherche events | Résultats cohérents |
-| 6 | Ouvrir fiche événement | Contenu complet |
-| 7 | Créer event + cover + médias | Brouillon / données persistées |
-| 8 | Soumettre publication | Statut `pending` dans Mes événements |
-| 9 | Voir refus + motif | Affichage motif |
-| 10 | Event publié visible map/liste | Après action admin |
-| 11 | Favori / like / follow | États persistés |
-| 12 | Check-in QR ou geo | Succès Edge Function |
-| 13 | Signaler event/comment/média/profil | Report créé |
-| 14 | Recevoir / ouvrir notification | Routing correct (non-admin) |
-| 15 | Éditer profil + settings | Persistance |
-| 16 | Suppression de compte | Compte / données traités selon politique |
+| 2 | Login / logout / OAuth | Session OK / coupée |
+| 3 | Onboarding Particulier (location, thèmes, avatar) | Accès `/(tabs)` Accueil — pas d’intent création |
+| 4 | Accueil + recherche / liste | Événements visibles |
+| 5 | Carte + bbox / filtres | Événements zone cohérents |
+| 6 | Ouvrir fiche événement | Contenu complet ; orga Moments Locaux ; pas Suivre orga |
+| 7 | Favori / like / commentaire | États persistés |
+| 8 | Membres : search, follow, profil pair, report | Flux social pairs OK |
+| 9 | Like → « Aimé par vos suivis » pour un follower | Bloc peers visible (RPC appliquée) |
+| 10 | Inviter des amis (share) | Sheet système + lien app |
+| 11 | Propositions (wizard + swipe) | Pool / décisions locales |
+| 12 | Signaler event/comment/média/profil | Report créé |
+| 13 | Recevoir / ouvrir notification | Routing correct (non-admin) ; prefs nearby / social pairs |
+| 14 | Éditer profil + settings + permissions | Persistance |
+| 15 | Suppression de compte | Compte / données traités selon politique |
+| 16 | Deep links create / offers avec flags off | Redirect sûr (pas d’écran V1) |
+
+### 11.b Acceptance V1 (flags on — non bloquant store MVP)
+
+| # | Scénario | Flag | Résultat attendu |
+|---|---|---|---|
+| V1-1 | Créer event + cover + médias | `eventCreate` | Brouillon / données persistées |
+| V1-2 | Soumettre publication | `eventCreate` | Statut `pending` dans Mes événements |
+| V1-3 | Voir refus + motif | `eventCreate` | Affichage motif |
+| V1-4 | Check-in QR ou geo | `checkin` | Succès Edge Function |
+| V1-5 | Suggest depuis affiche | `eventSuggest` | Prefill → formulaire |
 
 À valider sur **appareils réels** iOS et Android avant soumission store.
 
@@ -399,7 +472,8 @@ Reprise et structuration de la matrice critique produit :
 
 | Action mobile | Effet | Suite côté console |
 |---|---|---|
-| Soumission événement | `pending` | File `/moderation/events` → Approuver / Refuser |
+| *(Supply scraper)* | Events ingest → souvent `pending` | File `/moderation/events` → Approuver / Refuser |
+| Soumission événement (V1 `eventCreate`) | `pending` | Idem file events |
 | Signalement | `reports` | `/moderation/reports` (+ commentaires / users) |
 | Photo écho | soumission `pending` | `/moderation/media` |
 | Bug report | `bug_reports` | `/moderation/bugs` |
@@ -416,8 +490,10 @@ Le mobile affiche les **conséquences** (refus, warning, ban, média rejeté) vi
 | **Écho** | Contenu communautaire (commentaire / photo) lié à un événement |
 | **Pending** | En attente de validation éditoriale |
 | **GuestGate** | Modale forçant inscription/connexion avant une action protégée |
+| **Social pairs** | Follow entre utilisateurs (pas follow organisateur scraper) |
+| **Propositions** | Onglet swipe / wizard de découverte personnalisée |
 | **Lumo** | Monnaie / gamification (hors MVP navigation) |
-| **Discovery** | Moteur de recommandation / mobilité (flaggé) |
+| **Discovery** | Moteur de recommandation / mobilité (flaggé V2) |
 | **Console admin** | Application web de modération séparée |
 
 ---
@@ -427,8 +503,9 @@ Le mobile affiche les **conséquences** (refus, warning, ban, média rejeté) vi
 | Document | Statut |
 |---|---|
 | `MVP_SCOPE.md` | Source de vérité scope |
+| `src/config/features.ts` | Matrice flags runtime |
 | ADR 001 — Admin moderation web app | Accepté |
-| ADR 002 — Mobile MVP scope | Accepté (+ amendement notifs / OAuth) |
+| ADR 002 — Mobile MVP scope | Accepté (+ amendements OAuth / notifs / discovery-only + peer social) |
 | `docs/PLAN_DOCUMENTATION_PRODUIT.md` | Plan des specs restantes |
 | Spécification technique application mobile | Livré — `docs/SPEC_TECHNIQUE_APPLICATION_MOBILE.md` |
 | Spécification fonctionnelle Console d’administration | Livré — `Moderation-WebConsole/docs/SPEC_FONCTIONNELLE_CONSOLE_ADMIN.md` |
@@ -442,3 +519,4 @@ Le mobile affiche les **conséquences** (refus, warning, ban, média rejeté) vi
 | Version | Date | Auteur | Notes |
 |---|---|---|---|
 | 1.0 | 2026-07-22 | Rétro-ingénierie agentique | Première version consolidée code + docs |
+| 1.1 | 2026-08-27 | Alignement code | MVP découverte + peer social ; flags `features.ts` ; post-auth Accueil ; create/check-in → V1 |
