@@ -32,6 +32,7 @@ import {
   Star,
   QrCode,
   Eye,
+  PenLine,
 } from 'lucide-react-native';
 import {
   Button,
@@ -86,6 +87,7 @@ import { CreatorBoostService } from '@/services/creator-boost.service';
 import { EarlyAccessService, type EarlyAccessTeaser } from '@/services/early-access.service';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
+import { EventCorrectionSheet } from '@/components/events/EventCorrectionSheet';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
@@ -193,6 +195,7 @@ export default function EventDetailScreen() {
   const [now, setNow] = useState(() => new Date());
   const [eventReportVisible, setEventReportVisible] = useState(false);
   const [eventReported, setEventReported] = useState(false);
+  const [eventCorrectionVisible, setEventCorrectionVisible] = useState(false);
   const [boostBusy, setBoostBusy] = useState(false);
   const [earnedBoosts, setEarnedBoosts] = useState(0);
   const [earlyTeaser, setEarlyTeaser] = useState<EarlyAccessTeaser | null>(null);
@@ -706,6 +709,15 @@ export default function EventDetailScreen() {
     }
     if (!event?.id) return;
     setEventReportVisible(true);
+  };
+
+  const handleOpenEventCorrection = () => {
+    if (isGuest) {
+      openGuestGate('Proposer une correction');
+      return;
+    }
+    if (!event?.id || event.status !== 'published') return;
+    setEventCorrectionVisible(true);
   };
 
   const handleReportEvent = async (reason: ReportReasonCode) => {
@@ -1336,7 +1348,17 @@ export default function EventDetailScreen() {
             <FloatingPressable style={styles.iconButton} onPress={handleShare} entranceDelay={40}>
               <Share2 size={20} color={colors.brand.text} />
             </FloatingPressable>
-            <FloatingPressable style={styles.iconButton} onPress={handleOpenEventReport} entranceDelay={80}>
+            {event.status === 'published' ? (
+              <FloatingPressable
+                style={styles.iconButton}
+                onPress={handleOpenEventCorrection}
+                entranceDelay={80}
+                accessibilityLabel="Proposer une correction"
+              >
+                <PenLine size={20} color={colors.brand.text} />
+              </FloatingPressable>
+            ) : null}
+            <FloatingPressable style={styles.iconButton} onPress={handleOpenEventReport} entranceDelay={100}>
               <Flag
                 size={20}
                 color={eventReported ? colors.error[500] : colors.brand.text}
@@ -1950,6 +1972,14 @@ export default function EventDetailScreen() {
         onClose={() => setEventReportVisible(false)}
         onSelect={handleReportEvent}
       />
+
+      {event ? (
+        <EventCorrectionSheet
+          visible={eventCorrectionVisible}
+          event={event}
+          onClose={() => setEventCorrectionVisible(false)}
+        />
+      ) : null}
     </>
   );
 }

@@ -11,6 +11,7 @@ import type {
   RecommendationEvent,
   UserSubscription,
 } from '@/types/discovery.types';
+import type { EventCorrectionProposal } from '@/types/event-correction';
 import type { EventSubmissionSource } from '@/types/event-submission';
 
 export type Json =
@@ -173,6 +174,22 @@ export interface Database {
         Row: DiscoveryLocationBatch;
         Insert: Omit<DiscoveryLocationBatch, 'id' | 'received_at' | 'expires_at'>;
         Update: Partial<Pick<DiscoveryLocationBatch, 'processed_at'>>;
+      };
+      event_correction_proposals: {
+        Row: EventCorrectionProposal;
+        Insert: Omit<
+          EventCorrectionProposal,
+          'id' | 'created_at' | 'updated_at' | 'reviewed_at' | 'reviewed_by' | 'review_note'
+        > & {
+          id?: string;
+          status?: EventCorrectionProposal['status'];
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          review_note?: string | null;
+        };
+        Update: Partial<
+          Pick<EventCorrectionProposal, 'status' | 'review_note' | 'reviewed_by' | 'reviewed_at' | 'updated_at'>
+        >;
       };
     };
   };
