@@ -16,7 +16,11 @@ type PeekPhase = 'waiting' | 'ready';
  *    last committed count while refetches run; swap the number only after a short
  *    quiet window on the latest value.
  */
-export function useSettledViewportPeek(count: number, isLoading: boolean) {
+export function useSettledViewportPeek(
+  count: number,
+  isLoading: boolean,
+  waitingMessage = MAP_WAITING_MESSAGE
+) {
   const [phase, setPhase] = useState<PeekPhase>(() => (isLoading ? 'waiting' : 'ready'));
   const [stableCount, setStableCount] = useState(count);
   const hasValidatedRef = useRef(!isLoading);
@@ -62,6 +66,6 @@ export function useSettledViewportPeek(count: number, isLoading: boolean) {
   return {
     showWaiting: phase === 'waiting',
     displayCount: stableCount,
-    waitingMessage: MAP_WAITING_MESSAGE,
+    waitingMessage,
   };
 }

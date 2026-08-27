@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Search } from 'lucide-react-native';
+import { Bell, Map, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useLocation } from '@/hooks';
@@ -23,7 +25,7 @@ import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { features } from '@/config/features';
 import {
   DEFAULT_DISCOVERY_STATUS,
@@ -52,10 +54,12 @@ import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
+import { FloatingPressable } from '@/components/ui/FloatingPressable';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import {
+  isDiscoveryPlaceActive,
   toEventFilters,
   type DiscoveryFilters,
 } from '@/utils/discovery-filters';
@@ -63,6 +67,8 @@ import {
 const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
 const HOME_CARD_STATS_LIMIT = 40;
 const HOME_FEED_CACHE_TTL_MS = 2 * 60 * 1000;
+/** Show the map handoff chip once the feed has scrolled past the header band. */
+const HOME_MAP_CHIP_SCROLL_THRESHOLD = 72;
 
 let homeFeedCache: {
   key: string;
@@ -135,6 +141,8 @@ export default function HomeScreen() {
   const searchApplied = useDiscoveryFiltersStore((s) => s.searchApplied);
   const searchRevision = useDiscoveryFiltersStore((s) => s.searchRevision);
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
+  const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
+  const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
   const clearSearchCriteria = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
   const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const categories = useTaxonomyStore((s) => s.categories);
@@ -147,6 +155,7 @@ export default function HomeScreen() {
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showMapChip, setShowMapChip] = useState(false);
   const metaFeedRequestId = useRef(0);
   const insets = useSafeAreaInsets();
 
@@ -536,6 +545,34 @@ export default function HomeScreen() {
     router.push('/(tabs)/map' as any);
   }, [router]);
 
+  const handleFeedScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = event.nativeEvent.contentOffset.y > HOME_MAP_CHIP_SCROLL_THRESHOLD;
+    setShowMapChip((prev) => (prev === next ? prev : next));
+  }, []);
+
+  /**
+   * Handoff Home → Map: keep shared discovery criteria, ensure a camera disk
+   * matches what Home is browsing, bump searchRevision so Map fits on focus.
+   */
+  const openMapFromHome = useCallback(() => {
+    const store = useDiscoveryFiltersStore.getState();
+    const center = store.place.center ?? userLocation;
+
+    if (center && !isDiscoveryPlaceActive(store.place)) {
+      // No modal place search: embark the Home browse disk (GPS / default radius).
+      setPlace({
+        center,
+        radiusKm: browseRadiusKm,
+        label: store.place.label?.trim() || 'À proximité',
+      });
+    } else if (center && store.place.center && store.place.radiusKm === undefined) {
+      setPlace({ radiusKm: browseRadiusKm });
+    }
+
+    commitSearch();
+    router.push('/(tabs)/map?handoff=1' as any);
+  }, [browseRadiusKm, commitSearch, router, setPlace, userLocation]);
+
   const listHeader = useMemo(
     () => (
       <>
@@ -728,6 +765,8 @@ export default function HomeScreen() {
         windowSize={7}
         updateCellsBatchingPeriod={50}
         removeClippedSubviews
+        onScroll={handleFeedScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -794,6 +833,24 @@ export default function HomeScreen() {
           )
         }
       />
+
+      {showMapChip ? (
+        <View
+          style={[styles.mapChipSlot, { bottom: spacing.md + Math.max(insets.bottom, 0) }]}
+          pointerEvents="box-none"
+        >
+          <FloatingPressable
+            style={styles.mapChip}
+            onPress={openMapFromHome}
+            accessibilityRole="button"
+            accessibilityLabel="Voir sur la map"
+            animateEntrance={false}
+          >
+            <Map size={16} color={colors.brand.onAccent} />
+            <Text style={styles.mapChipText}>Voir sur la map</Text>
+          </FloatingPressable>
+        </View>
+      ) : null}
 
       <NavigationOptionsSheet
         visible={!!navEvent}
@@ -994,11 +1051,32 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   listContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xl + 64,
     gap: spacing.lg,
   },
   feedItemWrap: {
     paddingHorizontal: spacing.md,
+  },
+  mapChipSlot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  mapChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+  },
+  mapChipText: {
+    ...typography.label,
+    color: colors.brand.onAccent,
+    fontWeight: '700',
   },
   emptyContainer: {
     padding: spacing.lg,

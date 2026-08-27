@@ -22,6 +22,9 @@ export const VIEWPORT_COUNT_SETTLE_MS = VIEWPORT_COUNT_FIRST_SETTLE_MS;
 /** Single wait copy — same typography/height slot as the final peek label. */
 export const MAP_WAITING_MESSAGE = 'On repère les événements autour de toi…';
 
+/** Home → Map handoff: reassure that the Home selection is being applied. */
+export const MAP_HANDOFF_WAITING_MESSAGE = 'On affiche votre sélection…';
+
 export function getMapWaitingMessage(): string {
   return MAP_WAITING_MESSAGE;
 }

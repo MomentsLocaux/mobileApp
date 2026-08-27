@@ -178,6 +178,11 @@ function isPlaceFilterActive(place: DiscoveryPlaceFilter): boolean {
   );
 }
 
+/** True when place criteria constrain discovery (center, label, or non-default radius). */
+export function isDiscoveryPlaceActive(place: DiscoveryPlaceFilter): boolean {
+  return isPlaceFilterActive(place);
+}
+
 function hasPlaceFilter(filters: DiscoveryFilters): boolean {
   return isPlaceFilterActive(filters.place);
 }

@@ -68,12 +68,16 @@ interface Props {
   peekCount: number;
   metaFilter?: EventMetaFilter;
   isLoading?: boolean;
+  /** Overrides the peek waiting copy (e.g. Home→Map handoff). */
+  waitingMessage?: string;
   sortBy?: SortOption;
   sortOrder?: SortOrder;
   onSortByChange?: (value: SortOption) => void;
   onSortChange?: (sortBy: SortOption, sortOrder?: SortOrder) => void;
   onSortOrderChange?: (order: SortOrder) => void;
   hasLocation?: boolean;
+  /** Overrides SortControl sheet title (default: contextual / « Trier par »). */
+  sortTitle?: string;
 }
 
 const SHEET_SURFACE = colors.brand.page;
@@ -105,12 +109,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       peekCount,
       metaFilter = 'all',
       isLoading = false,
+      waitingMessage: waitingMessageProp,
       sortBy = 'triage',
       sortOrder,
       onSortByChange,
       onSortChange,
       onSortOrderChange,
       hasLocation = false,
+      sortTitle,
     },
     ref
   ) => {
@@ -139,7 +145,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       showWaiting: peekWaiting,
       displayCount: settledPeekCount,
       waitingMessage,
-    } = useSettledViewportPeek(peekCount, isLoading);
+    } = useSettledViewportPeek(peekCount, isLoading, waitingMessageProp);
 
     const hasEvents = events.length > 0;
     const isSheetExpandable =
@@ -481,6 +487,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                     options={sortOptions}
                     mode="iconOnly"
                     status={metaFilter}
+                    title={sortTitle ?? 'Trier les résultats'}
                   />
                 ) : null}
               </View>

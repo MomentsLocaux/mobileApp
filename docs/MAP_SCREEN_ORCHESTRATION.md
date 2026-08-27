@@ -40,6 +40,11 @@ Parallèle : si `userLocation` disponible, le GPS **possède** le 1er paint
 `MAP_RECENTER_USER_RADIUS_KM`). `ensureInitialViewportLoad` / `onMapReady` ne
 démarrent que s’il n’y a pas de fix GPS (évite le thrash France → quartier).
 
+**Home → Map** (chip « Voir sur la map ») :
+- navigue avec `?handoff=1`
+- force fit disque recherche + `refreshWithBounds` (sync client filters)
+- bloque le first-paint GPS qui volait la caméra
+
 ---
 
 ## 2. Changement de bounds de carte
@@ -62,7 +67,7 @@ bootstrap / refreshBounds / refreshWithBounds / filtres / recenter?
   → fetch + markZoneSearched (chip masqué)
 
 chip tap?
-  → clearSearchCriteria si recherche modale active (pas d’historique)
+  → libère le lieu (bbox = géographie) ; conserve when/content du cadre
   → refreshWithBounds(pending, chrome inset) + markZoneSearched
 ```
 

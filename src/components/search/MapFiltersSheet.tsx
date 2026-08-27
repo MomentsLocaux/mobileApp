@@ -63,6 +63,7 @@ interface Props {
   onReset: () => void;
   resultCount: number;
   isLoadingResults?: boolean;
+  waitingMessage?: string;
   filters: DiscoveryFilters;
 }
 
@@ -99,6 +100,7 @@ export function MapFiltersSheet({
   onReset,
   resultCount,
   isLoadingResults = false,
+  waitingMessage: waitingMessageOverride,
   filters,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -116,7 +118,7 @@ export function MapFiltersSheet({
     showWaiting: resultsWaiting,
     displayCount: settledResultCount,
     waitingMessage,
-  } = useSettledViewportPeek(resultCount, isLoadingResults);
+  } = useSettledViewportPeek(resultCount, isLoadingResults, waitingMessageOverride);
 
   const visibleSubcategories = useMemo(
     () =>
@@ -155,7 +157,9 @@ export function MapFiltersSheet({
   );
 
   const searchHint = useMemo(() => {
-    if (searchActive) return undefined;
+    if (searchActive) {
+      return 'Ces réglages affinent la recherche active (cadre lieu / dates / catégories). Le tri de la liste se règle dans le tiroir de résultats.';
+    }
     return 'Pour lieu, dates précises ou texte libre, utilisez la barre de recherche. Statut et filtres se combinent.';
   }, [searchActive]);
 
@@ -295,7 +299,9 @@ export function MapFiltersSheet({
         <Animated.View style={[styles.sheet, sheetStyle]}>
           <Animated.View style={[styles.sheetInner, contentStyle]}>
             <View style={styles.header}>
-              <Text style={styles.title}>Filtres</Text>
+              <Text style={styles.title}>
+                {searchActive ? 'Affiner la sélection' : 'Filtres'}
+              </Text>
               <View style={styles.headerActions}>
                 {canReset ? (
                   <TouchableOpacity
@@ -319,13 +325,25 @@ export function MapFiltersSheet({
             </View>
 
             <Text style={styles.summary}>{summaryLabel}</Text>
+            {searchActive ? (
+              <Text style={styles.cadreHint}>
+                Recherche active = cadre. Ici vous affinez sans remplacer le lieu.
+              </Text>
+            ) : null}
 
             <ScrollView
               style={styles.scroll}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <FilterSection title="Statut des événements">
+              <FilterSection
+                title={searchActive ? 'Vue · statut' : 'Statut des événements'}
+                hint={
+                  searchActive
+                    ? 'Affiche un sous-ensemble des résultats de la recherche (ne change pas le cadre).'
+                    : undefined
+                }
+              >
                 <StatusFilterRow
                   value={metaFilter}
                   onChange={onMetaFilterChange}
@@ -333,7 +351,14 @@ export function MapFiltersSheet({
                 />
               </FilterSection>
 
-              <FilterSection title="Quand" hint={searchHint}>
+              <FilterSection
+                title="Quand"
+                hint={
+                  searchActive
+                    ? 'Modifie les dates de la recherche active.'
+                    : searchHint
+                }
+              >
                 <WhenPresets
                   value={whenPreset ?? null}
                   onChange={(next) => onWhenPresetChange(next ?? undefined)}
@@ -342,7 +367,14 @@ export function MapFiltersSheet({
                 />
               </FilterSection>
 
-              <FilterSection title="Catégories">
+              <FilterSection
+                title="Catégories"
+                hint={
+                  searchActive
+                    ? 'Modifie les catégories de la recherche active.'
+                    : undefined
+                }
+              >
                 <FilterChipRow
                   mode="multi"
                   options={categoryOptions}
@@ -454,7 +486,13 @@ const styles = StyleSheet.create({
   summary: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  cadreHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
     marginBottom: spacing.md,
+    lineHeight: 18,
   },
   scroll: {
     flex: 1,

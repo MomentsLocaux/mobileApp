@@ -67,17 +67,22 @@ import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
 import {
   includesPast,
+  createDefaultDiscoveryCriteria,
   resolveSortCenter,
   toEventFilters,
   type DiscoveryFilters,
 } from '@/utils/discovery-filters';
+import {
+  MAP_WAITING_MESSAGE,
+  MAP_HANDOFF_WAITING_MESSAGE,
+} from '@/utils/map-peek-label';
 
 const SHEET_CAMERA_FOLLOW_THROTTLE_MS = 72;
 const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 80;
 
 export default function MapScreen() {
   const router = useRouter();
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const { focus, handoff } = useLocalSearchParams<{ focus?: string; handoff?: string }>();
   useLocation();
 
   const { currentLocation, isLoading: locationLoading } = useLocationStore();
@@ -96,6 +101,7 @@ export default function MapScreen() {
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
   const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
   const clearSearchCriteria = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
+  const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
   const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const { profile } = useAuth();
   const { favorites, toggleFavorite } = useFavoritesStore();
@@ -144,6 +150,8 @@ export default function MapScreen() {
   const lastSheetCameraSyncAtRef = useRef(0);
   const sheetCameraFollowActiveRef = useRef(false);
   const hasCenteredOnUserRef = useRef(false);
+  /** Home chip « Voir sur la map » — force fit+fetch once, beat GPS first-paint. */
+  const pendingHomeHandoffRef = useRef(false);
   const focusHandledRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
   const markerSelectionGuardRef = useRef(false);
@@ -154,6 +162,7 @@ export default function MapScreen() {
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [handoffWaiting, setHandoffWaiting] = useState(false);
 
   zoomRef.current = zoom;
 
@@ -281,19 +290,41 @@ export default function MapScreen() {
       cancelViewportFetch();
       unlockViewportFreeze();
 
-      // Drop modal search (place / when / content) so the bbox owns the query.
-      if (useDiscoveryFiltersStore.getState().searchApplied) {
-        clearSearchCriteria();
+      // Geography becomes the visible bbox; keep when/content as the cadre.
+      const store = useDiscoveryFiltersStore.getState();
+      const before = selectDiscoveryFilters(store);
+      const hadCadre =
+        store.searchApplied ||
+        checkSearchCriteria({
+          place: before.place,
+          when: before.when,
+          content: before.content,
+        });
+
+      if (hadCadre) {
+        const defaults = createDefaultDiscoveryCriteria();
+        setPlace(defaults.place);
+        const remaining = checkSearchCriteria({
+          place: defaults.place,
+          when: before.when,
+          content: before.content,
+        });
+        if (remaining) {
+          commitSearch();
+        } else {
+          setSearchApplied(false);
+        }
         const nextFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
         reapplyClientFilters({
           metaFilter,
           searchFilters: toEventFilters(nextFilters, userLocation),
-          searchApplied: false,
-          hasSearchCriteria: false,
-          includePast: false,
+          searchApplied: remaining,
+          hasSearchCriteria: remaining,
+          includePast: includesPast(nextFilters),
         });
       }
 
+      setStatus('loading');
       refreshWithBounds(bounds, { applyChromeInset: true });
     },
     getZoom: () => zoomRef.current,
@@ -329,6 +360,30 @@ export default function MapScreen() {
   const recenterRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationLoadingRef = useRef(locationLoading);
   locationLoadingRef.current = locationLoading;
+  const reapplyClientFiltersRef = useRef(reapplyClientFilters);
+  reapplyClientFiltersRef.current = reapplyClientFilters;
+  const cancelViewportFetchRef = useRef(cancelViewportFetch);
+  cancelViewportFetchRef.current = cancelViewportFetch;
+  const metaFilterRef = useRef(metaFilter);
+  metaFilterRef.current = metaFilter;
+
+  // Arm handoff during render so useFocusEffect cannot miss it.
+  if (handoff === '1') {
+    pendingHomeHandoffRef.current = true;
+  }
+
+  useEffect(() => {
+    if (handoff !== '1') return;
+    setHandoffWaiting(true);
+    // Consume the param so remounts / re-focus don't loop the handoff.
+    router.setParams({ handoff: undefined });
+  }, [handoff, router]);
+
+  useEffect(() => {
+    if (!handoffWaiting) return;
+    if (sheetStatus === 'loading') return;
+    setHandoffWaiting(false);
+  }, [handoffWaiting, sheetStatus]);
 
   const scheduleRefreshWithBounds = useCallback(
     (bounds: MapBounds) => {
@@ -800,30 +855,50 @@ export default function MapScreen() {
       }
 
       const latest = useDiscoveryFiltersStore.getState();
+      const filters = selectDiscoveryFilters(latest);
       const hasCriteria = checkSearchCriteria({
         place: latest.place,
         when: latest.when,
         content: latest.content,
       });
+      const searchOwnsCamera = latest.searchApplied && hasCriteria;
+      const handoff = pendingHomeHandoffRef.current;
+      if (handoff) {
+        pendingHomeHandoffRef.current = false;
+      }
 
-      if (latest.searchApplied && hasCriteria) {
-        // Home Apply commits criteria without moving the map camera. On focus,
-        // fit once per searchRevision so the viewport matches the search disk.
-        const filters = selectDiscoveryFilters(latest);
+      if (searchOwnsCamera || handoff) {
         const target = resolveSearchTargetBounds(filters, userLocationRef.current);
-        if (
-          target &&
-          fittedSearchRevisionRef.current !== latest.searchRevision
-        ) {
+        const shouldFit =
+          Boolean(target) &&
+          (handoff || fittedSearchRevisionRef.current !== latest.searchRevision);
+
+        if (target && shouldFit) {
+          // Search / Home handoff owns first paint — block GPS recenter steal.
+          hasCenteredOnUserRef.current = true;
           fittedSearchRevisionRef.current = latest.searchRevision;
-          setStatusRef.current('loading');
+          if (handoff) {
+            setHandoffWaiting(true);
+          }
+          cancelViewportFetchRef.current();
           unlockViewportFreezeRef.current();
+          reapplyClientFiltersRef.current({
+            metaFilter: metaFilterRef.current,
+            searchFilters: toEventFilters(filters, userLocationRef.current),
+            searchApplied: true,
+            hasSearchCriteria: true,
+            includePast: includesPast(filters),
+          });
+          setStatusRef.current('loading');
           const fittedBounds = moveMapToSearchBoundsRef.current(target);
           scheduleRefreshWithBoundsRef.current(fittedBounds);
           return;
         }
-        void refreshBoundsRef.current();
-        return;
+
+        if (searchOwnsCamera) {
+          void refreshBoundsRef.current();
+          return;
+        }
       }
 
       if (uiState.sheetStatus !== 'loading') {
@@ -928,8 +1003,40 @@ export default function MapScreen() {
     // Wait for location resolution so we don't race a France-wide ensureInitial
     // against the GPS neighborhood fit.
     if (locationLoading) return;
+    // Home handoff / applied search owns the camera — do not steal with GPS fit.
+    if (pendingHomeHandoffRef.current) return;
 
     if (userLocation && !hasCenteredOnUserRef.current) {
+      const latest = useDiscoveryFiltersStore.getState();
+      const filters = selectDiscoveryFilters(latest);
+      const hasCriteria = checkSearchCriteria({
+        place: latest.place,
+        when: latest.when,
+        content: latest.content,
+      });
+      const target =
+        latest.searchApplied && hasCriteria
+          ? resolveSearchTargetBounds(filters, userLocation)
+          : null;
+
+      if (target) {
+        hasCenteredOnUserRef.current = true;
+        fittedSearchRevisionRef.current = latest.searchRevision;
+        cancelViewportFetch();
+        unlockViewportFreeze();
+        reapplyClientFilters({
+          metaFilter,
+          searchFilters: toEventFilters(filters, userLocation),
+          searchApplied: true,
+          hasSearchCriteria: true,
+          includePast: includesPast(filters),
+        });
+        setStatus('loading');
+        const fittedBounds = moveMapToSearchBounds(target);
+        scheduleRefreshWithBounds(fittedBounds);
+        return;
+      }
+
       hasCenteredOnUserRef.current = true;
       const fittedBounds = recenterToUser();
       if (fittedBounds) {
@@ -942,10 +1049,17 @@ export default function MapScreen() {
       void ensureInitialViewportLoad();
     }
   }, [
+    cancelViewportFetch,
     ensureInitialViewportLoad,
     locationLoading,
+    metaFilter,
+    moveMapToSearchBounds,
+    reapplyClientFilters,
     recenterToUser,
+    resolveSearchTargetBounds,
     scheduleRefreshWithBounds,
+    setStatus,
+    unlockViewportFreeze,
     userLocation,
     viewportBootstrappedRef,
   ]);
@@ -1120,12 +1234,16 @@ export default function MapScreen() {
               peekCount={sheetStatus === 'singleEvent' ? 0 : displayPeekCount}
               metaFilter={metaFilter}
               isLoading={sheetStatus === 'loading'}
+              waitingMessage={
+                handoffWaiting ? MAP_HANDOFF_WAITING_MESSAGE : MAP_WAITING_MESSAGE
+              }
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortByChange={(value) => setSort('map', value, sortOrder)}
               onSortChange={(value, order) => setSort('map', value, order)}
               onSortOrderChange={(value) => setSort('map', sortBy, value)}
               hasLocation={!!userLocation}
+              sortTitle="Trier les résultats"
             />
           </Animated.View>
 
@@ -1166,6 +1284,9 @@ export default function MapScreen() {
         onReset={handleResetFilters}
         resultCount={displayPeekCount}
         isLoadingResults={sheetStatus === 'loading'}
+        waitingMessage={
+          handoffWaiting ? MAP_HANDOFF_WAITING_MESSAGE : undefined
+        }
       />
 
       <NavigationOptionsSheet
