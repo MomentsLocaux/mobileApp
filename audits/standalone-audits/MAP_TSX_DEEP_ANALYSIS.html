@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Audit approfondi de l’architecture, de la fiabilité et de la scalabilité de app/(tabs)/map.tsx."
+    />
+    <title>Audit map.tsx — Moments Locaux</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f3f5f9;
+        --surface: #ffffff;
+        --surface-soft: #f8f9fc;
+        --text: #172033;
+        --muted: #647087;
+        --line: #dce2ec;
+        --brand: #5b4fd6;
+        --brand-deep: #39308e;
+        --brand-soft: #eeecff;
+        --good: #167658;
+        --good-soft: #e8f7f1;
+        --warn: #9b5a05;
+        --warn-soft: #fff4df;
+        --risk: #b42335;
+        --risk-soft: #ffedf0;
+        --code: #232b3d;
+        --shadow: 0 18px 48px rgb(31 40 64 / 9%);
+        --radius-lg: 22px;
+        --radius-md: 14px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 16px;
+        line-height: 1.68;
+      }
+
+      a {
+        color: var(--brand-deep);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
+      a:hover {
+        color: var(--brand);
+      }
+
+      .skip-link {
+        position: fixed;
+        z-index: 100;
+        top: 12px;
+        left: 12px;
+        transform: translateY(-160%);
+        border-radius: 8px;
+        background: var(--text);
+        color: white;
+        padding: 10px 14px;
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .hero {
+        overflow: hidden;
+        position: relative;
+        background:
+          radial-gradient(circle at 85% 20%, rgb(118 103 255 / 35%), transparent 34%),
+          linear-gradient(135deg, #231d5f 0%, #4940a9 56%, #675ade 100%);
+        color: white;
+        padding: 72px 28px 96px;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        width: 320px;
+        height: 320px;
+        right: -90px;
+        bottom: -200px;
+        border: 54px solid rgb(255 255 255 / 8%);
+        border-radius: 50%;
+      }
+
+      .hero-inner {
+        width: min(1160px, 100%);
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: #d9d5ff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        letter-spacing: -0.025em;
+      }
+
+      h1 {
+        max-width: 850px;
+        margin: 0;
+        font-size: clamp(2.35rem, 5vw, 4.6rem);
+      }
+
+      .hero-summary {
+        max-width: 790px;
+        margin: 22px 0 0;
+        color: #ebe9ff;
+        font-size: clamp(1rem, 2vw, 1.22rem);
+      }
+
+      .hero code {
+        border-color: rgb(255 255 255 / 22%);
+        background: rgb(255 255 255 / 10%);
+        color: white;
+      }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 30px;
+      }
+
+      .meta-pill {
+        border: 1px solid rgb(255 255 255 / 24%);
+        border-radius: 999px;
+        background: rgb(255 255 255 / 10%);
+        color: white;
+        padding: 7px 12px;
+        font-size: 0.86rem;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 250px minmax(0, 1fr);
+        align-items: start;
+        gap: 34px;
+        width: min(1160px, calc(100% - 40px));
+        margin: -48px auto 72px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .toc {
+        position: sticky;
+        top: 20px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: rgb(255 255 255 / 96%);
+        box-shadow: var(--shadow);
+        padding: 22px;
+      }
+
+      .toc-title {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .toc ol {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .toc a {
+        display: block;
+        border-radius: 8px;
+        color: var(--muted);
+        padding: 6px 8px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        line-height: 1.35;
+      }
+
+      .toc a:hover,
+      .toc a:focus-visible {
+        background: var(--brand-soft);
+        color: var(--brand-deep);
+      }
+
+      main {
+        min-width: 0;
+      }
+
+      .section {
+        margin-bottom: 24px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        padding: clamp(24px, 4vw, 44px);
+      }
+
+      .section h2 {
+        margin: 0 0 22px;
+        font-size: clamp(1.55rem, 3vw, 2.1rem);
+      }
+
+      .section h3 {
+        margin: 32px 0 10px;
+        font-size: 1.18rem;
+      }
+
+      .section > :last-child,
+      .finding > :last-child,
+      .callout > :last-child {
+        margin-bottom: 0;
+      }
+
+      .lead {
+        color: #354057;
+        font-size: 1.08rem;
+      }
+
+      .verdict {
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr);
+        gap: 24px;
+        align-items: center;
+        margin: 28px 0;
+        border: 1px solid #d9d4ff;
+        border-radius: var(--radius-md);
+        background: var(--brand-soft);
+        padding: 22px;
+      }
+
+      .verdict-score {
+        color: var(--brand-deep);
+        font-size: 2.45rem;
+        font-weight: 850;
+        letter-spacing: -0.06em;
+        text-align: center;
+      }
+
+      .verdict strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 1.08rem;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 28px 0;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: var(--surface-soft);
+        padding: 17px;
+      }
+
+      .metric-value {
+        display: block;
+        color: var(--brand-deep);
+        font-size: 1.6rem;
+        font-weight: 850;
+      }
+
+      .metric-label {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 650px;
+        background: var(--surface);
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 13px 15px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--surface-soft);
+        color: #354057;
+        font-size: 0.83rem;
+        letter-spacing: 0.035em;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .score {
+        white-space: nowrap;
+        font-weight: 800;
+      }
+
+      .score.good {
+        color: var(--good);
+      }
+
+      .score.mid {
+        color: var(--warn);
+      }
+
+      .score.risk {
+        color: var(--risk);
+      }
+
+      code {
+        border: 1px solid #dfe2ea;
+        border-radius: 5px;
+        background: #f2f4f8;
+        color: #30384b;
+        padding: 0.08em 0.35em;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.88em;
+      }
+
+      pre {
+        overflow-x: auto;
+        margin: 20px 0;
+        border-radius: var(--radius-md);
+        background: var(--code);
+        color: #e9edf6;
+        padding: 22px;
+        font-size: 0.9rem;
+        line-height: 1.55;
+      }
+
+      pre code {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        padding: 0;
+      }
+
+      .finding-list {
+        display: grid;
+        gap: 16px;
+      }
+
+      .finding {
+        border: 1px solid var(--line);
+        border-left-width: 5px;
+        border-radius: var(--radius-md);
+        background: var(--surface-soft);
+        padding: 20px 22px;
+      }
+
+      .finding.p1 {
+        border-left-color: var(--risk);
+        background: linear-gradient(90deg, var(--risk-soft), var(--surface) 36%);
+      }
+
+      .finding.p2 {
+        border-left-color: var(--warn);
+        background: linear-gradient(90deg, var(--warn-soft), var(--surface) 36%);
+      }
+
+      .finding h3 {
+        margin: 0 0 10px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        margin-right: 7px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 0.72rem;
+        font-weight: 850;
+        letter-spacing: 0.06em;
+        vertical-align: 2px;
+      }
+
+      .badge.p1 {
+        background: var(--risk);
+        color: white;
+      }
+
+      .badge.p2 {
+        background: var(--warn);
+        color: white;
+      }
+
+      .label {
+        font-weight: 800;
+      }
+
+      .callout {
+        margin: 20px 0;
+        border-radius: var(--radius-md);
+        background: var(--good-soft);
+        color: #174c3c;
+        padding: 18px 20px;
+      }
+
+      .two-columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .subcard {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: var(--surface-soft);
+        padding: 20px;
+      }
+
+      .subcard h3 {
+        margin-top: 0;
+      }
+
+      ul,
+      ol {
+        padding-left: 1.3rem;
+      }
+
+      li + li {
+        margin-top: 0.35rem;
+      }
+
+      .ticket-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .ticket {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 19px;
+      }
+
+      .ticket h3 {
+        margin: 0 0 10px;
+      }
+
+      .check-list {
+        padding: 0;
+        list-style: none;
+      }
+
+      .check-list li {
+        position: relative;
+        padding-left: 30px;
+      }
+
+      .check-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        top: 0.05em;
+        width: 21px;
+        height: 21px;
+        border-radius: 50%;
+        background: var(--good-soft);
+        color: var(--good);
+        font-size: 0.78rem;
+        font-weight: 900;
+        line-height: 21px;
+        text-align: center;
+      }
+
+      footer {
+        width: min(900px, calc(100% - 40px));
+        margin: -32px auto 56px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+          margin-top: -42px;
+        }
+
+        .toc {
+          position: static;
+        }
+
+        .toc ol {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 660px) {
+        .hero {
+          padding: 52px 20px 78px;
+        }
+
+        .layout {
+          width: min(100% - 24px, 1160px);
+          gap: 18px;
+        }
+
+        .section {
+          border-radius: 17px;
+          padding: 22px 18px;
+        }
+
+        .metric-grid,
+        .two-columns,
+        .ticket-grid,
+        .toc ol {
+          grid-template-columns: 1fr;
+        }
+
+        .verdict {
+          grid-template-columns: 1fr;
+          text-align: center;
+        }
+      }
+
+      @media print {
+        :root {
+          --page: white;
+          --shadow: none;
+        }
+
+        body {
+          font-size: 10.5pt;
+        }
+
+        .hero {
+          background: white;
+          color: black;
+          padding: 20px 0 28px;
+        }
+
+        .hero-summary,
+        .eyebrow {
+          color: #333;
+        }
+
+        .meta-pill {
+          border-color: #aaa;
+          color: black;
+        }
+
+        .layout {
+          display: block;
+          width: 100%;
+          margin: 0;
+        }
+
+        .toc,
+        .skip-link {
+          display: none;
+        }
+
+        .section {
+          break-inside: avoid;
+          border: 0;
+          border-top: 1px solid #bbb;
+          border-radius: 0;
+          margin: 0;
+          padding: 24px 0;
+        }
+
+        .finding,
+        .ticket,
+        .subcard,
+        table {
+          break-inside: avoid;
+        }
+
+        a {
+          color: black;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenu">Aller au contenu</a>
+
+    <header class="hero">
+      <div class="hero-inner">
+        <p class="eyebrow">Moments Locaux · Audit technique</p>
+        <h1>Analyse approfondie de <code>map.tsx</code></h1>
+        <p class="hero-summary">
+          Évaluation de la cohérence, de la consistance, du professionnalisme, de la
+          maintenabilité, de la fiabilité et de la scalabilité de l’écran carte.
+        </p>
+        <div class="meta-row" aria-label="Métadonnées du rapport">
+          <span class="meta-pill">30 août 2026</span>
+          <span class="meta-pill">Ticket MVP-P1-004</span>
+          <span class="meta-pill">Branche audit/map-tsx-deep-analysis</span>
+          <span class="meta-pill">Audit statique</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="toc" aria-label="Sommaire">
+        <p class="toc-title">Sommaire</p>
+        <ol>
+          <li><a href="#synthese">1. Synthèse</a></li>
+          <li><a href="#perimetre">2. Périmètre</a></li>
+          <li><a href="#evaluation">3. Évaluation</a></li>
+          <li><a href="#architecture">4. Architecture</a></li>
+          <li><a href="#forces">5. Points solides</a></li>
+          <li><a href="#p1">6. Priorités P1</a></li>
+          <li><a href="#p2">7. Constats P2</a></li>
+          <li><a href="#scalabilite">8. Scalabilité</a></li>
+          <li><a href="#plan">9. Plan d’action</a></li>
+          <li><a href="#validation">10. Validation</a></li>
+          <li><a href="#conclusion">11. Conclusion</a></li>
+          <li><a href="#verifications">12. Vérifications</a></li>
+        </ol>
+      </nav>
+
+      <main id="contenu">
+        <section class="section" id="synthese">
+          <p class="eyebrow" style="color: var(--brand)">01 · Synthèse exécutive</p>
+          <h2>Une base crédible, mais une orchestration trop concentrée</h2>
+          <p class="lead">
+            <code>map.tsx</code> repose sur des choix globalement professionnels : TypeScript,
+            composants spécialisés, hooks métier, limites de résultats, clustering Mapbox,
+            liste virtualisée, protection contre les réponses obsolètes, repli réseau, tokens de
+            design et libellés d’accessibilité sur les actions majeures.
+          </p>
+
+          <div class="verdict">
+            <div class="verdict-score" aria-label="Note globale 6,5 sur 10">6,5/10</div>
+            <div>
+              <strong>Amélioration requise avant une scalabilité durable</strong>
+              La base convient au MVP, mais la maintenabilité, la testabilité et la preuve de
+              capacité doivent progresser avant une hausse importante du volume ou de l’équipe.
+            </div>
+          </div>
+
+          <div class="metric-grid" aria-label="Métriques principales du fichier">
+            <div class="metric"><span class="metric-value">1 103</span><span class="metric-label">lignes</span></div>
+            <div class="metric"><span class="metric-value">18</span><span class="metric-label">callbacks</span></div>
+            <div class="metric"><span class="metric-value">16</span><span class="metric-label">refs</span></div>
+            <div class="metric"><span class="metric-value">9</span><span class="metric-label">mémos</span></div>
+            <div class="metric"><span class="metric-value">6</span><span class="metric-label">états locaux</span></div>
+            <div class="metric"><span class="metric-value">66</span><span class="metric-label">commits d’historique</span></div>
+          </div>
+
+          <p>
+            Le fichier orchestre la localisation, les paramètres de navigation, les filtres, la
+            caméra, le viewport, le gel des résultats, les marqueurs, les gestes de la feuille,
+            la navigation, les erreurs et les actions sociales. Il forme ainsi une
+            <strong>machine d’état implicite et distribuée</strong> entre l’écran, ses hooks,
+            Mapbox, la bottom sheet et Zustand.
+          </p>
+        </section>
+
+        <section class="section" id="perimetre">
+          <p class="eyebrow" style="color: var(--brand)">02 · Périmètre et méthode</p>
+          <h2>Ce qui a été inspecté</h2>
+          <div class="two-columns">
+            <div class="subcard">
+              <h3>Inclus dans l’audit</h3>
+              <ul>
+                <li><code>app/(tabs)/map.tsx</code> et ses hooks directs ;</li>
+                <li><code>useMapSheetSplitLayout</code> et <code>useLocation</code> ;</li>
+                <li><code>MapWrapper</code> et <code>SearchResultsBottomSheet</code> ;</li>
+                <li>les stores de résultats carte ;</li>
+                <li>le chemin bbox → service → RPC Supabase ;</li>
+                <li>les migrations, index et surfaces de charte concernés.</li>
+              </ul>
+            </div>
+            <div class="subcard">
+              <h3>Hors de l’audit</h3>
+              <ul>
+                <li>profilage sur appareil physique ;</li>
+                <li>tests E2E de gestes ;</li>
+                <li>mesures réseau réelles ;</li>
+                <li><code>EXPLAIN (ANALYZE, BUFFERS)</code> en production ;</li>
+                <li>validation visuelle exhaustive iOS et Android.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="callout">
+            Les conclusions de performance serveur évaluent la conception. Elles ne constituent
+            pas une preuve de capacité sans mesures sur une base et des volumes représentatifs.
+          </div>
+        </section>
+
+        <section class="section" id="evaluation">
+          <p class="eyebrow" style="color: var(--brand)">03 · Tableau d’évaluation</p>
+          <h2>Résultats par axe</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Axe</th><th>Note</th><th>Conclusion</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Cohérence fonctionnelle</td><td class="score good">7,5/10</td><td>Les parcours carte, marqueur, feuille, recherche et navigation forment un ensemble logique.</td></tr>
+                <tr><td>Consistance architecturale</td><td class="score mid">6/10</td><td>Hooks bien extraits, mais orchestration concentrée et état dupliqué.</td></tr>
+                <tr><td>Professionnalisme</td><td class="score good">7,5/10</td><td>Bon niveau de soin, de commentaires, de garde-fous et de replis.</td></tr>
+                <tr><td>Maintenabilité</td><td class="score mid">5,5/10</td><td>Taille, couplage et callbacks impératifs augmentent le coût des changements.</td></tr>
+                <tr><td>Testabilité</td><td class="score risk">4/10</td><td>Les transitions critiques ne disposent pas de tests directs identifiés.</td></tr>
+                <tr><td>Fiabilité</td><td class="score mid">6,5/10</td><td>Réponses obsolètes ignorées, mais annulation et temporisations incomplètes.</td></tr>
+                <tr><td>Performance mobile</td><td class="score mid">6,5/10</td><td>Clustering et virtualisation solides ; plusieurs travaux redondants subsistent.</td></tr>
+                <tr><td>Scalabilité données</td><td class="score mid">6,5/10</td><td>RPC bornée et indexée, sans preuve par plan d’exécution.</td></tr>
+                <tr><td>Accessibilité</td><td class="score mid">6/10</td><td>Actions principales libellées ; états dynamiques et repli incomplets.</td></tr>
+                <tr><td>Cohérence visuelle</td><td class="score good">7/10</td><td>Tokens largement utilisés ; quelques contrastes restent à valider.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="architecture">
+          <p class="eyebrow" style="color: var(--brand)">04 · Architecture</p>
+          <h2>Flux observé</h2>
+          <pre><code>MapScreen
+├── stores auth / localisation / discovery / favoris / likes
+├── useMapScreenData
+│   ├── useMapViewportController
+│   └── useViewportEventsFetch
+│       └── bbox-event-fetch
+│           └── EventsService
+│               └── RPC Supabase list_map_viewport
+├── useMapSheetOrchestration + useMapSheetSplitLayout
+├── useMapSearchApply / useMapSocialActions / useMapMarkerPress
+├── MapWrapper (Mapbox, sources, clusters, caméra)
+└── SearchResultsBottomSheet (FlatList, gestes, tri, fiche)</code></pre>
+          <p>
+            La séparation existe déjà. Le problème est que <code>MapScreen</code> reste le lieu où
+            presque toutes les transitions se rejoignent, sans modèle explicite décrivant les
+            états autorisés et les événements qui les relient.
+          </p>
+        </section>
+
+        <section class="section" id="forces">
+          <p class="eyebrow" style="color: var(--brand)">05 · Points solides</p>
+          <h2>Des fondations réellement professionnelles</h2>
+
+          <h3>Découpage progressif réel</h3>
+          <p>
+            Les données, la sélection de marqueur, la recherche, les actions sociales et une
+            partie de l’orchestration sont extraites. Ce n’est pas un monolithe naïf : la
+            modularisation réduit déjà une partie de la complexité.
+          </p>
+
+          <h3>Protection contre les réponses obsolètes</h3>
+          <p>
+            Les hooks attribuent des identifiants aux requêtes de viewport et de marqueur. Une
+            réponse ancienne ne peut pas remplacer la sélection ou le viewport courant.
+          </p>
+
+          <h3>Stratégie de chargement bornée</h3>
+          <ul>
+            <li>RPC limitée à 1 500 événements ;</li>
+            <li>plafond adaptatif de 500 à 1 500 selon le zoom ;</li>
+            <li>liste de feuille limitée à 120 événements ;</li>
+            <li>jointures profil et catégorie après la limite ;</li>
+            <li>avatars anormalement lourds écartés ;</li>
+            <li>clustering Mapbox et liste virtualisée.</li>
+          </ul>
+
+          <h3>Chemin serveur spécialisé</h3>
+          <p>
+            La carte privilégie une RPC card-lite en un aller-retour, avec un fallback vers le
+            chemin bbox + IDs. La RPC filtre explicitement les événements
+            <code>published/public</code>, borne ses paramètres et fixe son
+            <code>search_path</code>. Des index partiels existent sur les dates et les coordonnées.
+          </p>
+
+          <h3>Soin UI, produit et instrumentation</h3>
+          <ul>
+            <li>safe areas et bornes de caméra France ;</li>
+            <li>chargement de localisation et erreur viewport visibles ;</li>
+            <li>actions principales libellées pour l’accessibilité ;</li>
+            <li>tokens de design et alternative liste aux marqueurs ;</li>
+            <li>traces ciblées avec <code>traceMapSheetPerf</code>.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="p1">
+          <p class="eyebrow" style="color: var(--risk)">06 · Constats prioritaires</p>
+          <h2>Risques P1</h2>
+          <div class="finding-list">
+            <article class="finding p1">
+              <h3><span class="badge p1">P1</span>Absence de tests directs de la machine d’état</h3>
+              <p>
+                Aucun test direct n’a été identifié pour <code>map.tsx</code>,
+                <code>useMapViewportController</code>, <code>useViewportEventsFetch</code>,
+                <code>useMapMarkerPress</code> ou <code>useMapSheetSplitLayout</code>.
+              </p>
+              <p>
+                Les séquences premier chargement, pan utilisateur, déplacement programmatique,
+                gel/restauration, drag de feuille, changement de filtres, sélection rapide,
+                retour au focus et refus GPS reposent surtout sur des refs et temporisations.
+              </p>
+              <p><span class="label">Risque :</span> régressions silencieuses sur les séquences.</p>
+              <p><span class="label">Recommandation :</span> extraire un contrôleur ou reducer testable et couvrir les transitions avec timers et réponses réseau simulés.</p>
+            </article>
+
+            <article class="finding p1">
+              <h3><span class="badge p1">P1</span>Invalidation sans véritable annulation réseau</h3>
+              <p>
+                Les identifiants empêchent une ancienne réponse de modifier l’UI, mais n’annulent
+                pas le travail réseau. Après le timeout client de 4 secondes, la RPC peut continuer
+                pendant le fallback ; un retry silencieux peut encore amplifier le trafic.
+              </p>
+              <p><span class="label">Risque :</span> requêtes concurrentes lors d’une connexion lente, d’un pan rapide ou d’une surcharge serveur.</p>
+              <p><span class="label">Recommandation :</span> annulation lorsque possible, nettoyage des timers, déduplication des requêtes en vol et métriques séparées pour timeout, fallback et retry.</p>
+            </article>
+
+            <article class="finding p1">
+              <h3><span class="badge p1">P1</span>Expérience de localisation incomplète</h3>
+              <p>
+                <code>useLocation()</code> demande la permission au montage. En cas de refus,
+                l’erreur est stockée mais non affichée par <code>map.tsx</code>, qui revient sur
+                Fontoy sans explication ni action de récupération.
+              </p>
+              <p><span class="label">Risque :</span> résultats incompris et impression de dysfonctionnement.</p>
+              <p><span class="label">Recommandation :</span> état non bloquant « localisation indisponible », centre par défaut expliqué, relance/réglages et recherche manuelle complète.</p>
+            </article>
+
+            <article class="finding p1">
+              <h3><span class="badge p1">P1</span>Scalabilité serveur non démontrée</h3>
+              <p>
+                La RPC peut retourner 1 500 lignes et exécute deux comptages corrélés par événement
+                pour les intérêts et check-ins. Les index réduisent le risque, mais ne prouvent ni
+                la latence ni le coût des branches temporelles et du tri boosté.
+              </p>
+              <p><span class="label">Risque :</span> hausse de latence et de buffers sur les zones urbaines denses.</p>
+              <p><span class="label">Recommandation :</span> mesurer plusieurs bboxes avec <code>EXPLAIN (ANALYZE, BUFFERS)</code> et confirmer les index effectifs avant toute migration, toujours soumise à validation humaine.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="p2">
+          <p class="eyebrow" style="color: var(--warn)">07 · Constats importants</p>
+          <h2>Risques P2</h2>
+          <div class="finding-list">
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Responsabilités concentrées dans <code>MapScreen</code></h3>
+              <p>Le composant combine dérivation, effets, transitions impératives et rendu. Son historique de 66 commits confirme une surface à fort churn.</p>
+              <p><span class="label">Découpage recommandé :</span> <code>useMapDeepLinkFocus</code>, <code>useMapFilterActions</code>, <code>useMapLocationBootstrap</code>, <code>useMapSheetCameraSync</code> et une <code>MapScreenView</code> limitée au rendu.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>État dupliqué</h3>
+              <p><code>useMapResultsUIStore</code> est actif, tandis que <code>useMapResultsStore</code> expose un autre modèle sans usage identifié hors export.</p>
+              <p><span class="label">Recommandation :</span> confirmer l’absence d’usage puis déprécier ou supprimer le store historique dans un ticket dédié.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Tri appliqué à plusieurs niveaux</h3>
+              <p><code>useViewportEventsFetch</code> trie avant publication, puis <code>map.tsx</code> retrie la liste pour les modes autres que <code>triage</code>.</p>
+              <p><span class="label">Recommandation :</span> définir une seule source responsable de l’ordre de la feuille.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Filtres répétitifs et impératifs</h3>
+              <p>Dates, catégories, meta-filtre et reset répètent mise à jour, <code>getState()</code>, recalcul, réapplication et refresh.</p>
+              <p><span class="label">Recommandation :</span> action transactionnelle unique retournant l’état final à publier.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Temporisations non suivies</h3>
+              <p>Le garde marqueur de 400 ms, le timeout de sécurité de 4 s et le timeout RPC ne sont pas tous conservés et nettoyés.</p>
+              <p><span class="label">Recommandation :</span> centraliser leur cycle de vie et empêcher toute écriture tardive hors séquence.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Paramètre <code>focus</code> traité une seule fois</h3>
+              <p><code>focusHandledRef</code> reste vrai après le premier ID ; un second focus peut être ignoré si le montage est réutilisé.</p>
+              <p><span class="label">Recommandation :</span> mémoriser le dernier ID traité plutôt qu’un booléen.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Souscriptions Zustand trop larges</h3>
+              <p>Localisation, favoris, likes et résultats UI sont déstructurés depuis des stores complets, ce qui peut multiplier les rendus.</p>
+              <p><span class="label">Recommandation :</span> sélecteurs fins, puis validation par profilage avant optimisation supplémentaire.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Dette lint dans le contrôleur viewport</h3>
+              <p><code>map.tsx</code> n’a aucun warning direct, mais <code>useMapViewportController</code> en a huit : deux variables inutilisées et six dépendances de callbacks signalées.</p>
+              <p><span class="label">Recommandation :</span> corriger ou justifier chaque dépendance après ajout des tests, sans désactiver globalement la règle.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Animation de marqueur à profiler</h3>
+              <p><code>MapWrapper</code> relaie une taille animée vers React via <code>runOnJS</code>, potentiellement à chaque frame.</p>
+              <p><span class="label">Recommandation :</span> profiler sur appareil cible et préférer une animation native si le coût est visible.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Erreurs et accessibilité dynamiques</h3>
+              <p>L’erreur viewport est visible, mais l’échec marqueur reste en console. Chargement et erreur ne sont pas annoncés comme régions dynamiques ; l’absence de position n’est pas expliquée.</p>
+              <p><span class="label">Recommandation :</span> unifier les erreurs récupérables et compléter les annonces utiles au lecteur d’écran.</p>
+            </article>
+
+            <article class="finding p2">
+              <h3><span class="badge p2">P2</span>Contrastes à valider</h3>
+              <p>La bordure du filtre et la poignée utilisent du blanc translucide sur des surfaces potentiellement claires.</p>
+              <p><span class="label">Recommandation :</span> vérifier les états iOS/Android et utiliser un token de bordure adapté.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="scalabilite">
+          <p class="eyebrow" style="color: var(--brand)">08 · Scalabilité</p>
+          <h2>Capacité actuelle et limites</h2>
+          <div class="two-columns">
+            <div class="subcard">
+              <h3>Ce qui scale raisonnablement</h3>
+              <ul>
+                <li>viewport et liste bornés ;</li>
+                <li>payload card-lite ;</li>
+                <li>jointures après limitation ;</li>
+                <li>clustering et virtualisation ;</li>
+                <li>filtres locaux sans nouveau réseau ;</li>
+                <li>réponses obsolètes neutralisées ;</li>
+                <li>index partiels alignés avec <code>published/public</code>.</li>
+              </ul>
+            </div>
+            <div class="subcard">
+              <h3>Ce qui limite la croissance</h3>
+              <ul>
+                <li>cache limité au dernier viewport ;</li>
+                <li>déduplication et annulation incomplètes ;</li>
+                <li>fallback potentiellement concurrent ;</li>
+                <li>agrégats corrélés par ligne ;</li>
+                <li>jusqu’à 1 500 marqueurs ;</li>
+                <li>tri doublé et chargement de stats ;</li>
+                <li>aucun budget p95, payload, mémoire ou FPS prouvé.</li>
+              </ul>
+            </div>
+          </div>
+
+          <h3>Budgets initiaux proposés</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Mesure</th><th>Budget</th></tr></thead>
+              <tbody>
+                <tr><td>p95 RPC viewport, bbox urbaine</td><td class="score">&lt; 500 ms</td></tr>
+                <tr><td>Payload viewport courant</td><td class="score">&lt; 500 Ko compressé</td></tr>
+                <tr><td>Résultats feuille rendus initialement</td><td class="score">≤ 6</td></tr>
+                <tr><td>FPS pendant drag et pan</td><td class="score">≥ 50 sur appareil cible</td></tr>
+                <tr><td>Requêtes utiles simultanées</td><td class="score">1 par clé bbox/filtres</td></tr>
+                <tr><td>Affichage d’un état récupérable</td><td class="score">&lt; 5 s</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Référence :
+            <a href="https://supabase.com/docs/guides/database/query-optimization"
+              >guide officiel Supabase sur l’optimisation des requêtes</a
+            >. La présence d’un index dans une migration ne remplace pas la vérification de son
+            utilisation dans le plan d’exécution.
+          </p>
+        </section>
+
+        <section class="section" id="plan">
+          <p class="eyebrow" style="color: var(--brand)">09 · Réduction du risque</p>
+          <h2>Plan proposé en six tickets</h2>
+          <div class="ticket-grid">
+            <article class="ticket">
+              <h3>1. Tests de transitions <span class="badge p1">P1</span></h3>
+              <ul>
+                <li>modéliser les états de la feuille ;</li>
+                <li>tester sélection, gel, restauration, pan et focus ;</li>
+                <li>simuler requêtes lentes et réponses inversées ;</li>
+                <li>couvrir refus GPS et absence de bounds.</li>
+              </ul>
+            </article>
+            <article class="ticket">
+              <h3>2. Transport viewport <span class="badge p1">P1</span></h3>
+              <ul>
+                <li>dédupliquer les requêtes en vol ;</li>
+                <li>nettoyer les timers ;</li>
+                <li>éviter RPC et fallback concurrents ;</li>
+                <li>instrumenter latence et payload ;</li>
+                <li>cache bbox/filtres borné.</li>
+              </ul>
+            </article>
+            <article class="ticket">
+              <h3>3. UX localisation <span class="badge p1">P1</span></h3>
+              <ul>
+                <li>rendre le refus explicite ;</li>
+                <li>proposer réessai ou réglages ;</li>
+                <li>expliquer le centre par défaut ;</li>
+                <li>valider la recherche sans GPS.</li>
+              </ul>
+            </article>
+            <article class="ticket">
+              <h3>4. Décomposer l’écran <span class="badge p2">P2</span></h3>
+              <ul>
+                <li>extraire focus, filtres, localisation et caméra ;</li>
+                <li>réduire l’API de la vue ;</li>
+                <li>éviter une réécriture fonctionnelle ;</li>
+                <li>comparer les traces avant/après.</li>
+              </ul>
+            </article>
+            <article class="ticket">
+              <h3>5. Cohérence technique <span class="badge p2">P2</span></h3>
+              <ul>
+                <li>retirer le store historique ;</li>
+                <li>supprimer le double tri ;</li>
+                <li>corriger la gestion du focus ;</li>
+                <li>resserrer les sélecteurs ;</li>
+                <li>supprimer styles morts et <code>any</code>.</li>
+              </ul>
+            </article>
+            <article class="ticket">
+              <h3>6. Capacité Supabase <span class="badge p2">P2</span></h3>
+              <ul>
+                <li>mesurer plusieurs niveaux de zoom ;</li>
+                <li>comparer 100 à 1 500 résultats ;</li>
+                <li>capturer les plans et buffers ;</li>
+                <li>vérifier le coût des agrégats ;</li>
+                <li>validation humaine avant migration.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="validation">
+          <p class="eyebrow" style="color: var(--brand)">10 · Matrice minimale</p>
+          <h2>Scénarios à valider</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Scénario</th><th>Résultat attendu</th></tr></thead>
+              <tbody>
+                <tr><td>Ouverture avec GPS</td><td>Centrage utilisateur puis viewport cohérent, sans double flash.</td></tr>
+                <tr><td>Ouverture sans GPS</td><td>Centre par défaut expliqué, recherche manuelle disponible.</td></tr>
+                <tr><td>Pan rapide répété</td><td>Seule la dernière réponse affecte l’UI, trafic borné.</td></tr>
+                <tr><td>Sélection rapide A puis B</td><td>B reste actif même si A répond après.</td></tr>
+                <tr><td>Ouverture puis fermeture fiche</td><td>Liste et compteur gelés sont restaurés.</td></tr>
+                <tr><td>Drag pendant déplacement carte</td><td>Caméra stable, aucune boucle de synchronisation.</td></tr>
+                <tr><td>Filtre pendant chargement</td><td>Résultat final conforme au dernier filtre.</td></tr>
+                <tr><td>Retour vers l’onglet</td><td>Feuille et viewport reviennent dans un état autorisé.</td></tr>
+                <tr><td>Deux paramètres <code>focus</code></td><td>Chaque nouvel ID est traité une fois.</td></tr>
+                <tr><td>RPC lente ou absente</td><td>Fallback unique et état utilisateur récupérable.</td></tr>
+                <tr><td>1 500 événements proches</td><td>Clustering fluide et mémoire maîtrisée.</td></tr>
+                <tr><td>Lecteur d’écran</td><td>Actions, chargement, erreur et alternative liste compréhensibles.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="conclusion">
+          <p class="eyebrow" style="color: var(--brand)">11 · Conclusion</p>
+          <h2>Stabiliser avant de réécrire</h2>
+          <p class="lead">
+            <code>map.tsx</code> n’est pas un fichier amateur. Il contient de nombreux garde-fous
+            issus d’un vrai travail de stabilisation. Sa faiblesse est désormais structurelle :
+            trop de comportements critiques convergent dans le même composant et dépendent d’un
+            ordre implicite entre refs, stores, timers et callbacks.
+          </p>
+          <div class="callout">
+            La prochaine étape rentable n’est ni une refonte visuelle ni une réécriture globale.
+            Il faut rendre les transitions testables, borner les requêtes concurrentes, traiter
+            l’absence de localisation et mesurer la capacité. Le découpage progressif pourra alors
+            réduire le coût des changements sans fragiliser le MVP.
+          </div>
+        </section>
+
+        <section class="section" id="verifications">
+          <p class="eyebrow" style="color: var(--good)">12 · Vérifications</p>
+          <h2>Contrôles réalisés</h2>
+          <ul class="check-list">
+            <li><code>npm run typecheck</code> : succès, aucune erreur TypeScript.</li>
+            <li><code>npm run lint</code> : succès, 73 warnings existants et aucune erreur.</li>
+            <li><code>npm test</code> : succès, 78 tests réussis.</li>
+            <li>Aucun warning dans <code>map.tsx</code> lui-même.</li>
+            <li>Huit warnings dans <code>useMapViewportController</code>.</li>
+            <li>Utilitaires carte partiellement couverts, contrôleurs critiques non couverts.</li>
+            <li><code>git diff --check</code> : succès.</li>
+            <li>Aucun build, changement applicatif ou migration.</li>
+          </ul>
+          <p>
+            Version source :
+            <a href="./MAP_TSX_DEEP_ANALYSIS.md"><code>MAP_TSX_DEEP_ANALYSIS.md</code></a>
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      Moments Locaux · Audit MVP-P1-004 · Document HTML autonome et imprimable
+    </footer>
+  </body>
+</html>
