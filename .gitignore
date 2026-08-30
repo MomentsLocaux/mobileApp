@@ -40,6 +40,9 @@ yarn-error.*
 !.env.uat.example
 .env*.local
 
+# local Mac-to-Mac handoff package (contains secrets and Git bundles)
+mac-transfer/
+
 # supabase cli temp artifacts
 supabase/.temp/
 
