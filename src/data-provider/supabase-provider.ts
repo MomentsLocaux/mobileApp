@@ -516,7 +516,7 @@ export const supabaseProvider: (Pick<
     timeScope?: EventTimeScope;
     mergeUpcoming?: boolean;
   }) {
-    const { ne, sw, limit = 1000, timeScope = 'current', mergeUpcoming = false } = params || {};
+    const { ne, sw, limit = 1500, timeScope = 'current', mergeUpcoming = false } = params || {};
     const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const minLat = Math.min(ne?.[1] ?? 0, sw?.[1] ?? 0);

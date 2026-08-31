@@ -8,11 +8,9 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Map as MapIcon, Search } from 'lucide-react-native';
+import { Bell, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useLocation } from '@/hooks';
@@ -25,7 +23,7 @@ import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { features } from '@/config/features';
 import {
   DEFAULT_DISCOVERY_STATUS,
@@ -153,7 +151,6 @@ export default function HomeScreen() {
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [showViewOnMap, setShowViewOnMap] = useState(false);
   const metaFeedRequestId = useRef(0);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const insets = useSafeAreaInsets();
@@ -555,20 +552,6 @@ export default function HomeScreen() {
     searchBarRef.current?.open();
   }, []);
 
-  const handleViewOnMap = useCallback(() => {
-    setHomeMapTransfer();
-    router.push('/(tabs)/map' as any);
-  }, [router, setHomeMapTransfer]);
-
-  const handleFeedScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const shouldShow =
-        filteredAndSortedEvents.length > 0 && event.nativeEvent.contentOffset.y > 120;
-      setShowViewOnMap((current) => (current === shouldShow ? current : shouldShow));
-    },
-    [filteredAndSortedEvents.length]
-  );
-
   const listHeader = useMemo(
     () => (
       <>
@@ -753,8 +736,6 @@ export default function HomeScreen() {
         windowSize={7}
         updateCellsBatchingPeriod={50}
         removeClippedSubviews
-        onScroll={handleFeedScroll}
-        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -843,19 +824,6 @@ export default function HomeScreen() {
           )
         }
       />
-
-      {showViewOnMap ? (
-        <TouchableOpacity
-          style={[styles.viewOnMapButton, { bottom: insets.bottom + spacing.lg }]}
-          onPress={handleViewOnMap}
-          activeOpacity={0.9}
-          accessibilityRole="button"
-          accessibilityLabel={`Voir ${filteredAndSortedEvents.length} résultats sur la carte`}
-        >
-          <MapIcon size={18} color={colors.brand.onAccent} />
-          <Text style={styles.viewOnMapText}>Voir sur la map</Text>
-        </TouchableOpacity>
-      ) : null}
 
       <NavigationOptionsSheet
         visible={!!navEvent}
@@ -1067,28 +1035,5 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     color: colors.brand.textSecondary,
-  },
-  viewOnMapButton: {
-    position: 'absolute',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    minHeight: 48,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.secondary,
-    borderWidth: 1,
-    borderColor: colors.primary[600],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 6,
-    zIndex: 30,
-  },
-  viewOnMapText: {
-    ...typography.bodyBold,
-    color: colors.brand.onAccent,
   },
 });

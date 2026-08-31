@@ -2,7 +2,7 @@
 
 Écran carte : `app/(tabs)/map.tsx`. Ticket **MVP-P1-004**.
 
-**Données viewport** : `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`**.
+**Données viewport** : `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`**. Compteur client : `MAP_VIEWPORT_LIMIT_MAX` (1500) pour toute zone **autorisée** (`MAX_MAP_BBOX_DIAMETER_KM`) — plus de palier 500/700/1000 selon le zoom. La RPC clamp encore `p_limit` à 1500.
 
 **Recherche textuelle (Quoi)** : `list_map_viewport` n’a pas de paramètre nom. Quand `content.query` / `filters.name` est renseigné, Home et le compteur SearchBar passent par `listEvents` (`title` + `description` `ilike`, comme un Ctrl+F). Sur la carte, le fetch bbox est **fusionné** avec ce même `ilike` dans le viewport visible (`fetch-discovery-search-events.ts`). Sans lieu explicite, une requête texte seule n’est pas clipée au GPS.
 
@@ -132,10 +132,6 @@ Le follow caméra (padding bas = hauteur de sheet) ne s’applique qu’entre pe
 ```
 Home SearchBar Apply (et recherches sauvegardées)
   → setHomeTransfer()  // ping recadrage ; filtres déjà dans discoveryFiltersStore
-
-Home « Voir sur la map »
-  → setHomeTransfer()
-  → router.push map
 
 Onglet Map / enterFocusedMap
   → si ping nouveau OU searchRevision nouveau

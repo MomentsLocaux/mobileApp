@@ -43,7 +43,6 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Map viewport refine panel (status + categories) | `src/components/search/MapViewportRefinePanel.tsx` | FilterChip / StatusFilterRow tokens; surface under SearchBar, not dark ink |
 | SearchBar modal text fields (Où / Quoi) | `src/components/search/SearchBar.tsx` | Framed mint inputs (`inputFramed`); not ghost white-on-white placeholders |
 | Map style toggle (satellite) | `app/(tabs)/map.tsx` | Clustered with GPS recenter; surface chrome, not SearchBar sibling |
-| Home “Voir sur la map” floating CTA | `src/screens/home/HomeScreen.tsx` | Keep above tab chrome; leaf fill with ink text and accessible result count |
 | Onboarding category cards | `src/components/onboarding/OnboardingThemesStep.tsx` | Borders `#334155`; select-all |
 | Onboarding text fields | `src/screens/onboarding/OnboardingScreen.tsx`, `OnboardingConnectorStep.tsx` | No `lineHeight` on `TextInput`; extra bottom padding so descenders (g/p/y) are not clipped |
 | Lumia chat | `src/screens/lumia/LumiaChatScreen.tsx` | Flag off = hidden; light bubbles, leaf send — no dark glass |

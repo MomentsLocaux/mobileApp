@@ -9,8 +9,10 @@ import type {
 export const SEARCH_FETCH_LIMIT = 300;
 
 /**
- * Map viewport marker caps — adaptive to zoom.
- * Mapbox clusters pins; sheet list is capped separately in the fetch hook.
+ * Map viewport marker cap sent to `list_map_viewport`.
+ * Zoom no longer reduces this: the bbox diameter (`MAX_MAP_BBOX_DIAMETER_KM`) is the
+ * safety rail. The RPC still clamps with `LEAST(p_limit, 1500)`.
+ * The sheet list is capped separately in the fetch hook.
  */
 export const MAP_VIEWPORT_LIMIT_MAX = 1500;
 export const MAP_SHEET_LIST_LIMIT = 120;
@@ -20,17 +22,8 @@ export const PROXIMITY_RADIUS_KM = 40;
 
 type Coords = { latitude: number; longitude: number };
 
-/**
- * How many events to pull for the visible map bbox.
- * Zoomed-in → denser fetch; country zoom → lower cap (clustering covers density).
- */
-export const resolveMapViewportLimit = (zoom?: number | null): number => {
-  const z = typeof zoom === 'number' && Number.isFinite(zoom) ? zoom : 12;
-  if (z >= 13) return MAP_VIEWPORT_LIMIT_MAX; // neighborhood / city streets
-  if (z >= 11) return 1000; // agglomeration
-  if (z >= 9) return 700; // region
-  return 500; // country / wide
-};
+/** How many events to pull for the visible map bbox (RPC still caps at 1500). */
+export const resolveMapViewportLimit = (_zoom?: number | null): number => MAP_VIEWPORT_LIMIT_MAX;
 
 export type DiscoverySearchCriteria = {
   place: DiscoveryPlaceFilter;
