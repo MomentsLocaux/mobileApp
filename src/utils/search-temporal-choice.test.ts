@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   filtersForSearchTemporalChoice,
   filtersForCustomDateRange,
+  isDefaultDiscoveryTemporal,
   resolveSearchTemporalChoice,
 } from './search-temporal-choice';
 
@@ -53,7 +54,20 @@ describe('search temporal choice', () => {
     );
     assert.deepEqual(
       filtersForCustomDateRange({ startDate: null, endDate: null }, '2026-08-31'),
-      { status: 'live', when: {} }
+      { status: 'all', when: { preset: 'today', includePast: false } }
     );
+  });
+
+  it('treats Aujourd’hui as the default discovery temporal package', () => {
+    assert.deepEqual(filtersForSearchTemporalChoice('today'), {
+      status: 'all',
+      when: { preset: 'today', includePast: false },
+    });
+    assert.equal(
+      isDefaultDiscoveryTemporal('all', { preset: 'today', includePast: false }),
+      true
+    );
+    assert.equal(isDefaultDiscoveryTemporal('live', {}), false);
+    assert.equal(isDefaultDiscoveryTemporal('all', {}), false);
   });
 });

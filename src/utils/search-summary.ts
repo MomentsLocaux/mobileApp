@@ -1,5 +1,6 @@
 import {
   DEFAULT_DISCOVERY_STATUS,
+  DEFAULT_DISCOVERY_WHEN_PRESET,
   DEFAULT_SORT_OPTION,
   HOME_DEFAULT_SORT_OPTION,
 } from '@/constants/filters';
@@ -23,10 +24,19 @@ export const buildSearchSummary = (
   subcategories.forEach((subcategory) => {
     labels[subcategory.id] = subcategory.label;
   });
+  const hasExplicitWhen = Boolean(
+    filters.when.preset ||
+      filters.when.startDate ||
+      filters.when.endDate ||
+      filters.when.includePast
+  );
   return summarize(
     {
       ...filters,
       status: DEFAULT_DISCOVERY_STATUS,
+      when: hasExplicitWhen
+        ? filters.when
+        : { preset: DEFAULT_DISCOVERY_WHEN_PRESET, includePast: false },
       sort: surface
         ? filters.sort
         : {

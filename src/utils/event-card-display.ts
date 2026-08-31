@@ -113,9 +113,9 @@ export function isMeaningfulPriceLabel(label: string): boolean {
   return label !== 'Prix non renseigné';
 }
 
-/** Hide empty/placeholder access badges. */
+/** Hide empty/placeholder access badges. "Entrée libre" is the no-data fallback, not a verified fact. */
 export function isMeaningfulAccessLabel(label: string): boolean {
-  return label !== 'Infos accès à confirmer';
+  return label !== 'Infos accès à confirmer' && label !== 'Entrée libre';
 }
 
 /** Minimum view count before showing the eye badge on event cards. */

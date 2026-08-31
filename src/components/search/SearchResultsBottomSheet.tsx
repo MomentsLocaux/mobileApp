@@ -20,14 +20,14 @@ import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
 import { SortControl } from '@/components/filters';
-import { ALL_SORT_OPTIONS, DEFAULT_DISCOVERY_STATUS, SORT_OPTIONS } from '@/constants/filters';
+import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
 import {
   VIEWPORT_HALF_SNAP_INDEX,
   getSheetMaxSnapIndex,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
-import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT } from './EventResultCard';
+import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT, EVENT_RESULT_SHEET_MEDIA_HEIGHT } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 
@@ -153,8 +153,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const showSingleDetail = mode === 'single' && isExpanded && hasEvents && !isLoading;
     const showEmpty = isExpanded && mode !== 'single' && !hasEvents && !isLoading;
     const hasViewportRefine =
-      hasViewportRefineProp ??
-      (selectedCategories.length > 0 || metaFilter !== DEFAULT_DISCOVERY_STATUS);
+      hasViewportRefineProp ?? selectedCategories.length > 0;
 
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 
@@ -406,7 +405,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       ({ item, index }: { item: EventWithCreator; index: number }) => (
         <EventResultCard
           event={item}
-          cardHeight={EVENT_RESULT_LIST_CARD_HEIGHT}
+          mediaHeight={EVENT_RESULT_SHEET_MEDIA_HEIGHT}
           listEntranceDelay={isExpanded && index < 4 ? index * Motion.stagger.listItem : 0}
           viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
           friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}

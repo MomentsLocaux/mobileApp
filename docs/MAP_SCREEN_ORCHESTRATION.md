@@ -18,6 +18,8 @@
 
 En **search**, le pan n’auto-fetche pas. En **browse**, si. Le chip conserve quoi/quand et relâche seulement le verrou géographique.
 
+**Filtres temporels** : le défaut Home / Map browse est **Aujourd’hui** (`status: all` + `when.preset: today`), pas En cours. En cours reste disponible dans le panneau. `today` n’est pas un critère de recherche (pas de lock carte).
+
 **Refine viewport (sans lock)** : bouton curseurs à droite de la SearchBar. Sous-section **sous la barre** : période (Tous / En cours / Aujourd’hui / Demain / Ce week-end / À venir / Passés + date précise) et catégories (tout sélectionner / désélectionner). `setStatus` / `setWhen` / `setContent` **sans** `searchApplied`. Pins = liste. Refetch bbox si le time scope change ou si une date (preset / range) l’exige. Visible en browse **et** en recherche. Lieu et texte restent dans la modale SearchBar. La bottom sheet ne contient plus que le tri.
 
 Le toggle satellite n’est plus à côté de la recherche : il est groupé avec le recentrage GPS (outils carte).
@@ -28,7 +30,7 @@ Si la sheet est au snap **full (92 %)** et que l’utilisateur ouvre l’overfil
 |--------|--------|----------------|
 | Catégories / sous-catégories | client, toujours | client, toujours |
 | Statut Tous / En cours / À venir / Passés | meta + refetch si scope RPC change | idem |
-| `when` (preset, range, query) | ignoré | client + lock géographique |
+| `when` (preset, range) | client en browse refine ; refetch si besoin | client + lock géographique seulement si autre critère (lieu / texte / date non défaut) |
 
 ## États principaux
 

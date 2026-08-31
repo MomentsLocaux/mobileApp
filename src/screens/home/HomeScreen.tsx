@@ -26,10 +26,8 @@ import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography } from '@/constants/theme';
 import { features } from '@/config/features';
 import {
-  DEFAULT_DISCOVERY_STATUS,
   DISCOVERY_DEFAULT_RADIUS_KM,
   DISCOVERY_MAX_RADIUS_KM,
-  metaFilterLabel,
 } from '@/constants/filters';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
@@ -48,6 +46,12 @@ import {
   SEARCH_FETCH_LIMIT,
 } from '@/utils/search-helpers';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
+import {
+  filtersForSearchTemporalChoice,
+  isDefaultDiscoveryTemporal,
+  resolveSearchTemporalChoice,
+  SEARCH_TEMPORAL_CHOICES,
+} from '@/utils/search-temporal-choice';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { fetchDiscoverySearchEvents } from '@/utils/fetch-discovery-search-events';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
@@ -56,7 +60,9 @@ import { EventCardStatsService, type EventCardStats } from '@/services/event-car
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import {
+  includesPast,
   toEventFilters,
+  toTimeScope,
   type DiscoveryFilters,
 } from '@/utils/discovery-filters';
 
@@ -129,6 +135,7 @@ export default function HomeScreen() {
   const sort = useDiscoveryFiltersStore((s) => s.sort);
   const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
   const setStatus = useDiscoveryFiltersStore((s) => s.setStatus);
+  const setWhen = useDiscoveryFiltersStore((s) => s.setWhen);
   const setRadiusKm = useDiscoveryFiltersStore((s) => s.setRadiusKm);
   const setSort = useDiscoveryFiltersStore((s) => s.setSort);
   const setSortOrder = useDiscoveryFiltersStore((s) => s.setSortOrder);
@@ -190,8 +197,26 @@ export default function HomeScreen() {
   const filteredAndSortedEvents = useMemo(() => {
     const base = showSearchResults ? searchResults : metaFeedEvents;
     const metaFiltered = filterEventsByMetaStatus(base, status);
-    return sortEvents(metaFiltered, sortBy, browseCenter, sortOrder);
-  }, [browseCenter, metaFeedEvents, searchResults, showSearchResults, sortBy, sortOrder, status]);
+    const dated = filterEvents(metaFiltered, {
+      time: filters.time,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      includePast: filters.includePast,
+    });
+    return sortEvents(dated, sortBy, browseCenter, sortOrder);
+  }, [
+    browseCenter,
+    filters.endDate,
+    filters.includePast,
+    filters.startDate,
+    filters.time,
+    metaFeedEvents,
+    searchResults,
+    showSearchResults,
+    sortBy,
+    sortOrder,
+    status,
+  ]);
 
   const filteredEventIds = useMemo(
     () =>
@@ -204,10 +229,10 @@ export default function HomeScreen() {
   const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
 
   useEffect(() => {
-    if (!hasSearchCriteria && status === DEFAULT_DISCOVERY_STATUS && searchApplied) {
+    if (!hasSearchCriteria && isDefaultDiscoveryTemporal(status, when) && searchApplied) {
       setSearchApplied(false);
     }
-  }, [hasSearchCriteria, searchApplied, setSearchApplied, status]);
+  }, [hasSearchCriteria, searchApplied, setSearchApplied, status, when]);
 
   const effectiveRadiusKm = useMemo(
     () =>
@@ -237,15 +262,15 @@ export default function HomeScreen() {
     setMetaFeedError(null);
     setMetaFeedLoading(true);
     try {
-      const timeScope = resolveEventTimeScope({
-        metaFilter: status,
-        includePast: status === 'past',
-      });
+      const timeScope = toTimeScope(discoveryFilters);
       const cacheKey = [
         browseCenter.latitude.toFixed(3),
         browseCenter.longitude.toFixed(3),
         browseRadiusKm,
         timeScope,
+        when.preset ?? '',
+        when.startDate ?? '',
+        when.endDate ?? '',
       ].join(':');
       if (
         !forceRefresh &&
@@ -265,14 +290,18 @@ export default function HomeScreen() {
       );
       const viewport = await listMapViewportForMap(
         { ...bounds, limit: HOME_FEED_LIMIT },
-        timeScope
+        timeScope,
+        { mergeUpcomingForDatePreset: timeScope === 'current' && !!when.preset }
       );
       // The RPC uses a rectangle; enforce the requested circular radius client-side.
       const events = filterEvents(viewport.events || [], {
         centerLat: browseCenter.latitude,
         centerLon: browseCenter.longitude,
         radiusKm: browseRadiusKm,
-        includePast: status === 'past',
+        includePast: includesPast(discoveryFilters),
+        time: filters.time,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
       });
       homeFeedCache = { key: cacheKey, events, storedAt: Date.now() };
       if (requestId === metaFeedRequestId.current) {
@@ -290,7 +319,7 @@ export default function HomeScreen() {
         setMetaFeedLoading(false);
       }
     }
-  }, [browseCenter, browseRadiusKm, status]);
+  }, [browseCenter, browseRadiusKm, discoveryFilters, filters.endDate, filters.startDate, filters.time, when.endDate, when.preset, when.startDate]);
 
   useEffect(() => {
     if (showSearchResults) return;
@@ -525,11 +554,23 @@ export default function HomeScreen() {
         onClear: resetCriteria,
       });
     }
-    if (!showSearchResults && status !== DEFAULT_DISCOVERY_STATUS) {
+    if (!showSearchResults && !isDefaultDiscoveryTemporal(status, when)) {
+      const choice = resolveSearchTemporalChoice(status, when);
       chips.push({
-        key: 'status',
-        label: metaFilterLabel(status),
-        onClear: () => setStatus(DEFAULT_DISCOVERY_STATUS),
+        key: 'temporal',
+        label:
+          SEARCH_TEMPORAL_CHOICES.find((item) => item.key === choice)?.label ??
+          'Période',
+        onClear: () => {
+          const next = filtersForSearchTemporalChoice('today');
+          setStatus(next.status);
+          setWhen({
+            preset: next.when.preset,
+            startDate: undefined,
+            endDate: undefined,
+            includePast: false,
+          });
+        },
       });
     }
     return chips;
@@ -538,9 +579,11 @@ export default function HomeScreen() {
     discoveryFilters,
     resetCriteria,
     setStatus,
+    setWhen,
     showSearchResults,
     status,
     subcategories,
+    when,
   ]);
 
   const expandedRadiusKm = Math.min(
@@ -754,7 +797,7 @@ export default function HomeScreen() {
               subtitle={
                 showSearchResults
                   ? 'Nous appliquons vos critères de recherche.'
-                  : `Événements en cours dans un rayon de ${browseRadiusKm} km.`
+                  : `Événements d'aujourd'hui dans un rayon de ${browseRadiusKm} km.`
               }
             />
           ) : (showSearchResults ? searchError : metaFeedError) ? (
@@ -797,7 +840,7 @@ export default function HomeScreen() {
             <EmptyState
               icon={Search}
               title="Localisation nécessaire"
-              subtitle="Activez la localisation pour afficher les événements en cours à moins de 20 km, ou lancez une recherche par lieu."
+              subtitle="Activez la localisation pour afficher les événements d'aujourd'hui à moins de 20 km, ou lancez une recherche par lieu."
               ctaLabel="Activer la localisation"
               onCtaPress={requestLocationPermission}
               secondaryCtaLabel="Rechercher un lieu"
@@ -809,7 +852,9 @@ export default function HomeScreen() {
               title={
                 status === 'live'
                   ? 'Aucun événement en cours à proximité'
-                  : 'Aucun événement à proximité'
+                  : when.preset === 'today'
+                    ? "Aucun événement aujourd'hui à proximité"
+                    : 'Aucun événement à proximité'
               }
               subtitle={`Aucun résultat dans un rayon de ${browseRadiusKm} km.`}
               ctaLabel={canExpandRadius ? `Élargir à ${expandedRadiusKm} km` : 'Lancer une recherche'}
@@ -1023,7 +1068,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.xl * 3,
-    gap: spacing.lg,
+    gap: spacing.sm,
   },
   feedItemWrap: {
     paddingHorizontal: spacing.md,

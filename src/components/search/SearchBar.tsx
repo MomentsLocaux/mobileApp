@@ -53,12 +53,10 @@ import {
   type DiscoveryFilters,
   type DiscoverySurface,
 } from '@/utils/discovery-filters';
-import {
-  DEFAULT_DISCOVERY_STATUS,
-  DISCOVERY_DEFAULT_RADIUS_KM,
-} from '@/constants/filters';
+import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import {
   filtersForSearchTemporalChoice,
+  isDefaultDiscoveryTemporal,
   resolveSearchTemporalChoice,
   SEARCH_TEMPORAL_CHOICES,
   type SearchTemporalChoice,
@@ -314,7 +312,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   );
   const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchSlice), [searchSlice]);
   const hasActiveDiscoverySearch =
-    hasSearchCriteria || status !== DEFAULT_DISCOVERY_STATUS;
+    hasSearchCriteria || !isDefaultDiscoveryTemporal(status, when);
   const effectiveRadiusKm = useMemo(
     () => resolveEffectiveRadiusKm(place, userCoords),
     [place, userCoords]
@@ -328,12 +326,12 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const summaryText = useMemo(() => {
     if (
       (!applied || !appliedHasSearchCriteria) &&
-      appliedStatus === DEFAULT_DISCOVERY_STATUS
+      isDefaultDiscoveryTemporal(appliedStatus, appliedWhen)
     ) {
       return undefined;
     }
     return buildSearchSummary(appliedFilters, categories, subcategories, surface);
-  }, [applied, appliedFilters, appliedHasSearchCriteria, appliedStatus, categories, subcategories, surface]);
+  }, [applied, appliedFilters, appliedHasSearchCriteria, appliedStatus, appliedWhen, categories, subcategories, surface]);
 
   const combinationError = useMemo(() => explainEmptyCombination(filters), [filters]);
 

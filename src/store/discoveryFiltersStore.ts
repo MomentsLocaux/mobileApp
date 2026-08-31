@@ -171,8 +171,11 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set, get)
   clearSearchCriteria: () =>
     set((state) => {
       const defaults = createDefaultDiscoveryCriteria();
+      const hadDateSearch = Boolean(
+        state.when.preset || state.when.startDate || state.when.endDate
+      );
       return {
-        when: defaults.when,
+        when: state.status !== 'all' ? {} : hadDateSearch ? defaults.when : {},
         place: defaults.place,
         content: defaults.content,
         searchApplied: false,

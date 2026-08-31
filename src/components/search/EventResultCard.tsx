@@ -14,8 +14,10 @@ import { getDistanceText } from '@/utils/sort-events';
 import { EventCard } from '../events/EventCard';
 import type { EventCardVariant } from '@/constants/event-card-variants';
 
-/** Hauteur partagée bottom sheet (snap). Le feed Home omet cardHeight → hauteur intrinsèque. */
-export const EVENT_RESULT_LIST_CARD_HEIGHT = 420;
+/** Estimated sheet row height for getItemLayout (cards size to content; do not force this as minHeight). */
+export const EVENT_RESULT_LIST_CARD_HEIGHT = 360;
+/** Slightly shorter cover than Home (`EVENT_CARD_MEDIA_HEIGHT.discovery` = 200). */
+export const EVENT_RESULT_SHEET_MEDIA_HEIGHT = 176;
 /** @deprecated Alias — utiliser EVENT_RESULT_LIST_CARD_HEIGHT. */
 export const EVENT_RESULT_CARD_HEIGHT = EVENT_RESULT_LIST_CARD_HEIGHT;
 
@@ -31,6 +33,7 @@ interface Props {
   /** When set, forces a minHeight (map sheet snap). Omit on feed lists for intrinsic height. */
   cardHeight?: number;
   noBottomMargin?: boolean;
+  mediaHeight?: number;
   onPress: () => void;
   onNavigate: () => void;
   onSelect?: () => void;
@@ -63,6 +66,7 @@ const EventResultCardComponent: React.FC<Props> = ({
   showCarousel = true,
   cardHeight,
   noBottomMargin = false,
+  mediaHeight,
   onPress,
   onNavigate,
   onSelect,
@@ -155,6 +159,7 @@ const EventResultCardComponent: React.FC<Props> = ({
         variant={variant}
         showCarousel={showCarousel}
         noBottomMargin={noBottomMargin}
+        mediaHeight={mediaHeight}
         onPress={handlePress}
         onPrimaryAction={onPress}
         onNavigate={onNavigate}
@@ -165,7 +170,7 @@ const EventResultCardComponent: React.FC<Props> = ({
         distanceLabel={distanceLabel}
         viewsCount={viewsCount}
         friendsGoingCount={friendsGoingCount}
-        style={styles.cardFill}
+        style={cardHeight != null ? styles.cardFill : undefined}
       />
     </Animated.View>
   );

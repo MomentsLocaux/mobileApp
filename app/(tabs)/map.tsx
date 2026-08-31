@@ -54,7 +54,7 @@ import {
   MAP_VIEW_PADDING,
   SIM_FALLBACK_COORDS,
 } from '@/constants/map-screen';
-import { DEFAULT_DISCOVERY_STATUS, DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
+import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import { SearchBar } from '../../src/components/search/SearchBar';
 import { MapViewportRefinePanel } from '../../src/components/search/MapViewportRefinePanel';
 import { hasSearchCriteria as checkSearchCriteria } from '../../src/utils/search-helpers';
@@ -83,6 +83,7 @@ import {
   shouldRefetchViewportOnTabFocus,
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
+import { isDefaultDiscoveryTemporal } from '@/utils/search-temporal-choice';
 
 const SHEET_CAMERA_FOLLOW_THROTTLE_MS = 72;
 const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 80;
@@ -772,11 +773,11 @@ export default function MapScreen() {
   }, []);
 
   useEffect(() => {
-    if (!hasSearchCriteria && discoveryStatus === DEFAULT_DISCOVERY_STATUS && searchApplied) {
+    if (!hasSearchCriteria && isDefaultDiscoveryTemporal(discoveryStatus, when) && searchApplied) {
       setSearchApplied(false);
       void refreshBounds();
     }
-  }, [discoveryStatus, hasSearchCriteria, searchApplied, refreshBounds, setSearchApplied]);
+  }, [discoveryStatus, hasSearchCriteria, searchApplied, refreshBounds, setSearchApplied, when]);
 
   const sortReapplyReadyRef = useRef(false);
   useEffect(() => {
@@ -847,8 +848,7 @@ export default function MapScreen() {
 
   const hasViewportRefine =
     content.categories.length > 0 ||
-    metaFilter !== DEFAULT_DISCOVERY_STATUS ||
-    Boolean(when.preset || when.startDate || when.endDate);
+    !isDefaultDiscoveryTemporal(metaFilter, when);
 
   const sheetCoverPx = useMemo(() => {
     if (mapColumnHeight <= 0) return VIEWPORT_PEEK_HEIGHT;

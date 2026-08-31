@@ -13,18 +13,41 @@ import {
   toEventFilters,
   toTimeScope,
 } from './discovery-filters';
+import { hasSearchCriteria } from './search-helpers';
 
 describe('discovery filter contract', () => {
   it('does not count discovery defaults as active filters', () => {
     const filters = createDefaultDiscoveryFilters();
 
-    assert.equal(filters.status, 'live');
+    assert.equal(filters.status, 'all');
+    assert.equal(filters.when.preset, 'today');
     assert.equal(filters.place.radiusKm, DISCOVERY_DEFAULT_RADIUS_KM);
     assert.equal(filters.place.radiusKm, 20);
     assert.deepEqual(filters.sort.home, { sortBy: 'distance', sortOrder: 'asc' });
-    assert.equal(toTimeScope(filters), 'ongoing');
+    assert.equal(toTimeScope(filters), 'current');
     assert.equal(activeFilterCount(filters, { surface: 'home' }), 0);
     assert.equal(summarize(filters, { surface: 'home' }), NO_ACTIVE_FILTER_LABEL);
+    assert.equal(
+      hasSearchCriteria({
+        place: filters.place,
+        when: filters.when,
+        content: filters.content,
+      }),
+      false
+    );
+  });
+
+  it('counts En cours and Tous as deviations from Aujourd’hui', () => {
+    const live = createDefaultDiscoveryFilters();
+    live.status = 'live';
+    live.when = {};
+    assert.equal(activeFilterCount(live), 1);
+    assert.equal(summarize(live), 'En cours');
+
+    const all = createDefaultDiscoveryFilters();
+    all.when = {};
+    assert.equal(activeFilterCount(all), 1);
+    assert.equal(summarize(all), 'Tous');
   });
 
   it('keeps presentation preferences outside the content filter count', () => {
@@ -87,10 +110,10 @@ describe('discovery filter contract', () => {
 
   it('summarizes one-sided custom date ranges', () => {
     const from = createDefaultDiscoveryFilters();
-    from.when.startDate = '2026-09-01';
+    from.when = { startDate: '2026-09-01' };
 
     const until = createDefaultDiscoveryFilters();
-    until.when.endDate = '2026-09-03';
+    until.when = { endDate: '2026-09-03' };
 
     assert.equal(summarize(from), 'Dès le 01/09');
     assert.equal(summarize(until), 'Jusqu’au 03/09');
@@ -128,6 +151,7 @@ describe('discovery filter contract', () => {
 
     assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
       includePast: false,
+      time: 'today',
       centerLat: 49.61,
       centerLon: 6.13,
       radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
@@ -136,6 +160,7 @@ describe('discovery filter contract', () => {
     filters.place.radiusKm = 25;
     assert.deepEqual(toEventFilters(filters, { latitude: 49.61, longitude: 6.13 }), {
       includePast: false,
+      time: 'today',
       centerLat: 49.61,
       centerLon: 6.13,
       radiusKm: 25,
@@ -144,7 +169,7 @@ describe('discovery filter contract', () => {
 
   it('treats include-past as a visible, queryable date criterion', () => {
     const filters = createDefaultDiscoveryFilters();
-    filters.when.includePast = true;
+    filters.when = { includePast: true };
 
     assert.equal(activeFilterCount(filters), 1);
     assert.equal(summarize(filters), 'Passés inclus');
@@ -182,7 +207,8 @@ describe('discovery filter contract', () => {
     const reset = resetDiscoveryCriteria(filters);
 
     assert.equal(activeFilterCount(reset), 0);
-    assert.equal(reset.status, 'live');
+    assert.equal(reset.status, 'all');
+    assert.equal(reset.when.preset, 'today');
     assert.deepEqual(reset.content.categories, []);
     assert.deepEqual(reset.place, {
       center: null,

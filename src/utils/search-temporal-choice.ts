@@ -1,4 +1,4 @@
-import { DEFAULT_DISCOVERY_STATUS, type DatePreset, type DiscoveryStatus } from '../constants/filters';
+import { type DatePreset, type DiscoveryStatus } from '../constants/filters';
 import type { DiscoveryWhenFilter } from './discovery-filters';
 
 export type SearchTemporalChoice =
@@ -22,6 +22,23 @@ export const SEARCH_TEMPORAL_CHOICES: readonly {
   { key: 'upcoming', label: 'À venir' },
   { key: 'past', label: 'Passés' },
 ];
+
+export const DEFAULT_SEARCH_TEMPORAL_CHOICE: SearchTemporalChoice = 'today';
+
+export function defaultDiscoveryTemporalFilters(): {
+  status: DiscoveryStatus;
+  when: DiscoveryWhenFilter;
+} {
+  return filtersForSearchTemporalChoice(DEFAULT_SEARCH_TEMPORAL_CHOICE);
+}
+
+export function isDefaultDiscoveryTemporal(
+  status: DiscoveryStatus,
+  when: DiscoveryWhenFilter
+): boolean {
+  if (when.includePast || when.startDate || when.endDate) return false;
+  return resolveSearchTemporalChoice(status, when) === DEFAULT_SEARCH_TEMPORAL_CHOICE;
+}
 
 const DATE_PRESET_CHOICES: readonly DatePreset[] = ['today', 'tomorrow', 'weekend'];
 
@@ -60,7 +77,7 @@ export function filtersForCustomDateRange(
   const start = range.startDate || range.endDate || undefined;
   const end = range.endDate || range.startDate || undefined;
   if (!start && !end) {
-    return { status: DEFAULT_DISCOVERY_STATUS, when: {} };
+    return defaultDiscoveryTemporalFilters();
   }
   const includesPastDays = Boolean(start && start < today);
   const entirelyPast = Boolean(end && end < today);

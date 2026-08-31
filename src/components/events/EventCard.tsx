@@ -83,6 +83,8 @@ export interface EventCardProps {
   showCarousel?: boolean;
   style?: ViewStyle;
   noBottomMargin?: boolean;
+  /** Overrides `EVENT_CARD_MEDIA_HEIGHT[variant]` (map sheet uses a slightly shorter photo). */
+  mediaHeight?: number;
 }
 
 const EventCardComponent: React.FC<EventCardProps> = ({
@@ -103,12 +105,13 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   showCarousel = true,
   style,
   noBottomMargin = false,
+  mediaHeight: mediaHeightOverride,
 }) => {
   const [isSwiping, setIsSwiping] = useState(false);
 
   const images = useMemo(() => getEventImageUrls(event), [event.cover_url, event.media]);
   const hasCarousel = showCarousel && images.length > 1;
-  const mediaHeight = EVENT_CARD_MEDIA_HEIGHT[variant];
+  const mediaHeight = mediaHeightOverride ?? EVENT_CARD_MEDIA_HEIGHT[variant];
   const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
   const categoryColor = getCategoryColor(event.category || '');
   const categoryTextColor = getCategoryTextColor(event.category || '');
@@ -225,7 +228,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
   return (
     <View style={[styles.card, noBottomMargin && styles.cardNoMargin, style]}>
-      <Pressable onPress={handleCardPress} style={styles.pressable}>
+      <Pressable onPress={handleCardPress}>
         <View style={[styles.mediaWrap, { height: mediaHeight }]}>
           {mediaSection}
           <LinearGradient
@@ -420,9 +423,6 @@ const styles = StyleSheet.create({
   },
   cardNoMargin: {
     marginBottom: 0,
-  },
-  pressable: {
-    flex: 1,
   },
   mediaWrap: {
     position: 'relative',

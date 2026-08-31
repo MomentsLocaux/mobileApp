@@ -1,9 +1,9 @@
-import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
+import { DEFAULT_DISCOVERY_WHEN_PRESET, DISCOVERY_DEFAULT_RADIUS_KM } from '../constants/filters';
 import type {
   DiscoveryContentFilter,
   DiscoveryPlaceFilter,
   DiscoveryWhenFilter,
-} from '@/utils/discovery-filters';
+} from './discovery-filters';
 
 /** Home / search list fetches (non-map). */
 export const SEARCH_FETCH_LIMIT = 300;
@@ -38,11 +38,17 @@ export const hasSearchCriteria = (search: DiscoverySearchCriteria): boolean => {
     Boolean(search.place.label?.trim()) ||
     (search.place.radiusKm !== undefined &&
       search.place.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM);
+  const isDefaultWhen =
+    search.when.preset === DEFAULT_DISCOVERY_WHEN_PRESET &&
+    !search.when.startDate &&
+    !search.when.endDate &&
+    !includePast;
   const hasWhen =
-    !!search.when.preset ||
-    !!search.when.startDate ||
-    !!search.when.endDate ||
-    includePast;
+    !isDefaultWhen &&
+    (!!search.when.preset ||
+      !!search.when.startDate ||
+      !!search.when.endDate ||
+      includePast);
   const hasWhat =
     search.content.categories.length > 0 ||
     search.content.subcategories.length > 0 ||

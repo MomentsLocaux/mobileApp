@@ -1,6 +1,7 @@
 import {
   DEFAULT_SORT_OPTION,
   DEFAULT_DISCOVERY_STATUS,
+  DEFAULT_DISCOVERY_WHEN_PRESET,
   DISCOVERY_DEFAULT_RADIUS_KM,
   HOME_DEFAULT_SORT_OPTION,
   NO_ACTIVE_FILTER_LABEL,
@@ -14,6 +15,11 @@ import {
 import type { EventFilters, SortOption, SortOrder } from '../types/filters';
 import { resolveEventTimeScope, type EventTimeScope } from './event-time-scope';
 import { buildFiltersFromSearch } from './search-filters';
+import {
+  isDefaultDiscoveryTemporal,
+  resolveSearchTemporalChoice,
+  SEARCH_TEMPORAL_CHOICES,
+} from './search-temporal-choice';
 
 export type DiscoverySurface = 'home' | 'map';
 
@@ -70,7 +76,7 @@ export interface DiscoveryFilters extends DiscoveryCriteria, DiscoveryPresentati
 export function createDefaultDiscoveryCriteria(): DiscoveryCriteria {
   return {
     status: DEFAULT_DISCOVERY_STATUS,
-    when: {},
+    when: { preset: DEFAULT_DISCOVERY_WHEN_PRESET, includePast: false },
     place: { center: null, radiusKm: DISCOVERY_DEFAULT_RADIUS_KM },
     content: { categories: [], subcategories: [], tags: [], query: '' },
   };
@@ -151,15 +157,6 @@ export function toEventFilters(
   );
 }
 
-function hasWhenFilter(filters: DiscoveryFilters): boolean {
-  return Boolean(
-    filters.when.preset ||
-      filters.when.startDate ||
-      filters.when.endDate ||
-      filters.when.includePast
-  );
-}
-
 function isPlaceFilterActive(place: DiscoveryPlaceFilter): boolean {
   const { center, label, radiusKm } = place;
   return (
@@ -231,8 +228,7 @@ export function activeFilterCount(
 ): number {
   let count = 0;
 
-  if (filters.status !== DEFAULT_DISCOVERY_STATUS) count += 1;
-  if (hasWhenFilter(filters)) count += 1;
+  if (!isDefaultDiscoveryTemporal(filters.status, filters.when)) count += 1;
   if (hasPlaceFilter(filters)) count += 1;
   if (filters.content.categories.length > 0) count += 1;
   if (filters.content.subcategories.length > 0) count += 1;
@@ -258,9 +254,20 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
     options ?? {};
   const parts: string[] = [];
 
-  if (filters.status !== DEFAULT_DISCOVERY_STATUS) parts.push(metaFilterLabel(filters.status));
-  const whenLabel = whenSummary(filters.when);
-  if (whenLabel) parts.push(whenLabel);
+  if (!isDefaultDiscoveryTemporal(filters.status, filters.when)) {
+    const choice = resolveSearchTemporalChoice(filters.status, filters.when);
+    const whenLabel = whenSummary(filters.when);
+    if (choice === 'all' && whenLabel) {
+      parts.push(whenLabel);
+    } else if (choice) {
+      parts.push(
+        SEARCH_TEMPORAL_CHOICES.find((item) => item.key === choice)?.label ??
+          metaFilterLabel(filters.status)
+      );
+    } else if (whenLabel) {
+      parts.push(whenLabel);
+    }
+  }
 
   const placeLabel = placeSummary(filters.place);
   if (placeLabel) parts.push(placeLabel);

@@ -10,8 +10,12 @@ export type MapMode = 'standard' | 'satellite';
 /** Default discovery browse radius (Home nearby feed + search fallback). */
 export const DISCOVERY_DEFAULT_RADIUS_KM = 20;
 
-/** Default temporal scope shared by the harmonized discovery surfaces. */
-export const DEFAULT_DISCOVERY_STATUS: DiscoveryStatus = 'live';
+/**
+ * Default temporal package: calendar day ("Aujourd'hui"), not "En cours".
+ * Schedule data is often incomplete, so a live-now default hides too many events.
+ */
+export const DEFAULT_DISCOVERY_STATUS: DiscoveryStatus = 'all';
+export const DEFAULT_DISCOVERY_WHEN_PRESET: DatePreset = 'today';
 
 /** Explicit "À proximité" chip radius in SearchBar. */
 export const DISCOVERY_PROXIMITY_RADIUS_KM = 40;
@@ -74,7 +78,7 @@ export const ORDERABLE_SORT_OPTIONS: readonly SortOption[] = ['date', 'endDate',
 
 export const DEFAULT_SORT_OPTION: SortOption = 'triage';
 
-/** Home starts with the nearest ongoing events; Map keeps relevance by default. */
+/** Home starts with the nearest events of the day; Map keeps relevance by default. */
 export const HOME_DEFAULT_SORT_OPTION: SortOption = 'distance';
 
 export const DISTANCE_DISABLED_REASON = 'Activez la localisation pour trier par distance';

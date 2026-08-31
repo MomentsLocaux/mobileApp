@@ -5,13 +5,13 @@ import { FilterChip, FilterChipRow, type FilterChipRowOption } from '@/component
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { createFilterChipTone, defaultFilterChipTone } from '@/constants/filter-tokens';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
-import { DEFAULT_DISCOVERY_STATUS } from '@/constants/filters';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import type { DiscoveryWhenFilter } from '@/utils/discovery-filters';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import {
+  isDefaultDiscoveryTemporal,
   resolveSearchTemporalChoice,
   SEARCH_TEMPORAL_CHOICES,
   type SearchTemporalChoice,
@@ -61,9 +61,7 @@ export function MapViewportRefinePanel({
   const hasCustomDate = Boolean(when.startDate || when.endDate);
   const temporalChoice = resolveSearchTemporalChoice(metaFilter, when);
   const hasRefine =
-    selectedCategories.length > 0 ||
-    metaFilter !== DEFAULT_DISCOVERY_STATUS ||
-    Boolean(when.preset || hasCustomDate);
+    selectedCategories.length > 0 || !isDefaultDiscoveryTemporal(metaFilter, when);
 
   const temporalOptions = useMemo<FilterChipRowOption<SearchTemporalChoice>[]>(
     () => SEARCH_TEMPORAL_CHOICES.map((item) => ({ key: item.key, label: item.label })),

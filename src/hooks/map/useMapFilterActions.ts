@@ -3,7 +3,7 @@ import {
   selectDiscoveryFilters,
   useDiscoveryFiltersStore,
 } from '@/store';
-import { DEFAULT_DISCOVERY_STATUS, type DatePreset } from '@/constants/filters';
+import type { DatePreset } from '@/constants/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import {
   includesPast,
@@ -14,6 +14,7 @@ import { resolveViewportRefreshAfterFilter } from '@/utils/map-filter-transactio
 import { isDiscoverySearchActive } from '@/utils/map-discovery-contract';
 import { hasSearchCriteria as checkSearchCriteria } from '@/utils/search-helpers';
 import {
+  defaultDiscoveryTemporalFilters,
   filtersForCustomDateRange,
   filtersForSearchTemporalChoice,
   type SearchTemporalChoice,
@@ -285,23 +286,30 @@ export function useMapFilterActions({
 
   const handleClearViewportFilters = useCallback(() => {
     const previous = discoveryStatus;
+    const next = defaultDiscoveryTemporalFilters();
     clearFrozenViewport();
     setContent({ categories: [], subcategories: [] });
-    clearWhen();
-    setStatus(DEFAULT_DISCOVERY_STATUS);
-    const reapplied = reapplyFromStore({ metaFilter: DEFAULT_DISCOVERY_STATUS });
+    setWhen({
+      preset: next.when.preset,
+      startDate: undefined,
+      endDate: undefined,
+      includePast: false,
+    });
+    setStatus(next.status);
+    const reapplied = reapplyFromStore({ metaFilter: next.status });
     refreshIfNeeded(reapplied, {
-      metaFilter: DEFAULT_DISCOVERY_STATUS,
+      metaFilter: next.status,
       previousMetaFilter: previous,
+      forceRefresh: true,
     });
   }, [
     clearFrozenViewport,
-    clearWhen,
     discoveryStatus,
     reapplyFromStore,
     refreshIfNeeded,
     setContent,
     setStatus,
+    setWhen,
   ]);
 
   const handleResetFilters = useCallback(() => {
