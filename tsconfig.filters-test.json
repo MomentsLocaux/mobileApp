@@ -21,6 +21,8 @@
     "src/utils/filter-events.test.ts",
     "src/utils/map-viewport-fetch-utils.test.ts",
     "src/utils/map-filter-transaction.test.ts",
+    "src/utils/map-discovery-contract.test.ts",
+    "src/utils/map-camera-fallback.test.ts",
     "src/utils/map-marker-request.test.ts",
     "src/utils/map-viewport-request.test.ts",
     "src/utils/search-temporal-choice.test.ts",

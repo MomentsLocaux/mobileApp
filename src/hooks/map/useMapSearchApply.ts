@@ -9,7 +9,12 @@ type Params = {
   userLocation: UserLocation;
   syncSearchState: (filters: DiscoveryFilters) => void;
   setStatus: (status: 'loading') => void;
-  fitToRadius: (latitude: number, longitude: number, radiusKm: number) => unknown;
+  fitToRadius: (
+    latitude: number,
+    longitude: number,
+    radiusKm: number,
+    options?: { refreshAfter?: boolean }
+  ) => unknown;
   refreshBounds: () => Promise<void>;
 };
 
@@ -44,7 +49,9 @@ export function useMapSearchApply({
 }: Params) {
   const moveMapToSearchBounds = useCallback(
     (target: SearchTargetBounds) => {
-      fitToRadius(target.latitude, target.longitude, target.radiusKm);
+      fitToRadius(target.latitude, target.longitude, target.radiusKm, {
+        refreshAfter: true,
+      });
     },
     [fitToRadius]
   );

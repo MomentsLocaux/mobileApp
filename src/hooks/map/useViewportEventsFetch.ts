@@ -26,7 +26,7 @@ import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit } from '@/utils/search-helpers';
 import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
-import { buildMapMarkerCollection } from '@/utils/map-marker-features';
+import { shouldApplyBrowseWhatWhenFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
 
 const VIEWPORT_PAYLOAD_CACHE_MAX = 4;
 const VIEWPORT_PAYLOAD_FRESH_MS = 45 * 1000;
@@ -41,23 +41,6 @@ const pickWhenFilters = (filters: EventFilters): EventFilters => ({
   startDate: filters.startDate,
   endDate: filters.endDate,
 });
-
-const hasWhatFilters = (filters: EventFilters) =>
-  !!(
-    (filters.categories && filters.categories.length > 0) ||
-    (filters.subcategories && filters.subcategories.length > 0) ||
-    (filters.tags && filters.tags.length > 0) ||
-    filters.name
-  );
-
-const pickWhatFilters = (filters: EventFilters): EventFilters => ({
-  categories: filters.categories,
-  subcategories: filters.subcategories,
-  tags: filters.tags,
-  name: filters.name,
-});
-
-const hasBrowseFilters = (filters: EventFilters) => hasWhenFilters(filters) || hasWhatFilters(filters);
 
 export type ViewportFetchOptions = {
   immediate?: boolean;
@@ -75,6 +58,8 @@ type ClientFilterOverrides = {
   searchApplied?: boolean;
   hasSearchCriteria?: boolean;
   includePast?: boolean;
+  /** Re-sort / re-filter even while the sheet freeze is on. */
+  ignoreFreeze?: boolean;
 };
 
 type RawViewportCache = {
@@ -206,16 +191,10 @@ export function useViewportEventsFetch({
 
       const effectiveSearchActive = currentSearchApplied && currentHasSearchCriteria;
       const effectiveFilters = effectiveSearchActive ? currentSearchFilters : {};
-      const browseFilters: EventFilters = {
-        ...pickWhenFilters(currentSearchFilters),
-        ...pickWhatFilters(currentSearchFilters),
-      };
 
       let filteredEvents = events;
-      if (effectiveSearchActive) {
+      if (shouldApplyBrowseWhatWhenFilters(effectiveSearchActive)) {
         filteredEvents = filterEvents(events, effectiveFilters, null);
-      } else if (hasBrowseFilters(browseFilters)) {
-        filteredEvents = filterEvents(events, browseFilters, null);
       }
 
       const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, currentMetaFilter);
@@ -227,6 +206,13 @@ export function useViewportEventsFetch({
         new Map(sortedEvents.map((event) => [event.id, event])).values()
       );
 
+      const canPublish = shouldPublishViewportToMap({
+        frozen: viewportFrozenRef.current,
+        sheetStatus: useMapResultsUIStore.getState().sheetStatus,
+        ignoreFreeze: options?.ignoreFreeze,
+      });
+      if (!canPublish) return;
+
       const filteredIds = new Set(dedupedEvents.map((event) => event.id));
       const filteredFeatures = featureCollection
         ? filterFeatureCollectionByEventIds(
@@ -236,10 +222,6 @@ export function useViewportEventsFetch({
         : { type: 'FeatureCollection' as const, features: [] };
 
       mapRef.current?.setShape(filteredFeatures as FeatureCollection);
-
-      const currentUiState = useMapResultsUIStore.getState();
-      if (currentUiState.sheetStatus === 'singleEvent') return;
-      if (viewportFrozenRef.current) return;
 
       const sheetEvents = dedupedEvents.slice(0, MAP_SHEET_LIST_LIMIT);
       displayViewportResults(sheetEvents, { totalCount: dedupedEvents.length });
@@ -267,7 +249,10 @@ export function useViewportEventsFetch({
       }
       const raw = lastViewportRawRef.current;
       if (!raw) return false;
-      publishFilteredViewport(raw.events, raw.featureCollection, options);
+      publishFilteredViewport(raw.events, raw.featureCollection, {
+        ...options,
+        ignoreFreeze: true,
+      });
       return true;
     },
     [publishFilteredViewport]
@@ -559,28 +544,6 @@ export function useViewportEventsFetch({
     ]
   );
 
-  /** Publish the exact ordered Home result snapshot without a new RPC. */
-  const publishTransferredResults = useCallback(
-    (events: EventWithCreator[]) => {
-      cancelViewportFetch();
-      const featureCollection = buildMapMarkerCollection(events) as EventMapFeatureCollection;
-      lastViewportRawRef.current = {
-        events,
-        featureCollection,
-        timeScope: resolveEventTimeScope({
-          metaFilter: metaFilterRef.current,
-          searchActive: searchAppliedRef.current && hasSearchCriteriaRef.current,
-          includePast: includePastRef.current,
-        }),
-        storedAt: Date.now(),
-      };
-      mapRef.current?.setShape(featureCollection as FeatureCollection);
-      setViewportFetchError(null);
-      displayViewportResults(events, { totalCount: events.length });
-    },
-    [cancelViewportFetch, displayViewportResults, mapRef, setViewportFetchError]
-  );
-
   return {
     clearDebouncedViewportFetch,
     queueViewportFetch,
@@ -591,6 +554,5 @@ export function useViewportEventsFetch({
     cancelAllMapRequests,
     nextMarkerRequestId,
     isMarkerRequestCurrent,
-    publishTransferredResults,
   };
 }

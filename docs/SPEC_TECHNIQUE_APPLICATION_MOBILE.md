@@ -208,7 +208,7 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 - Écran : `app/(tabs)/map.tsx` + store UI map
 - Orchestration : `docs/MAP_SCREEN_ORCHESTRATION.md` ; architecture couche 1 : `docs/ARCHITECTURE_LAYER_1_ERASER.md`
 - **Chargement données** : helper `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`** (fallback bbox + `getByIds` si RPC indisponible)
-- **Modèle produit** : chip explicite « Rechercher dans cette zone » → fetch viewport ; **pas d’auto-fetch au pan** (évite spam RPC). Bootstrap initial / refresh programmatique (search fit, recenter, unlock) restent des triggers de fetch.
+- **Modèle produit** : **browse** = fetch viewport au pan (debounce) ; **recherche appliquée** = chip « Rechercher dans cette zone » (pas d’auto-fetch au pan). Bootstrap initial, search fit et recenter restent des triggers de fetch. Détail : `docs/MAP_SCREEN_ORCHESTRATION.md`.
 - Filtres taxonomy / when / place : côté client après RPC
 - Freeze viewport si sheet / marker ; deep-link `focus` → pipeline marker
 - Annulation requêtes via `requestId`

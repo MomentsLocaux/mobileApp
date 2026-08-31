@@ -1,67 +1,59 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 type UserLocation = { latitude: number; longitude: number } | null;
 
 type Params = {
   userLocation: UserLocation;
   locationLoading: boolean;
+  mapReady: boolean;
   recenterToUser: () => void;
-  refreshBounds: () => Promise<void>;
   ensureInitialViewportLoad: () => Promise<void>;
   disabled?: boolean;
+  /** Country overview: wait for zoom or an explicit place instead of fetching France. */
+  bootstrapViewportFetch?: boolean;
 };
 
 /**
- * Centers the map on the user once, then ensures an initial viewport fetch.
- * Falls back to ensureInitialViewportLoad when GPS is unavailable.
+ * Centers the map on the user once after Mapbox is ready.
+ * Fetch is triggered by the programmatic recenter (`refreshAfter: true`).
+ * Without GPS, a searched place can still bootstrap a viewport fetch;
+ * a country overview waits for zoom or SearchBar.
  */
 export function useMapLocationBootstrap({
   userLocation,
   locationLoading,
+  mapReady,
   recenterToUser,
-  refreshBounds,
   ensureInitialViewportLoad,
   disabled = false,
+  bootstrapViewportFetch = true,
 }: Params) {
   const hasCenteredOnUserRef = useRef(false);
-  const recenterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearRecenterTimer = useCallback(() => {
-    if (recenterTimerRef.current) {
-      clearTimeout(recenterTimerRef.current);
-      recenterTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => clearRecenterTimer(), [clearRecenterTimer]);
 
   useEffect(() => {
+    if (!mapReady) return;
     if (disabled) {
       // A transferred/applied search owns the initial camera. Mark the regular
       // location bootstrap consumed so clearing that search cannot snap back.
       hasCenteredOnUserRef.current = true;
-      clearRecenterTimer();
       return;
     }
     if (userLocation && !hasCenteredOnUserRef.current) {
       hasCenteredOnUserRef.current = true;
       recenterToUser();
-      clearRecenterTimer();
-      recenterTimerRef.current = setTimeout(() => {
-        recenterTimerRef.current = null;
-        void refreshBounds();
-      }, 700);
       return;
     }
     if (locationLoading) return;
+    if (hasCenteredOnUserRef.current) return;
+    if (!bootstrapViewportFetch) return;
     void ensureInitialViewportLoad();
   }, [
-    clearRecenterTimer,
+    bootstrapViewportFetch,
     disabled,
     ensureInitialViewportLoad,
     locationLoading,
+    mapReady,
     recenterToUser,
-    refreshBounds,
     userLocation,
   ]);
 }

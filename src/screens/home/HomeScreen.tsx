@@ -61,7 +61,6 @@ import {
   toEventFilters,
   type DiscoveryFilters,
 } from '@/utils/discovery-filters';
-import { getMapBoundsForEvents } from '@/utils/map-marker-features';
 
 const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
 const HOME_CARD_STATS_LIMIT = 40;
@@ -556,50 +555,14 @@ export default function HomeScreen() {
   );
   const canExpandRadius = browseRadiusKm < DISCOVERY_MAX_RADIUS_KM;
   const openSearch = useCallback(() => {
+    clearHomeMapTransfer();
     router.push('/(tabs)/map' as any);
-  }, [router]);
-
-  const homeMapBounds = useMemo(() => {
-    const center = showSearchResults ? searchCenter : browseCenter;
-    const radiusKm = showSearchResults ? effectiveRadiusKm : browseRadiusKm;
-    if (center && radiusKm !== undefined) {
-      return getBoundsFromRadiusKm(center.latitude, center.longitude, radiusKm);
-    }
-    return getMapBoundsForEvents(filteredAndSortedEvents);
-  }, [
-    browseCenter,
-    browseRadiusKm,
-    effectiveRadiusKm,
-    filteredAndSortedEvents,
-    searchCenter,
-    showSearchResults,
-  ]);
+  }, [clearHomeMapTransfer, router]);
 
   const handleViewOnMap = useCallback(() => {
-    const transferredFilters: DiscoveryFilters = {
-      ...discoveryFilters,
-      sort: {
-        ...discoveryFilters.sort,
-        map: { ...discoveryFilters.sort.home },
-      },
-    };
-    setSort('map', sortBy, sortOrder);
-    setHomeMapTransfer({
-      filters: transferredFilters,
-      events: filteredAndSortedEvents,
-      bounds: homeMapBounds,
-    });
+    setHomeMapTransfer();
     router.push('/(tabs)/map' as any);
-  }, [
-    discoveryFilters,
-    filteredAndSortedEvents,
-    homeMapBounds,
-    router,
-    setHomeMapTransfer,
-    setSort,
-    sortBy,
-    sortOrder,
-  ]);
+  }, [router, setHomeMapTransfer]);
 
   const handleFeedScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {

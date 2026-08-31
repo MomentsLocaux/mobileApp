@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { resolvePendingProgrammaticRefresh } from '@/utils/map-discovery-contract';
 
 export function useMapProgrammaticMove() {
   const isProgrammaticMoveRef = useRef(false);
@@ -22,7 +23,9 @@ export function useMapProgrammaticMove() {
   const startProgrammaticMove = useCallback(
     (options?: { durationMs?: number; refreshAfter?: boolean }) => {
       isProgrammaticMoveRef.current = true;
-      pendingProgrammaticRefreshRef.current = options?.refreshAfter !== false;
+      pendingProgrammaticRefreshRef.current = resolvePendingProgrammaticRefresh(
+        options?.refreshAfter
+      );
       if (options?.durationMs) {
         suppressBoundsRecalc(options.durationMs + 250);
       }

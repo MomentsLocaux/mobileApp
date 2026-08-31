@@ -1,6 +1,3 @@
-/** Default map focus when user location is unavailable. */
-export const FONTOY_COORDS = { latitude: 49.3247, longitude: 5.9947 };
-
 /** iOS Simulator default coords — treated as "no real GPS". */
 export const SIM_FALLBACK_COORDS = { latitude: 37.785834, longitude: -122.406417 };
 
@@ -22,3 +19,13 @@ export const FRANCE_CAMERA_BOUNDS = {
   sw: [-8.5, 40.0],
   ne: [11.8, 52.8],
 } as const;
+
+/** Overview camera when GPS and an explicit searched place are both missing. */
+export const FRANCE_CAMERA_CENTER = {
+  latitude: (FRANCE_CAMERA_BOUNDS.sw[1] + FRANCE_CAMERA_BOUNDS.ne[1]) / 2,
+  longitude: (FRANCE_CAMERA_BOUNDS.sw[0] + FRANCE_CAMERA_BOUNDS.ne[0]) / 2,
+  zoom: 5.2,
+} as const;
+
+/** Street-level zoom used for GPS or an explicit searched place. */
+export const MAP_LOCAL_ZOOM = 12;

@@ -1,8 +1,20 @@
 # MapScreen — orchestration des flows
 
-Ce document décrit la machine d’état implicite de l’écran carte (`app/(tabs)/map.tsx`) et des hooks extraits.
+Écran carte : `app/(tabs)/map.tsx`. Ticket **MVP-P1-004**.
 
-**Données viewport** : les events carte passent par `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`** (fallback legacy bbox + `getByIds` si RPC indisponible / lente). Modèle produit cible (voir `docs/ARCHITECTURE_LAYER_1_ERASER.md`) : chip « Rechercher dans cette zone » plutôt qu’un refetch systématique à chaque pan.
+**Données viewport** : `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`**.
+
+**Contrat produit** (helpers : `src/utils/map-discovery-contract.ts`) :
+
+| Mode | Condition | Pan / zoom utilisateur | Recentrer |
+|------|-----------|------------------------|-----------|
+| `browse` | pas de recherche appliquée | fetch bbox (debounce 300 ms) | fit **20 km** (`DISCOVERY_DEFAULT_RADIUS_KM`) + fetch |
+| `search` | `searchApplied && hasSearchCriteria` | pas de fetch ; chip « Rechercher dans cette zone » | sort en `browse` autour de l’utilisateur |
+| `homeHandoff` | ping recadrage one-shot | puis `browse` ou `search` selon les critères Home | fit **rayon Home** + refetch |
+
+`homeTransfer` n’est **jamais** un mode permanent : c’est un signal de recadrage, pas un snapshot de liste. Après fit + fetch, le store est vidé. Un transfert nearby n’active pas le lock recherche. Les filtres restent dans `discoveryFiltersStore`.
+
+En **search**, le pan n’auto-fetche pas. En **browse**, si. Le chip conserve quoi/quand et relâche seulement le verrou géographique.
 
 ## États principaux
 
@@ -24,20 +36,22 @@ Ce document décrit la machine d’état implicite de l’écran carte (`app/(ta
 | `isProgrammaticMoveRef` | Mouvement caméra déclenché par le code |
 | `suppressBoundsRecalcUntilRef` | Fenêtre temporelle : ignorer `onVisibleBoundsChange` |
 
+`refreshAfter` est **opt-in** (`refreshAfter === true`). Focus marker et refit sheet passent `false`. Handoff Home, search apply et recenter passent `true`.
+
 ---
 
 ## 1. Chargement initial du viewport
 
+Un seul bootstrap, après `onMapReady` :
+
 ```
-Map ready / focus screen
-  → ensureInitialViewportLoad()
-  → getVisibleBounds (retry jusqu’à 16 fois)
-  → queueViewportFetch(bounds, { immediate: true, force: true })
-  → runViewportFetch
-  → setShape + displayViewportResults
+recherche / handoff Home → enterFocusedMap (fit rayon + refetch)
+GPS disponible, browse → useMapLocationBootstrap → recenter 20 km (refreshAfter: true)
+lieu de recherche explicite, sans GPS → caméra sur ce lieu + fetch
+sinon → vue France (pas de ville hardcodée) ; fetch seulement après zoom ou SearchBar
 ```
 
-Parallèle : si `userLocation` disponible, premier `recenterToUser()` (fit radius 7.5 km).
+`enterFocusedMap` ne refetch **pas** à chaque focus d’onglet une fois `viewportBootstrappedRef` vrai.
 
 ---
 
@@ -45,25 +59,20 @@ Parallèle : si `userLocation` disponible, premier `recenterToUser()` (fit radiu
 
 `MapWrapper` émet `onVisibleBoundsChange(bounds, { isUserInteraction? })`.
 
-Décision dans `handleBoundsChange` :
-
 ```
 isUserInteraction?
   yes → clear programmatic state
+     → si searchActive: chip « Rechercher dans cette zone » (pas de fetch)
      → si frozen: unlockViewportFromUserPan + fetch force
      → sinon: queueViewportFetch immediate force
 
 isProgrammaticMoveRef?
   yes → clear flag
      → si pendingProgrammaticRefresh: queueViewportFetch force
-     → sinon: stop (pas de refetch)
+     → sinon: stop
 
-viewportFrozenRef?
-  yes → stop
-
-isSheetDragging || bounds suppressed?
-  yes → stop
-
+viewportFrozenRef? → stop
+isSheetDragging || bounds suppressed? → stop
 sinon → queueViewportFetch (debounce 300 ms)
 ```
 
@@ -73,12 +82,7 @@ sinon → queueViewportFetch (debounce 300 ms)
 
 **Utilisateur** : pan/zoom Mapbox → `isUserInteraction: true` → toujours prioritaire.
 
-**Programmatique** : `startProgrammaticMove` / `withProgrammaticMove` :
-- pose `isProgrammaticMoveRef = true`
-- option `refreshAfter` → `pendingProgrammaticRefreshRef`
-- option `durationMs` → `suppressBoundsRecalc(durationMs + 250)`
-
-Cas programmatiques : search fit, refit frozen viewport, focus event, recenter.
+**Programmatique** : `withProgrammaticMove(..., { refreshAfter })` — le refetch n’a lieu que si `refreshAfter: true`.
 
 ---
 
@@ -90,43 +94,38 @@ onFeaturePress(id)
   → getEventById (avec requestId marker)
   → highlightViewportEvent + setUnitCardEvent (preview card)
   → si pas frozen: freezeViewportResults + viewportFrozenRef=true
-  → focusOnEvent (sans bump zoom)
+  → focusOnEvent (refreshAfter: false)
 ```
 
-La preview card est indépendante du mode `singleEvent` de la sheet.
+Tant que frozen / `singleEvent`, un fetch terminé **n’** met à jour ni `setShape` ni la liste. Un `reapplyClientFilters` (tri) passe `ignoreFreeze` pour garder pins = liste.
 
 ---
 
 ## 5. Gel du viewport
 
-Déclenché par :
-- `lockViewportForSheet()` quand sheet index ≥ 1
-- `handleFeaturePress` si pas déjà frozen
+Déclenché par `lockViewportForSheet()` (sheet index ≥ 1) et par le marker press.
 
-Effets :
-- `freezeViewportResults()` copie `sheetEvents` → `frozenViewport`
-- `frozenViewportBoundsRef` capture bounds visibles
-- `queueViewportFetch` ignoré sauf `force: true`
-- `runViewportFetch` met à jour shape mais **pas** `displayViewportResults` si frozen
+Dégel : repli de la sheet (`unlockViewportForSheet`), tap fond de carte, fermeture de la preview marker, pan utilisateur (`unlockViewportFromUserPan`), `refreshBounds()`, chip zone, ou recenter.
 
-Dégel : pan utilisateur (`unlockViewportFromUserPan`) ou `refreshBounds()`.
+Le follow caméra (padding bas = hauteur de sheet) ne s’applique qu’entre peek et half, tant que la carte reste visible. Au snap full (92 %), **aucun** `fitToBounds` : la carte est cachée, un recadrage est inutile et peut perturber Mapbox. Le repli peek restaure le padding standard.
 
 ---
 
-## 6. Drag / snap bottom sheet
+## 6. Home → Map
 
 ```
-Drag start → beginSheetDrag + suppressBoundsRecalc
-Drag move → updateSheetDrag (layout only, pas de refit carte par frame)
-Drag end  → finishSheetDrag (timing) → onSettled: syncMapToFrozenViewport
-         → setBottomSheetIndex + applySheetSideEffects
+Home « Voir sur la map »
+  → setHomeTransfer()  // ping recadrage ; filtres déjà dans discoveryFiltersStore
+  → router.push map
+
+enterFocusedMap
+  → resolveHomeMapRadiusTarget (cercle Home : GPS 20 km ou lieu cherché)
+  → fitToRadius(..., { refreshAfter: true })
+  → clearHomeTransfer()
+  → browse si pas de recherche Home, sinon search (chip)
 ```
 
-`applySheetSideEffects` :
-- index 0 : `closeSheet()`
-- index ≥ 1 : `lockViewportForSheet()`, clear preview card
-- singleEvent : `focusOnEvent` sur premier event
-- scroll liste vers `activeEventId` si présent
+Le CTA empty Home « Rechercher un lieu » (`openSearch`) **vide** le transfer avant navigation.
 
 ---
 
@@ -134,26 +133,18 @@ Drag end  → finishSheetDrag (timing) → onSettled: syncMapToFrozenViewport
 
 ```
 SearchBar onApply → applySearch()
-  → metaFilter = 'all'
-  → commitSearch + setStatus('loading')
-  → resolveSearchTargetBounds()
-     → si location: fitToRadius(location)
-     → si radius + userLocation: fitToRadius(user)
-     → sinon: refreshBounds()
+  → syncSearchState + setStatus('loading')
+  → fitToRadius(..., { refreshAfter: true })
+     ou refreshBounds() si pas de centre
 ```
 
-Le refresh des résultats est déclenché par `onVisibleBoundsChange` après le move programmatique (`pendingProgrammaticRefresh`).
+Chip zone : clear place (centre/rayon), conserve quoi/quand, `refreshBounds()`, clear transfer. **Pas** de `resetCriteria()`.
 
 ---
 
 ## 8. Deep-link `focus`
 
-```
-useEffect([focus]) une fois
-  → handleFeaturePress(focus)
-```
-
-Même pipeline que sélection marker.
+Prioritaire sur un transfer Home (le transfer est détruit). Même pipeline que sélection marker.
 
 ---
 
@@ -163,17 +154,8 @@ Même pipeline que sélection marker.
 useFocusEffect
   → si sheetStatus === 'singleEvent' && frozenViewport
      → restoreViewportFromFrozen({ keepHighlight: true })
+  → pas de refreshBounds si déjà bootstrappé
 ```
-
-Le clic liste vers détail **ne** passe plus en `singleEvent` (highlight seulement).
-
----
-
-## Accessibilité — Reduce Motion
-
-Le projet expose `useReduceMotion` (`src/hooks/useReduceMotion.ts`) pour les composants animés (cards, overlays, détail).
-
-L’écran carte utilise `SHEET_LAYOUT_TIMING` (timing, pas spring) pour le resize layout ; une future passe pourra court-circuiter via `useReduceMotion`.
 
 ---
 
@@ -184,5 +166,3 @@ L’écran carte utilise `SHEET_LAYOUT_TIMING` (timing, pas spring) pour le resi
 | `cancelViewportFetch()` | `viewportRequestIdRef++` + clear debounce |
 | `cancelMarkerFetch()` | `markerRequestIdRef++` |
 | `cancelAllMapRequests()` | les deux |
-
-Utilisé au marker press, unmount, et avant certains changements sheet.

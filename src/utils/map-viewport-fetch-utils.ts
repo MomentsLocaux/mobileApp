@@ -8,14 +8,14 @@ type BboxParams = {
 };
 
 export const RPC_CLIENT_TIMEOUT_MS = 4000;
-export const MAX_MAP_BBOX_DIAMETER_KM = 200;
+export const MAX_MAP_BBOX_DIAMETER_KM = 300;
 
 const KM_PER_LATITUDE_DEGREE = 111;
 
 /**
  * Approximate the longest side of a bbox in kilometres. This deliberately uses
- * the same 111 km/degree convention as `getBoundsFromRadiusKm`, so a 100 km
- * radius produces a 200 km bbox and remains exactly on the accepted boundary.
+ * the same 111 km/degree convention as `getBoundsFromRadiusKm`, so a 150 km
+ * radius produces a 300 km bbox and remains exactly on the accepted boundary.
  */
 export function getMapBoundsDiameterKm(bounds: MapBounds): number {
   const latitudeSpanKm = Math.abs(bounds.ne[1] - bounds.sw[1]) * KM_PER_LATITUDE_DEGREE;

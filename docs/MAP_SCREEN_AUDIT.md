@@ -66,4 +66,4 @@
 - Preview card au marker (sans réduire la liste au clic détail)
 - Restore `frozenViewport` au retour détail
 - Deep-link `focus`
-- Fallback Fontoy si pas de GPS réel
+- Fallback vue France (ou dernier lieu de recherche) si pas de GPS réel

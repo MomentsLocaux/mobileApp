@@ -37,6 +37,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Map unit overlay close / heart | `src/components/search/MapEventUnitOverlay.tsx` | Croix **haut-droit**, cœur **bas-droit** (pills light) — pas les deux en haut |
 | Map event card footer | `src/components/events/EventCard.tsx` (`map-preview`) | Pure white footer → use muted surface |
 | Map markers | `src/components/map/CategoryEventMarker.tsx` | Harsh white stroke / disc halo |
+| Map user-location puck | `src/components/map/MapWrapper.tsx` | Keep the native `LocationPuck`; React `UserLocation` heading layers race with style reloads |
 | Map location/error banners | `app/(tabs)/map.tsx` | Light surface, readable status text and accessible retry/settings actions |
 | Map search-area CTA / wide-area warning | `app/(tabs)/map.tsx` | Leaf CTA + small cancellation hint; warning uses semantic light amber surface |
 | Home “Voir sur la map” floating CTA | `src/screens/home/HomeScreen.tsx` | Keep above tab chrome; leaf fill with ink text and accessible result count |

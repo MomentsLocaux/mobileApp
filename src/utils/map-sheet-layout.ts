@@ -64,6 +64,34 @@ export const VIEWPORT_FULL_SNAP_INDEX = 2;
 export const getSheetMaxSnapIndex = (mode: MapSheetMode) =>
   mode === 'single' ? 1 : VIEWPORT_FULL_SNAP_INDEX;
 
+/**
+ * Camera follow keeps the frozen viewport in the remaining map slot (peek ↔ half).
+ * Full sheet covers the map: extra `fitToBounds` is invisible and can perturb Mapbox.
+ */
+export function shouldFollowMapCameraForSheetIndex(
+  snapIndex: number,
+  mode: MapSheetMode
+): boolean {
+  if (snapIndex <= 0) return false;
+  if (mode === 'single') return true;
+  return snapIndex === VIEWPORT_HALF_SNAP_INDEX;
+}
+
+export function shouldFollowMapCameraForSheetHeight(
+  sheetHeight: number,
+  layoutHeight: number,
+  mode: MapSheetMode
+): boolean {
+  if (layoutHeight <= 0) return false;
+  const snaps = getSheetSnapHeights(layoutHeight, mode);
+  const maxFollowHeight =
+    mode === 'single'
+      ? snaps[snaps.length - 1]
+      : snaps[VIEWPORT_HALF_SNAP_INDEX];
+  if (maxFollowHeight == null) return false;
+  return sheetHeight <= maxFollowHeight + 1;
+}
+
 export const getMapSlotHeight = (layoutHeight: number, sheetHeight: number) => {
   return Math.max(0, layoutHeight - sheetHeight);
 };

@@ -54,17 +54,17 @@ describe('map viewport fetch helpers', () => {
     );
   });
 
-  it('accepts a 200 km bbox and blocks a wider viewport', () => {
+  it('accepts a 300 km bbox and blocks a wider viewport', () => {
     const accepted = {
       sw: [5, 49] as [number, number],
-      ne: [5.5, 49 + 200 / 111] as [number, number],
+      ne: [5.5, 49 + 300 / 111] as [number, number],
     };
     const rejected = {
       sw: [5, 49] as [number, number],
-      ne: [5.5, 49 + 201 / 111] as [number, number],
+      ne: [5.5, 49 + 301 / 111] as [number, number],
     };
 
-    assert.ok(Math.abs(getMapBoundsDiameterKm(accepted) - 200) < 0.01);
+    assert.ok(Math.abs(getMapBoundsDiameterKm(accepted) - 300) < 0.01);
     assert.equal(isMapBoundsTooLarge(accepted), false);
     assert.equal(isMapBoundsTooLarge(rejected), true);
   });

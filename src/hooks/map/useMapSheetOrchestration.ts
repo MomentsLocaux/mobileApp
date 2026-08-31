@@ -13,6 +13,7 @@ type Params = {
   sheetEvents: EventWithCreator[];
   closeSheet: () => void;
   lockViewportForSheet: () => Promise<void>;
+  unlockViewportForSheet: () => void;
   focusOnEvent: (event: EventWithCreator, options?: { bumpZoom?: boolean }) => void;
   setUnitCardEvent: (event: EventWithCreator | null) => void;
 };
@@ -24,6 +25,7 @@ export function useMapSheetOrchestration({
   sheetEvents,
   closeSheet,
   lockViewportForSheet,
+  unlockViewportForSheet,
   focusOnEvent,
   setUnitCardEvent,
 }: Params) {
@@ -40,7 +42,8 @@ export function useMapSheetOrchestration({
   const handleSheetCollapsedSideEffects = useCallback(() => {
     traceMapSheetPerf('closeSheet');
     closeSheet();
-  }, [closeSheet]);
+    unlockViewportForSheet();
+  }, [closeSheet, unlockViewportForSheet]);
 
   const handleSheetExpandedSideEffects = useCallback(() => {
     traceMapSheetPerf('lockViewportForSheet');

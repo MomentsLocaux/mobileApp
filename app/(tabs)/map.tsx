@@ -13,6 +13,8 @@ import {
   VIEWPORT_PEEK_HEIGHT,
   getSheetMaxSnapIndex,
   MAP_CAMERA_ANIMATION_MS,
+  shouldFollowMapCameraForSheetHeight,
+  shouldFollowMapCameraForSheetIndex,
 } from '../../src/utils/map-sheet-layout';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import type { MapBounds } from '@/types/map-events';
@@ -23,7 +25,6 @@ import {
   useMapSearchApply,
   useMapSocialActions,
   useMapMarkerPress,
-  useMapFilterActions,
   useMapDeepLinkFocus,
   useMapLocationBootstrap,
 } from '@/hooks/map';
@@ -44,13 +45,12 @@ import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import {
-  FONTOY_COORDS,
   FRANCE_CAMERA_BOUNDS,
   MAP_FIT_PADDING,
   MAP_VIEW_PADDING,
   SIM_FALLBACK_COORDS,
 } from '@/constants/map-screen';
-import { DEFAULT_DISCOVERY_STATUS } from '@/constants/filters';
+import { DEFAULT_DISCOVERY_STATUS, DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import { SearchBar } from '../../src/components/search/SearchBar';
 import { hasSearchCriteria as checkSearchCriteria } from '../../src/utils/search-helpers';
 import {
@@ -70,6 +70,13 @@ import {
 } from '@/utils/discovery-filters';
 import { isMapBoundsTooLarge } from '@/utils/map-viewport-fetch-utils';
 import { MAP_BBOX_TOO_LARGE_MESSAGE } from '@/utils/bbox-event-fetch';
+import {
+  isDiscoverySearchActive,
+  resolveHomeMapRadiusTarget,
+  resolveMapHandoffMode,
+  shouldRefetchViewportOnTabFocus,
+} from '@/utils/map-discovery-contract';
+import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
 
 const SHEET_CAMERA_FOLLOW_THROTTLE_MS = 72;
 const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 80;
@@ -93,6 +100,7 @@ export default function MapScreen() {
   const setSort = useDiscoveryFiltersStore((s) => s.setSort);
   const setMapMode = useDiscoveryFiltersStore((s) => s.setMapMode);
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
+  const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
   const { profile } = useAuth();
   const favorites = useFavoritesStore((s) => s.favorites);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
@@ -116,12 +124,12 @@ export default function MapScreen() {
   const clearFrozenViewport = useMapResultsUIStore((s) => s.clearFrozenViewport);
   const closeSheet = useMapResultsUIStore((s) => s.closeSheet);
   const restoreViewportFromFrozen = useMapResultsUIStore((s) => s.restoreViewportFromFrozen);
-  const homeTransfer = useMapTransferStore((s) => s.homeTransfer);
   const clearHomeTransfer = useMapTransferStore((s) => s.clearHomeTransfer);
 
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
   const {
+    layoutHeightShared,
     maxSheetHeightShared,
     sheetVisibleHeight,
     sheetProgress,
@@ -154,6 +162,7 @@ export default function MapScreen() {
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [pendingSearchAreaBounds, setPendingSearchAreaBounds] = useState<MapBounds | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   zoomRef.current = zoom;
 
@@ -184,10 +193,18 @@ export default function MapScreen() {
     return { latitude, longitude };
   }, [currentLocation]);
 
+  const mapCamera = useMemo(
+    () =>
+      resolveMapInitialCamera({
+        userLocation,
+        placeCenter: place.center ?? null,
+      }),
+    [place.center, userLocation]
+  );
   const mapCenter = {
-    latitude: userLocation?.latitude ?? FONTOY_COORDS.latitude,
-    longitude: userLocation?.longitude ?? FONTOY_COORDS.longitude,
-    zoom: 12,
+    latitude: mapCamera.latitude,
+    longitude: mapCamera.longitude,
+    zoom: mapCamera.zoom,
   };
 
   const discoveryFilters = useMemo<DiscoveryFilters>(
@@ -207,10 +224,7 @@ export default function MapScreen() {
     [content, place, when]
   );
   const includePast = includesPast(discoveryFilters);
-  const searchActive =
-    (searchApplied &&
-      (hasSearchCriteria || discoveryStatus !== DEFAULT_DISCOVERY_STATUS)) ||
-    !!homeTransfer;
+  const searchActive = isDiscoverySearchActive(searchApplied, hasSearchCriteria);
   const searchFilters = useMemo(
     () => toEventFilters(discoveryFilters, userLocation),
     [discoveryFilters, userLocation]
@@ -259,7 +273,6 @@ export default function MapScreen() {
     nextMarkerRequestId,
     isMarkerRequestCurrent,
     reapplyClientFilters,
-    publishTransferredResults,
   } = fetch;
 
   const {
@@ -270,8 +283,8 @@ export default function MapScreen() {
     refreshBounds,
     syncMapToFrozenViewport,
     lockViewportForSheet,
+    unlockViewportForSheet,
     fitToRadius,
-    fitToBounds,
     focusOnEvent,
     viewportBootstrappedRef,
   } = viewport;
@@ -306,6 +319,10 @@ export default function MapScreen() {
     sheetEvents,
     closeSheet,
     lockViewportForSheet,
+    unlockViewportForSheet: () => {
+      if (markerSelectionGuardRef.current) return;
+      unlockViewportForSheet();
+    },
     focusOnEvent,
     setUnitCardEvent,
   });
@@ -324,6 +341,15 @@ export default function MapScreen() {
   const syncCameraToSheetHeight = useCallback(
     (visibleSheetHeight: number, reason: string, options?: { force?: boolean }) => {
       if (!frozenViewportBoundsRef.current) return;
+      if (
+        !shouldFollowMapCameraForSheetHeight(
+          visibleSheetHeight,
+          layoutHeightShared.value,
+          sheetMode
+        )
+      ) {
+        return;
+      }
 
       const now = Date.now();
       if (!options?.force && now - lastSheetCameraSyncAtRef.current < SHEET_CAMERA_FOLLOW_THROTTLE_MS) {
@@ -343,7 +369,7 @@ export default function MapScreen() {
         animationDuration: SHEET_CAMERA_FOLLOW_ANIMATION_MS,
       });
     },
-    [frozenViewportBoundsRef, syncMapToFrozenViewport]
+    [frozenViewportBoundsRef, layoutHeightShared, sheetMode, syncMapToFrozenViewport]
   );
 
   const runSheetSideEffectsAfterSnap = useCallback(
@@ -362,17 +388,20 @@ export default function MapScreen() {
         sideEffectsTimerRef.current = null;
         traceMapSheetPerf('applySheetSideEffects', { targetIdx });
         applySheetSideEffects(targetIdx);
-        if (targetIdx > 0) {
-          const visibleSheetHeight = sheetVisibleHeight.value;
-          const paddingBottom = visibleSheetHeight + MAP_FIT_PADDING;
-          traceMapSheetPerf('syncMapToFrozenViewport', { paddingBottom, visibleSheetHeight });
-          syncMapToFrozenViewport({ paddingBottom });
-        } else {
+        if (targetIdx === 0) {
           mapRef.current?.resetCameraPadding();
+          return;
         }
+        if (!shouldFollowMapCameraForSheetIndex(targetIdx, sheetMode)) {
+          return;
+        }
+        const visibleSheetHeight = sheetVisibleHeight.value;
+        const paddingBottom = visibleSheetHeight + MAP_FIT_PADDING;
+        traceMapSheetPerf('syncMapToFrozenViewport', { paddingBottom, visibleSheetHeight });
+        syncMapToFrozenViewport({ paddingBottom });
       }, SHEET_SIDE_EFFECTS_DELAY_MS);
     },
-    [applySheetSideEffects, sheetVisibleHeight, syncMapToFrozenViewport]
+    [applySheetSideEffects, sheetMode, sheetVisibleHeight, syncMapToFrozenViewport]
   );
 
   const mapVisualStyle = useAnimatedStyle(() => {
@@ -471,9 +500,10 @@ export default function MapScreen() {
   const handleMapBackgroundPress = useCallback(() => {
     if (markerSelectionGuardRef.current) return;
     setUnitCardEvent(null);
+    unlockViewportForSheet();
     closeSheet();
     resultsSheetRef.current?.collapseToPeek();
-  }, [closeSheet]);
+  }, [closeSheet, unlockViewportForSheet]);
 
   const handleSheetIndexChange = useCallback(
     (idx: number, options?: { animate?: boolean }) => {
@@ -546,15 +576,6 @@ export default function MapScreen() {
 
   useMapDeepLinkFocus(focus, handleFeaturePress);
 
-  const { handleResetFilters } = useMapFilterActions({
-    userLocation,
-    discoveryStatus,
-    reapplyClientFilters,
-    cancelViewportFetch,
-    refreshBounds,
-    clearFrozenViewport,
-  });
-
   const handleSheetDragEnd = useCallback(
     (dy: number, velocityY: number) => {
       traceMapSheetPerf('handleSheetDragEnd', { dy, velocityY });
@@ -592,8 +613,6 @@ export default function MapScreen() {
   ensureInitialViewportLoadRef.current = ensureInitialViewportLoad;
   const restoreViewportFromFrozenRef = useRef(restoreViewportFromFrozen);
   restoreViewportFromFrozenRef.current = restoreViewportFromFrozen;
-  const setStatusRef = useRef(setStatus);
-  setStatusRef.current = setStatus;
   const enterFocusedMapRef = useRef<() => void>(() => undefined);
   enterFocusedMapRef.current = () => {
     if (!mapReadyRef.current) return;
@@ -614,19 +633,39 @@ export default function MapScreen() {
         cancelAllMapRequests();
         viewportFrozenRef.current = false;
         clearFrozenViewport();
-        frozenViewportBoundsRef.current = transfer.bounds;
         setPendingSearchAreaBounds(null);
-        publishTransferredResults(transfer.events);
-        setViewportAreaWarning(
-          transfer.bounds && isMapBoundsTooLarge(transfer.bounds)
-            ? MAP_BBOX_TOO_LARGE_MESSAGE
-            : null
-        );
+        setViewportAreaWarning(null);
+        setStatus('loading');
         viewportBootstrappedRef.current = true;
         resultsSheetRef.current?.collapseToPeek();
-        if (transfer.bounds) {
-          fitToBounds(transfer.bounds, { refreshAfter: false });
+        const latest = useDiscoveryFiltersStore.getState();
+        const handoffMode = resolveMapHandoffMode({
+          searchApplied: latest.searchApplied,
+          hasSearchCriteria: checkSearchCriteria({
+            place: latest.place,
+            when: latest.when,
+            content: latest.content,
+          }),
+        });
+        const target = resolveHomeMapRadiusTarget({
+          searchActive: handoffMode === 'search',
+          place: latest.place,
+          userLocation,
+        });
+        if (target) {
+          frozenViewportBoundsRef.current = fitToRadius(
+            target.latitude,
+            target.longitude,
+            target.radiusKm,
+            { refreshAfter: true }
+          );
+        } else {
+          void refreshBoundsRef.current();
         }
+        if (handoffMode === 'search') {
+          focusedSearchRevisionRef.current = latest.searchRevision;
+        }
+        transferState.clearHomeTransfer();
       }
       return;
     }
@@ -637,7 +676,7 @@ export default function MapScreen() {
       when: latest.when,
       content: latest.content,
     });
-    if (latest.searchApplied && latestHasSearchCriteria) {
+    if (isDiscoverySearchActive(latest.searchApplied, latestHasSearchCriteria)) {
       if (focusedSearchRevisionRef.current !== latest.searchRevision) {
         focusedSearchRevisionRef.current = latest.searchRevision;
         setPendingSearchAreaBounds(null);
@@ -651,15 +690,16 @@ export default function MapScreen() {
       return;
     }
 
-    if (uiState.sheetStatus !== 'loading') {
-      setStatusRef.current('browsing');
-    }
     resultsSheetRef.current?.collapseToPeek();
-    if (viewportBootstrappedRef.current) {
-      void refreshBoundsRef.current();
-    } else {
-      void ensureInitialViewportLoadRef.current();
-    }
+    const shouldLoad = shouldRefetchViewportOnTabFocus({
+      bootstrapped: viewportBootstrappedRef.current,
+      hasNewTransfer: false,
+      hasNewSearchRevision: false,
+    });
+    if (!shouldLoad) return;
+    if (userLocation || locationLoading) return;
+    if (!shouldBootstrapViewportFetch(mapCamera.kind)) return;
+    void ensureInitialViewportLoadRef.current();
   };
 
   useFocusEffect(
@@ -686,20 +726,30 @@ export default function MapScreen() {
 
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
-    fitToRadius(userLocation.latitude, userLocation.longitude, 7.5);
-  }, [fitToRadius, userLocation]);
+    clearHomeTransfer();
+    appliedHomeTransferIdRef.current = null;
+    setPendingSearchAreaBounds(null);
+    if (searchApplied) {
+      setSearchApplied(false);
+    }
+    fitToRadius(userLocation.latitude, userLocation.longitude, DISCOVERY_DEFAULT_RADIUS_KM, {
+      refreshAfter: true,
+    });
+  }, [clearHomeTransfer, fitToRadius, searchApplied, setSearchApplied, userLocation]);
 
   useMapLocationBootstrap({
     userLocation,
     locationLoading,
+    mapReady,
     recenterToUser,
-    refreshBounds,
     ensureInitialViewportLoad,
     disabled: searchActive,
+    bootstrapViewportFetch: shouldBootstrapViewportFetch(mapCamera.kind),
   });
 
   const handleMapReady = useCallback(() => {
     mapReadyRef.current = true;
+    setMapReady(true);
     enterFocusedMapRef.current();
   }, []);
 
@@ -709,6 +759,15 @@ export default function MapScreen() {
       void refreshBounds();
     }
   }, [discoveryStatus, hasSearchCriteria, searchApplied, refreshBounds, setSearchApplied]);
+
+  const sortReapplyReadyRef = useRef(false);
+  useEffect(() => {
+    if (!sortReapplyReadyRef.current) {
+      sortReapplyReadyRef.current = true;
+      return;
+    }
+    reapplyClientFilters();
+  }, [reapplyClientFilters, sortBy, sortOrder]);
 
   useEffect(() => {
     if (!searchActive) {
@@ -740,8 +799,29 @@ export default function MapScreen() {
     focusedSearchRevisionRef.current = null;
     setPendingSearchAreaBounds(null);
     setViewportAreaWarning(null);
-    handleResetFilters();
-  }, [clearHomeTransfer, handleResetFilters, pendingSearchAreaBounds, setViewportAreaWarning]);
+    setPlace({ center: undefined, label: undefined, radiusKm: undefined });
+    const remaining = useDiscoveryFiltersStore.getState();
+    const stillSearching = checkSearchCriteria({
+      place: remaining.place,
+      when: remaining.when,
+      content: remaining.content,
+    });
+    if (!stillSearching) {
+      setSearchApplied(false);
+    }
+    viewportFrozenRef.current = false;
+    clearFrozenViewport();
+    void refreshBounds();
+  }, [
+    clearFrozenViewport,
+    clearHomeTransfer,
+    pendingSearchAreaBounds,
+    refreshBounds,
+    setPlace,
+    setSearchApplied,
+    setViewportAreaWarning,
+    viewportFrozenRef,
+  ]);
 
   const toggleMapMode = useCallback(() => {
     setMapMode(mapMode === 'standard' ? 'satellite' : 'standard');
@@ -756,6 +836,7 @@ export default function MapScreen() {
 
   const showLocationOverlay = locationLoading && !userLocation && !searchActive;
   const showLocationUnavailable =
+    mapCamera.kind === 'country' &&
     !searchActive &&
     !locationLoading &&
     !userLocation &&
@@ -838,8 +919,8 @@ export default function MapScreen() {
               >
                 <Text style={styles.locationUnavailableTitle}>Localisation indisponible</Text>
                 <Text style={styles.locationUnavailableText}>
-                  La carte est centrée sur une zone par défaut. Vous pouvez rechercher un lieu
-                  manuellement ou activer la localisation.
+                  La carte affiche la France. Recherchez un lieu ou activez la localisation pour
+                  voir les événements autour de vous.
                 </Text>
                 <View style={styles.locationUnavailableActions}>
                   <TouchableOpacity
@@ -907,11 +988,12 @@ export default function MapScreen() {
                   activeOpacity={0.9}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: pendingSearchAreaTooLarge }}
-                  accessibilityLabel="Rechercher dans cette zone. Cette action annulera la recherche en cours."
+                  accessibilityLabel="Rechercher les événements dans la zone visible. Les filtres quoi et quand sont conservés."
+                  accessibilityHint="La recherche par lieu est remplacée par la zone actuellement affichée."
                 >
                   <Text style={styles.searchAreaButtonTitle}>Rechercher dans cette zone</Text>
                   <Text style={styles.searchAreaButtonHint}>
-                    Cette action annulera la recherche en cours
+                    Les filtres quoi et quand sont conservés
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -946,6 +1028,7 @@ export default function MapScreen() {
                 onNavigate={() => setNavEvent(unitCardEvent)}
                 onClose={() => {
                   setUnitCardEvent(null);
+                  unlockViewportForSheet();
                   closeSheet();
                 }}
                 bottomInset={spacing.sm}

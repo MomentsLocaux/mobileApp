@@ -10,7 +10,7 @@ import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
 import type { useMapProgrammaticMove } from './useMapProgrammaticMove';
 import type { ViewportFetchOptions } from './useViewportEventsFetch';
-import { haveMapBoundsMeaningfullyChanged } from '@/utils/map-viewport-fetch-utils';
+import { haveMapBoundsMeaningfullyChanged, isMapBoundsTooLarge } from '@/utils/map-viewport-fetch-utils';
 
 type ProgrammaticMove = ReturnType<typeof useMapProgrammaticMove>;
 
@@ -94,6 +94,14 @@ export function useMapViewportController({
       meta?: { isUserInteraction?: boolean }
     ) => {
       const isUserInteraction = meta?.isUserInteraction === true;
+
+      if (
+        !isUserInteraction &&
+        !viewportBootstrappedRef.current &&
+        isMapBoundsTooLarge(bounds)
+      ) {
+        return;
+      }
 
       if (isUserInteraction) {
         clearProgrammaticMoveState();
@@ -260,14 +268,30 @@ export function useMapViewportController({
     }
   }, [freezeViewportResults, frozenViewportBoundsRef, mapRef, viewportFrozenRef]);
 
+  const unlockViewportForSheet = useCallback(() => {
+    viewportFrozenRef.current = false;
+    clearFrozenViewport();
+  }, [clearFrozenViewport, viewportFrozenRef]);
+
   const fitToRadius = useCallback(
-    (latitude: number, longitude: number, radiusKm: number) => {
+    (
+      latitude: number,
+      longitude: number,
+      radiusKm: number,
+      options?: { refreshAfter?: boolean }
+    ) => {
       const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
       const coords = [
         { latitude: bounds.sw[1], longitude: bounds.sw[0] },
         { latitude: bounds.ne[1], longitude: bounds.ne[0] },
       ];
-      withProgrammaticMove(() => mapRef.current?.fitToCoordinates(coords, MAP_FIT_PADDING));
+      withProgrammaticMove(
+        () => mapRef.current?.fitToCoordinates(coords, MAP_FIT_PADDING),
+        {
+          refreshAfter: options?.refreshAfter === true,
+          durationMs: MAP_CAMERA_ANIMATION_MS,
+        }
+      );
       return bounds;
     },
     [mapRef, withProgrammaticMove]
@@ -282,7 +306,7 @@ export function useMapViewportController({
       withProgrammaticMove(
         () => mapRef.current?.fitToBounds(bounds, MAP_FIT_PADDING, animationDuration),
         {
-          refreshAfter: options?.refreshAfter,
+          refreshAfter: options?.refreshAfter === true,
           durationMs: animationDuration,
         }
       );
@@ -321,6 +345,7 @@ export function useMapViewportController({
     refitMapToFrozenViewport,
     syncMapToFrozenViewport,
     lockViewportForSheet,
+    unlockViewportForSheet,
     fitToRadius,
     fitToBounds,
     focusOnEvent,

@@ -125,7 +125,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   (
     {
       initialRegion,
-      userLocation: _userLocation,
+      userLocation,
       onFeaturePress,
       onZoomChange,
       onVisibleBoundsChange,
@@ -486,6 +486,12 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         ref={mapViewRef}
         style={styles.map}
         styleURL={styleURL || Mapbox.StyleURL.Street}
+        onWillStartLoadingMap={() => {
+          setStyleReady(false);
+        }}
+        onDidFinishLoadingStyle={() => {
+          setStyleReady(true);
+        }}
         onDidFinishLoadingMap={() => {
           setStyleReady(true);
           onMapReady?.();
@@ -532,7 +538,11 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           maxBounds={maxBounds ? { sw: [...maxBounds.sw], ne: [...maxBounds.ne] } : undefined}
         />
 
-        <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />
+        <Mapbox.LocationPuck
+          visible={Boolean(userLocation)}
+          puckBearing="heading"
+          puckBearingEnabled
+        />
 
         {styleReady
           ? groupedEventSources.map(({ sourceId, iconKey, clusterIconKey, shape }) => (
