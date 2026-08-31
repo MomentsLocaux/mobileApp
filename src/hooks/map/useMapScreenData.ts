@@ -25,6 +25,8 @@ type Params = {
   sortBy: SortOption;
   sortOrder?: SortOrder;
   sortCenter: UserLocation;
+  searchActive: boolean;
+  onPendingSearchAreaChange?: (bounds: MapBounds | null) => void;
 };
 
 export function useMapScreenData(params: Params) {
@@ -59,6 +61,8 @@ export function useMapScreenData(params: Params) {
     freezeViewportResults: params.freezeViewportResults,
     zoomRef: params.zoomRef,
     onUnlockViewport: params.onUnlockViewport,
+    searchActive: params.searchActive,
+    onPendingSearchAreaChange: params.onPendingSearchAreaChange,
   });
 
   return {

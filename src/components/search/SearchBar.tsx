@@ -53,7 +53,16 @@ import {
   type DiscoveryFilters,
   type DiscoverySurface,
 } from '@/utils/discovery-filters';
-import { DEFAULT_SORT_OPTION, DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
+import {
+  DEFAULT_DISCOVERY_STATUS,
+  DISCOVERY_DEFAULT_RADIUS_KM,
+} from '@/constants/filters';
+import {
+  filtersForSearchTemporalChoice,
+  resolveSearchTemporalChoice,
+  SEARCH_TEMPORAL_CHOICES,
+  type SearchTemporalChoice,
+} from '@/utils/search-temporal-choice';
 
 type SectionKey = 'where' | 'when' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -112,7 +121,7 @@ export const SearchBar: React.FC<Props> = ({
   const subcategories = useTaxonomyStore((s) => s.subcategories);
   const { currentLocation } = useLocationStore();
 
-  const status = useDiscoveryFiltersStore((s) => s.status);
+  const appliedStatus = useDiscoveryFiltersStore((s) => s.status);
   const appliedWhen = useDiscoveryFiltersStore((s) => s.when);
   const appliedPlace = useDiscoveryFiltersStore((s) => s.place);
   const appliedContent = useDiscoveryFiltersStore((s) => s.content);
@@ -125,22 +134,21 @@ export const SearchBar: React.FC<Props> = ({
   const removePlaceHistory = useDiscoveryFiltersStore((s) => s.removePlaceHistory);
   const appliedFilters = useMemo<DiscoveryFilters>(
     () => ({
-      status,
+      status: appliedStatus,
       when: appliedWhen,
       place: appliedPlace,
       content: appliedContent,
       sort: appliedSort,
       mapMode,
     }),
-    [appliedContent, appliedPlace, appliedSort, appliedWhen, mapMode, status]
+    [appliedContent, appliedPlace, appliedSort, appliedStatus, appliedWhen, mapMode]
   );
   const [draftFilters, setDraftFilters] = useState<DiscoveryFilters>(appliedFilters);
+  const status = draftFilters.status;
   const when = draftFilters.when;
   const place = draftFilters.place;
   const what = draftFilters.content;
   const sort = draftFilters.sort;
-  const sortBy = sort[surface].sortBy;
-  const sortOrder = sort[surface].sortOrder;
 
   const where = useMemo<SearchWhereState>(
     () => ({
@@ -194,25 +202,6 @@ export const SearchBar: React.FC<Props> = ({
     }));
   };
 
-  const setWhen = (next: Partial<typeof when>) => {
-    setDraftFilters((current) => {
-      const activatesDatedSearch = Boolean(next.preset || next.startDate || next.endDate);
-      const includePast = next.includePast === true;
-      return {
-        ...current,
-        when: includePast
-          ? { includePast: true }
-          : {
-              ...current.when,
-              ...next,
-              includePast: activatesDatedSearch
-                ? false
-                : next.includePast ?? current.when.includePast,
-            },
-      };
-    });
-  };
-
   const setWhat = (next: Partial<typeof what>) => {
     setDraftFilters((current) => ({
       ...current,
@@ -220,23 +209,12 @@ export const SearchBar: React.FC<Props> = ({
     }));
   };
 
-  const setSortBy = (nextSortBy?: typeof sortBy) => {
+  const setTemporalChoice = (choice: SearchTemporalChoice) => {
+    const next = filtersForSearchTemporalChoice(choice);
     setDraftFilters((current) => ({
       ...current,
-      sort: {
-        ...current.sort,
-        [surface]: { sortBy: nextSortBy || DEFAULT_SORT_OPTION, sortOrder },
-      },
-    }));
-  };
-
-  const setSortOrder = (nextSortOrder?: typeof sortOrder) => {
-    setDraftFilters((current) => ({
-      ...current,
-      sort: {
-        ...current.sort,
-        [surface]: { sortBy, sortOrder: nextSortOrder },
-      },
+      status: next.status,
+      when: next.when,
     }));
   };
 
@@ -315,7 +293,6 @@ export const SearchBar: React.FC<Props> = ({
     addHistory(item.label);
   };
 
-  const includePast = when.includePast ?? false;
   const userCoords = useMemo(() => {
     if (!currentLocation) return null;
     return {
@@ -329,6 +306,8 @@ export const SearchBar: React.FC<Props> = ({
     [place, what, when]
   );
   const hasSearchCriteria = useMemo(() => checkSearchCriteria(searchSlice), [searchSlice]);
+  const hasActiveDiscoverySearch =
+    hasSearchCriteria || status !== DEFAULT_DISCOVERY_STATUS;
   const effectiveRadiusKm = useMemo(
     () => resolveEffectiveRadiusKm(place, userCoords),
     [place, userCoords]
@@ -340,9 +319,14 @@ export const SearchBar: React.FC<Props> = ({
   const displayedRadiusKm = where.radiusKm ?? effectiveRadiusKm ?? PROXIMITY_RADIUS_KM;
 
   const summaryText = useMemo(() => {
-    if (!applied || !appliedHasSearchCriteria) return undefined;
+    if (
+      (!applied || !appliedHasSearchCriteria) &&
+      appliedStatus === DEFAULT_DISCOVERY_STATUS
+    ) {
+      return undefined;
+    }
     return buildSearchSummary(appliedFilters, categories, subcategories, surface);
-  }, [applied, appliedFilters, appliedHasSearchCriteria, categories, subcategories, surface]);
+  }, [applied, appliedFilters, appliedHasSearchCriteria, appliedStatus, categories, subcategories, surface]);
 
   const combinationError = useMemo(() => explainEmptyCombination(filters), [filters]);
 
@@ -352,15 +336,13 @@ export const SearchBar: React.FC<Props> = ({
       (where.radiusKm !== undefined && where.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM
         ? 'À proximité'
         : 'Choisir un lieu');
-    const whenLabel = includePast
-      ? "N'importe quand"
-      : when.startDate && when.endDate
+    const temporalChoice = resolveSearchTemporalChoice(status, when);
+    const whenLabel = when.startDate && when.endDate
         ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
         : when.startDate
           ? formatDate(when.startDate)
-          : when.preset
-            ? presetLabel(when.preset)
-            : 'Flexible';
+          : SEARCH_TEMPORAL_CHOICES.find((item) => item.key === temporalChoice)?.label ??
+            'Dates personnalisées';
     const categoryLabel = what.categories.length
       ? categories.find((c) => c.id === what.categories[0])?.label
       : undefined;
@@ -373,7 +355,7 @@ export const SearchBar: React.FC<Props> = ({
     const baseWhatLabel = categoryLabel || subcategoryLabel || 'Toutes catégories';
     const whatLabel = extras.length ? `${baseWhatLabel} · ${extras.join(', ')}` : baseWhatLabel;
     return { whereLabel, whenLabel, whatLabel };
-  }, [categories, includePast, subcategories, what, when, where]);
+  }, [categories, status, subcategories, what, when, where]);
 
   const rangeValue: DateRangeValue = {
     startDate: when.startDate || null,
@@ -381,11 +363,16 @@ export const SearchBar: React.FC<Props> = ({
   };
 
   const handleRangeChange = (range: DateRangeValue) => {
-    setWhen({
-      startDate: range.startDate || undefined,
-      endDate: range.endDate || undefined,
-      preset: undefined,
-    });
+    setDraftFilters((current) => ({
+      ...current,
+      status: 'all',
+      when: {
+        startDate: range.startDate || undefined,
+        endDate: range.endDate || undefined,
+        preset: undefined,
+        includePast: false,
+      },
+    }));
   };
 
   useEffect(() => {
@@ -431,7 +418,7 @@ export const SearchBar: React.FC<Props> = ({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [combinationError, effectiveRadiusKm, filters, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords]);
+  }, [combinationError, effectiveRadiusKm, filters, hasSearchCriteria, searchCenter, searchMode, userCoords]);
 
   useEffect(() => {
     let cancelled = false;
@@ -533,7 +520,7 @@ export const SearchBar: React.FC<Props> = ({
   };
 
   const handleSaveCurrent = () => {
-    if (!hasSearchCriteria) return;
+    if (!hasActiveDiscoverySearch) return;
     const defaultTitle = buildSearchSummary(filters, categories, subcategories, surface);
 
     const doSave = async (title?: string) => {
@@ -578,7 +565,7 @@ export const SearchBar: React.FC<Props> = ({
     }
     const committed = applySearchCriteria(
       { when, place, content: what },
-      { surface, sort: sort[surface], applied: hasSearchCriteria }
+      { status, surface, sort: sort[surface], applied: hasActiveDiscoverySearch }
     );
     void recordRecentFromCurrent(taxonomyLabels, surface, committed);
     onApply(committed);
@@ -589,6 +576,7 @@ export const SearchBar: React.FC<Props> = ({
     const defaults = createDefaultDiscoveryCriteria();
     setDraftFilters((current) => ({
       ...current,
+      status: defaults.status,
       when: defaults.when,
       place: defaults.place,
       content: defaults.content,
@@ -945,41 +933,14 @@ export const SearchBar: React.FC<Props> = ({
                       onPress={() => setActiveSection('when')}
                     >
                       <View style={styles.row}>
-                        {(['today', 'tomorrow', 'weekend'] as const).map((preset) => (
+                        {SEARCH_TEMPORAL_CHOICES.map((choice) => (
                           <Chip
-                            key={preset}
-                            label={presetLabel(preset)}
-                            active={when.preset === preset}
-                            onPress={() => {
-                              const nextPreset = when.preset === preset ? undefined : preset;
-                              setWhen({
-                                preset: nextPreset,
-                                startDate: undefined,
-                                endDate: undefined,
-                              });
-                            }}
+                            key={choice.key}
+                            label={choice.label}
+                            active={resolveSearchTemporalChoice(status, when) === choice.key}
+                            onPress={() => setTemporalChoice(choice.key)}
                           />
                         ))}
-                      </View>
-                      <View style={styles.checkboxRow}>
-                        <TouchableOpacity
-                          style={[styles.checkbox, includePast && styles.checkboxActive]}
-                          onPress={() => {
-                            if (includePast) {
-                              setWhen({ includePast: false });
-                              return;
-                            }
-                            setWhen({
-                              includePast: true,
-                              preset: undefined,
-                              startDate: undefined,
-                              endDate: undefined,
-                            });
-                          }}
-                        >
-                          {includePast && <View style={styles.checkboxMark} />}
-                        </TouchableOpacity>
-                        <Text style={styles.checkboxLabel}>N&apos;importe quand</Text>
                       </View>
                       <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
                         <Text style={styles.meta}>Date(s)</Text>
@@ -1010,7 +971,34 @@ export const SearchBar: React.FC<Props> = ({
                         onChangeText={(value) => setWhat({ query: value })}
                         style={styles.input}
                       />
-                      <Text style={styles.sectionLabel}>Catégories</Text>
+                      <View style={styles.sectionLabelRow}>
+                        <Text style={styles.sectionLabel}>Catégories</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const allSelected =
+                              categories.length > 0 &&
+                              categories.every((category) => what.categories.includes(category.id));
+                            setWhat({
+                              categories: allSelected ? [] : categories.map((category) => category.id),
+                              subcategories: [],
+                            });
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            categories.length > 0 &&
+                            categories.every((category) => what.categories.includes(category.id))
+                              ? 'Tout désélectionner'
+                              : 'Tout sélectionner'
+                          }
+                        >
+                          <Text style={styles.selectAllText}>
+                            {categories.length > 0 &&
+                            categories.every((category) => what.categories.includes(category.id))
+                              ? 'Tout désélectionner'
+                              : 'Tout sélectionner'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                       <View style={styles.rowWrap}>
                         {categories.map((cat) => {
                           const categoryColor = getCategoryColor(cat.id);
@@ -1078,38 +1066,6 @@ export const SearchBar: React.FC<Props> = ({
                           </View>
                         </>
                       )}
-                      <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Tri</Text>
-                      <View style={styles.rowWrap}>
-                        <Chip
-                          label="Pertinence"
-                          active={sortBy === 'triage' || !sortBy}
-                          onPress={() => setSortBy('triage')}
-                        />
-                        <Chip label="Date début" active={sortBy === 'date'} onPress={() => { setSortBy('date'); if (!sortOrder) setSortOrder('asc'); }} />
-                        <Chip label="Date fin" active={sortBy === 'endDate'} onPress={() => { setSortBy('endDate'); if (!sortOrder) setSortOrder('asc'); }} />
-                        <Chip label="Date création" active={sortBy === 'created'} onPress={() => { setSortBy('created'); if (!sortOrder) setSortOrder('desc'); }} />
-                        <Chip
-                          label="Distance"
-                          active={sortBy === 'distance'}
-                          onPress={() => {
-                            if (!hasLocation) return;
-                            setSortBy('distance');
-                          }}
-                        />
-                        <Chip label="Popularité" active={sortBy === 'popularity'} onPress={() => setSortBy('popularity')} />
-                      </View>
-                      {!hasLocation && sortBy === 'distance' ? (
-                        <Text style={styles.meta}>Le tri par distance nécessite la localisation.</Text>
-                      ) : null}
-                      {(sortBy === 'date' || sortBy === 'endDate' || sortBy === 'created') && (
-                        <>
-                          <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Ordre</Text>
-                          <View style={styles.rowWrap}>
-                            <Chip label="Ascendant" active={sortOrder === 'asc'} onPress={() => setSortOrder('asc')} />
-                            <Chip label="Descendant" active={sortOrder === 'desc'} onPress={() => setSortOrder('desc')} />
-                          </View>
-                        </>
-                      )}
                     </SectionCard>
                   </Animated.View>
                 </>
@@ -1120,7 +1076,7 @@ export const SearchBar: React.FC<Props> = ({
               <View style={{ marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }}>
                 {searchCount === 0 && !countLoading && hasSearchCriteria ? (
                   <Text style={styles.zeroHint}>
-                    Aucun résultat — élargissez le rayon, incluez les passés ou retirez des filtres.
+                    Aucun résultat — élargissez le rayon, changez la période ou retirez des filtres.
                   </Text>
                 ) : null}
                 {combinationError ? (
@@ -1135,7 +1091,7 @@ export const SearchBar: React.FC<Props> = ({
                     <TouchableOpacity onPress={resetDraftSearch}>
                       <Text style={styles.resetText}>Tout effacer</Text>
                     </TouchableOpacity>
-                    {hasSearchCriteria ? (
+                    {hasActiveDiscoverySearch ? (
                       <TouchableOpacity
                         style={styles.saveBtn}
                         onPress={handleSaveCurrent}
@@ -1255,19 +1211,6 @@ const SectionCard: React.FC<{
     {active && <View style={styles.cardContent}>{children}</View>}
   </View>
 );
-
-const presetLabel = (preset: 'today' | 'tomorrow' | 'weekend') => {
-  switch (preset) {
-    case 'today':
-      return "Aujourd'hui";
-    case 'tomorrow':
-      return 'Demain';
-    case 'weekend':
-      return 'Ce week-end';
-    default:
-      return 'Flexible';
-  }
-};
 
 const formatDate = (value: string | Date) => {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -1555,38 +1498,21 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: 'center',
   },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: 'rgba(124, 181, 24,0.16)',
-    borderColor: colors.brand.secondary,
-  },
-  checkboxMark: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-    backgroundColor: colors.brand.secondary,
-  },
-  checkboxLabel: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-  },
   sectionLabel: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  selectAllText: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   history: {
     marginTop: spacing.sm,

@@ -14,6 +14,7 @@ export type MapViewportFetchOutcome =
   | 'retry'
   | 'stale-cache'
   | 'deduped'
+  | 'bounds-too-large'
   | 'error';
 
 export function traceMapViewportFetch(

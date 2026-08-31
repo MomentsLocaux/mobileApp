@@ -8,22 +8,24 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Search } from 'lucide-react-native';
+import { Bell, Map as MapIcon, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useLocation } from '@/hooks';
 import { useLumiaTourTarget } from '@/hooks/useLumiaTourTarget';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
-import { useDiscoveryFiltersStore } from '@/store';
+import { useDiscoveryFiltersStore, useMapTransferStore } from '@/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { sortEvents } from '@/utils/sort-events';
-import { colors, spacing, typography } from '@/constants/theme';
+import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { features } from '@/config/features';
 import {
   DEFAULT_DISCOVERY_STATUS,
@@ -38,7 +40,6 @@ import { NotificationsService } from '@/services/notifications.service';
 import {
   ActiveFiltersBar,
   SortControl,
-  StatusFilterRow,
   type ActiveFilterChip,
 } from '@/components/filters';
 import {
@@ -60,6 +61,7 @@ import {
   toEventFilters,
   type DiscoveryFilters,
 } from '@/utils/discovery-filters';
+import { getMapBoundsForEvents } from '@/utils/map-marker-features';
 
 const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
 const HOME_CARD_STATS_LIMIT = 40;
@@ -138,6 +140,8 @@ export default function HomeScreen() {
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
   const clearSearchCriteria = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
   const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
+  const setHomeMapTransfer = useMapTransferStore((s) => s.setHomeTransfer);
+  const clearHomeMapTransfer = useMapTransferStore((s) => s.clearHomeTransfer);
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,6 +154,7 @@ export default function HomeScreen() {
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showViewOnMap, setShowViewOnMap] = useState(false);
   const metaFeedRequestId = useRef(0);
   const insets = useSafeAreaInsets();
 
@@ -202,10 +207,10 @@ export default function HomeScreen() {
   const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
 
   useEffect(() => {
-    if (!hasSearchCriteria && searchApplied) {
+    if (!hasSearchCriteria && status === DEFAULT_DISCOVERY_STATUS && searchApplied) {
       setSearchApplied(false);
     }
-  }, [hasSearchCriteria, searchApplied, setSearchApplied]);
+  }, [hasSearchCriteria, searchApplied, setSearchApplied, status]);
 
   const effectiveRadiusKm = useMemo(
     () =>
@@ -524,10 +529,10 @@ export default function HomeScreen() {
       chips.push({
         key: 'search',
         label: summary || 'Recherche active',
-        onClear: clearSearchCriteria,
+        onClear: resetCriteria,
       });
     }
-    if (status !== DEFAULT_DISCOVERY_STATUS) {
+    if (!showSearchResults && status !== DEFAULT_DISCOVERY_STATUS) {
       chips.push({
         key: 'status',
         label: metaFilterLabel(status),
@@ -537,8 +542,8 @@ export default function HomeScreen() {
     return chips;
   }, [
     categories,
-    clearSearchCriteria,
     discoveryFilters,
+    resetCriteria,
     setStatus,
     showSearchResults,
     status,
@@ -553,6 +558,57 @@ export default function HomeScreen() {
   const openSearch = useCallback(() => {
     router.push('/(tabs)/map' as any);
   }, [router]);
+
+  const homeMapBounds = useMemo(() => {
+    const center = showSearchResults ? searchCenter : browseCenter;
+    const radiusKm = showSearchResults ? effectiveRadiusKm : browseRadiusKm;
+    if (center && radiusKm !== undefined) {
+      return getBoundsFromRadiusKm(center.latitude, center.longitude, radiusKm);
+    }
+    return getMapBoundsForEvents(filteredAndSortedEvents);
+  }, [
+    browseCenter,
+    browseRadiusKm,
+    effectiveRadiusKm,
+    filteredAndSortedEvents,
+    searchCenter,
+    showSearchResults,
+  ]);
+
+  const handleViewOnMap = useCallback(() => {
+    const transferredFilters: DiscoveryFilters = {
+      ...discoveryFilters,
+      sort: {
+        ...discoveryFilters.sort,
+        map: { ...discoveryFilters.sort.home },
+      },
+    };
+    setSort('map', sortBy, sortOrder);
+    setHomeMapTransfer({
+      filters: transferredFilters,
+      events: filteredAndSortedEvents,
+      bounds: homeMapBounds,
+    });
+    router.push('/(tabs)/map' as any);
+  }, [
+    discoveryFilters,
+    filteredAndSortedEvents,
+    homeMapBounds,
+    router,
+    setHomeMapTransfer,
+    setSort,
+    sortBy,
+    sortOrder,
+  ]);
+
+  const handleFeedScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const shouldShow =
+        filteredAndSortedEvents.length > 0 && event.nativeEvent.contentOffset.y > 120;
+      setShowViewOnMap((current) => (current === shouldShow ? current : shouldShow));
+    },
+    [filteredAndSortedEvents.length]
+  );
 
   const listHeader = useMemo(
     () => (
@@ -596,12 +652,6 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <StatusFilterRow
-          value={status}
-          onChange={setStatus}
-          style={styles.statusFilterRow}
-        />
-
         <ActiveFiltersBar
           chips={activeFilterChips}
           onClearAll={
@@ -638,7 +688,6 @@ export default function HomeScreen() {
       resetCriteria,
       setSort,
       setSortOrder,
-      setStatus,
       sortBy,
       sortOrder,
       status,
@@ -723,9 +772,7 @@ export default function HomeScreen() {
 
         <View style={styles.searchContainer}>
           <SearchBar
-            onApply={() => {
-              /* Keep current status — search and status axes are cumulative. */
-            }}
+            onApply={() => clearHomeMapTransfer()}
             hasLocation={!!userLocation}
             applied={searchApplied}
             surface="home"
@@ -746,6 +793,8 @@ export default function HomeScreen() {
         windowSize={7}
         updateCellsBatchingPeriod={50}
         removeClippedSubviews
+        onScroll={handleFeedScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -835,6 +884,19 @@ export default function HomeScreen() {
         }
       />
 
+      {showViewOnMap ? (
+        <TouchableOpacity
+          style={[styles.viewOnMapButton, { bottom: insets.bottom + spacing.lg }]}
+          onPress={handleViewOnMap}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel={`Voir ${filteredAndSortedEvents.length} résultats sur la carte`}
+        >
+          <MapIcon size={18} color={colors.brand.onAccent} />
+          <Text style={styles.viewOnMapText}>Voir sur la map</Text>
+        </TouchableOpacity>
+      ) : null}
+
       <NavigationOptionsSheet
         visible={!!navEvent}
         event={navEvent}
@@ -843,6 +905,7 @@ export default function HomeScreen() {
           if (!navEvent) return;
           const id = navEvent.id;
           setNavEvent(null);
+          clearHomeMapTransfer();
           router.push(`/(tabs)/map?focus=${id}` as any);
         }}
       />
@@ -1030,11 +1093,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  statusFilterRow: {
-    marginBottom: spacing.sm,
-  },
   listContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xl * 3,
     gap: spacing.lg,
   },
   feedItemWrap: {
@@ -1047,5 +1107,28 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     color: colors.brand.textSecondary,
+  },
+  viewOnMapButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    minHeight: 48,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+    borderWidth: 1,
+    borderColor: colors.primary[600],
+    shadowColor: colors.neutral[900],
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 30,
+  },
+  viewOnMapText: {
+    ...typography.bodyBold,
+    color: colors.brand.onAccent,
   },
 });

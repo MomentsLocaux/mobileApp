@@ -10,6 +10,7 @@ import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
 import type { useMapProgrammaticMove } from './useMapProgrammaticMove';
 import type { ViewportFetchOptions } from './useViewportEventsFetch';
+import { haveMapBoundsMeaningfullyChanged } from '@/utils/map-viewport-fetch-utils';
 
 type ProgrammaticMove = ReturnType<typeof useMapProgrammaticMove>;
 
@@ -24,6 +25,8 @@ type Params = {
   freezeViewportResults: () => void;
   zoomRef: RefObject<number>;
   onUnlockViewport?: () => void;
+  searchActive: boolean;
+  onPendingSearchAreaChange?: (bounds: MapBounds | null) => void;
 };
 
 export function useMapViewportController({
@@ -37,11 +40,17 @@ export function useMapViewportController({
   freezeViewportResults,
   zoomRef,
   onUnlockViewport,
+  searchActive,
+  onPendingSearchAreaChange,
 }: Params) {
   const initialViewportLoadInFlightRef = useRef(false);
   /** True after the first real viewport fetch was queued — avoids focus+ready+recenter triple load. */
   const viewportBootstrappedRef = useRef(false);
   const bootstrapLoadingGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchActiveRef = useRef(searchActive);
+  const onPendingSearchAreaChangeRef = useRef(onPendingSearchAreaChange);
+  searchActiveRef.current = searchActive;
+  onPendingSearchAreaChangeRef.current = onPendingSearchAreaChange;
   const {
     isProgrammaticMoveRef,
     pendingProgrammaticRefreshRef,
@@ -89,6 +98,14 @@ export function useMapViewportController({
       if (isUserInteraction) {
         clearProgrammaticMoveState();
         programmatic.suppressBoundsRecalcUntilRef.current = 0;
+        if (searchActiveRef.current) {
+          const changed = haveMapBoundsMeaningfullyChanged(
+            frozenViewportBoundsRef.current,
+            bounds
+          );
+          onPendingSearchAreaChangeRef.current?.(changed ? bounds : null);
+          return;
+        }
         if (viewportFrozenRef.current) {
           unlockViewportFromUserPan(bounds);
           markViewportBootstrapped();
@@ -256,6 +273,23 @@ export function useMapViewportController({
     [mapRef, withProgrammaticMove]
   );
 
+  const fitToBounds = useCallback(
+    (
+      bounds: MapBounds,
+      options?: { refreshAfter?: boolean; animationDuration?: number }
+    ) => {
+      const animationDuration = options?.animationDuration ?? MAP_CAMERA_ANIMATION_MS;
+      withProgrammaticMove(
+        () => mapRef.current?.fitToBounds(bounds, MAP_FIT_PADDING, animationDuration),
+        {
+          refreshAfter: options?.refreshAfter,
+          durationMs: animationDuration,
+        }
+      );
+    },
+    [mapRef, withProgrammaticMove]
+  );
+
   const focusOnEvent = useCallback(
     (event: EventWithCreator, options?: { bumpZoom?: boolean }) => {
       if (typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
@@ -288,6 +322,7 @@ export function useMapViewportController({
     syncMapToFrozenViewport,
     lockViewportForSheet,
     fitToRadius,
+    fitToBounds,
     focusOnEvent,
     unlockViewportFromUserPan,
     viewportBootstrappedRef,

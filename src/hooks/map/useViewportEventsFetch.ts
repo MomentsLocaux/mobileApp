@@ -6,10 +6,15 @@ import { useMapResultsUIStore } from '@/store';
 import type { EventWithCreator } from '@/types/database';
 import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
 import { type EventMapFeatureCollection, type MapBounds, filterFeatureCollectionByEventIds } from '@/types/map-events';
-import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import {
+  isMapBoundsTooLargeError,
+  listMapViewportForMap,
+  MAP_BBOX_TOO_LARGE_MESSAGE,
+} from '@/utils/bbox-event-fetch';
 import {
   buildMapViewportCacheKey,
   getViewportCacheDisposition,
+  isMapBoundsTooLarge,
 } from '@/utils/map-viewport-fetch-utils';
 import {
   buildViewportBoundsKey,
@@ -21,6 +26,7 @@ import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit } from '@/utils/search-helpers';
 import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
+import { buildMapMarkerCollection } from '@/utils/map-marker-features';
 
 const VIEWPORT_PAYLOAD_CACHE_MAX = 4;
 const VIEWPORT_PAYLOAD_FRESH_MS = 45 * 1000;
@@ -123,7 +129,12 @@ export function useViewportEventsFetch({
   const sortCenterRef = useRef(sortCenter);
   const lastViewportRawRef = useRef<RawViewportCache | null>(null);
   const viewportPayloadCacheRef = useRef<Map<string, RawViewportCache>>(new Map());
-  const { setStatus, setViewportFetchError, displayViewportResults } = useMapResultsUIStore();
+  const {
+    setStatus,
+    setViewportFetchError,
+    setViewportAreaWarning,
+    displayViewportResults,
+  } = useMapResultsUIStore();
 
   metaFilterRef.current = metaFilter;
   searchAppliedRef.current = searchApplied;
@@ -386,6 +397,15 @@ export function useViewportEventsFetch({
         }
       } catch (error) {
         if (!isViewportRequestCurrent(requestId)) return;
+        if (isMapBoundsTooLargeError(error)) {
+          setViewportAreaWarning(MAP_BBOX_TOO_LARGE_MESSAGE);
+          setStatus(
+            useMapResultsUIStore.getState().sheetEvents.length > 0
+              ? 'viewportResults'
+              : 'browsing'
+          );
+          return;
+        }
         console.warn('bbox fetch error', error);
         traceMapViewportFetch('fetchComplete', {
           outcome: options?.retried ? 'error' : 'retry',
@@ -416,6 +436,7 @@ export function useViewportEventsFetch({
       rememberViewportPayload,
       resolveServerRequest,
       setStatus,
+      setViewportAreaWarning,
       setViewportFetchError,
       viewportFrozenRef,
       zoomRef,
@@ -426,6 +447,24 @@ export function useViewportEventsFetch({
     (bounds: MapBounds, options?: ViewportFetchOptions) => {
       if (viewportFrozenRef.current && !options?.force) return;
       if (isProgrammaticMoveRef.current && !options?.force) return;
+
+      if (isMapBoundsTooLarge(bounds)) {
+        viewportRequestIdRef.current += 1;
+        inFlightRequestKeyRef.current = null;
+        clearDebouncedViewportFetch();
+        setViewportFetchError(null);
+        setViewportAreaWarning(MAP_BBOX_TOO_LARGE_MESSAGE);
+        const uiState = useMapResultsUIStore.getState();
+        if (uiState.sheetStatus === 'loading') {
+          setStatus(uiState.sheetEvents.length > 0 ? 'viewportResults' : 'browsing');
+        }
+        traceMapViewportFetch('queueSkipped', {
+          outcome: 'bounds-too-large',
+          bounds,
+        });
+        return;
+      }
+      setViewportAreaWarning(null);
 
       const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
       const serverRequest = resolveServerRequest(bounds, currentMetaFilter);
@@ -514,8 +553,32 @@ export function useViewportEventsFetch({
       resolveServerRequest,
       runViewportFetch,
       setStatus,
+      setViewportAreaWarning,
+      setViewportFetchError,
       viewportFrozenRef,
     ]
+  );
+
+  /** Publish the exact ordered Home result snapshot without a new RPC. */
+  const publishTransferredResults = useCallback(
+    (events: EventWithCreator[]) => {
+      cancelViewportFetch();
+      const featureCollection = buildMapMarkerCollection(events) as EventMapFeatureCollection;
+      lastViewportRawRef.current = {
+        events,
+        featureCollection,
+        timeScope: resolveEventTimeScope({
+          metaFilter: metaFilterRef.current,
+          searchActive: searchAppliedRef.current && hasSearchCriteriaRef.current,
+          includePast: includePastRef.current,
+        }),
+        storedAt: Date.now(),
+      };
+      mapRef.current?.setShape(featureCollection as FeatureCollection);
+      setViewportFetchError(null);
+      displayViewportResults(events, { totalCount: events.length });
+    },
+    [cancelViewportFetch, displayViewportResults, mapRef, setViewportFetchError]
   );
 
   return {
@@ -528,5 +591,6 @@ export function useViewportEventsFetch({
     cancelAllMapRequests,
     nextMarkerRequestId,
     isMarkerRequestCurrent,
+    publishTransferredResults,
   };
 }

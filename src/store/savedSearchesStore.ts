@@ -90,6 +90,7 @@ const currentFingerprint = (surface: DiscoverySurface, filters?: DiscoveryFilter
     what: s.what,
     sortBy: s.sortBy,
     sortOrder: s.sortOrder,
+    status: (filters ?? currentDiscoveryFilters()).status,
   });
 };
 
@@ -126,6 +127,7 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
       what: s.what,
       sortBy: s.sortBy,
       sortOrder: s.sortOrder,
+      status: activeFilters.status,
     });
     const next = SavedSearchesService.recordRecent(
       { recent: get().recent, saved: get().saved },
@@ -146,6 +148,7 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
       what: s.what,
       sortBy: s.sortBy,
       sortOrder: s.sortOrder,
+      status: activeFilters.status,
     });
     const next = SavedSearchesService.saveNamed(
       { recent: get().recent, saved: get().saved },
@@ -161,8 +164,8 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
       get().saved.find((s) => s.id === id) || get().recent.find((s) => s.id === id);
     if (!item) return null;
     const store = useDiscoveryFiltersStore.getState();
-    // A saved search contains place/date/content criteria, not the independent
-    // status axis or presentation preferences.
+    // New snapshots include the temporal status. Older persisted snapshots
+    // remain valid and fall back to the current status axis.
     const current = currentDiscoveryFilters();
     const hasDatedSearch = Boolean(
       item.when.preset || item.when.startDate || item.when.endDate || item.when.includePast
@@ -186,7 +189,8 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
         content: { ...item.what, tags: [] },
       },
       {
-        status: hasDatedSearch && current.status === 'past' ? 'all' : current.status,
+        status:
+          item.status ?? (hasDatedSearch && current.status === 'past' ? 'all' : current.status),
         surface,
         sort: {
           sortBy: item.sortBy || DEFAULT_SORT_OPTION,

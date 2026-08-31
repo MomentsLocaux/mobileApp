@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildMapViewportCacheKey,
+  getMapBoundsDiameterKm,
   getViewportCacheDisposition,
+  haveMapBoundsMeaningfullyChanged,
+  isMapBoundsTooLarge,
   raceWithViewportTimeout,
 } from './map-viewport-fetch-utils';
 
@@ -48,6 +51,42 @@ describe('map viewport fetch helpers', () => {
         assert.equal(error.code, '57014');
         return true;
       }
+    );
+  });
+
+  it('accepts a 200 km bbox and blocks a wider viewport', () => {
+    const accepted = {
+      sw: [5, 49] as [number, number],
+      ne: [5.5, 49 + 200 / 111] as [number, number],
+    };
+    const rejected = {
+      sw: [5, 49] as [number, number],
+      ne: [5.5, 49 + 201 / 111] as [number, number],
+    };
+
+    assert.ok(Math.abs(getMapBoundsDiameterKm(accepted) - 200) < 0.01);
+    assert.equal(isMapBoundsTooLarge(accepted), false);
+    assert.equal(isMapBoundsTooLarge(rejected), true);
+  });
+
+  it('ignores camera-settle noise but detects a real searched-area move', () => {
+    const committed = {
+      sw: [5.9, 49.1] as [number, number],
+      ne: [6.2, 49.4] as [number, number],
+    };
+    assert.equal(
+      haveMapBoundsMeaningfullyChanged(committed, {
+        sw: [5.90001, 49.10001],
+        ne: [6.20001, 49.40001],
+      }),
+      false
+    );
+    assert.equal(
+      haveMapBoundsMeaningfullyChanged(committed, {
+        sw: [6.0, 49.2],
+        ne: [6.3, 49.5],
+      }),
+      true
     );
   });
 });

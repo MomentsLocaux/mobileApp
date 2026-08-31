@@ -5,6 +5,7 @@ import type {
   SearchWhereState,
 } from '@/store/searchStore';
 import type { SortOption, SortOrder } from '@/types/filters';
+import type { DiscoveryStatus } from '@/constants/filters';
 
 const STORAGE_KEY = 'ml.saved_searches.v1';
 const MAX_RECENT = 8;
@@ -22,6 +23,7 @@ export type SavedSearchSnapshot = {
   what: SearchWhatState;
   sortBy?: SortOption;
   sortOrder?: SortOrder;
+  status?: DiscoveryStatus;
 };
 
 export type SavedSearchesState = {
@@ -40,6 +42,7 @@ export function fingerprintSearch(input: {
   what: SearchWhatState;
   sortBy?: SortOption;
   sortOrder?: SortOrder;
+  status?: DiscoveryStatus;
 }): string {
   return JSON.stringify({
     label: input.where.location?.label || null,
@@ -57,6 +60,7 @@ export function fingerprintSearch(input: {
     query: (input.what.query || '').trim().toLowerCase(),
     sortBy: input.sortBy ?? null,
     sortOrder: input.sortOrder ?? null,
+    status: input.status ?? null,
   });
 }
 
@@ -121,6 +125,7 @@ export const SavedSearchesService = {
     what: SearchWhatState;
     sortBy?: SortOption;
     sortOrder?: SortOrder;
+    status?: DiscoveryStatus;
     id?: string;
   }): SavedSearchSnapshot {
     return {
@@ -138,6 +143,7 @@ export const SavedSearchesService = {
       },
       sortBy: input.sortBy,
       sortOrder: input.sortOrder,
+      status: input.status,
     };
   },
 

@@ -8,6 +8,9 @@ import type { FeatureCollection } from 'geojson';
 import type { EventTimeScope } from '@/utils/event-time-scope';
 import {
   buildMapViewportCacheKey,
+  getMapBoundsDiameterKm,
+  isMapBoundsTooLarge,
+  MAX_MAP_BBOX_DIAMETER_KM,
   raceWithViewportTimeout,
 } from '@/utils/map-viewport-fetch-utils';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
@@ -17,6 +20,29 @@ type BboxParams = {
   sw: [number, number];
   limit: number;
 };
+
+export const MAP_BBOX_TOO_LARGE_MESSAGE =
+  'Zone trop large. Rapprochez-vous pour afficher les événements.';
+
+export class MapBoundsTooLargeError extends Error {
+  readonly code = 'MAP_BBOX_TOO_LARGE';
+  readonly diameterKm: number;
+
+  constructor(diameterKm: number) {
+    super(MAP_BBOX_TOO_LARGE_MESSAGE);
+    this.name = 'MapBoundsTooLargeError';
+    this.diameterKm = diameterKm;
+  }
+}
+
+export const isMapBoundsTooLargeError = (error: unknown): error is MapBoundsTooLargeError =>
+  error instanceof MapBoundsTooLargeError ||
+  (error as { code?: string } | null)?.code === 'MAP_BBOX_TOO_LARGE';
+
+function assertViewportBoundsAllowed(bbox: BboxParams): void {
+  if (!isMapBoundsTooLarge(bbox, MAX_MAP_BBOX_DIAMETER_KM)) return;
+  throw new MapBoundsTooLargeError(getMapBoundsDiameterKm(bbox));
+}
 
 export type MapViewportPayload = {
   events: EventWithCreator[];
@@ -69,6 +95,7 @@ export async function listMapViewportForMap(
   timeScope: EventTimeScope,
   options?: { mergeUpcomingForDatePreset?: boolean }
 ): Promise<MapViewportPayload> {
+  assertViewportBoundsAllowed(bbox);
   if (!USE_MAP_VIEWPORT_RPC) {
     return listMapViewportLegacyFallback(bbox, timeScope, options);
   }
@@ -119,6 +146,7 @@ export async function listEventsByBBoxForMap(
   timeScope: EventTimeScope,
   options?: { mergeUpcomingForDatePreset?: boolean }
 ): Promise<EventMapFeatureCollection | null> {
+  assertViewportBoundsAllowed(bbox);
   let collection = (await EventsService.listEventsByBBox({
     ...bbox,
     timeScope,

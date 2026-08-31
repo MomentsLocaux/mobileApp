@@ -16,10 +16,12 @@ interface MapResultsUIState {
   activeEventId?: string;
   frozenViewport: FrozenViewportSnapshot | null;
   viewportFetchError: string | null;
+  viewportAreaWarning: string | null;
 
   setBottomSheetIndex: (index: number) => void;
   setStatus: (status: SheetStatus) => void;
   setViewportFetchError: (message: string | null) => void;
+  setViewportAreaWarning: (message: string | null) => void;
   displayViewportResults: (events: EventWithCreator[], options?: { totalCount?: number }) => void;
   highlightViewportEvent: (event: EventWithCreator) => void;
   selectSingleEvent: (event: EventWithCreator, snapIndex?: number) => void;
@@ -38,10 +40,12 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
   activeEventId: undefined,
   frozenViewport: null,
   viewportFetchError: null,
+  viewportAreaWarning: null,
 
   setBottomSheetIndex: (index) => set({ bottomSheetIndex: index }),
   setStatus: (status) => set({ sheetStatus: status }),
   setViewportFetchError: (message) => set({ viewportFetchError: message }),
+  setViewportAreaWarning: (message) => set({ viewportAreaWarning: message }),
   displayViewportResults: (events, options) => {
     const { activeEventId } = get();
     const keepHighlight =

@@ -21,6 +21,7 @@ describe('map results UI store transitions', () => {
       activeEventId: undefined,
       frozenViewport: null,
       viewportFetchError: null,
+      viewportAreaWarning: null,
     });
   });
 
@@ -77,5 +78,17 @@ describe('map results UI store transitions', () => {
 
     useMapResultsUIStore.getState().setViewportFetchError(null);
     assert.equal(useMapResultsUIStore.getState().viewportFetchError, null);
+  });
+
+  it('stores a wide-area warning without erasing current results', () => {
+    useMapResultsUIStore.getState().displayViewportResults([sampleEvent('a')]);
+    useMapResultsUIStore.getState().setViewportAreaWarning('Zone trop large');
+
+    const state = useMapResultsUIStore.getState();
+    assert.equal(state.viewportAreaWarning, 'Zone trop large');
+    assert.equal(state.sheetEvents.length, 1);
+
+    useMapResultsUIStore.getState().setViewportAreaWarning(null);
+    assert.equal(useMapResultsUIStore.getState().viewportAreaWarning, null);
   });
 });

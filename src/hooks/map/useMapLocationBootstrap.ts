@@ -8,6 +8,7 @@ type Params = {
   recenterToUser: () => void;
   refreshBounds: () => Promise<void>;
   ensureInitialViewportLoad: () => Promise<void>;
+  disabled?: boolean;
 };
 
 /**
@@ -20,6 +21,7 @@ export function useMapLocationBootstrap({
   recenterToUser,
   refreshBounds,
   ensureInitialViewportLoad,
+  disabled = false,
 }: Params) {
   const hasCenteredOnUserRef = useRef(false);
   const recenterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,6 +36,13 @@ export function useMapLocationBootstrap({
   useEffect(() => () => clearRecenterTimer(), [clearRecenterTimer]);
 
   useEffect(() => {
+    if (disabled) {
+      // A transferred/applied search owns the initial camera. Mark the regular
+      // location bootstrap consumed so clearing that search cannot snap back.
+      hasCenteredOnUserRef.current = true;
+      clearRecenterTimer();
+      return;
+    }
     if (userLocation && !hasCenteredOnUserRef.current) {
       hasCenteredOnUserRef.current = true;
       recenterToUser();
@@ -48,6 +57,7 @@ export function useMapLocationBootstrap({
     void ensureInitialViewportLoad();
   }, [
     clearRecenterTimer,
+    disabled,
     ensureInitialViewportLoad,
     locationLoading,
     recenterToUser,
