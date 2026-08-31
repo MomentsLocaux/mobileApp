@@ -39,6 +39,9 @@ yarn-error.*
 !.env.example
 !.env.uat.example
 .env*.local
+MobileApp-transfer/
+mobileApp-transfer/
+mac-transfer/
 
 # supabase cli temp artifacts
 supabase/.temp/
