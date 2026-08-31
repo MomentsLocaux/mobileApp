@@ -7,6 +7,7 @@ import {
   FlatList,
   PanResponder,
   InteractionManager,
+  TouchableOpacity,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -19,7 +20,7 @@ import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
 import { SortControl } from '@/components/filters';
-import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
+import { ALL_SORT_OPTIONS, DEFAULT_DISCOVERY_STATUS, SORT_OPTIONS } from '@/constants/filters';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
 import {
   VIEWPORT_HALF_SNAP_INDEX,
@@ -72,6 +73,8 @@ interface Props {
   onSortChange?: (sortBy: SortOption, sortOrder?: SortOrder) => void;
   onSortOrderChange?: (order: SortOrder) => void;
   hasLocation?: boolean;
+  selectedCategories?: string[];
+  onClearViewportFilters?: () => void;
 }
 
 const SHEET_SURFACE = colors.brand.page;
@@ -109,6 +112,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onSortChange,
       onSortOrderChange,
       hasLocation = false,
+      selectedCategories = [],
+      onClearViewportFilters,
     },
     ref
   ) => {
@@ -145,6 +150,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       mode !== 'single' && hasEvents && !isLoading && (isExpanded || isSheetDragging);
     const showSingleDetail = mode === 'single' && isExpanded && hasEvents && !isLoading;
     const showEmpty = isExpanded && mode !== 'single' && !hasEvents && !isLoading;
+    const hasViewportRefine =
+      selectedCategories.length > 0 || metaFilter !== DEFAULT_DISCOVERY_STATUS;
 
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 
@@ -496,7 +503,21 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
         {showEmpty && (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptySubtitle}>Zoomez ou déplacez la carte</Text>
+            <Text style={styles.emptySubtitle}>
+              {hasViewportRefine
+                ? 'Aucun événement pour ces filtres.'
+                : 'Zoomez ou déplacez la carte'}
+            </Text>
+            {hasViewportRefine && onClearViewportFilters ? (
+              <TouchableOpacity
+                onPress={onClearViewportFilters}
+                accessibilityRole="button"
+                accessibilityLabel="Effacer les filtres"
+                style={styles.emptyAction}
+              >
+                <Text style={styles.emptyActionText}>Effacer les filtres</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
@@ -640,6 +661,18 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+    textAlign: 'center',
+  },
+  emptyAction: {
+    marginTop: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  emptyActionText: {
+    ...typography.body,
+    color: colors.brand.secondary,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });

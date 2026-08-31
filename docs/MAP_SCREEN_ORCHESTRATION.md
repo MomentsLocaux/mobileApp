@@ -16,6 +16,16 @@
 
 En **search**, le pan n’auto-fetche pas. En **browse**, si. Le chip conserve quoi/quand et relâche seulement le verrou géographique.
 
+**Refine viewport (sans lock)** : bouton curseurs à droite de la SearchBar. Il ouvre une sous-section **sous la barre** (statut + catégories). Même contrat : `setStatus` / `setContent` **sans** `searchApplied`. Pins = liste. Refetch bbox seulement si le time scope change. Visible en browse **et** en recherche (affine la liste sans recadrer ni lock). Lieu, dates custom et presets restent dans la modale SearchBar. La bottom sheet ne contient plus que le tri.
+
+Le toggle satellite n’est plus à côté de la recherche : il est groupé avec le recentrage GPS (outils carte).
+
+| Filtre | Browse | Search active |
+|--------|--------|----------------|
+| Catégories / sous-catégories | client, toujours | client, toujours |
+| Statut Tous / En cours / À venir / Passés | meta + refetch si scope RPC change | idem |
+| `when` (preset, range, query) | ignoré | client + lock géographique |
+
 ## États principaux
 
 ### Store `useMapResultsUIStore`
@@ -114,18 +124,24 @@ Le follow caméra (padding bas = hauteur de sheet) ne s’applique qu’entre pe
 ## 6. Home → Map
 
 ```
-Home « Voir sur la map »
+Home SearchBar Apply (et recherches sauvegardées)
   → setHomeTransfer()  // ping recadrage ; filtres déjà dans discoveryFiltersStore
+
+Home « Voir sur la map »
+  → setHomeTransfer()
   → router.push map
 
-enterFocusedMap
-  → resolveHomeMapRadiusTarget (cercle Home : GPS 20 km ou lieu cherché)
-  → fitToRadius(..., { refreshAfter: true })
+Onglet Map / enterFocusedMap
+  → si ping nouveau OU searchRevision nouveau
+  → dégel sheet + resolveHomeMapRadiusTarget (cercle Home)
+  → fitToRadius après InteractionManager (Mapbox visible)
   → clearHomeTransfer()
   → browse si pas de recherche Home, sinon search (chip)
 ```
 
-Le CTA empty Home « Rechercher un lieu » (`openSearch`) **vide** le transfer avant navigation.
+Le CTA empty Home « Lancer une recherche » / « Rechercher un lieu » ouvre la SearchBar **Home**, pas l’onglet Map.
+
+Un Apply Home suivant remplace le ping : la Map n’est plus collée à la première recherche.
 
 ---
 

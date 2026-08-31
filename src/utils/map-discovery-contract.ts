@@ -4,6 +4,7 @@
  */
 
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '../constants/filters';
+import type { EventFilters } from '../types/filters';
 import type { DiscoveryPlaceFilter } from './discovery-filters';
 
 export function isDiscoverySearchActive(
@@ -87,6 +88,23 @@ export function shouldRefetchViewportOnTabFocus(options: {
   return !options.bootstrapped;
 }
 
+/** Recadrage when Home published a new ping or a new applied search while Map was away. */
+export function shouldApplyPendingHomeRecadrage(options: {
+  mapReady: boolean;
+  transferId: string | null | undefined;
+  appliedTransferId: string | null;
+  searchActive: boolean;
+  searchRevision: number;
+  focusedSearchRevision: number | null;
+}): boolean {
+  if (!options.mapReady) return false;
+  if (options.transferId && options.transferId !== options.appliedTransferId) return true;
+  if (options.searchActive && options.focusedSearchRevision !== options.searchRevision) {
+    return true;
+  }
+  return false;
+}
+
 export function shouldPublishViewportToMap(options: {
   frozen: boolean;
   sheetStatus: string;
@@ -98,8 +116,33 @@ export function shouldPublishViewportToMap(options: {
   return true;
 }
 
-export function shouldApplyBrowseWhatWhenFilters(searchActive: boolean): boolean {
+/** Date presets / ranges / query are search criteria; categories are viewport refine. */
+export function shouldApplyWhenFilters(searchActive: boolean): boolean {
   return searchActive;
+}
+
+export function resolveMapClientFilters(
+  filters: EventFilters,
+  searchActive: boolean
+): EventFilters {
+  const content: EventFilters = {
+    category: filters.category,
+    categories: filters.categories,
+    subcategory: filters.subcategory,
+    subcategories: filters.subcategories,
+    includePast: true,
+  };
+  if (!shouldApplyWhenFilters(searchActive)) {
+    return content;
+  }
+  return {
+    ...content,
+    includePast: filters.includePast,
+    time: filters.time,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    name: filters.name,
+  };
 }
 
 /** Chip "search this area" keeps what/when filters; only the geographic lock is released. */

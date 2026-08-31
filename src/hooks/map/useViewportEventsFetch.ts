@@ -26,7 +26,7 @@ import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit } from '@/utils/search-helpers';
 import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
-import { shouldApplyBrowseWhatWhenFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
+import { resolveMapClientFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
 
 const VIEWPORT_PAYLOAD_CACHE_MAX = 4;
 const VIEWPORT_PAYLOAD_FRESH_MS = 45 * 1000;
@@ -190,12 +190,11 @@ export function useViewportEventsFetch({
       const currentSortCenter = sortCenterRef.current;
 
       const effectiveSearchActive = currentSearchApplied && currentHasSearchCriteria;
-      const effectiveFilters = effectiveSearchActive ? currentSearchFilters : {};
-
-      let filteredEvents = events;
-      if (shouldApplyBrowseWhatWhenFilters(effectiveSearchActive)) {
-        filteredEvents = filterEvents(events, effectiveFilters, null);
-      }
+      const effectiveFilters = resolveMapClientFilters(
+        currentSearchFilters,
+        effectiveSearchActive
+      );
+      const filteredEvents = filterEvents(events, effectiveFilters, null);
 
       const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, currentMetaFilter);
       const sortedEvents =

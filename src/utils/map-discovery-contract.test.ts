@@ -9,7 +9,9 @@ import {
   shouldPublishViewportToMap,
   shouldRefetchViewportOnTabFocus,
   shouldResetCriteriaOnAreaSearch,
-  shouldApplyBrowseWhatWhenFilters,
+  shouldApplyWhenFilters,
+  shouldApplyPendingHomeRecadrage,
+  resolveMapClientFilters,
   resolvePendingProgrammaticRefresh,
 } from './map-discovery-contract';
 
@@ -29,6 +31,53 @@ describe('map discovery contract', () => {
     assert.equal(
       resolveMapHandoffMode({ searchApplied: true, hasSearchCriteria: true }),
       'search'
+    );
+  });
+
+  it('recadres Map when Home publishes a new ping or a new search revision', () => {
+    assert.equal(
+      shouldApplyPendingHomeRecadrage({
+        mapReady: false,
+        transferId: 't1',
+        appliedTransferId: null,
+        searchActive: true,
+        searchRevision: 1,
+        focusedSearchRevision: null,
+      }),
+      false
+    );
+    assert.equal(
+      shouldApplyPendingHomeRecadrage({
+        mapReady: true,
+        transferId: 't2',
+        appliedTransferId: 't1',
+        searchActive: true,
+        searchRevision: 1,
+        focusedSearchRevision: 1,
+      }),
+      true
+    );
+    assert.equal(
+      shouldApplyPendingHomeRecadrage({
+        mapReady: true,
+        transferId: null,
+        appliedTransferId: 't1',
+        searchActive: true,
+        searchRevision: 2,
+        focusedSearchRevision: 1,
+      }),
+      true
+    );
+    assert.equal(
+      shouldApplyPendingHomeRecadrage({
+        mapReady: true,
+        transferId: null,
+        appliedTransferId: 't1',
+        searchActive: true,
+        searchRevision: 2,
+        focusedSearchRevision: 2,
+      }),
+      false
     );
   });
 
@@ -92,9 +141,31 @@ describe('map discovery contract', () => {
     assert.equal(resolvePendingProgrammaticRefresh(true), true);
   });
 
-  it('applies what/when client filters only while a search is active', () => {
-    assert.equal(shouldApplyBrowseWhatWhenFilters(false), false);
-    assert.equal(shouldApplyBrowseWhatWhenFilters(true), true);
+  it('applies date/query client filters only while a search is active', () => {
+    assert.equal(shouldApplyWhenFilters(false), false);
+    assert.equal(shouldApplyWhenFilters(true), true);
+  });
+
+  it('always keeps category filters and drops when-filters while browsing', () => {
+    const filters = {
+      categories: ['arts-culture'],
+      subcategories: ['concert'],
+      time: 'today' as const,
+      name: 'jazz',
+      includePast: false,
+    };
+    assert.deepEqual(resolveMapClientFilters(filters, false), {
+      category: undefined,
+      categories: ['arts-culture'],
+      subcategory: undefined,
+      subcategories: ['concert'],
+      includePast: true,
+    });
+    assert.equal(resolveMapClientFilters(filters, true).time, 'today');
+    assert.equal(resolveMapClientFilters(filters, true).name, 'jazz');
+    assert.equal(resolveMapClientFilters(filters, true).includePast, false);
+    assert.equal(resolveMapClientFilters({ ...filters, radiusKm: 20, centerLat: 48.8 }, false).radiusKm, undefined);
+    assert.equal(resolveMapClientFilters({ ...filters, radiusKm: 20, centerLat: 48.8 }, false).centerLat, undefined);
   });
 
   it('uses the same default radius as Home for map recenter', () => {

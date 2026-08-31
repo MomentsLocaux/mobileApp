@@ -35,7 +35,7 @@ import {
 } from '@/constants/filters';
 import { EventResultCard } from '@/components/search/EventResultCard';
 import type { EventWithCreator } from '@/types/database';
-import { SearchBar } from '@/components/search/SearchBar';
+import { SearchBar, type SearchBarHandle } from '@/components/search/SearchBar';
 import { NotificationsService } from '@/services/notifications.service';
 import {
   ActiveFiltersBar,
@@ -155,6 +155,7 @@ export default function HomeScreen() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showViewOnMap, setShowViewOnMap] = useState(false);
   const metaFeedRequestId = useRef(0);
+  const searchBarRef = useRef<SearchBarHandle>(null);
   const insets = useSafeAreaInsets();
 
   const firstName = profile?.display_name?.trim().split(/\s+/)[0];
@@ -555,9 +556,8 @@ export default function HomeScreen() {
   );
   const canExpandRadius = browseRadiusKm < DISCOVERY_MAX_RADIUS_KM;
   const openSearch = useCallback(() => {
-    clearHomeMapTransfer();
-    router.push('/(tabs)/map' as any);
-  }, [clearHomeMapTransfer, router]);
+    searchBarRef.current?.open();
+  }, []);
 
   const handleViewOnMap = useCallback(() => {
     setHomeMapTransfer();
@@ -735,7 +735,8 @@ export default function HomeScreen() {
 
         <View style={styles.searchContainer}>
           <SearchBar
-            onApply={() => clearHomeMapTransfer()}
+            ref={searchBarRef}
+            onApply={() => setHomeMapTransfer()}
             hasLocation={!!userLocation}
             applied={searchApplied}
             surface="home"

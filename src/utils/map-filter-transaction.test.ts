@@ -51,4 +51,23 @@ describe('map filter transaction', () => {
       true
     );
   });
+
+  it('refreshes when browse status chips change the RPC time scope', () => {
+    assert.equal(
+      resolveViewportRefreshAfterFilter({
+        reapplied: true,
+        metaFilter: 'upcoming',
+        previousMetaFilter: 'live',
+      }),
+      true
+    );
+    assert.equal(
+      resolveViewportRefreshAfterFilter({
+        reapplied: true,
+        metaFilter: 'all',
+        previousMetaFilter: 'live',
+      }),
+      true
+    );
+  });
 });

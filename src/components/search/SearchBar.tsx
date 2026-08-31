@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -86,15 +86,22 @@ interface Props {
   enableCommunitySearch?: boolean;
 }
 
-export const SearchBar: React.FC<Props> = ({
-  onApply,
-  placeholder = 'Rechercher un événement',
-  hasLocation,
-  applied,
-  surface,
-  onExpandedChange,
-  enableCommunitySearch = false,
-}) => {
+export type SearchBarHandle = {
+  open: () => void;
+};
+
+export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
+  {
+    onApply,
+    placeholder = 'Rechercher un événement',
+    hasLocation,
+    applied,
+    surface,
+    onExpandedChange,
+    enableCommunitySearch = false,
+  },
+  ref
+) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -487,6 +494,12 @@ export const SearchBar: React.FC<Props> = ({
       );
     });
   };
+
+  const openExpandedRef = useRef(openExpanded);
+  openExpandedRef.current = openExpanded;
+  useImperativeHandle(ref, () => ({
+    open: () => openExpandedRef.current(),
+  }));
 
   const closeExpanded = () => {
     progress.value = withTiming(0, createExitTiming(Motion.duration.fast));
@@ -1152,7 +1165,7 @@ export const SearchBar: React.FC<Props> = ({
       />
     </View>
   );
-};
+});
 
 const Chip = ({
   label,

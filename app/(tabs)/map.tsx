@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Linking, InteractionManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -27,9 +27,10 @@ import {
   useMapMarkerPress,
   useMapDeepLinkFocus,
   useMapLocationBootstrap,
+  useMapFilterActions,
 } from '@/hooks/map';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Layers, Navigation } from 'lucide-react-native';
+import { Layers, Navigation, SlidersHorizontal } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ import {
 } from '@/constants/map-screen';
 import { DEFAULT_DISCOVERY_STATUS, DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import { SearchBar } from '../../src/components/search/SearchBar';
+import { MapViewportRefinePanel } from '../../src/components/search/MapViewportRefinePanel';
 import { hasSearchCriteria as checkSearchCriteria } from '../../src/utils/search-helpers';
 import {
   SearchResultsBottomSheet,
@@ -74,6 +76,7 @@ import {
   isDiscoverySearchActive,
   resolveHomeMapRadiusTarget,
   resolveMapHandoffMode,
+  shouldApplyPendingHomeRecadrage,
   shouldRefetchViewportOnTabFocus,
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
@@ -161,6 +164,7 @@ export default function MapScreen() {
   const [zoom, setZoom] = useState(12);
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [refineOpen, setRefineOpen] = useState(false);
   const [pendingSearchAreaBounds, setPendingSearchAreaBounds] = useState<MapBounds | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
@@ -289,7 +293,17 @@ export default function MapScreen() {
     viewportBootstrappedRef,
   } = viewport;
 
-  const { applySearch, resolveSearchTargetBounds, moveMapToSearchBounds } = useMapSearchApply({
+  const { handleCategoriesChange, handleMetaFilterChange, handleClearViewportFilters } =
+    useMapFilterActions({
+    userLocation,
+    discoveryStatus,
+    reapplyClientFilters,
+    cancelViewportFetch,
+    refreshBounds,
+    clearFrozenViewport,
+  });
+
+  const { applySearch } = useMapSearchApply({
     filters: discoveryFilters,
     userLocation,
     syncSearchState: (committedFilters) => {
@@ -626,32 +640,50 @@ export default function MapScreen() {
     if (focus && transferState.homeTransfer) {
       transferState.clearHomeTransfer();
     }
+
+    const latest = useDiscoveryFiltersStore.getState();
+    const latestHasSearchCriteria = checkSearchCriteria({
+      place: latest.place,
+      when: latest.when,
+      content: latest.content,
+    });
+    const searchActiveNow = isDiscoverySearchActive(
+      latest.searchApplied,
+      latestHasSearchCriteria
+    );
     const transfer = focus ? null : transferState.homeTransfer;
-    if (transfer) {
-      if (appliedHomeTransferIdRef.current !== transfer.id) {
+    const shouldRecadrage = shouldApplyPendingHomeRecadrage({
+      mapReady: true,
+      transferId: transfer?.id,
+      appliedTransferId: appliedHomeTransferIdRef.current,
+      searchActive: searchActiveNow,
+      searchRevision: latest.searchRevision,
+      focusedSearchRevision: focusedSearchRevisionRef.current,
+    });
+
+    if (shouldRecadrage) {
+      if (transfer) {
         appliedHomeTransferIdRef.current = transfer.id;
-        cancelAllMapRequests();
-        viewportFrozenRef.current = false;
-        clearFrozenViewport();
-        setPendingSearchAreaBounds(null);
-        setViewportAreaWarning(null);
-        setStatus('loading');
-        viewportBootstrappedRef.current = true;
-        resultsSheetRef.current?.collapseToPeek();
-        const latest = useDiscoveryFiltersStore.getState();
-        const handoffMode = resolveMapHandoffMode({
-          searchApplied: latest.searchApplied,
-          hasSearchCriteria: checkSearchCriteria({
-            place: latest.place,
-            when: latest.when,
-            content: latest.content,
-          }),
-        });
-        const target = resolveHomeMapRadiusTarget({
-          searchActive: handoffMode === 'search',
-          place: latest.place,
-          userLocation,
-        });
+      }
+      focusedSearchRevisionRef.current = latest.searchRevision;
+      cancelAllMapRequests();
+      viewportFrozenRef.current = false;
+      clearFrozenViewport();
+      setPendingSearchAreaBounds(null);
+      setViewportAreaWarning(null);
+      setStatus('loading');
+      viewportBootstrappedRef.current = true;
+      resultsSheetRef.current?.collapseToPeek();
+      const handoffMode = resolveMapHandoffMode({
+        searchApplied: latest.searchApplied,
+        hasSearchCriteria: latestHasSearchCriteria,
+      });
+      const target = resolveHomeMapRadiusTarget({
+        searchActive: handoffMode === 'search',
+        place: latest.place,
+        userLocation,
+      });
+      InteractionManager.runAfterInteractions(() => {
         if (target) {
           frozenViewportBoundsRef.current = fitToRadius(
             target.latitude,
@@ -662,31 +694,12 @@ export default function MapScreen() {
         } else {
           void refreshBoundsRef.current();
         }
-        if (handoffMode === 'search') {
-          focusedSearchRevisionRef.current = latest.searchRevision;
-        }
-        transferState.clearHomeTransfer();
-      }
+      });
+      transferState.clearHomeTransfer();
       return;
     }
 
-    const latest = useDiscoveryFiltersStore.getState();
-    const latestHasSearchCriteria = checkSearchCriteria({
-      place: latest.place,
-      when: latest.when,
-      content: latest.content,
-    });
-    if (isDiscoverySearchActive(latest.searchApplied, latestHasSearchCriteria)) {
-      if (focusedSearchRevisionRef.current !== latest.searchRevision) {
-        focusedSearchRevisionRef.current = latest.searchRevision;
-        setPendingSearchAreaBounds(null);
-        const target = resolveSearchTargetBounds(latest, userLocation);
-        if (target) {
-          moveMapToSearchBounds(target);
-        } else {
-          void refreshBoundsRef.current();
-        }
-      }
+    if (searchActiveNow) {
       return;
     }
 
@@ -827,6 +840,18 @@ export default function MapScreen() {
     setMapMode(mapMode === 'standard' ? 'satellite' : 'standard');
   }, [mapMode, setMapMode]);
 
+  const hasViewportRefine =
+    content.categories.length > 0 || metaFilter !== DEFAULT_DISCOVERY_STATUS;
+
+  const handleSearchExpandedChange = useCallback((expanded: boolean) => {
+    setSearchExpanded(expanded);
+    if (expanded) setRefineOpen(false);
+  }, []);
+
+  const toggleRefine = useCallback(() => {
+    setRefineOpen((open) => !open);
+  }, []);
+
   const mapStyle = useMemo(() => {
     return mapMode === 'satellite' ? Mapbox.StyleURL.SatelliteStreet : Mapbox.StyleURL.Street;
   }, [mapMode]);
@@ -857,24 +882,36 @@ export default function MapScreen() {
                 hasLocation={!!userLocation}
                 applied={searchApplied}
                 surface="map"
-                onExpandedChange={setSearchExpanded}
+                onExpandedChange={handleSearchExpandedChange}
               />
             </View>
             <FloatingPressable
-              style={styles.filterButton}
-              onPress={toggleMapMode}
+              style={[styles.filterButton, refineOpen && styles.filterButtonOpen]}
+              onPress={toggleRefine}
               accessibilityRole="button"
+              accessibilityState={{ expanded: refineOpen }}
               accessibilityLabel={
-                mapMode === 'standard'
-                  ? 'Afficher la carte satellite'
-                  : 'Afficher la carte standard'
+                hasViewportRefine
+                  ? 'Filtrer les événements, filtres actifs'
+                  : 'Filtrer les événements de la carte'
               }
+              accessibilityHint="Ouvre le statut et les catégories sans lancer une recherche."
               animateEntrance={false}
             >
-              <Layers size={20} color={colors.brand.text} />
-              {mapMode === 'satellite' ? <View style={styles.mapModeActiveDot} /> : null}
+              <SlidersHorizontal size={20} color={colors.brand.text} />
+              {hasViewportRefine ? <View style={styles.filterActiveDot} /> : null}
             </FloatingPressable>
           </View>
+          <MapViewportRefinePanel
+            visible={refineOpen}
+            searchActive={searchActive}
+            metaFilter={metaFilter}
+            selectedCategories={content.categories}
+            selectedSubcategories={content.subcategories}
+            onMetaFilterChange={handleMetaFilterChange}
+            onCategoriesChange={handleCategoriesChange}
+            onClear={handleClearViewportFilters}
+          />
         </View>
 
         <View
@@ -1001,12 +1038,37 @@ export default function MapScreen() {
 
             {userLocation && !searchExpanded ? (
               <FloatingPressable
-                style={[styles.recenterTopButton, { bottom: spacing.md }]}
+                style={[styles.recenterTopButton, { bottom: VIEWPORT_PEEK_HEIGHT + spacing.sm }]}
                 onPress={recenterToUser}
                 accessibilityRole="button"
                 accessibilityLabel="Recentrer sur ma position"
               >
                 <Navigation size={18} color={colors.neutral[0]} />
+              </FloatingPressable>
+            ) : null}
+
+            {!searchExpanded ? (
+              <FloatingPressable
+                style={[
+                  styles.mapStyleButton,
+                  {
+                    bottom:
+                      VIEWPORT_PEEK_HEIGHT +
+                      spacing.sm +
+                      (userLocation ? 52 : 0),
+                  },
+                ]}
+                onPress={toggleMapMode}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  mapMode === 'standard'
+                    ? 'Afficher la carte satellite'
+                    : 'Afficher la carte standard'
+                }
+                animateEntrance={false}
+              >
+                <Layers size={20} color={colors.brand.text} />
+                {mapMode === 'satellite' ? <View style={styles.mapModeActiveDot} /> : null}
               </FloatingPressable>
             ) : null}
           </Animated.View>
@@ -1065,6 +1127,8 @@ export default function MapScreen() {
               onSortChange={(value, order) => setSort('map', value, order)}
               onSortOrderChange={(value) => setSort('map', sortBy, value)}
               hasLocation={!!userLocation}
+              selectedCategories={content.categories}
+              onClearViewportFilters={handleClearViewportFilters}
             />
           </Animated.View>
         </View>
@@ -1114,6 +1178,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.primary[200],
+  },
+  filterButtonOpen: {
+    borderColor: colors.brand.secondary,
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.brand.secondary,
+    borderWidth: 1.5,
+    borderColor: colors.brand.surface,
+  },
+  mapStyleButton: {
+    position: 'absolute',
+    right: spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    zIndex: 21,
   },
   mapModeActiveDot: {
     position: 'absolute',
