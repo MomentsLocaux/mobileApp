@@ -53,6 +53,7 @@ import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
+import { EventsService } from '@/services/events.service';
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import {
@@ -142,8 +143,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>([]);
   const [metaFeedLoading, setMetaFeedLoading] = useState(true);
+  const [metaFeedError, setMetaFeedError] = useState<string | null>(null);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -224,10 +227,12 @@ export default function HomeScreen() {
     const requestId = ++metaFeedRequestId.current;
     if (!browseCenter) {
       setMetaFeedEvents([]);
+      setMetaFeedError(null);
       setMetaFeedLoading(false);
       return;
     }
 
+    setMetaFeedError(null);
     setMetaFeedLoading(true);
     try {
       const timeScope = resolveEventTimeScope({
@@ -270,11 +275,13 @@ export default function HomeScreen() {
       homeFeedCache = { key: cacheKey, events, storedAt: Date.now() };
       if (requestId === metaFeedRequestId.current) {
         setMetaFeedEvents(events);
+        setMetaFeedError(null);
       }
     } catch (error) {
       console.warn('[Home] loadMetaFeed failed', error);
       if (requestId === metaFeedRequestId.current) {
         setMetaFeedEvents([]);
+        setMetaFeedError('Impossible de charger les événements à proximité.');
       }
     } finally {
       if (requestId === metaFeedRequestId.current) {
@@ -323,15 +330,18 @@ export default function HomeScreen() {
     let cancelled = false;
     if (!showSearchResults) {
       setSearchResults([]);
+      setSearchError(null);
       setSearchLoading(false);
       return;
     }
     if (!hasSearchCriteria) {
       setSearchResults([]);
+      setSearchError(null);
       setSearchLoading(false);
       return;
     }
 
+    setSearchError(null);
     setSearchLoading(true);
     const searchTimeScope = resolveEventTimeScope({
       metaFilter: status,
@@ -356,6 +366,11 @@ export default function HomeScreen() {
             }
           );
           baseEvents = viewport.events || [];
+        } else {
+          baseEvents = await EventsService.listEvents({
+            limit: SEARCH_FETCH_LIMIT,
+            timeScope: searchTimeScope,
+          });
         }
 
         const filtered = filterEvents(
@@ -372,10 +387,13 @@ export default function HomeScreen() {
         );
         if (!cancelled) {
           setSearchResults(filtered);
+          setSearchError(null);
         }
-      } catch {
+      } catch (error) {
+        console.warn('[Home] search failed', error);
         if (!cancelled) {
           setSearchResults([]);
+          setSearchError('Impossible de charger les résultats de recherche.');
         }
       } finally {
         if (!cancelled) {
@@ -749,6 +767,42 @@ export default function HomeScreen() {
                   : `Événements en cours dans un rayon de ${browseRadiusKm} km.`
               }
             />
+          ) : (showSearchResults ? searchError : metaFeedError) ? (
+            <EmptyState
+              icon={Search}
+              title="Chargement impossible"
+              subtitle={(showSearchResults ? searchError : metaFeedError) || 'Réessayez dans un instant.'}
+              ctaLabel="Réessayer"
+              onCtaPress={() => {
+                if (showSearchResults) {
+                  useDiscoveryFiltersStore.getState().commitSearch();
+                } else {
+                  void loadMetaFeed(true);
+                }
+              }}
+            />
+          ) : showSearchResults ? (
+            <EmptyState
+              icon={Search}
+              title="Aucun événement pour ces critères"
+              subtitle={
+                searchCenter
+                  ? `Aucun résultat dans un rayon de ${effectiveRadiusKm ?? browseRadiusKm} km.`
+                  : 'Aucun résultat ne correspond aux critères sélectionnés.'
+              }
+              ctaLabel={
+                searchCenter && canExpandRadius
+                  ? `Élargir à ${expandedRadiusKm} km`
+                  : 'Effacer la recherche'
+              }
+              onCtaPress={
+                searchCenter && canExpandRadius
+                  ? () => setRadiusKm(expandedRadiusKm)
+                  : clearSearchCriteria
+              }
+              secondaryCtaLabel="Modifier la recherche"
+              onSecondaryCtaPress={openSearch}
+            />
           ) : !browseCenter ? (
             <EmptyState
               icon={Search}
@@ -757,20 +811,6 @@ export default function HomeScreen() {
               ctaLabel="Activer la localisation"
               onCtaPress={requestLocationPermission}
               secondaryCtaLabel="Rechercher un lieu"
-              onSecondaryCtaPress={openSearch}
-            />
-          ) : showSearchResults ? (
-            <EmptyState
-              icon={Search}
-              title="Aucun événement pour ces critères"
-              subtitle={`Aucun résultat dans un rayon de ${browseRadiusKm} km.`}
-              ctaLabel={canExpandRadius ? `Élargir à ${expandedRadiusKm} km` : 'Effacer la recherche'}
-              onCtaPress={
-                canExpandRadius
-                  ? () => setRadiusKm(expandedRadiusKm)
-                  : clearSearchCriteria
-              }
-              secondaryCtaLabel="Modifier la recherche"
               onSecondaryCtaPress={openSearch}
             />
           ) : (

@@ -82,4 +82,45 @@ describe('discovery filter store', () => {
 
     assert.deepEqual(useDiscoveryFiltersStore.getState().placeHistory, ['Metz']);
   });
+
+  it('publishes search criteria and presentation in one atomic update', () => {
+    const beforeRevision = useDiscoveryFiltersStore.getState().searchRevision;
+    let updates = 0;
+    const unsubscribe = useDiscoveryFiltersStore.subscribe(() => {
+      updates += 1;
+    });
+
+    const committed = useDiscoveryFiltersStore.getState().applySearchCriteria(
+      {
+        when: { preset: 'tomorrow' },
+        place: {
+          center: { latitude: 49.61, longitude: 6.13 },
+          label: 'Luxembourg',
+          radiusKm: 20,
+        },
+        content: {
+          categories: ['music'],
+          subcategories: ['concert'],
+          tags: ['legacy-hidden-filter'],
+          query: 'jazz',
+        },
+      },
+      {
+        status: 'all',
+        surface: 'map',
+        sort: { sortBy: 'date', sortOrder: 'asc' },
+        applied: true,
+      }
+    );
+    unsubscribe();
+
+    const current = useDiscoveryFiltersStore.getState();
+    assert.equal(updates, 1);
+    assert.equal(current.searchRevision, beforeRevision + 1);
+    assert.equal(current.searchApplied, true);
+    assert.equal(current.status, 'all');
+    assert.deepEqual(current.content.tags, []);
+    assert.deepEqual(current.sort.map, { sortBy: 'date', sortOrder: 'asc' });
+    assert.deepEqual(committed.content, current.content);
+  });
 });

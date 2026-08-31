@@ -18,6 +18,7 @@ type Params = {
   focusOnEvent: (event: EventWithCreator, options?: { bumpZoom?: boolean }) => void;
   setUnitCardEvent: (event: EventWithCreator | null) => void;
   collapseSheetToPeek?: () => void;
+  onMarkerLoadError?: (message: string) => void;
 };
 
 export function useMapMarkerPress({
@@ -33,6 +34,7 @@ export function useMapMarkerPress({
   focusOnEvent,
   setUnitCardEvent,
   collapseSheetToPeek,
+  onMarkerLoadError,
 }: Params) {
   const eventCacheRef = useRef<Map<string, EventWithCreator>>(new Map());
 
@@ -68,6 +70,7 @@ export function useMapMarkerPress({
       } catch (error) {
         if (!isMarkerRequestCurrent(requestId)) return;
         console.warn('getEventById error', error);
+        onMarkerLoadError?.('Impossible d\'afficher cet événement. Réessayez.');
       }
     },
     [
@@ -80,6 +83,7 @@ export function useMapMarkerPress({
       mapRef,
       nextMarkerRequestId,
       collapseSheetToPeek,
+      onMarkerLoadError,
       setUnitCardEvent,
       sheetEvents,
       viewportFrozenRef,

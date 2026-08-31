@@ -1,6 +1,6 @@
 import type { EventWithCreator } from '../types/database';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../types/filters';
-import { isEventLive, isEventPast, isEventUpcoming } from './event-status';
+import { getEffectiveEventEnd, isEventLive, isEventPast, isEventUpcoming } from './event-status';
 import { eventMatchesDatePreset } from './event-date-windows';
 
 const POPULARITY_THRESHOLDS = {
@@ -103,10 +103,12 @@ export function filterEvents(
       if (filters.startDate || filters.endDate) {
         const eventStart = new Date(event.starts_at);
         if (isNaN(eventStart.getTime())) return false;
+        const eventEnd = getEffectiveEventEnd(event, now);
+        if (!eventEnd || isNaN(eventEnd.getTime())) return false;
         if (filters.startDate) {
           const start = new Date(filters.startDate);
           start.setHours(0, 0, 0, 0);
-          if (eventStart < start) return false;
+          if (eventEnd < start) return false;
         }
         if (filters.endDate) {
           const end = new Date(filters.endDate);
@@ -193,7 +195,6 @@ export function filterEventsByMetaStatus(
   const now = new Date();
   return events.filter((event) => {
     const startsAt = new Date(event.starts_at);
-    const endsAt = new Date(event.ends_at);
     if (Number.isNaN(startsAt.getTime())) return false;
     if (metaFilter === 'live') {
       return isEventLive(event, now);

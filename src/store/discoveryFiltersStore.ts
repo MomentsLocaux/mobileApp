@@ -5,9 +5,11 @@ import {
   createDefaultDiscoveryCriteria,
   createDefaultDiscoveryFilters,
   resetDiscoveryCriteria,
+  type DiscoveryCriteria,
   type DiscoveryContentFilter,
   type DiscoveryFilters,
   type DiscoveryPlaceFilter,
+  type DiscoverySortState,
   type DiscoverySurface,
   type DiscoveryWhenFilter,
 } from '../utils/discovery-filters';
@@ -32,6 +34,15 @@ export interface DiscoveryFiltersState extends DiscoveryFilters {
   setMapMode: (mapMode: MapMode) => void;
   setSearchApplied: (applied: boolean) => void;
   commitSearch: () => void;
+  applySearchCriteria: (
+    criteria: Pick<DiscoveryCriteria, 'when' | 'place' | 'content'>,
+    options?: {
+      status?: DiscoveryStatus;
+      surface?: DiscoverySurface;
+      sort?: DiscoverySortState;
+      applied?: boolean;
+    }
+  ) => DiscoveryFilters;
   addPlaceHistory: (label: string) => void;
   removePlaceHistory: (label: string) => void;
   clearSearchCriteria: () => void;
@@ -39,7 +50,7 @@ export interface DiscoveryFiltersState extends DiscoveryFilters {
   reset: () => void;
 }
 
-export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set) => ({
+export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set, get) => ({
   ...createDefaultDiscoveryFilters(),
   searchApplied: false,
   searchRevision: 0,
@@ -113,6 +124,36 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set) => (
       searchApplied: true,
       searchRevision: state.searchRevision + 1,
     })),
+
+  applySearchCriteria: (criteria, options) => {
+    let committed: DiscoveryFilters | null = null;
+    set((state) => {
+      const sort =
+        options?.surface && options.sort
+          ? { ...state.sort, [options.surface]: { ...options.sort } }
+          : state.sort;
+      committed = {
+        status: options?.status ?? state.status,
+        when: { ...criteria.when },
+        place: { ...criteria.place },
+        content: {
+          ...criteria.content,
+          categories: [...criteria.content.categories],
+          subcategories: [...criteria.content.subcategories],
+          // Legacy tags are intentionally excluded from mobile discovery.
+          tags: [],
+        },
+        sort,
+        mapMode: state.mapMode,
+      };
+      return {
+        ...committed,
+        searchApplied: options?.applied ?? true,
+        searchRevision: state.searchRevision + 1,
+      };
+    });
+    return committed ?? selectDiscoveryFilters(get());
+  },
 
   addPlaceHistory: (label) =>
     set((state) => {

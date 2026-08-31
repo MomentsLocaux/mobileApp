@@ -7,11 +7,24 @@ import type { EventWithCreator } from '@/types/database';
 import type { EventFilters, SortOption, SortOrder } from '@/types/filters';
 import { type EventMapFeatureCollection, type MapBounds, filterFeatureCollectionByEventIds } from '@/types/map-events';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import {
+  buildMapViewportCacheKey,
+  getViewportCacheDisposition,
+} from '@/utils/map-viewport-fetch-utils';
+import {
+  buildViewportBoundsKey,
+  shouldSkipDuplicateViewportFetch,
+} from '@/utils/map-viewport-request';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit } from '@/utils/search-helpers';
 import { sortEvents } from '@/utils/sort-events';
+import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
+
+const VIEWPORT_PAYLOAD_CACHE_MAX = 4;
+const VIEWPORT_PAYLOAD_FRESH_MS = 45 * 1000;
+const VIEWPORT_PAYLOAD_MAX_STALE_MS = 5 * 60 * 1000;
 
 const hasWhenFilters = (filters: EventFilters) =>
   !!(filters.time || filters.startDate || filters.endDate);
@@ -46,6 +59,8 @@ export type ViewportFetchOptions = {
   metaFilter?: EventMetaFilter;
   /** Internal: one silent retry after cold-start / transient failure. */
   retried?: boolean;
+  /** Background revalidate — do not flash loading UI when stale cache was shown. */
+  silent?: boolean;
 };
 
 type ClientFilterOverrides = {
@@ -60,6 +75,7 @@ type RawViewportCache = {
   events: EventWithCreator[];
   featureCollection: EventMapFeatureCollection;
   timeScope: ReturnType<typeof resolveEventTimeScope>;
+  storedAt: number;
 };
 
 type Params = {
@@ -95,6 +111,7 @@ export function useViewportEventsFetch({
 }: Params) {
   const bboxTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportRequestIdRef = useRef(0);
+  const inFlightRequestKeyRef = useRef<string | null>(null);
   const markerRequestIdRef = useRef(0);
   const metaFilterRef = useRef(metaFilter);
   const searchAppliedRef = useRef(searchApplied);
@@ -105,6 +122,7 @@ export function useViewportEventsFetch({
   const sortOrderRef = useRef(sortOrder);
   const sortCenterRef = useRef(sortCenter);
   const lastViewportRawRef = useRef<RawViewportCache | null>(null);
+  const viewportPayloadCacheRef = useRef<Map<string, RawViewportCache>>(new Map());
   const { setStatus, setViewportFetchError, displayViewportResults } = useMapResultsUIStore();
 
   metaFilterRef.current = metaFilter;
@@ -125,6 +143,7 @@ export function useViewportEventsFetch({
 
   const cancelViewportFetch = useCallback(() => {
     viewportRequestIdRef.current += 1;
+    inFlightRequestKeyRef.current = null;
     clearDebouncedViewportFetch();
   }, [clearDebouncedViewportFetch]);
 
@@ -165,6 +184,7 @@ export function useViewportEventsFetch({
       featureCollection: EventMapFeatureCollection | FeatureCollection | null,
       options?: ClientFilterOverrides
     ) => {
+      // Sheet list order is owned here — map.tsx must not re-sort displaySheetEvents.
       const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
       const currentSearchApplied = searchAppliedRef.current;
       const currentHasSearchCriteria = hasSearchCriteriaRef.current;
@@ -242,39 +262,72 @@ export function useViewportEventsFetch({
     [publishFilteredViewport]
   );
 
+  const rememberViewportPayload = useCallback((cacheKey: string, payload: RawViewportCache) => {
+    const cache = viewportPayloadCacheRef.current;
+    if (cache.has(cacheKey)) {
+      cache.delete(cacheKey);
+    }
+    cache.set(cacheKey, payload);
+    while (cache.size > VIEWPORT_PAYLOAD_CACHE_MAX) {
+      const oldestKey = cache.keys().next().value;
+      if (!oldestKey) break;
+      cache.delete(oldestKey);
+    }
+  }, []);
+
+  const resolveServerRequest = useCallback(
+    (bounds: MapBounds, metaFilterValue: EventMetaFilter) => {
+      const effectiveSearchActive =
+        searchAppliedRef.current && hasSearchCriteriaRef.current;
+      const timeScope = resolveEventTimeScope({
+        metaFilter: metaFilterValue,
+        searchActive: effectiveSearchActive,
+        includePast: includePastRef.current,
+      });
+      const mergeUpcomingForDatePreset =
+        metaFilterValue === 'all' &&
+        hasWhenFilters(pickWhenFilters(searchFiltersRef.current)) &&
+        timeScope === 'current';
+      const bbox = {
+        ne: bounds.ne,
+        sw: bounds.sw,
+        limit: resolveMapViewportLimit(zoomRef.current),
+      };
+
+      return {
+        bbox,
+        timeScope,
+        mergeUpcomingForDatePreset,
+        requestKey: buildMapViewportCacheKey(bbox, timeScope, {
+          mergeUpcomingForDatePreset,
+        }),
+      };
+    },
+    [zoomRef]
+  );
+
   const runViewportFetch = useCallback(
     async (bounds: MapBounds, requestId: number, options?: ViewportFetchOptions) => {
       if (!isViewportRequestCurrent(requestId)) return;
+      const boundsKey = buildViewportBoundsKey(bounds, resolveMapViewportLimit(zoomRef.current));
+      const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
+      const serverRequest = resolveServerRequest(bounds, currentMetaFilter);
+      inFlightRequestKeyRef.current = serverRequest.requestKey;
       const uiState = useMapResultsUIStore.getState();
-      if (uiState.bottomSheetIndex === 0 && uiState.sheetStatus !== 'singleEvent') {
+      if (
+        !options?.silent &&
+        uiState.bottomSheetIndex === 0 &&
+        uiState.sheetStatus !== 'singleEvent'
+      ) {
         setStatus('loading');
       }
       setViewportFetchError(null);
 
+      const startedAt = Date.now();
       try {
-        const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
-        const currentSearchApplied = searchAppliedRef.current;
-        const currentHasSearchCriteria = hasSearchCriteriaRef.current;
-        const currentIncludePast = includePastRef.current;
-        const currentSearchFilters = searchFiltersRef.current;
-
-        const effectiveSearchActive = currentSearchApplied && currentHasSearchCriteria;
-        const bboxTimeScope = resolveEventTimeScope({
-          metaFilter: currentMetaFilter,
-          searchActive: effectiveSearchActive,
-          includePast: currentIncludePast,
-        });
-        const whenOnlyFilters = pickWhenFilters(currentSearchFilters);
-
-        const bboxParams = {
-          ne: bounds.ne,
-          sw: bounds.sw,
-          limit: resolveMapViewportLimit(zoomRef.current),
-        };
-        const mergeUpcomingForDatePreset =
-          currentMetaFilter === 'all' &&
-          hasWhenFilters(whenOnlyFilters) &&
-          bboxTimeScope === 'current';
+        const bboxTimeScope = serverRequest.timeScope;
+        const bboxParams = serverRequest.bbox;
+        const mergeUpcomingForDatePreset = serverRequest.mergeUpcomingForDatePreset;
 
         const fetchViewport = async (timeScope: typeof bboxTimeScope) =>
           listMapViewportForMap(bboxParams, timeScope, {
@@ -307,7 +360,9 @@ export function useViewportEventsFetch({
           events,
           featureCollection: featureCollection as EventMapFeatureCollection,
           timeScope: bboxTimeScope,
+          storedAt: Date.now(),
         };
+        rememberViewportPayload(serverRequest.requestKey, lastViewportRawRef.current);
 
         if (!viewportFrozenRef.current) {
           frozenViewportBoundsRef.current = bounds;
@@ -316,6 +371,12 @@ export function useViewportEventsFetch({
         if (!isViewportRequestCurrent(requestId)) return;
 
         publishFilteredViewport(events, featureCollection, { metaFilter: currentMetaFilter });
+        traceMapViewportFetch('fetchComplete', {
+          outcome: 'success',
+          durationMs: Date.now() - startedAt,
+          eventCount: events.length,
+          boundsKey,
+        });
         // If publish early-returned (frozen / singleEvent), never leave the sheet stuck on loading.
         if (
           isViewportRequestCurrent(requestId) &&
@@ -326,6 +387,11 @@ export function useViewportEventsFetch({
       } catch (error) {
         if (!isViewportRequestCurrent(requestId)) return;
         console.warn('bbox fetch error', error);
+        traceMapViewportFetch('fetchComplete', {
+          outcome: options?.retried ? 'error' : 'retry',
+          durationMs: Date.now() - startedAt,
+          boundsKey,
+        });
         // Cold-start / statement timeout: one silent retry before alarming the user.
         if (!options?.retried) {
           await new Promise((resolve) => setTimeout(resolve, 450));
@@ -334,12 +400,21 @@ export function useViewportEventsFetch({
         }
         setViewportFetchError('Impossible de charger les événements. Vérifiez votre connexion.');
         setStatus('browsing');
+      } finally {
+        if (
+          isViewportRequestCurrent(requestId) &&
+          inFlightRequestKeyRef.current === serverRequest.requestKey
+        ) {
+          inFlightRequestKeyRef.current = null;
+        }
       }
     },
     [
       frozenViewportBoundsRef,
       isViewportRequestCurrent,
       publishFilteredViewport,
+      rememberViewportPayload,
+      resolveServerRequest,
       setStatus,
       setViewportFetchError,
       viewportFrozenRef,
@@ -352,6 +427,54 @@ export function useViewportEventsFetch({
       if (viewportFrozenRef.current && !options?.force) return;
       if (isProgrammaticMoveRef.current && !options?.force) return;
 
+      const currentMetaFilter = options?.metaFilter ?? metaFilterRef.current;
+      const serverRequest = resolveServerRequest(bounds, currentMetaFilter);
+      if (
+        shouldSkipDuplicateViewportFetch(
+          inFlightRequestKeyRef.current,
+          serverRequest.requestKey,
+          options
+        )
+      ) {
+        traceMapViewportFetch('queueSkipped', {
+          outcome: 'deduped',
+          requestKey: serverRequest.requestKey,
+        });
+        return;
+      }
+
+      const now = Date.now();
+      let cachedPayload = !options?.force
+        ? viewportPayloadCacheRef.current.get(serverRequest.requestKey)
+        : undefined;
+      const cacheAgeMs = cachedPayload ? now - cachedPayload.storedAt : null;
+      const cacheDisposition = cachedPayload
+        ? getViewportCacheDisposition(
+            cachedPayload.storedAt,
+            now,
+            VIEWPORT_PAYLOAD_FRESH_MS,
+            VIEWPORT_PAYLOAD_MAX_STALE_MS
+          )
+        : null;
+      if (cachedPayload && cacheDisposition === 'expired') {
+        viewportPayloadCacheRef.current.delete(serverRequest.requestKey);
+        cachedPayload = undefined;
+      }
+      if (cachedPayload) {
+        lastViewportRawRef.current = cachedPayload;
+        publishFilteredViewport(cachedPayload.events, cachedPayload.featureCollection, {
+          metaFilter: currentMetaFilter,
+        });
+        traceMapViewportFetch('serveStaleCache', {
+          outcome: 'stale-cache',
+          requestKey: serverRequest.requestKey,
+          cacheAgeMs,
+        });
+        if (cacheDisposition === 'fresh') {
+          return;
+        }
+      }
+
       clearDebouncedViewportFetch();
       const requestId = nextViewportRequestId();
       const uiState = useMapResultsUIStore.getState();
@@ -359,17 +482,21 @@ export function useViewportEventsFetch({
         uiState.bottomSheetIndex === 0 && uiState.sheetStatus !== 'singleEvent';
       // Avoid loading→loading flicker when bootstrap triggers several overlapping fetches.
       if (
+        !cachedPayload &&
         (options?.immediate || options?.force) &&
         shouldShowLoading &&
         uiState.sheetStatus !== 'loading'
       ) {
         setStatus('loading');
-      } else if (!options?.immediate && !options?.force) {
+      } else if (!options?.immediate && !options?.force && !cachedPayload) {
         setStatus('browsing');
       }
 
       const execute = () => {
-        void runViewportFetch(bounds, requestId, options);
+        void runViewportFetch(bounds, requestId, {
+          ...options,
+          silent: Boolean(cachedPayload) && !options?.force,
+        });
       };
 
       if (options?.immediate) {
@@ -383,6 +510,8 @@ export function useViewportEventsFetch({
       clearDebouncedViewportFetch,
       isProgrammaticMoveRef,
       nextViewportRequestId,
+      publishFilteredViewport,
+      resolveServerRequest,
       runViewportFetch,
       setStatus,
       viewportFrozenRef,

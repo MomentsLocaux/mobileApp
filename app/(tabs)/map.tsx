@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -23,6 +23,9 @@ import {
   useMapSearchApply,
   useMapSocialActions,
   useMapMarkerPress,
+  useMapFilterActions,
+  useMapDeepLinkFocus,
+  useMapLocationBootstrap,
 } from '@/hooks/map';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Navigation, SlidersHorizontal } from 'lucide-react-native';
@@ -32,15 +35,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
 import { useAuth, useLocation } from '@/hooks';
 import {
-  selectDiscoveryFilters,
   useDiscoveryFiltersStore,
   useLocationStore,
   useMapResultsUIStore,
 } from '../../src/store';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
-import type { EventMetaFilter } from '../../src/utils/filter-events';
-import { sortEvents } from '../../src/utils/sort-events';
 import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import {
   FONTOY_COORDS,
@@ -59,7 +59,6 @@ import {
 import { MapEventUnitOverlay } from '../../src/components/search/MapEventUnitOverlay';
 import { FloatingPressable } from '../../src/components/ui/FloatingPressable';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
-import type { DatePreset } from '@/constants/filters';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground } from '../../src/components/ui';
 import {
@@ -75,9 +74,12 @@ const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 80;
 export default function MapScreen() {
   const router = useRouter();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
-  useLocation();
+  const { requestPermission: requestLocationPermission } = useLocation();
 
-  const { currentLocation, isLoading: locationLoading } = useLocationStore();
+  const currentLocation = useLocationStore((s) => s.currentLocation);
+  const locationLoading = useLocationStore((s) => s.isLoading);
+  const permissionGranted = useLocationStore((s) => s.permissionGranted);
+  const locationError = useLocationStore((s) => s.error);
   const discoveryStatus = useDiscoveryFiltersStore((s) => s.status);
   const when = useDiscoveryFiltersStore((s) => s.when);
   const place = useDiscoveryFiltersStore((s) => s.place);
@@ -85,35 +87,30 @@ export default function MapScreen() {
   const sort = useDiscoveryFiltersStore((s) => s.sort);
   const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
   const searchApplied = useDiscoveryFiltersStore((s) => s.searchApplied);
-  const setDiscoveryStatus = useDiscoveryFiltersStore((s) => s.setStatus);
-  const setWhen = useDiscoveryFiltersStore((s) => s.setWhen);
-  const setContent = useDiscoveryFiltersStore((s) => s.setContent);
   const setSort = useDiscoveryFiltersStore((s) => s.setSort);
   const setMapMode = useDiscoveryFiltersStore((s) => s.setMapMode);
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
-  const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
-  const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const { profile } = useAuth();
-  const { favorites, toggleFavorite } = useFavoritesStore();
-  const { likedEventIds, toggleLike } = useLikesStore();
-  const {
-    bottomSheetIndex,
-    setBottomSheetIndex,
-    sheetStatus,
-    sheetEvents,
-    visibleEventCount,
-    activeEventId,
-    frozenViewport,
-    viewportFetchError,
-    setStatus,
-    setViewportFetchError,
-    highlightViewportEvent,
-    selectSingleEvent,
-    freezeViewportResults,
-    clearFrozenViewport,
-    closeSheet,
-    restoreViewportFromFrozen,
-  } = useMapResultsUIStore();
+  const favorites = useFavoritesStore((s) => s.favorites);
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+  const likedEventIds = useLikesStore((s) => s.likedEventIds);
+  const toggleLike = useLikesStore((s) => s.toggleLike);
+  const bottomSheetIndex = useMapResultsUIStore((s) => s.bottomSheetIndex);
+  const setBottomSheetIndex = useMapResultsUIStore((s) => s.setBottomSheetIndex);
+  const sheetStatus = useMapResultsUIStore((s) => s.sheetStatus);
+  const sheetEvents = useMapResultsUIStore((s) => s.sheetEvents);
+  const visibleEventCount = useMapResultsUIStore((s) => s.visibleEventCount);
+  const activeEventId = useMapResultsUIStore((s) => s.activeEventId);
+  const frozenViewport = useMapResultsUIStore((s) => s.frozenViewport);
+  const viewportFetchError = useMapResultsUIStore((s) => s.viewportFetchError);
+  const setStatus = useMapResultsUIStore((s) => s.setStatus);
+  const setViewportFetchError = useMapResultsUIStore((s) => s.setViewportFetchError);
+  const highlightViewportEvent = useMapResultsUIStore((s) => s.highlightViewportEvent);
+  const selectSingleEvent = useMapResultsUIStore((s) => s.selectSingleEvent);
+  const freezeViewportResults = useMapResultsUIStore((s) => s.freezeViewportResults);
+  const clearFrozenViewport = useMapResultsUIStore((s) => s.clearFrozenViewport);
+  const closeSheet = useMapResultsUIStore((s) => s.closeSheet);
+  const restoreViewportFromFrozen = useMapResultsUIStore((s) => s.restoreViewportFromFrozen);
 
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
@@ -138,10 +135,9 @@ export default function MapScreen() {
   const sideEffectsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSheetCameraSyncAtRef = useRef(0);
   const sheetCameraFollowActiveRef = useRef(false);
-  const hasCenteredOnUserRef = useRef(false);
-  const focusHandledRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
   const markerSelectionGuardRef = useRef(false);
+  const markerSelectionGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zoomRef = useRef(12);
 
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
@@ -161,6 +157,9 @@ export default function MapScreen() {
     () => () => {
       if (sideEffectsTimerRef.current) {
         clearTimeout(sideEffectsTimerRef.current);
+      }
+      if (markerSelectionGuardTimerRef.current) {
+        clearTimeout(markerSelectionGuardTimerRef.current);
       }
     },
     []
@@ -256,13 +255,19 @@ export default function MapScreen() {
   const { applySearch } = useMapSearchApply({
     filters: discoveryFilters,
     userLocation,
-    syncSearchState: () => {
+    syncSearchState: (committedFilters) => {
+      const committedSearchFilters = toEventFilters(committedFilters, userLocation);
+      const committedHasSearchCriteria = checkSearchCriteria({
+        place: committedFilters.place,
+        when: committedFilters.when,
+        content: committedFilters.content,
+      });
       reapplyClientFilters({
-        metaFilter,
-        searchFilters,
-        searchApplied: true,
-        hasSearchCriteria,
-        includePast,
+        metaFilter: committedFilters.status,
+        searchFilters: committedSearchFilters,
+        searchApplied: committedHasSearchCriteria,
+        hasSearchCriteria: committedHasSearchCriteria,
+        includePast: includesPast(committedFilters),
       });
     },
     setStatus,
@@ -496,19 +501,40 @@ export default function MapScreen() {
     focusOnEvent,
     setUnitCardEvent,
     collapseSheetToPeek,
+    onMarkerLoadError: setViewportFetchError,
   });
 
   const handleFeaturePress = useCallback(
     (id: string) => {
       markerSelectionGuardRef.current = true;
+      if (markerSelectionGuardTimerRef.current) {
+        clearTimeout(markerSelectionGuardTimerRef.current);
+      }
       void handleMarkerFeaturePress(id).finally(() => {
-        setTimeout(() => {
+        markerSelectionGuardTimerRef.current = setTimeout(() => {
           markerSelectionGuardRef.current = false;
+          markerSelectionGuardTimerRef.current = null;
         }, 400);
       });
     },
     [handleMarkerFeaturePress]
   );
+
+  useMapDeepLinkFocus(focus, handleFeaturePress);
+
+  const {
+    handleWhenPresetChange,
+    handleCategoriesChange,
+    handleMetaFilterChange,
+    handleResetFilters,
+  } = useMapFilterActions({
+    userLocation,
+    discoveryStatus,
+    reapplyClientFilters,
+    cancelViewportFetch,
+    refreshBounds,
+    clearFrozenViewport,
+  });
 
   const handleSheetDragEnd = useCallback(
     (dy: number, velocityY: number) => {
@@ -540,138 +566,6 @@ export default function MapScreen() {
       suppressBoundsRecalc,
     ]
   );
-
-  const handleWhenPresetChange = useCallback(
-    (preset?: DatePreset) => {
-      setWhen({
-        preset,
-        startDate: undefined,
-        endDate: undefined,
-        includePast: false,
-      });
-      const nextFilters = toEventFilters(
-        selectDiscoveryFilters(useDiscoveryFiltersStore.getState()),
-        userLocation
-      );
-      const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
-      const nextHasSearchCriteria = checkSearchCriteria({
-        place: nextDiscoveryFilters.place,
-        when: nextDiscoveryFilters.when,
-        content: nextDiscoveryFilters.content,
-      });
-      if (nextHasSearchCriteria) commitSearch();
-      else setSearchApplied(false);
-      if (!reapplyClientFilters({
-        searchFilters: nextFilters,
-        searchApplied: nextHasSearchCriteria,
-        hasSearchCriteria: nextHasSearchCriteria,
-        includePast: includesPast(nextDiscoveryFilters),
-      })) {
-        cancelViewportFetch();
-        void refreshBounds();
-      }
-    },
-    [
-      cancelViewportFetch,
-      commitSearch,
-      reapplyClientFilters,
-      refreshBounds,
-      setSearchApplied,
-      setWhen,
-      userLocation,
-    ]
-  );
-
-  const handleCategoriesChange = useCallback(
-    (categories: string[], subcategories: string[]) => {
-      setContent({ categories, subcategories });
-      const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
-      const nextFilters = toEventFilters(nextDiscoveryFilters, userLocation);
-      const nextHasSearchCriteria = checkSearchCriteria({
-        place: nextDiscoveryFilters.place,
-        when: nextDiscoveryFilters.when,
-        content: nextDiscoveryFilters.content,
-      });
-      if (nextHasSearchCriteria) commitSearch();
-      else setSearchApplied(false);
-      if (!reapplyClientFilters({
-        searchFilters: nextFilters,
-        searchApplied: nextHasSearchCriteria,
-        hasSearchCriteria: nextHasSearchCriteria,
-        includePast: includesPast(nextDiscoveryFilters),
-      })) {
-        cancelViewportFetch();
-        void refreshBounds();
-      }
-    },
-    [
-      cancelViewportFetch,
-      commitSearch,
-      reapplyClientFilters,
-      refreshBounds,
-      setContent,
-      setSearchApplied,
-      userLocation,
-    ]
-  );
-
-  const handleMetaFilterChange = useCallback(
-    (next: EventMetaFilter) => {
-      const previous = discoveryStatus;
-      setDiscoveryStatus(next);
-      clearFrozenViewport();
-      const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
-      const nextSearchFilters = toEventFilters(nextDiscoveryFilters, userLocation);
-      const nextHasSearchCriteria = checkSearchCriteria({
-        place: nextDiscoveryFilters.place,
-        when: nextDiscoveryFilters.when,
-        content: nextDiscoveryFilters.content,
-      });
-      const reapplied = reapplyClientFilters({
-        metaFilter: next,
-        searchFilters: nextSearchFilters,
-        hasSearchCriteria: nextHasSearchCriteria,
-        includePast: includesPast(nextDiscoveryFilters),
-      });
-      // Past needs a broader server timeScope than the usual "current" cache.
-      // Leaving it also needs a fresh current/upcoming payload.
-      if (next === 'past' || previous === 'past' || !reapplied) {
-        cancelViewportFetch();
-        void refreshBounds({ metaFilter: next });
-      }
-    },
-    [
-      cancelViewportFetch,
-      clearFrozenViewport,
-      discoveryStatus,
-      reapplyClientFilters,
-      refreshBounds,
-      setDiscoveryStatus,
-      userLocation,
-    ]
-  );
-
-  const handleResetFilters = useCallback(() => {
-    resetCriteria();
-    clearFrozenViewport();
-    const nextDiscoveryFilters = selectDiscoveryFilters(useDiscoveryFiltersStore.getState());
-    reapplyClientFilters({
-      metaFilter: 'all',
-      searchFilters: toEventFilters(nextDiscoveryFilters, userLocation),
-      searchApplied: false,
-      hasSearchCriteria: false,
-      includePast: false,
-    });
-    cancelViewportFetch();
-    void refreshBounds({ metaFilter: 'all' });
-  }, [
-    cancelViewportFetch,
-    clearFrozenViewport,
-    reapplyClientFilters,
-    refreshBounds,
-    resetCriteria,
-    userLocation,
-  ]);
 
   const refreshBoundsRef = useRef(refreshBounds);
   refreshBoundsRef.current = refreshBounds;
@@ -733,32 +627,18 @@ export default function MapScreen() {
     resultsSheetRef.current?.open?.(targetIndex);
   }, [sheetStatus, activeEventId, sheetEvents, focusOnEvent]);
 
-  useEffect(() => {
-    if (focus && !focusHandledRef.current) {
-      focusHandledRef.current = true;
-      void handleFeaturePress(String(focus));
-    }
-  }, [focus, handleFeaturePress]);
-
   const recenterToUser = useCallback(() => {
     if (!userLocation) return;
     fitToRadius(userLocation.latitude, userLocation.longitude, 7.5);
   }, [fitToRadius, userLocation]);
 
-  useEffect(() => {
-    if (userLocation && !hasCenteredOnUserRef.current) {
-      hasCenteredOnUserRef.current = true;
-      recenterToUser();
-      // Force a viewport fetch — do not rely only on programmatic bounds callbacks
-      // (unchanged bbox after fit can otherwise skip the first load).
-      const timer = setTimeout(() => {
-        void refreshBounds();
-      }, 700);
-      return () => clearTimeout(timer);
-    }
-    if (locationLoading) return;
-    void ensureInitialViewportLoad();
-  }, [ensureInitialViewportLoad, locationLoading, recenterToUser, refreshBounds, userLocation]);
+  useMapLocationBootstrap({
+    userLocation,
+    locationLoading,
+    recenterToUser,
+    refreshBounds,
+    ensureInitialViewportLoad,
+  });
 
   const handleMapReady = useCallback(() => {
     void ensureInitialViewportLoad();
@@ -778,14 +658,12 @@ export default function MapScreen() {
   const displaySheetEvents = frozenViewport?.events ?? sheetEvents;
   const displayPeekCount = frozenViewport?.eventCount ?? visibleEventCount;
 
-  const sortedListEvents = useMemo(() => {
-    if (sheetStatus === 'singleEvent' || sortBy === 'triage') {
-      return displaySheetEvents;
-    }
-    return sortEvents(displaySheetEvents, sortBy, sortCenter, sortOrder);
-  }, [displaySheetEvents, sheetStatus, sortBy, sortCenter, sortOrder]);
-
   const showLocationOverlay = locationLoading && !userLocation;
+  const showLocationUnavailable =
+    !locationLoading && !userLocation && (!permissionGranted || !!locationError);
+  const openLocationSettings = useCallback(() => {
+    void Linking.openSettings();
+  }, []);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -839,14 +717,56 @@ export default function MapScreen() {
             />
 
             {showLocationOverlay ? (
-              <View style={styles.locationOverlay} pointerEvents="none">
+              <View
+                style={styles.locationOverlay}
+                pointerEvents="none"
+                accessibilityRole="progressbar"
+                accessibilityLabel="Obtention de votre position"
+                accessibilityLiveRegion="polite"
+              >
                 <ActivityIndicator size="large" color={colors.brand.secondary} />
                 <Text style={styles.fallbackText}>Obtention de votre position...</Text>
               </View>
             ) : null}
 
+            {showLocationUnavailable ? (
+              <View
+                style={styles.locationUnavailableBanner}
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+              >
+                <Text style={styles.locationUnavailableTitle}>Localisation indisponible</Text>
+                <Text style={styles.locationUnavailableText}>
+                  La carte est centrée sur une zone par défaut. Vous pouvez rechercher un lieu
+                  manuellement ou activer la localisation.
+                </Text>
+                <View style={styles.locationUnavailableActions}>
+                  <TouchableOpacity
+                    onPress={() => void requestLocationPermission()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Réessayer la localisation"
+                  >
+                    <Text style={styles.locationUnavailableAction}>Réessayer</Text>
+                  </TouchableOpacity>
+                  {!permissionGranted ? (
+                    <TouchableOpacity
+                      onPress={openLocationSettings}
+                      accessibilityRole="button"
+                      accessibilityLabel="Ouvrir les réglages de l'application"
+                    >
+                      <Text style={styles.locationUnavailableAction}>Réglages</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+
             {viewportFetchError ? (
-              <View style={styles.mapErrorBanner}>
+              <View
+                style={styles.mapErrorBanner}
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+              >
                 <Text style={styles.mapErrorText}>{viewportFetchError}</Text>
                 <TouchableOpacity
                   onPress={() => setViewportFetchError(null)}
@@ -897,7 +817,7 @@ export default function MapScreen() {
           <Animated.View style={[styles.sheetOverlay, sheetOverlayStyle]}>
             <SearchResultsBottomSheet
               ref={resultsSheetRef}
-              events={sortedListEvents}
+              events={displaySheetEvents}
               currentUserId={profile?.id}
               activeEventId={activeEventId}
               isSheetDragging={isSheetDragging}
@@ -991,7 +911,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.primary[200],
   },
   filterActiveDot: {
     position: 'absolute',
@@ -1030,13 +950,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: SHEET_JUNCTION_RADIUS,
     minHeight: VIEWPORT_PEEK_HEIGHT,
   },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    gap: spacing.sm,
-  },
   locationOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -1051,6 +964,41 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     fontSize: 16,
     fontWeight: '600',
+  },
+  locationUnavailableBanner: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 24,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    gap: spacing.xs,
+  },
+  locationUnavailableTitle: {
+    color: colors.brand.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  locationUnavailableText: {
+    color: colors.brand.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  locationUnavailableActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  locationUnavailableAction: {
+    color: colors.brand.secondary,
+    fontSize: 13,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
   },
   unitOverlaySlot: {
     ...StyleSheet.absoluteFillObject,

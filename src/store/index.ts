@@ -10,6 +10,5 @@ export { useLikesStore } from './likesStore';
 export { useHistoryStore } from './historyStore';
 export { useSearchResultsStore } from './searchResultsStore';
 export { useMapResultsUIStore } from './mapResultsUIStore';
-export { useMapResultsStore } from './mapResultsStore';
 export { useEventsStore } from './eventsStore';
 export { useCreatorDashboardStore } from './creatorDashboard.store';

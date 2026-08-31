@@ -22,9 +22,7 @@ import { SortControl } from '@/components/filters';
 import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
 import {
-  VIEWPORT_PEEK_HEIGHT,
   VIEWPORT_HALF_SNAP_INDEX,
-  VIEWPORT_FULL_SNAP_INDEX,
   getSheetMaxSnapIndex,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -574,7 +572,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: colors.primary[200],
   },
   peekHeader: {
     paddingHorizontal: spacing.lg,

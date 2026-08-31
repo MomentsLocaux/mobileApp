@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { MapWrapperHandle } from '@/components/map';
 import { useMapResultsUIStore } from '@/store';
@@ -41,15 +41,23 @@ export function useMapViewportController({
   const initialViewportLoadInFlightRef = useRef(false);
   /** True after the first real viewport fetch was queued — avoids focus+ready+recenter triple load. */
   const viewportBootstrappedRef = useRef(false);
+  const bootstrapLoadingGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     isProgrammaticMoveRef,
     pendingProgrammaticRefreshRef,
-    suppressBoundsRecalc,
     isBoundsRecalcSuppressed,
     clearProgrammaticMoveState,
     withProgrammaticMove,
-    startProgrammaticMove,
   } = programmatic;
+
+  const clearBootstrapLoadingGuardTimer = useCallback(() => {
+    if (bootstrapLoadingGuardTimerRef.current) {
+      clearTimeout(bootstrapLoadingGuardTimerRef.current);
+      bootstrapLoadingGuardTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearBootstrapLoadingGuardTimer(), [clearBootstrapLoadingGuardTimer]);
 
   const markViewportBootstrapped = useCallback(() => {
     viewportBootstrappedRef.current = true;
@@ -68,7 +76,7 @@ export function useMapViewportController({
       frozenViewportBoundsRef.current = bounds;
       queueViewportFetch(bounds, { immediate: true, force: true });
     },
-    [clearFrozenViewport, onUnlockViewport, queueViewportFetch]
+    [clearFrozenViewport, frozenViewportBoundsRef, onUnlockViewport, queueViewportFetch, viewportFrozenRef]
   );
 
   const handleBoundsChange = useCallback(
@@ -112,6 +120,7 @@ export function useMapViewportController({
     },
     [
       clearProgrammaticMoveState,
+      frozenViewportBoundsRef,
       isBoundsRecalcSuppressed,
       isProgrammaticMoveRef,
       isSheetDraggingRef,
@@ -158,7 +167,9 @@ export function useMapViewportController({
         useMapResultsUIStore.getState().sheetStatus === 'loading'
       ) {
         // Give the in-flight force fetch a moment; clear only if still stuck shortly after.
-        setTimeout(() => {
+        clearBootstrapLoadingGuardTimer();
+        bootstrapLoadingGuardTimerRef.current = setTimeout(() => {
+          bootstrapLoadingGuardTimerRef.current = null;
           if (useMapResultsUIStore.getState().sheetStatus === 'loading') {
             useMapResultsUIStore.getState().setStatus('browsing');
             // Don't leave a stale banner if markers/list already recovered via another path.
@@ -169,7 +180,7 @@ export function useMapViewportController({
         }, 4000);
       }
     }
-  }, [isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
+  }, [clearBootstrapLoadingGuardTimer, isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
 
   const refreshBounds = useCallback(async (options?: Pick<ViewportFetchOptions, 'metaFilter'>) => {
     traceMapSheetPerf('refreshBounds');
@@ -183,7 +194,7 @@ export function useMapViewportController({
     frozenViewportBoundsRef.current = bounds;
     markViewportBootstrapped();
     queueViewportFetch(bounds, { immediate: true, force: true, metaFilter: options?.metaFilter });
-  }, [clearFrozenViewport, isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch]);
+  }, [clearFrozenViewport, frozenViewportBoundsRef, isProgrammaticMoveRef, mapRef, markViewportBootstrapped, queueViewportFetch, viewportFrozenRef]);
 
   const refitMapToFrozenViewport = useCallback(
     (
@@ -208,7 +219,7 @@ export function useMapViewportController({
         { refreshAfter: false, durationMs: animationDuration }
       );
     },
-    [mapRef, withProgrammaticMove]
+    [frozenViewportBoundsRef, mapRef, withProgrammaticMove]
   );
 
   const syncMapToFrozenViewport = useCallback((options?: {
@@ -218,7 +229,7 @@ export function useMapViewportController({
     traceMapSheetPerf('syncMapToFrozenViewport');
     if (!frozenViewportBoundsRef.current) return;
     refitMapToFrozenViewport(options?.animationDuration ?? SHEET_LAYOUT_TIMING.duration, options);
-  }, [refitMapToFrozenViewport]);
+  }, [frozenViewportBoundsRef, refitMapToFrozenViewport]);
 
   const lockViewportForSheet = useCallback(async () => {
     viewportFrozenRef.current = true;
@@ -230,7 +241,7 @@ export function useMapViewportController({
         frozenViewportBoundsRef.current = bounds;
       }
     }
-  }, [freezeViewportResults, mapRef]);
+  }, [freezeViewportResults, frozenViewportBoundsRef, mapRef, viewportFrozenRef]);
 
   const fitToRadius = useCallback(
     (latitude: number, longitude: number, radiusKm: number) => {

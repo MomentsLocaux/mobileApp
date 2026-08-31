@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
-  Easing,
   Extrapolate,
   interpolate,
   useAnimatedStyle,
@@ -49,6 +48,8 @@ import { CommunityService } from '@/services/community.service';
 import type { CommunityMember } from '@/types/community';
 import type { SavedSearchSnapshot } from '@/services/saved-searches.service';
 import {
+  createDefaultDiscoveryCriteria,
+  explainEmptyCombination,
   type DiscoveryFilters,
   type DiscoverySurface,
 } from '@/utils/discovery-filters';
@@ -67,7 +68,7 @@ type ChipTone = {
 };
 
 interface Props {
-  onApply: () => void;
+  onApply: (filters: DiscoveryFilters) => void;
   placeholder?: string;
   hasLocation: boolean;
   applied: boolean;
@@ -90,10 +91,13 @@ export const SearchBar: React.FC<Props> = ({
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [activeSection, setActiveSection] = useState<SectionKey>('where');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Array<{ label: string; latitude: number; longitude: number; city: string; postalCode: string }>>([]);
+  const [results, setResults] = useState<
+    { label: string; latitude: number; longitude: number; city: string; postalCode: string }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [searchCount, setSearchCount] = useState<number | null>(null);
+  const [searchCountError, setSearchCountError] = useState(false);
   const [countLoading, setCountLoading] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [searchMode, setSearchMode] = useState<'events' | 'members'>('events');
@@ -109,20 +113,32 @@ export const SearchBar: React.FC<Props> = ({
   const { currentLocation } = useLocationStore();
 
   const status = useDiscoveryFiltersStore((s) => s.status);
-  const when = useDiscoveryFiltersStore((s) => s.when);
-  const place = useDiscoveryFiltersStore((s) => s.place);
-  const what = useDiscoveryFiltersStore((s) => s.content);
-  const sort = useDiscoveryFiltersStore((s) => s.sort);
+  const appliedWhen = useDiscoveryFiltersStore((s) => s.when);
+  const appliedPlace = useDiscoveryFiltersStore((s) => s.place);
+  const appliedContent = useDiscoveryFiltersStore((s) => s.content);
+  const appliedSort = useDiscoveryFiltersStore((s) => s.sort);
   const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
   const placeHistory = useDiscoveryFiltersStore((s) => s.placeHistory);
-  const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
-  const setWhen = useDiscoveryFiltersStore((s) => s.setWhen);
-  const setWhat = useDiscoveryFiltersStore((s) => s.setContent);
-  const setSort = useDiscoveryFiltersStore((s) => s.setSort);
+  const clearLegacyTags = useDiscoveryFiltersStore((s) => s.setContent);
+  const applySearchCriteria = useDiscoveryFiltersStore((s) => s.applySearchCriteria);
   const addHistory = useDiscoveryFiltersStore((s) => s.addPlaceHistory);
   const removePlaceHistory = useDiscoveryFiltersStore((s) => s.removePlaceHistory);
-  const commitSearch = useDiscoveryFiltersStore((s) => s.commitSearch);
-  const resetSearch = useDiscoveryFiltersStore((s) => s.clearSearchCriteria);
+  const appliedFilters = useMemo<DiscoveryFilters>(
+    () => ({
+      status,
+      when: appliedWhen,
+      place: appliedPlace,
+      content: appliedContent,
+      sort: appliedSort,
+      mapMode,
+    }),
+    [appliedContent, appliedPlace, appliedSort, appliedWhen, mapMode, status]
+  );
+  const [draftFilters, setDraftFilters] = useState<DiscoveryFilters>(appliedFilters);
+  const when = draftFilters.when;
+  const place = draftFilters.place;
+  const what = draftFilters.content;
+  const sort = draftFilters.sort;
   const sortBy = sort[surface].sortBy;
   const sortOrder = sort[surface].sortOrder;
 
@@ -148,8 +164,18 @@ export const SearchBar: React.FC<Props> = ({
     [mapMode, place, sort, status, what, when]
   );
 
+  const appliedHasSearchCriteria = useMemo(
+    () =>
+      checkSearchCriteria({
+        place: appliedPlace,
+        when: appliedWhen,
+        content: appliedContent,
+      }),
+    [appliedContent, appliedPlace, appliedWhen]
+  );
+
   const setWhere = (payload: Partial<SearchWhereState>) => {
-    const next: Parameters<typeof setPlace>[0] = {};
+    const next: Partial<typeof place> = {};
     if ('location' in payload) {
       next.center = payload.location
         ? {
@@ -162,15 +188,56 @@ export const SearchBar: React.FC<Props> = ({
       next.postalCode = payload.location?.postalCode;
     }
     if ('radiusKm' in payload) next.radiusKm = payload.radiusKm;
-    setPlace(next);
+    setDraftFilters((current) => ({
+      ...current,
+      place: { ...current.place, ...next },
+    }));
+  };
+
+  const setWhen = (next: Partial<typeof when>) => {
+    setDraftFilters((current) => {
+      const activatesDatedSearch = Boolean(next.preset || next.startDate || next.endDate);
+      const includePast = next.includePast === true;
+      return {
+        ...current,
+        when: includePast
+          ? { includePast: true }
+          : {
+              ...current.when,
+              ...next,
+              includePast: activatesDatedSearch
+                ? false
+                : next.includePast ?? current.when.includePast,
+            },
+      };
+    });
+  };
+
+  const setWhat = (next: Partial<typeof what>) => {
+    setDraftFilters((current) => ({
+      ...current,
+      content: { ...current.content, ...next, tags: [] },
+    }));
   };
 
   const setSortBy = (nextSortBy?: typeof sortBy) => {
-    setSort(surface, nextSortBy || DEFAULT_SORT_OPTION, sortOrder);
+    setDraftFilters((current) => ({
+      ...current,
+      sort: {
+        ...current.sort,
+        [surface]: { sortBy: nextSortBy || DEFAULT_SORT_OPTION, sortOrder },
+      },
+    }));
   };
 
   const setSortOrder = (nextSortOrder?: typeof sortOrder) => {
-    setSort(surface, sortBy, nextSortOrder);
+    setDraftFilters((current) => ({
+      ...current,
+      sort: {
+        ...current.sort,
+        [surface]: { sortBy, sortOrder: nextSortOrder },
+      },
+    }));
   };
 
   const recentSearches = useSavedSearchesStore((s) => s.recent);
@@ -185,10 +252,16 @@ export const SearchBar: React.FC<Props> = ({
   useEffect(() => {
     // Tags are no longer exposed as a discovery criterion. Clear any value
     // kept in memory during a hot reload so it cannot act as a hidden filter.
-    if (what.tags.length > 0) {
-      setWhat({ tags: [] });
+    if (appliedContent.tags.length > 0) {
+      clearLegacyTags({ tags: [] });
     }
-  }, [setWhat, what.tags]);
+  }, [appliedContent.tags, clearLegacyTags]);
+
+  useEffect(() => {
+    if (!overlayVisible) {
+      setDraftFilters(appliedFilters);
+    }
+  }, [appliedFilters, overlayVisible]);
 
   useEffect(() => {
     void hydrateSavedSearches();
@@ -267,9 +340,11 @@ export const SearchBar: React.FC<Props> = ({
   const displayedRadiusKm = where.radiusKm ?? effectiveRadiusKm ?? PROXIMITY_RADIUS_KM;
 
   const summaryText = useMemo(() => {
-    if (!applied || !hasSearchCriteria) return undefined;
-    return buildSearchSummary(filters, categories, subcategories, surface);
-  }, [applied, categories, filters, hasSearchCriteria, subcategories, surface]);
+    if (!applied || !appliedHasSearchCriteria) return undefined;
+    return buildSearchSummary(appliedFilters, categories, subcategories, surface);
+  }, [applied, appliedFilters, appliedHasSearchCriteria, categories, subcategories, surface]);
+
+  const combinationError = useMemo(() => explainEmptyCombination(filters), [filters]);
 
   const sectionSummary = useMemo(() => {
     const whereLabel =
@@ -317,15 +392,18 @@ export const SearchBar: React.FC<Props> = ({
     let cancelled = false;
     if (searchMode !== 'events') {
       setSearchCount(null);
+      setSearchCountError(false);
       setCountLoading(false);
       return;
     }
-    if (!hasSearchCriteria) {
+    if (!hasSearchCriteria || combinationError) {
       setSearchCount(null);
+      setSearchCountError(false);
       setCountLoading(false);
       return;
     }
 
+    setSearchCountError(false);
     setCountLoading(true);
     const timeout = setTimeout(async () => {
       try {
@@ -335,10 +413,12 @@ export const SearchBar: React.FC<Props> = ({
         );
         if (!cancelled) {
           setSearchCount(filteredEvents.length);
+          setSearchCountError(false);
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
-          setSearchCount(0);
+          setSearchCount(null);
+          setSearchCountError(true);
         }
       } finally {
         if (!cancelled) {
@@ -351,7 +431,7 @@ export const SearchBar: React.FC<Props> = ({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [effectiveRadiusKm, filters, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords]);
+  }, [combinationError, effectiveRadiusKm, filters, hasSearchCriteria, includePast, searchCenter, searchMode, userCoords]);
 
   useEffect(() => {
     let cancelled = false;
@@ -376,7 +456,7 @@ export const SearchBar: React.FC<Props> = ({
         if (!cancelled) {
           setMemberResults(res);
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setMemberResults([]);
         }
@@ -394,12 +474,16 @@ export const SearchBar: React.FC<Props> = ({
 
   const countLabel = countLoading
     ? 'Recherche...'
+    : searchCountError
+      ? 'Résultats indisponibles'
     : searchCount !== null
       ? `Voir les ${searchCount} évènement${searchCount > 1 ? 's' : ''}`
       : 'Rechercher';
 
   const openExpanded = () => {
     if (!barRef.current) return;
+    setDraftFilters(appliedFilters);
+    setSearchCountError(false);
     (barRef.current as any).measureInWindow((x: number, y: number, width: number, height: number) => {
       fromX.value = x;
       fromY.value = y;
@@ -426,12 +510,12 @@ export const SearchBar: React.FC<Props> = ({
     }, Motion.duration.fast);
   };
 
-  const currentIsSaved = isCurrentSaved(taxonomyLabels, surface);
+  const currentIsSaved = isCurrentSaved(taxonomyLabels, surface, filters);
 
   const applySnapshot = (item: SavedSearchSnapshot) => {
-    const ok = applySavedSearch(item.id, surface);
-    if (!ok) return;
-    onApply();
+    const committed = applySavedSearch(item.id, surface);
+    if (!committed) return;
+    onApply(committed);
     closeExpanded();
   };
 
@@ -453,7 +537,7 @@ export const SearchBar: React.FC<Props> = ({
     const defaultTitle = buildSearchSummary(filters, categories, subcategories, surface);
 
     const doSave = async (title?: string) => {
-      await saveCurrent(taxonomyLabels, surface, title || defaultTitle);
+      await saveCurrent(taxonomyLabels, surface, title || defaultTitle, filters);
       Toast.show({ type: 'success', text1: 'Recherche enregistrée' });
     };
 
@@ -488,10 +572,27 @@ export const SearchBar: React.FC<Props> = ({
   };
 
   const handleApplySearch = () => {
-    commitSearch();
-    void recordRecentFromCurrent(taxonomyLabels, surface);
-    onApply();
+    if (combinationError) {
+      Toast.show({ type: 'error', text1: 'Filtres incompatibles', text2: combinationError });
+      return;
+    }
+    const committed = applySearchCriteria(
+      { when, place, content: what },
+      { surface, sort: sort[surface], applied: hasSearchCriteria }
+    );
+    void recordRecentFromCurrent(taxonomyLabels, surface, committed);
+    onApply(committed);
     closeExpanded();
+  };
+
+  const resetDraftSearch = () => {
+    const defaults = createDefaultDiscoveryCriteria();
+    setDraftFilters((current) => ({
+      ...current,
+      when: defaults.when,
+      place: defaults.place,
+      content: defaults.content,
+    }));
   };
 
   const barAnimatedStyle = useAnimatedStyle(() => ({
@@ -1022,9 +1123,16 @@ export const SearchBar: React.FC<Props> = ({
                     Aucun résultat — élargissez le rayon, incluez les passés ou retirez des filtres.
                   </Text>
                 ) : null}
+                {combinationError ? (
+                  <Text style={styles.zeroHint}>{combinationError}</Text>
+                ) : searchCountError ? (
+                  <Text style={styles.zeroHint}>
+                    Impossible de prévisualiser les résultats. Vous pouvez réessayer.
+                  </Text>
+                ) : null}
                 <View style={styles.footer}>
                   <View style={styles.footerLeft}>
-                    <TouchableOpacity onPress={resetSearch}>
+                    <TouchableOpacity onPress={resetDraftSearch}>
                       <Text style={styles.resetText}>Tout effacer</Text>
                     </TouchableOpacity>
                     {hasSearchCriteria ? (
@@ -1127,34 +1235,6 @@ const Chip = ({
     </TouchableOpacity>
   );
 };
-
-const CounterRow = ({
-  label,
-  subtitle,
-  value,
-  onChange,
-}: {
-  label: string;
-  subtitle?: string;
-  value: number;
-  onChange: (v: number) => void;
-}) => (
-  <View style={styles.counterRow}>
-    <View>
-      <Text style={styles.counterLabel}>{label}</Text>
-      {subtitle && <Text style={styles.meta}>{subtitle}</Text>}
-    </View>
-    <View style={styles.counterControls}>
-      <TouchableOpacity style={styles.counterBtn} onPress={() => onChange(Math.max(0, value - 1))}>
-        <Text style={styles.counterBtnText}>-</Text>
-      </TouchableOpacity>
-      <Text style={styles.counterValue}>{value}</Text>
-      <TouchableOpacity style={styles.counterBtn} onPress={() => onChange(value + 1)}>
-        <Text style={styles.counterBtnText}>+</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
 
 const SectionCard: React.FC<{
   title: string;
@@ -1436,16 +1516,6 @@ const styles = StyleSheet.create({
   memberCity: {
     ...typography.caption,
     color: colors.brand.textSecondary,
-  },
-  counterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  counterLabel: {
-    ...typography.body,
-    color: colors.brand.text,
   },
   dateBoxFull: {
     borderWidth: 1,

@@ -6,3 +6,6 @@ export { useMapSheetOrchestration } from './useMapSheetOrchestration';
 export { useMapSearchApply } from './useMapSearchApply';
 export { useMapSocialActions } from './useMapSocialActions';
 export { useMapMarkerPress } from './useMapMarkerPress';
+export { useMapFilterActions } from './useMapFilterActions';
+export { useMapDeepLinkFocus } from './useMapDeepLinkFocus';
+export { useMapLocationBootstrap } from './useMapLocationBootstrap';

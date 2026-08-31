@@ -6,6 +6,11 @@ import {
 import type { EventWithCreator } from '@/types/database';
 import type { FeatureCollection } from 'geojson';
 import type { EventTimeScope } from '@/utils/event-time-scope';
+import {
+  buildMapViewportCacheKey,
+  raceWithViewportTimeout,
+} from '@/utils/map-viewport-fetch-utils';
+import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
 
 type BboxParams = {
   ne: [number, number];
@@ -24,7 +29,7 @@ export type MapViewportPayload = {
  */
 const USE_MAP_VIEWPORT_RPC = true;
 
-const RPC_CLIENT_TIMEOUT_MS = 4000;
+const viewportInflight = new Map<string, Promise<MapViewportPayload>>();
 
 const isMissingViewportRpc = (error: unknown) => {
   const code = String((error as { code?: string })?.code || '');
@@ -51,9 +56,13 @@ const isTransientViewportRpcFailure = (error: unknown) => {
   );
 };
 
+type MapViewportRpcResult = {
+  events?: EventWithCreator[];
+  featureCollection?: EventMapFeatureCollection;
+};
+
 /**
- * Map viewport fetch. Currently forces legacy bbox + get_events_by_ids.
- * When USE_MAP_VIEWPORT_RPC is true, falls back on missing RPC / timeout.
+ * Map viewport fetch. When USE_MAP_VIEWPORT_RPC is true, falls back on missing RPC / timeout.
  */
 export async function listMapViewportForMap(
   bbox: BboxParams,
@@ -64,34 +73,44 @@ export async function listMapViewportForMap(
     return listMapViewportLegacyFallback(bbox, timeScope, options);
   }
 
-  try {
-    const rpcPromise = EventsService.listMapViewport({
-      ...bbox,
-      timeScope,
-      mergeUpcoming: Boolean(options?.mergeUpcomingForDatePreset && timeScope === 'current'),
-    });
-    const result = await Promise.race([
-      rpcPromise,
-      new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(Object.assign(new Error('list_map_viewport client timeout'), { code: '57014' }));
-        }, RPC_CLIENT_TIMEOUT_MS);
-      }),
-    ]);
-    return {
-      events: result.events || [],
-      featureCollection: (result.featureCollection || {
-        type: 'FeatureCollection',
-        features: [],
-      }) as EventMapFeatureCollection,
-    };
-  } catch (error) {
-    if (!isMissingViewportRpc(error) && !isTransientViewportRpcFailure(error)) {
-      throw error;
-    }
-    console.warn('[listMapViewportForMap] RPC unavailable/slow — falling back to bbox + getByIds', error);
-    return listMapViewportLegacyFallback(bbox, timeScope, options);
+  const cacheKey = buildMapViewportCacheKey(bbox, timeScope, options);
+  const existing = viewportInflight.get(cacheKey);
+  if (existing) {
+    return existing;
   }
+
+  const request = (async () => {
+    try {
+      const rpcPromise = EventsService.listMapViewport({
+        ...bbox,
+        timeScope,
+        mergeUpcoming: Boolean(options?.mergeUpcomingForDatePreset && timeScope === 'current'),
+      });
+      const result = await raceWithViewportTimeout<MapViewportRpcResult>(rpcPromise);
+      return {
+        events: result.events || [],
+        featureCollection: (result.featureCollection || {
+          type: 'FeatureCollection',
+          features: [],
+        }) as EventMapFeatureCollection,
+      };
+    } catch (error) {
+      if (!isMissingViewportRpc(error) && !isTransientViewportRpcFailure(error)) {
+        throw error;
+      }
+      traceMapViewportFetch('rpcFallback', {
+        outcome: isTransientViewportRpcFailure(error) ? 'timeout' : 'fallback',
+        cacheKey,
+      });
+      console.warn('[listMapViewportForMap] RPC unavailable/slow — falling back to bbox + getByIds', error);
+      return listMapViewportLegacyFallback(bbox, timeScope, options);
+    } finally {
+      viewportInflight.delete(cacheKey);
+    }
+  })();
+
+  viewportInflight.set(cacheKey, request);
+  return request;
 }
 
 /** Kept for search preview / legacy callers. */

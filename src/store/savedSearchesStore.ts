@@ -23,16 +23,25 @@ type TaxonomyLabels = {
 type SavedSearchesStore = SavedSearchesState & {
   hydrated: boolean;
   hydrate: () => Promise<void>;
-  recordRecentFromCurrent: (taxonomy: TaxonomyLabels, surface: DiscoverySurface) => Promise<void>;
+  recordRecentFromCurrent: (
+    taxonomy: TaxonomyLabels,
+    surface: DiscoverySurface,
+    filters?: DiscoveryFilters
+  ) => Promise<void>;
   saveCurrent: (
     taxonomy: TaxonomyLabels,
     surface: DiscoverySurface,
-    title?: string
+    title?: string,
+    filters?: DiscoveryFilters
   ) => Promise<SavedSearchSnapshot | null>;
-  applySearch: (id: string, surface: DiscoverySurface) => boolean;
+  applySearch: (id: string, surface: DiscoverySurface) => DiscoveryFilters | null;
   removeSearch: (id: string) => Promise<void>;
   renameSearch: (id: string, title: string) => Promise<void>;
-  isCurrentSaved: (taxonomy: TaxonomyLabels, surface: DiscoverySurface) => boolean;
+  isCurrentSaved: (
+    taxonomy: TaxonomyLabels,
+    surface: DiscoverySurface,
+    filters?: DiscoveryFilters
+  ) => boolean;
 };
 
 const persist = async (state: SavedSearchesState) => {
@@ -73,8 +82,8 @@ const toLegacySearchState = (
   };
 };
 
-const currentFingerprint = (surface: DiscoverySurface) => {
-  const s = toLegacySearchState(currentDiscoveryFilters(), surface);
+const currentFingerprint = (surface: DiscoverySurface, filters?: DiscoveryFilters) => {
+  const s = toLegacySearchState(filters ?? currentDiscoveryFilters(), surface);
   return fingerprintSearch({
     where: s.where,
     when: s.when,
@@ -84,9 +93,13 @@ const currentFingerprint = (surface: DiscoverySurface) => {
   });
 };
 
-const summaryForCurrent = (taxonomy: TaxonomyLabels, surface: DiscoverySurface) =>
+const summaryForCurrent = (
+  taxonomy: TaxonomyLabels,
+  surface: DiscoverySurface,
+  filters?: DiscoveryFilters
+) =>
   buildSearchSummary(
-    currentDiscoveryFilters(),
+    filters ?? currentDiscoveryFilters(),
     taxonomy.categories,
     taxonomy.subcategories,
     surface
@@ -102,11 +115,12 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
     set({ ...loaded, hydrated: true });
   },
 
-  recordRecentFromCurrent: async (taxonomy, surface) => {
-    const s = toLegacySearchState(currentDiscoveryFilters(), surface);
+  recordRecentFromCurrent: async (taxonomy, surface, filters) => {
+    const activeFilters = filters ?? currentDiscoveryFilters();
+    const s = toLegacySearchState(activeFilters, surface);
     const snapshot = SavedSearchesService.buildSnapshot({
       kind: 'recent',
-      title: summaryForCurrent(taxonomy, surface),
+      title: summaryForCurrent(taxonomy, surface, activeFilters),
       where: s.where,
       when: s.when,
       what: s.what,
@@ -121,11 +135,12 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
     await persist(next);
   },
 
-  saveCurrent: async (taxonomy, surface, title) => {
-    const s = toLegacySearchState(currentDiscoveryFilters(), surface);
+  saveCurrent: async (taxonomy, surface, title, filters) => {
+    const activeFilters = filters ?? currentDiscoveryFilters();
+    const s = toLegacySearchState(activeFilters, surface);
     const snapshot = SavedSearchesService.buildSnapshot({
       kind: 'saved',
-      title: (title || summaryForCurrent(taxonomy, surface)).trim(),
+      title: (title || summaryForCurrent(taxonomy, surface, activeFilters)).trim(),
       where: s.where,
       when: s.when,
       what: s.what,
@@ -144,36 +159,42 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
   applySearch: (id, surface) => {
     const item =
       get().saved.find((s) => s.id === id) || get().recent.find((s) => s.id === id);
-    if (!item) return false;
+    if (!item) return null;
     const store = useDiscoveryFiltersStore.getState();
     // A saved search contains place/date/content criteria, not the independent
     // status axis or presentation preferences.
-    store.clearSearchCriteria();
-    if (item.where.location || item.where.radiusKm !== undefined) {
-      store.setPlace({
-        center: item.where.location
-          ? {
-              latitude: item.where.location.latitude,
-              longitude: item.where.location.longitude,
-            }
-          : null,
-        label: item.where.location?.label,
-        city: item.where.location?.city,
-        postalCode: item.where.location?.postalCode,
-        radiusKm: item.where.radiusKm,
-      });
-    }
-    store.setWhen({ ...item.when });
-    // Legacy snapshots may contain tags that are no longer exposed in the UI.
-    // Never re-apply them as an invisible search criterion.
-    store.setContent({ ...item.what, tags: [] });
-    store.setSort(
-      surface,
-      item.sortBy || DEFAULT_SORT_OPTION,
-      item.sortOrder
+    const current = currentDiscoveryFilters();
+    const hasDatedSearch = Boolean(
+      item.when.preset || item.when.startDate || item.when.endDate || item.when.includePast
     );
-    store.commitSearch();
-    return true;
+    return store.applySearchCriteria(
+      {
+        place: {
+          center: item.where.location
+            ? {
+                latitude: item.where.location.latitude,
+                longitude: item.where.location.longitude,
+              }
+            : null,
+          label: item.where.location?.label,
+          city: item.where.location?.city,
+          postalCode: item.where.location?.postalCode,
+          radiusKm: item.where.radiusKm,
+        },
+        when: { ...item.when },
+        // Legacy snapshots may contain tags that are no longer exposed in the UI.
+        content: { ...item.what, tags: [] },
+      },
+      {
+        status: hasDatedSearch && current.status === 'past' ? 'all' : current.status,
+        surface,
+        sort: {
+          sortBy: item.sortBy || DEFAULT_SORT_OPTION,
+          sortOrder: item.sortOrder,
+        },
+        applied: true,
+      }
+    );
   },
 
   removeSearch: async (id) => {
@@ -195,8 +216,8 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
     await persist(next);
   },
 
-  isCurrentSaved: (_taxonomy, surface) => {
-    const fp = currentFingerprint(surface);
+  isCurrentSaved: (_taxonomy, surface, filters) => {
+    const fp = currentFingerprint(surface, filters);
     return get().saved.some((item) => fingerprintSearch(item) === fp);
   },
 }));

@@ -7,7 +7,7 @@ type UserLocation = { latitude: number; longitude: number } | null;
 type Params = {
   filters: DiscoveryFilters;
   userLocation: UserLocation;
-  syncSearchState: () => void;
+  syncSearchState: (filters: DiscoveryFilters) => void;
   setStatus: (status: 'loading') => void;
   fitToRadius: (latitude: number, longitude: number, radiusKm: number) => unknown;
   refreshBounds: () => Promise<void>;
@@ -49,12 +49,14 @@ export function useMapSearchApply({
     [fitToRadius]
   );
 
-  const applySearch = useCallback(() => {
-    // SearchBar commits the shared lifecycle before invoking this callback.
-    syncSearchState();
+  const applySearch = useCallback((committedFilters?: DiscoveryFilters) => {
+    const activeFilters = committedFilters ?? filters;
+    // SearchBar supplies the exact atomically committed snapshot, avoiding a
+    // render-cycle race between the shared store and the map callback.
+    syncSearchState(activeFilters);
     setStatus('loading');
 
-    const targetBounds = resolveSearchTargetBounds(filters, userLocation);
+    const targetBounds = resolveSearchTargetBounds(activeFilters, userLocation);
     if (targetBounds) {
       moveMapToSearchBounds(targetBounds);
       return;
