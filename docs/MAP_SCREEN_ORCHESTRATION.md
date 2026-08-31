@@ -4,6 +4,8 @@
 
 **Données viewport** : `listMapViewportForMap` (`src/utils/bbox-event-fetch.ts`) → RPC Supabase **`list_map_viewport`**.
 
+**Recherche textuelle (Quoi)** : `list_map_viewport` n’a pas de paramètre nom. Quand `content.query` / `filters.name` est renseigné, Home et le compteur SearchBar passent par `listEvents` (`title` + `description` `ilike`, comme un Ctrl+F). Sur la carte, le fetch bbox est **fusionné** avec ce même `ilike` dans le viewport visible (`fetch-discovery-search-events.ts`). Sans lieu explicite, une requête texte seule n’est pas clipée au GPS.
+
 **Contrat produit** (helpers : `src/utils/map-discovery-contract.ts`) :
 
 | Mode | Condition | Pan / zoom utilisateur | Recentrer |
@@ -16,9 +18,11 @@
 
 En **search**, le pan n’auto-fetche pas. En **browse**, si. Le chip conserve quoi/quand et relâche seulement le verrou géographique.
 
-**Refine viewport (sans lock)** : bouton curseurs à droite de la SearchBar. Il ouvre une sous-section **sous la barre** (statut + catégories). Même contrat : `setStatus` / `setContent` **sans** `searchApplied`. Pins = liste. Refetch bbox seulement si le time scope change. Visible en browse **et** en recherche (affine la liste sans recadrer ni lock). Lieu, dates custom et presets restent dans la modale SearchBar. La bottom sheet ne contient plus que le tri.
+**Refine viewport (sans lock)** : bouton curseurs à droite de la SearchBar. Sous-section **sous la barre** : période (Tous / En cours / Aujourd’hui / Demain / Ce week-end / À venir / Passés + date précise) et catégories (tout sélectionner / désélectionner). `setStatus` / `setWhen` / `setContent` **sans** `searchApplied`. Pins = liste. Refetch bbox si le time scope change ou si une date (preset / range) l’exige. Visible en browse **et** en recherche. Lieu et texte restent dans la modale SearchBar. La bottom sheet ne contient plus que le tri.
 
 Le toggle satellite n’est plus à côté de la recherche : il est groupé avec le recentrage GPS (outils carte).
+
+Si la sheet est au snap **full (92 %)** et que l’utilisateur ouvre l’overfilter, on la ramène au **half (55 %)** pour laisser voir pins + chips. Fermer le panneau restaure le full **seulement** si l’utilisateur n’a pas bougé la sheet (et n’est pas passé en fiche single). Peek / half inchangés. Ouvrir la SearchBar ferme le panneau sans restaurer le full.
 
 | Filtre | Browse | Search active |
 |--------|--------|----------------|
@@ -47,6 +51,8 @@ Le toggle satellite n’est plus à côté de la recherche : il est groupé avec
 | `suppressBoundsRecalcUntilRef` | Fenêtre temporelle : ignorer `onVisibleBoundsChange` |
 
 `refreshAfter` est **opt-in** (`refreshAfter === true`). Focus marker et refit sheet passent `false`. Handoff Home, search apply et recenter passent `true`.
+
+Le bbox de fetch **n’inclut pas** la bande recouverte par la sheet : `getVisibleBounds` est inset vers le nord de `sheetCoverPx / mapHeight` (peek 72 px, half/full selon le snap). Helper `insetMapBoundsForBottomOverlay`.
 
 ---
 

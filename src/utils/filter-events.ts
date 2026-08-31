@@ -2,6 +2,7 @@ import type { EventWithCreator } from '../types/database';
 import type { EventFilters, TimeFilter, PopularityFilter } from '../types/filters';
 import { getEffectiveEventEnd, isEventLive, isEventPast, isEventUpcoming } from './event-status';
 import { eventMatchesDatePreset } from './event-date-windows';
+import { eventMatchesNameQuery } from './event-name-search';
 
 const POPULARITY_THRESHOLDS = {
   trending: 10,
@@ -144,12 +145,8 @@ export function filterEvents(
       }
     }
 
-    if (filters.name) {
-      const query = filters.name.trim().toLowerCase();
-      if (query) {
-        const title = (event.title || '').toLowerCase();
-        if (!title.includes(query)) return false;
-      }
+    if (filters.name && !eventMatchesNameQuery(event, filters.name)) {
+      return false;
     }
 
     if (

@@ -4,6 +4,7 @@ import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/type
 import type { FeatureCollection } from 'geojson';
 import { resolveEventMarkerIcon as resolveMarkerIconFromSlug } from '@/constants/category-visuals';
 import type { EventTimeScope } from '@/utils/event-time-scope';
+import { nameQueryOrFilters } from '@/utils/event-name-search';
 
 const formatSupabaseError = (error: any, context: string) => {
   const rawMessage =
@@ -332,13 +333,16 @@ export const supabaseProvider: (Pick<
 > &
   IBugsProvider) = {
   async listEvents(filters: Record<string, unknown> = {}) {
-    const { limit, creatorId, includePast, timeScope, selectMode } = filters as {
+    const { limit, creatorId, includePast, timeScope, selectMode, nameQuery, bbox } = filters as {
       limit?: number;
       creatorId?: string;
       includePast?: boolean;
       timeScope?: EventTimeScope;
       /** `full` embeds media[] + description; default `card` for public feeds. */
       selectMode?: 'card' | 'full';
+      /** Tokenized `ilike` on title + description (Quoi text search). */
+      nameQuery?: string;
+      bbox?: { ne: [number, number]; sw: [number, number] };
     };
     const appliedLimit = typeof limit === 'number' ? limit : 200;
     const nowIso = new Date().toISOString();
@@ -360,6 +364,27 @@ export const supabaseProvider: (Pick<
     } else {
       query = query.eq('status', 'published').eq('visibility', 'public');
       query = applyPublicTimeScope(query, resolvedScope, nowIso);
+    }
+
+    if (typeof nameQuery === 'string' && nameQuery.trim()) {
+      const orGroups = nameQueryOrFilters(nameQuery);
+      // `.or()` appends query params, so successive calls AND the groups.
+      // There is no `.and()` on this PostgREST client (runtime TypeError).
+      for (const group of orGroups) {
+        query = query.or(group);
+      }
+    }
+
+    if (bbox?.ne && bbox?.sw) {
+      const minLon = Math.min(bbox.ne[0], bbox.sw[0]);
+      const maxLon = Math.max(bbox.ne[0], bbox.sw[0]);
+      const minLat = Math.min(bbox.ne[1], bbox.sw[1]);
+      const maxLat = Math.max(bbox.ne[1], bbox.sw[1]);
+      query = query
+        .gte('longitude', minLon)
+        .lte('longitude', maxLon)
+        .gte('latitude', minLat)
+        .lte('latitude', maxLat);
     }
 
     const { data, error } = await query;

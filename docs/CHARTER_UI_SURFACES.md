@@ -41,6 +41,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Map location/error banners | `app/(tabs)/map.tsx` | Light surface, readable status text and accessible retry/settings actions |
 | Map search-area CTA / wide-area warning | `app/(tabs)/map.tsx` | Leaf CTA + small cancellation hint; warning uses semantic light amber surface |
 | Map viewport refine panel (status + categories) | `src/components/search/MapViewportRefinePanel.tsx` | FilterChip / StatusFilterRow tokens; surface under SearchBar, not dark ink |
+| SearchBar modal text fields (Où / Quoi) | `src/components/search/SearchBar.tsx` | Framed mint inputs (`inputFramed`); not ghost white-on-white placeholders |
 | Map style toggle (satellite) | `app/(tabs)/map.tsx` | Clustered with GPS recenter; surface chrome, not SearchBar sibling |
 | Home “Voir sur la map” floating CTA | `src/screens/home/HomeScreen.tsx` | Keep above tab chrome; leaf fill with ink text and accessible result count |
 | Onboarding category cards | `src/components/onboarding/OnboardingThemesStep.tsx` | Borders `#334155`; select-all |

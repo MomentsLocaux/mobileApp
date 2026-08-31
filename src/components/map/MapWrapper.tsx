@@ -20,6 +20,7 @@ import {
 import { CategoryEventMarker } from './CategoryEventMarker';
 import { useTaxonomyStore } from '../../store/taxonomyStore';
 import { MAP_CAMERA_ANIMATION_MS } from '../../utils/map-sheet-layout';
+import { insetMapBoundsForBottomOverlay } from '../../utils/map-viewport-fetch-utils';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
@@ -99,6 +100,8 @@ interface MapWrapperProps {
   styleURL?: string;
   mapPadding?: { top: number; right: number; bottom: number; left: number };
   maxBounds?: { sw: readonly [number, number]; ne: readonly [number, number] };
+  /** Sheet (or peek) height covering the bottom of the MapView, in px. */
+  bottomOverlayPx?: number;
 }
 
 export type MapWrapperHandle = {
@@ -137,6 +140,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
       styleURL,
       mapPadding,
       maxBounds,
+      bottomOverlayPx = 0,
     },
     ref
   ) => {
@@ -146,6 +150,10 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const shapeSourceRefs = useRef<Record<string, any>>({});
   const cameraRef = useRef<Mapbox.Camera>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const lastRawBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const mapHeightPxRef = useRef(0);
+  const bottomOverlayPxRef = useRef(bottomOverlayPx);
+  bottomOverlayPxRef.current = bottomOverlayPx;
   const pendingUserInteractionRef = useRef(false);
   const userTouchDragRef = useRef(false);
   const touchStartPosRef = useRef({ x: 0, y: 0 });
@@ -218,13 +226,24 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     return !eq(prev.sw, next.sw) || !eq(prev.ne, next.ne);
   };
 
+  const insetVisibleBounds = useCallback(
+    (raw: { sw: [number, number]; ne: [number, number] }) =>
+      insetMapBoundsForBottomOverlay(raw, {
+        mapHeightPx: mapHeightPxRef.current,
+        overlayBottomPx: bottomOverlayPxRef.current,
+      }),
+    []
+  );
+
   const emitVisibleBounds = useCallback(
     async (meta?: { isUserInteraction: boolean }) => {
       if (!mapViewRef.current) return;
       try {
         const bounds = await mapViewRef.current.getVisibleBounds();
         if (Array.isArray(bounds) && bounds.length === 2) {
-          const next = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+          const raw = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+          lastRawBoundsRef.current = raw;
+          const next = insetVisibleBounds(raw);
           if (hasBoundsChanged(next)) {
             lastBoundsRef.current = next;
             onVisibleBoundsChange?.(next, meta);
@@ -240,8 +259,19 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         console.warn('getVisibleBounds failed', e);
       }
     },
-    [onVisibleBoundsChange]
+    [insetVisibleBounds, onVisibleBoundsChange]
   );
+
+  useEffect(() => {
+    const raw = lastRawBoundsRef.current;
+    if (!raw) return;
+    const next = insetVisibleBounds(raw);
+    if (!hasBoundsChanged(next)) return;
+    lastBoundsRef.current = next;
+    onVisibleBoundsChange?.(next, { isUserInteraction: false });
+    // Overlay height is the only trigger; the callback is read from the latest render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bottomOverlayPx, insetVisibleBounds]);
 
   const categoryMarkerVisuals = useMemo(() => {
     const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;
@@ -374,7 +404,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         try {
           const bounds = await mapViewRef.current.getVisibleBounds();
           if (Array.isArray(bounds) && bounds.length === 2) {
-            return { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+            const raw = { sw: bounds[0] as [number, number], ne: bounds[1] as [number, number] };
+            lastRawBoundsRef.current = raw;
+            return insetVisibleBounds(raw);
           }
         } catch (e) {
           console.warn('getVisibleBounds failed', e);
@@ -404,7 +436,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
         });
       },
     }),
-    [initialRegion.zoom, mapPadding]
+    [initialRegion.zoom, insetVisibleBounds, mapPadding]
   );
 
   if (Platform.OS === 'web' || !isMapboxAvailable) {
@@ -461,6 +493,16 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   return (
     <View
       style={styles.container}
+      onLayout={(event) => {
+        const height = event.nativeEvent.layout.height;
+        const previous = mapHeightPxRef.current;
+        mapHeightPxRef.current = height;
+        if (previous === height || !lastRawBoundsRef.current) return;
+        const next = insetVisibleBounds(lastRawBoundsRef.current);
+        if (!hasBoundsChanged(next)) return;
+        lastBoundsRef.current = next;
+        onVisibleBoundsChange?.(next, { isUserInteraction: false });
+      }}
       onTouchStart={(event) => {
         const { pageX, pageY } = event.nativeEvent;
         touchStartPosRef.current = { x: pageX, y: pageY };

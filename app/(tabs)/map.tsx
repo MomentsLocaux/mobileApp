@@ -11,7 +11,10 @@ import {
   SHEET_LAYOUT_TIMING,
   SHEET_SIDE_EFFECTS_DELAY_MS,
   VIEWPORT_PEEK_HEIGHT,
+  VIEWPORT_FULL_SNAP_INDEX,
+  VIEWPORT_HALF_SNAP_INDEX,
   getSheetMaxSnapIndex,
+  getSheetSnapHeights,
   MAP_CAMERA_ANIMATION_MS,
   shouldFollowMapCameraForSheetHeight,
   shouldFollowMapCameraForSheetIndex,
@@ -159,12 +162,14 @@ export default function MapScreen() {
   const mapReadyRef = useRef(false);
   const appliedHomeTransferIdRef = useRef<string | null>(null);
   const focusedSearchRevisionRef = useRef<number | null>(null);
+  const sheetSnapBeforeRefineRef = useRef<number | null>(null);
 
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [zoom, setZoom] = useState(12);
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
+  const [mapColumnHeight, setMapColumnHeight] = useState(0);
   const [pendingSearchAreaBounds, setPendingSearchAreaBounds] = useState<MapBounds | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
@@ -293,7 +298,7 @@ export default function MapScreen() {
     viewportBootstrappedRef,
   } = viewport;
 
-  const { handleCategoriesChange, handleMetaFilterChange, handleClearViewportFilters } =
+  const { handleCategoriesChange, handleTemporalChoice, handleCustomDateChange, handleClearViewportFilters } =
     useMapFilterActions({
     userLocation,
     discoveryStatus,
@@ -841,16 +846,59 @@ export default function MapScreen() {
   }, [mapMode, setMapMode]);
 
   const hasViewportRefine =
-    content.categories.length > 0 || metaFilter !== DEFAULT_DISCOVERY_STATUS;
+    content.categories.length > 0 ||
+    metaFilter !== DEFAULT_DISCOVERY_STATUS ||
+    Boolean(when.preset || when.startDate || when.endDate);
+
+  const sheetCoverPx = useMemo(() => {
+    if (mapColumnHeight <= 0) return VIEWPORT_PEEK_HEIGHT;
+    const snaps = getSheetSnapHeights(mapColumnHeight, sheetMode);
+    return snaps[Math.min(bottomSheetIndex, snaps.length - 1)] ?? VIEWPORT_PEEK_HEIGHT;
+  }, [bottomSheetIndex, mapColumnHeight, sheetMode]);
 
   const handleSearchExpandedChange = useCallback((expanded: boolean) => {
     setSearchExpanded(expanded);
-    if (expanded) setRefineOpen(false);
+    if (expanded) {
+      sheetSnapBeforeRefineRef.current = null;
+      setRefineOpen(false);
+    }
   }, []);
 
+  const closeRefinePanel = useCallback(
+    (options?: { restoreSheet?: boolean }) => {
+      setRefineOpen(false);
+      const savedSnap = sheetSnapBeforeRefineRef.current;
+      sheetSnapBeforeRefineRef.current = null;
+      if (options?.restoreSheet === false) return;
+      const ui = useMapResultsUIStore.getState();
+      if (
+        savedSnap != null &&
+        savedSnap >= VIEWPORT_FULL_SNAP_INDEX &&
+        sheetMode === 'viewport' &&
+        ui.sheetStatus !== 'singleEvent' &&
+        ui.bottomSheetIndex === VIEWPORT_HALF_SNAP_INDEX
+      ) {
+        handleSheetIndexChange(savedSnap);
+      }
+    },
+    [handleSheetIndexChange, sheetMode]
+  );
+
+  const openRefinePanel = useCallback(() => {
+    const idx = useMapResultsUIStore.getState().bottomSheetIndex;
+    if (sheetMode === 'viewport' && idx >= VIEWPORT_FULL_SNAP_INDEX) {
+      sheetSnapBeforeRefineRef.current = idx;
+      handleSheetIndexChange(VIEWPORT_HALF_SNAP_INDEX);
+    } else {
+      sheetSnapBeforeRefineRef.current = null;
+    }
+    setRefineOpen(true);
+  }, [handleSheetIndexChange, sheetMode]);
+
   const toggleRefine = useCallback(() => {
-    setRefineOpen((open) => !open);
-  }, []);
+    if (refineOpen) closeRefinePanel();
+    else openRefinePanel();
+  }, [closeRefinePanel, openRefinePanel, refineOpen]);
 
   const mapStyle = useMemo(() => {
     return mapMode === 'satellite' ? Mapbox.StyleURL.SatelliteStreet : Mapbox.StyleURL.Street;
@@ -895,7 +943,7 @@ export default function MapScreen() {
                   ? 'Filtrer les événements, filtres actifs'
                   : 'Filtrer les événements de la carte'
               }
-              accessibilityHint="Ouvre le statut et les catégories sans lancer une recherche."
+              accessibilityHint="Ouvre les filtres de période et de catégorie sans lancer une recherche."
               animateEntrance={false}
             >
               <SlidersHorizontal size={20} color={colors.brand.text} />
@@ -906,9 +954,11 @@ export default function MapScreen() {
             visible={refineOpen}
             searchActive={searchActive}
             metaFilter={metaFilter}
+            when={when}
             selectedCategories={content.categories}
             selectedSubcategories={content.subcategories}
-            onMetaFilterChange={handleMetaFilterChange}
+            onTemporalChoice={handleTemporalChoice}
+            onCustomDateChange={handleCustomDateChange}
             onCategoriesChange={handleCategoriesChange}
             onClear={handleClearViewportFilters}
           />
@@ -916,7 +966,11 @@ export default function MapScreen() {
 
         <View
           style={styles.contentColumn}
-          onLayout={(event) => handleColumnLayout(event.nativeEvent.layout.height)}
+          onLayout={(event) => {
+            const height = event.nativeEvent.layout.height;
+            handleColumnLayout(height);
+            setMapColumnHeight((current) => (current === height ? current : height));
+          }}
         >
           <Animated.View style={[styles.mapLayer, mapVisualStyle]}>
             <MapWrapper
@@ -927,6 +981,7 @@ export default function MapScreen() {
               onZoomChange={setZoom}
               styleURL={mapStyle}
               mapPadding={MAP_VIEW_PADDING}
+              bottomOverlayPx={sheetCoverPx}
               maxBounds={FRANCE_CAMERA_BOUNDS}
               onVisibleBoundsChange={handleBoundsChangeWithCache}
               onUserMapGestureStart={handleUserMapGestureStart}
@@ -1128,6 +1183,7 @@ export default function MapScreen() {
               onSortOrderChange={(value) => setSort('map', sortBy, value)}
               hasLocation={!!userLocation}
               selectedCategories={content.categories}
+              hasViewportRefine={hasViewportRefine}
               onClearViewportFilters={handleClearViewportFilters}
             />
           </Animated.View>

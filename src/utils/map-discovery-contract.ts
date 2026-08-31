@@ -116,9 +116,13 @@ export function shouldPublishViewportToMap(options: {
   return true;
 }
 
-/** Date presets / ranges / query are search criteria; categories are viewport refine. */
-export function shouldApplyWhenFilters(searchActive: boolean): boolean {
-  return searchActive;
+/** Date presets / ranges apply in browse refine and in search; query stays search-only. */
+export function shouldApplyWhenFilters(
+  searchActive: boolean,
+  filters?: Pick<EventFilters, 'time' | 'startDate' | 'endDate'>
+): boolean {
+  if (searchActive) return true;
+  return Boolean(filters?.time || filters?.startDate || filters?.endDate);
 }
 
 export function resolveMapClientFilters(
@@ -132,7 +136,7 @@ export function resolveMapClientFilters(
     subcategories: filters.subcategories,
     includePast: true,
   };
-  if (!shouldApplyWhenFilters(searchActive)) {
+  if (!shouldApplyWhenFilters(searchActive, filters)) {
     return content;
   }
   return {
@@ -141,7 +145,7 @@ export function resolveMapClientFilters(
     time: filters.time,
     startDate: filters.startDate,
     endDate: filters.endDate,
-    name: filters.name,
+    name: searchActive ? filters.name : undefined,
   };
 }
 

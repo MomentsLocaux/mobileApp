@@ -12,6 +12,11 @@ import {
   MAP_BBOX_TOO_LARGE_MESSAGE,
 } from '@/utils/bbox-event-fetch';
 import {
+  listEventsByNameQuery,
+  mergeEventsById,
+} from '@/utils/fetch-discovery-search-events';
+import { buildMapMarkerCollection } from '@/utils/map-marker-features';
+import {
   buildMapViewportCacheKey,
   getViewportCacheDisposition,
   isMapBoundsTooLarge,
@@ -23,7 +28,7 @@ import {
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
-import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit } from '@/utils/search-helpers';
+import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit, SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
 import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
 import { resolveMapClientFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
@@ -293,9 +298,9 @@ export function useViewportEventsFetch({
         bbox,
         timeScope,
         mergeUpcomingForDatePreset,
-        requestKey: buildMapViewportCacheKey(bbox, timeScope, {
+        requestKey: `${buildMapViewportCacheKey(bbox, timeScope, {
           mergeUpcomingForDatePreset,
-        }),
+        })}|q:${(searchFiltersRef.current.name || '').trim().toLowerCase()}`,
       };
     },
     [zoomRef]
@@ -336,8 +341,24 @@ export function useViewportEventsFetch({
         let featureCollection = viewport.featureCollection;
         let events: EventWithCreator[] = viewport.events;
 
+        const nameQuery = searchAppliedRef.current
+          ? (searchFiltersRef.current.name || '').trim()
+          : '';
+        if (nameQuery) {
+          const named = await listEventsByNameQuery({
+            nameQuery,
+            timeScope: bboxTimeScope,
+            limit: Math.min(SEARCH_FETCH_LIMIT, bboxParams.limit),
+            bbox: { ne: bboxParams.ne, sw: bboxParams.sw },
+          });
+          if (!isViewportRequestCurrent(requestId)) return;
+          events = mergeEventsById(events, named);
+          featureCollection = buildMapMarkerCollection(events) as EventMapFeatureCollection;
+        }
+
         if (
           events.length === 0 &&
+          !nameQuery &&
           (currentMetaFilter === 'upcoming' || currentMetaFilter === 'live') &&
           bboxTimeScope !== 'all'
         ) {

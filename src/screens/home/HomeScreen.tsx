@@ -51,10 +51,10 @@ import {
 } from '@/utils/search-helpers';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import { fetchDiscoverySearchEvents } from '@/utils/fetch-discovery-search-events';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
-import { EventsService } from '@/services/events.service';
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import {
@@ -355,39 +355,34 @@ export default function HomeScreen() {
     });
     const run = async () => {
       try {
-        let baseEvents: EventWithCreator[] = [];
-        if (searchCenter && effectiveRadiusKm) {
-          const bounds = getBoundsFromRadiusKm(
-            searchCenter.latitude,
-            searchCenter.longitude,
-            effectiveRadiusKm
-          );
-          const viewport = await listMapViewportForMap(
-            { ...bounds, limit: SEARCH_FETCH_LIMIT },
-            searchTimeScope,
-            {
-              mergeUpcomingForDatePreset:
-                searchTimeScope === 'current' && !!when.preset,
-            }
-          );
-          baseEvents = viewport.events || [];
-        } else {
-          baseEvents = await EventsService.listEvents({
-            limit: SEARCH_FETCH_LIMIT,
-            timeScope: searchTimeScope,
-          });
-        }
+        const constrainToPlace = Boolean(
+          place.center || place.label?.trim() || place.radiusKm !== undefined
+        );
+        const baseEvents = await fetchDiscoverySearchEvents({
+          nameQuery: filters.name,
+          timeScope: searchTimeScope,
+          searchCenter,
+          effectiveRadiusKm,
+          mergeUpcomingForDatePreset: searchTimeScope === 'current' && !!when.preset,
+          limit: SEARCH_FETCH_LIMIT,
+          constrainToPlace,
+        });
 
         const filtered = filterEvents(
           baseEvents,
-          searchCenter && effectiveRadiusKm
+          constrainToPlace && searchCenter && effectiveRadiusKm
             ? {
                 ...filters,
                 centerLat: searchCenter.latitude,
                 centerLon: searchCenter.longitude,
                 radiusKm: effectiveRadiusKm,
               }
-            : filters,
+            : {
+                ...filters,
+                centerLat: undefined,
+                centerLon: undefined,
+                radiusKm: undefined,
+              },
           null
         );
         if (!cancelled) {
@@ -421,6 +416,7 @@ export default function HomeScreen() {
     status,
     when.includePast,
     when.preset,
+    place,
   ]);
 
   useEffect(() => {

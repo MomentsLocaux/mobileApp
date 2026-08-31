@@ -719,18 +719,18 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                   <Text style={styles.memberLabel}>Nom</Text>
                   <TextInput
                     placeholder="Rechercher un membre"
-                    placeholderTextColor={colors.brand.textSecondary}
+                    placeholderTextColor={colors.neutral[600]}
                     value={memberQuery}
                     onChangeText={setMemberQuery}
-                    style={styles.input}
+                    style={styles.inputFramed}
                   />
                   <Text style={styles.memberLabel}>Ville</Text>
                   <TextInput
                     placeholder="Ville"
-                    placeholderTextColor={colors.brand.textSecondary}
+                    placeholderTextColor={colors.neutral[600]}
                     value={memberCity}
                     onChangeText={setMemberCity}
-                    style={styles.input}
+                    style={styles.inputFramed}
                   />
 
                   {memberLoading ? <Text style={styles.meta}>Recherche...</Text> : null}
@@ -769,12 +769,14 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                       icon={<MapPin size={18} color={colors.brand.textSecondary} />}
                       onPress={() => setActiveSection('where')}
                     >
+                      <Text style={styles.sectionLabel}>Ville, adresse ou lieu</Text>
                       <TextInput
-                        placeholder="Ville, adresse ou lieu"
-                        placeholderTextColor={colors.brand.textSecondary}
+                        placeholder="Ex: Metz, 12 rue des Jardins…"
+                        placeholderTextColor={colors.neutral[600]}
                         value={query}
                         onChangeText={setQuery}
-                        style={styles.input}
+                        style={styles.inputFramed}
+                        accessibilityLabel="Ville, adresse ou lieu"
                       />
                       <View style={styles.row}>
                         <Chip
@@ -979,10 +981,13 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                       <Text style={styles.sectionLabel}>Nom de l&apos;événement</Text>
                       <TextInput
                         placeholder="Ex: marché, concert, expo"
-                        placeholderTextColor={colors.brand.textSecondary}
+                        placeholderTextColor={colors.neutral[600]}
                         value={what.query || ''}
                         onChangeText={(value) => setWhat({ query: value })}
-                        style={styles.input}
+                        style={styles.inputFramed}
+                        accessibilityLabel="Nom de l'événement"
+                        autoCorrect={false}
+                        returnKeyType="search"
                       />
                       <View style={styles.sectionLabelRow}>
                         <Text style={styles.sectionLabel}>Catégories</Text>
@@ -1382,6 +1387,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
     color: colors.brand.text,
+    ...typography.body,
+  },
+  inputFramed: {
+    backgroundColor: colors.brand.surfaceMuted,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    minHeight: 48,
+    borderWidth: 1.5,
+    borderColor: colors.primary[200],
+    color: colors.brand.ink,
     ...typography.body,
   },
   row: {

@@ -141,12 +141,21 @@ describe('map discovery contract', () => {
     assert.equal(resolvePendingProgrammaticRefresh(true), true);
   });
 
-  it('applies date/query client filters only while a search is active', () => {
+  it('applies date client filters in browse when a when-criterion exists', () => {
     assert.equal(shouldApplyWhenFilters(false), false);
     assert.equal(shouldApplyWhenFilters(true), true);
+    assert.equal(shouldApplyWhenFilters(false, { time: 'today' }), true);
+    assert.equal(
+      resolveMapClientFilters({ categories: ['arts-culture'], name: 'jazz' }, false).name,
+      undefined
+    );
+    assert.equal(
+      resolveMapClientFilters({ categories: ['arts-culture'] }, false).includePast,
+      true
+    );
   });
 
-  it('always keeps category filters and drops when-filters while browsing', () => {
+  it('always keeps category filters and applies when-filters in browse without the search query', () => {
     const filters = {
       categories: ['arts-culture'],
       subcategories: ['concert'],
@@ -159,7 +168,11 @@ describe('map discovery contract', () => {
       categories: ['arts-culture'],
       subcategory: undefined,
       subcategories: ['concert'],
-      includePast: true,
+      includePast: false,
+      time: 'today',
+      startDate: undefined,
+      endDate: undefined,
+      name: undefined,
     });
     assert.equal(resolveMapClientFilters(filters, true).time, 'today');
     assert.equal(resolveMapClientFilters(filters, true).name, 'jazz');

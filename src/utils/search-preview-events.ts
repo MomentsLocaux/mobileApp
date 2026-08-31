@@ -1,8 +1,7 @@
-import { EventsService } from '@/services/events.service';
 import { filterEvents } from '@/utils/filter-events';
 import { SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
 import type { EventWithCreator } from '@/types/database';
-import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import { fetchDiscoverySearchEvents } from '@/utils/fetch-discovery-search-events';
 import {
   toEventFilters,
   toTimeScope,
@@ -11,7 +10,7 @@ import {
 
 type Coords = { latitude: number; longitude: number };
 
-/** Fetch + filter events for SearchBar preview count (aligned with map viewport RPC). */
+/** Fetch + filter events for SearchBar preview count (aligned with map viewport / name search). */
 export async function fetchSearchPreviewEvents(
   filters: DiscoveryFilters,
   options: {
@@ -21,33 +20,27 @@ export async function fetchSearchPreviewEvents(
   }
 ): Promise<EventWithCreator[]> {
   const timeScope = toTimeScope(filters, { searchActive: true });
-
-  let events: EventWithCreator[] = [];
-
-  if (options.searchCenter && options.effectiveRadiusKm !== undefined) {
-    const latDelta = options.effectiveRadiusKm / 111;
-    const lonDelta =
-      options.effectiveRadiusKm /
-      (111 * Math.max(Math.cos((options.searchCenter.latitude * Math.PI) / 180), 0.1));
-    const ne: [number, number] = [
-      options.searchCenter.longitude + lonDelta,
-      options.searchCenter.latitude + latDelta,
-    ];
-    const sw: [number, number] = [
-      options.searchCenter.longitude - lonDelta,
-      options.searchCenter.latitude - latDelta,
-    ];
-
-    const viewport = await listMapViewportForMap(
-      { ne, sw, limit: SEARCH_FETCH_LIMIT },
-      timeScope,
-      { mergeUpcomingForDatePreset: timeScope === 'current' && !!filters.when.preset }
-    );
-    events = viewport.events || [];
-  } else {
-    events = await EventsService.listEvents({ limit: SEARCH_FETCH_LIMIT, timeScope });
-  }
-
   const eventFilters = toEventFilters(filters, options.userCoords);
-  return filterEvents(events, eventFilters, null);
+  const constrainToPlace = Boolean(
+    filters.place.center ||
+      filters.place.label?.trim() ||
+      filters.place.radiusKm !== undefined
+  );
+  const events = await fetchDiscoverySearchEvents({
+    nameQuery: eventFilters.name,
+    timeScope,
+    searchCenter: options.searchCenter,
+    effectiveRadiusKm: options.effectiveRadiusKm,
+    mergeUpcomingForDatePreset: timeScope === 'current' && !!filters.when.preset,
+    limit: SEARCH_FETCH_LIMIT,
+    constrainToPlace,
+  });
+
+  return filterEvents(
+    events,
+    constrainToPlace
+      ? eventFilters
+      : { ...eventFilters, centerLat: undefined, centerLon: undefined, radiusKm: undefined },
+    null
+  );
 }

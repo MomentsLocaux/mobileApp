@@ -16,6 +16,14 @@ describe('event time scope contract', () => {
       }),
       'all'
     );
+    assert.equal(
+      resolveEventTimeScope({
+        metaFilter: 'all',
+        searchActive: false,
+        includePast: true,
+      }),
+      'all'
+    );
   });
 
   it('keeps explicit status scopes authoritative', () => {

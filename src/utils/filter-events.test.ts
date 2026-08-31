@@ -26,4 +26,18 @@ describe('event client filters', () => {
 
     assert.deepEqual(result.map((item) => item.id), ['spanning']);
   });
+
+  it('keeps events whose title or description contains every name token', () => {
+    const marche = event('marche', '2099-01-01T10:00:00.000Z', '2099-01-01T18:00:00.000Z');
+    (marche as { title: string }).title = 'Marché de Noël';
+    const concert = event('concert', '2099-01-01T10:00:00.000Z', '2099-01-01T18:00:00.000Z');
+    (concert as { title: string }).title = 'Bal folk';
+    (concert as { description: string }).description = 'Concert jazz en salle';
+
+    const byTitle = filterEvents([marche, concert], { name: 'marché' });
+    assert.deepEqual(byTitle.map((item) => item.id), ['marche']);
+
+    const byDescription = filterEvents([marche, concert], { name: 'jazz' });
+    assert.deepEqual(byDescription.map((item) => item.id), ['concert']);
+  });
 });

@@ -74,6 +74,7 @@ interface Props {
   onSortOrderChange?: (order: SortOrder) => void;
   hasLocation?: boolean;
   selectedCategories?: string[];
+  hasViewportRefine?: boolean;
   onClearViewportFilters?: () => void;
 }
 
@@ -113,6 +114,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onSortOrderChange,
       hasLocation = false,
       selectedCategories = [],
+      hasViewportRefine: hasViewportRefineProp,
       onClearViewportFilters,
     },
     ref
@@ -151,7 +153,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const showSingleDetail = mode === 'single' && isExpanded && hasEvents && !isLoading;
     const showEmpty = isExpanded && mode !== 'single' && !hasEvents && !isLoading;
     const hasViewportRefine =
-      selectedCategories.length > 0 || metaFilter !== DEFAULT_DISCOVERY_STATUS;
+      hasViewportRefineProp ??
+      (selectedCategories.length > 0 || metaFilter !== DEFAULT_DISCOVERY_STATUS);
 
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 

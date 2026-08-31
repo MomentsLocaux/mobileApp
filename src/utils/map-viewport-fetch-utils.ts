@@ -35,6 +35,35 @@ export function isMapBoundsTooLarge(
   return getMapBoundsDiameterKm(bounds) > maxDiameterKm + 0.01;
 }
 
+const MAX_BOTTOM_OVERLAY_COVER_RATIO = 0.85;
+
+/**
+ * Shrink the south edge of a north-up bbox so events under a bottom overlay
+ * (peek / sheet) are not part of the viewport fetch.
+ */
+export function insetMapBoundsForBottomOverlay(
+  bounds: MapBounds,
+  options: { mapHeightPx: number; overlayBottomPx: number }
+): MapBounds {
+  const mapHeightPx = options.mapHeightPx;
+  const overlayBottomPx = options.overlayBottomPx;
+  if (!(mapHeightPx > 0) || !(overlayBottomPx > 0)) return bounds;
+
+  const coverRatio = Math.min(overlayBottomPx / mapHeightPx, MAX_BOTTOM_OVERLAY_COVER_RATIO);
+  if (!(coverRatio > 0)) return bounds;
+
+  const latSpan = bounds.ne[1] - bounds.sw[1];
+  if (!(latSpan > 0)) return bounds;
+
+  const nextSouth = bounds.sw[1] + latSpan * coverRatio;
+  if (nextSouth >= bounds.ne[1]) return bounds;
+
+  return {
+    ne: bounds.ne,
+    sw: [bounds.sw[0], nextSouth],
+  };
+}
+
 /** Ignore tiny camera settle differences when deciding whether a searched area changed. */
 export function haveMapBoundsMeaningfullyChanged(
   committed: MapBounds | null,

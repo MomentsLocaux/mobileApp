@@ -5,6 +5,7 @@ import {
   getMapBoundsDiameterKm,
   getViewportCacheDisposition,
   haveMapBoundsMeaningfullyChanged,
+  insetMapBoundsForBottomOverlay,
   isMapBoundsTooLarge,
   raceWithViewportTimeout,
 } from './map-viewport-fetch-utils';
@@ -87,6 +88,25 @@ describe('map viewport fetch helpers', () => {
         ne: [6.3, 49.5],
       }),
       true
+    );
+  });
+
+  it('raises the south edge so a bottom sheet overlay is outside the fetch bbox', () => {
+    const bounds = {
+      sw: [6, 48] as [number, number],
+      ne: [7, 49] as [number, number],
+    };
+    const inset = insetMapBoundsForBottomOverlay(bounds, {
+      mapHeightPx: 800,
+      overlayBottomPx: 80,
+    });
+    assert.equal(inset.sw[0], 6);
+    assert.equal(inset.ne[0], 7);
+    assert.equal(inset.ne[1], 49);
+    assert.ok(Math.abs(inset.sw[1] - (48 + 80 / 800)) < 1e-10);
+    assert.deepEqual(
+      insetMapBoundsForBottomOverlay(bounds, { mapHeightPx: 800, overlayBottomPx: 0 }),
+      bounds
     );
   });
 });

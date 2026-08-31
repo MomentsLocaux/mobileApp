@@ -1,5 +1,5 @@
-import type { DatePreset, DiscoveryStatus } from '@/constants/filters';
-import type { DiscoveryWhenFilter } from '@/utils/discovery-filters';
+import { DEFAULT_DISCOVERY_STATUS, type DatePreset, type DiscoveryStatus } from '../constants/filters';
+import type { DiscoveryWhenFilter } from './discovery-filters';
 
 export type SearchTemporalChoice =
   | 'all'
@@ -50,5 +50,27 @@ export function filtersForSearchTemporalChoice(choice: SearchTemporalChoice): {
   return {
     status: choice,
     when: {},
+  };
+}
+
+export function filtersForCustomDateRange(
+  range: { startDate?: string | null; endDate?: string | null },
+  today: string
+): { status: DiscoveryStatus; when: DiscoveryWhenFilter } {
+  const start = range.startDate || range.endDate || undefined;
+  const end = range.endDate || range.startDate || undefined;
+  if (!start && !end) {
+    return { status: DEFAULT_DISCOVERY_STATUS, when: {} };
+  }
+  const includesPastDays = Boolean(start && start < today);
+  const entirelyPast = Boolean(end && end < today);
+  const entirelyFuture = Boolean(start && start > today);
+  return {
+    status: entirelyPast ? 'past' : entirelyFuture ? 'upcoming' : 'all',
+    when: {
+      startDate: start,
+      endDate: end,
+      includePast: includesPastDays,
+    },
   };
 }

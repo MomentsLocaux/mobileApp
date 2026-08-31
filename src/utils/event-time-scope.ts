@@ -10,13 +10,12 @@ export const resolveEventTimeScope = (params: {
   /** @deprecated Prefer metaFilter + searchActive */
   legacyIncludePast?: boolean;
 }): EventTimeScope => {
-  const { metaFilter = 'all', searchActive = false, includePast = false, legacyIncludePast = false } = params;
+  const { metaFilter = 'all', includePast = false, legacyIncludePast = false } = params;
 
   if (metaFilter === 'past') return 'all';
   if (metaFilter === 'upcoming') return 'upcoming';
   if (metaFilter === 'live') return 'ongoing';
-  if (searchActive && includePast) return 'all';
-  if (legacyIncludePast) return 'all';
+  if (includePast || legacyIncludePast) return 'all';
   if (metaFilter === 'all') return 'current';
   return 'ongoing';
 };

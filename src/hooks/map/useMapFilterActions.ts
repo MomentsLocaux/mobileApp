@@ -13,6 +13,12 @@ import {
 import { resolveViewportRefreshAfterFilter } from '@/utils/map-filter-transaction';
 import { isDiscoverySearchActive } from '@/utils/map-discovery-contract';
 import { hasSearchCriteria as checkSearchCriteria } from '@/utils/search-helpers';
+import {
+  filtersForCustomDateRange,
+  filtersForSearchTemporalChoice,
+  type SearchTemporalChoice,
+} from '@/utils/search-temporal-choice';
+import type { DateRangeValue } from '@/types/eventDate.model';
 import type { ViewportFetchOptions } from './useViewportEventsFetch';
 
 type ClientFilterOverrides = {
@@ -48,8 +54,8 @@ function currentSearchFlags(filters: DiscoveryFilters) {
 
 /**
  * Map discovery filter transactions.
- * Viewport refine (status / category) never sets searchApplied.
- * Date presets still go through applySearchCriteria (search lock).
+ * Viewport refine (status / category / date) never sets searchApplied.
+ * SearchBar Apply remains the only path that locks geography.
  */
 export function useMapFilterActions({
   userLocation,
@@ -63,6 +69,8 @@ export function useMapFilterActions({
   const resetCriteria = useDiscoveryFiltersStore((s) => s.resetCriteria);
   const setStatus = useDiscoveryFiltersStore((s) => s.setStatus);
   const setContent = useDiscoveryFiltersStore((s) => s.setContent);
+  const setWhen = useDiscoveryFiltersStore((s) => s.setWhen);
+  const clearWhen = useDiscoveryFiltersStore((s) => s.clearWhen);
 
   const reapplyFromStore = useCallback(
     (options?: { metaFilter?: EventMetaFilter }) => {
@@ -173,6 +181,82 @@ export function useMapFilterActions({
     [applyFilterTransaction]
   );
 
+  const handleTemporalChoice = useCallback(
+    (choice: SearchTemporalChoice) => {
+      const previous = discoveryStatus;
+      const next = filtersForSearchTemporalChoice(choice);
+      const isDatePreset =
+        choice === 'today' || choice === 'tomorrow' || choice === 'weekend';
+      clearFrozenViewport();
+      setStatus(next.status);
+      if (next.when.preset) {
+        setWhen({
+          preset: next.when.preset,
+          startDate: undefined,
+          endDate: undefined,
+          includePast: false,
+        });
+      } else {
+        clearWhen();
+      }
+      const reapplied = reapplyFromStore({ metaFilter: next.status });
+      refreshIfNeeded(reapplied, {
+        metaFilter: next.status,
+        previousMetaFilter: previous,
+        forceRefresh: isDatePreset,
+      });
+    },
+    [
+      clearFrozenViewport,
+      clearWhen,
+      discoveryStatus,
+      reapplyFromStore,
+      refreshIfNeeded,
+      setStatus,
+      setWhen,
+    ]
+  );
+
+  const handleCustomDateChange = useCallback(
+    (range: DateRangeValue) => {
+      const previous = discoveryStatus;
+      const todayDate = new Date();
+      const today = [
+        todayDate.getFullYear(),
+        String(todayDate.getMonth() + 1).padStart(2, '0'),
+        String(todayDate.getDate()).padStart(2, '0'),
+      ].join('-');
+      const next = filtersForCustomDateRange(range, today);
+      clearFrozenViewport();
+      setStatus(next.status);
+      if (next.when.startDate || next.when.endDate) {
+        setWhen({
+          preset: undefined,
+          startDate: next.when.startDate,
+          endDate: next.when.endDate,
+          includePast: next.when.includePast === true,
+        });
+      } else {
+        clearWhen();
+      }
+      const reapplied = reapplyFromStore({ metaFilter: next.status });
+      refreshIfNeeded(reapplied, {
+        metaFilter: next.status,
+        previousMetaFilter: previous,
+        forceRefresh: true,
+      });
+    },
+    [
+      clearFrozenViewport,
+      clearWhen,
+      discoveryStatus,
+      reapplyFromStore,
+      refreshIfNeeded,
+      setStatus,
+      setWhen,
+    ]
+  );
+
   const handleCategoriesChange = useCallback(
     (categories: string[], subcategories: string[]) => {
       clearFrozenViewport();
@@ -203,6 +287,7 @@ export function useMapFilterActions({
     const previous = discoveryStatus;
     clearFrozenViewport();
     setContent({ categories: [], subcategories: [] });
+    clearWhen();
     setStatus(DEFAULT_DISCOVERY_STATUS);
     const reapplied = reapplyFromStore({ metaFilter: DEFAULT_DISCOVERY_STATUS });
     refreshIfNeeded(reapplied, {
@@ -211,6 +296,7 @@ export function useMapFilterActions({
     });
   }, [
     clearFrozenViewport,
+    clearWhen,
     discoveryStatus,
     reapplyFromStore,
     refreshIfNeeded,
@@ -242,6 +328,8 @@ export function useMapFilterActions({
 
   return {
     handleWhenPresetChange,
+    handleTemporalChoice,
+    handleCustomDateChange,
     handleCategoriesChange,
     handleMetaFilterChange,
     handleClearViewportFilters,

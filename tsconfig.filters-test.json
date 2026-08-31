@@ -18,6 +18,7 @@
     "src/utils/favorite-events.test.ts",
     "src/utils/community-photo-eligibility.test.ts",
     "src/utils/event-time-scope.test.ts",
+    "src/utils/event-name-search.test.ts",
     "src/utils/filter-events.test.ts",
     "src/utils/map-viewport-fetch-utils.test.ts",
     "src/utils/map-filter-transaction.test.ts",
