@@ -96,7 +96,7 @@ export function ProposalHistory({
       ) : (
         <ScrollView contentContainerStyle={styles.sessionsContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.introText}>
-            Retrouve les événements proposés et corrige un choix si tu changes d’avis.
+            Retrouve les événements proposés, corrige un choix, ou supprime une session avec la poubelle.
           </Text>
           {sessions.map((session) => {
             const likes = session.decisions.filter((item) => item.decision === 'like').length;

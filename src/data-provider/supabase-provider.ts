@@ -216,7 +216,7 @@ const mapViewportRowToEvent = (row: Record<string, unknown>): EventWithCreator =
     id: String(row.id),
     creator_id: creatorId,
     title: (row.title as string) || '',
-    description: null,
+    description: typeof row.description === 'string' ? row.description : null,
     category: row.category ? String(row.category) : null,
     subcategory: row.subcategory ? String(row.subcategory) : null,
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
@@ -352,6 +352,7 @@ export const supabaseProvider: (Pick<
   | 'uploadEventCover'
   | 'listEventsByBBox'
   | 'listMapViewport'
+  | 'listProposalCandidates'
   | 'getEventsByIds'
 > &
   IBugsProvider) = {
@@ -602,6 +603,37 @@ export const supabaseProvider: (Pick<
         features,
       } as FeatureCollection,
     };
+  },
+
+  async listProposalCandidates(params: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    windowStart: string;
+    windowEnd: string;
+    categoryIds?: string[];
+    excludeIds?: string[];
+    limit?: number;
+  }) {
+    const { data, error } = await supabase.rpc('list_proposal_candidates', {
+      p_lat: params.latitude,
+      p_lon: params.longitude,
+      p_radius_km: params.radiusKm,
+      p_window_start: params.windowStart,
+      p_window_end: params.windowEnd,
+      p_categories: params.categoryIds?.length ? params.categoryIds : null,
+      p_exclude_ids: params.excludeIds?.length ? params.excludeIds : null,
+      p_limit: params.limit,
+    });
+
+    if (error) {
+      if (isMissingFunctionError(error)) {
+        throw Object.assign(formatSupabaseError(error, 'listProposalCandidates'), { code: 'PGRST202' });
+      }
+      throw formatSupabaseError(error, 'listProposalCandidates');
+    }
+
+    return ((data || []) as Record<string, unknown>[]).map((row) => mapViewportRowToEvent(row));
   },
 
   async createEvent(payload: Partial<Event>) {

@@ -75,14 +75,16 @@ export function ProposalSwipeDeck({
   );
   const cardWidth = Math.min(width - spacing.lg * 2, 480);
   const cardHeight = Math.min(Math.max(height * 0.56, 430), 590);
+  const currentImage = getEventImageUrls(event)[0];
+  const upcomingImage = nextEvent ? getEventImageUrls(nextEvent)[0] : null;
 
   useEffect(() => {
     translateX.value = 0;
     translateY.value = 0;
     decisionLocked.value = 0;
-    const nextImage = nextEvent ? getEventImageUrls(nextEvent)[0] : null;
-    if (nextImage) void Image.prefetch(nextImage).catch(() => undefined);
-  }, [decisionLocked, event.id, nextEvent, translateX, translateY]);
+    if (currentImage) void Image.prefetch(currentImage).catch(() => undefined);
+    if (upcomingImage) void Image.prefetch(upcomingImage).catch(() => undefined);
+  }, [currentImage, decisionLocked, event.id, upcomingImage, translateX, translateY]);
 
   const finishDecision = (decision: ProposalDecision) => {
     onDecision(decision);
@@ -145,24 +147,21 @@ export function ProposalSwipeDeck({
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}> 
       <View style={styles.header}>
-        <View>
+        <TouchableOpacity
+          style={styles.pauseButton}
+          onPress={onPause}
+          accessibilityRole="button"
+          accessibilityLabel="Arrêter et reprendre plus tard"
+        >
+          <PauseCircle size={18} color={colors.brand.text} />
+          <Text style={styles.pauseText}>Arrêter</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>TES PROPOSITIONS</Text>
           <Text style={styles.headerTitle}>À toi de jouer</Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.pauseButton}
-            onPress={onPause}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityLabel="Arrêter et reprendre plus tard"
-          >
-            <PauseCircle size={17} color={colors.brand.secondary} />
-            <Text style={styles.pauseText}>Arrêter</Text>
-          </TouchableOpacity>
-          <View style={styles.counterPill}>
-            <Text style={styles.counterText}>{Math.min(currentIndex + 1, total)} / {total}</Text>
-          </View>
+        <View style={styles.counterPill}>
+          <Text style={styles.counterText}>{Math.min(currentIndex + 1, total)} / {total}</Text>
         </View>
       </View>
 
@@ -291,13 +290,13 @@ function ProposalCardContent({
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center' },
-  header: { width: '100%', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { width: '100%', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerCopy: { flex: 1, minWidth: 0, alignItems: 'center' },
   eyebrow: { ...typography.label, fontSize: 11, letterSpacing: 1.3, color: colors.brand.secondary },
   headerTitle: { ...typography.h4, color: colors.brand.text },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pauseButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.neutral[200] },
-  pauseText: { ...typography.label, fontSize: 11, color: colors.brand.secondary },
-  counterPill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full, backgroundColor: colors.brand.surface },
+  pauseButton: { minHeight: 44, minWidth: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, backgroundColor: colors.brand.surface, borderWidth: 1, borderColor: colors.brand.secondary },
+  pauseText: { ...typography.label, fontSize: 13, color: colors.brand.text },
+  counterPill: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: borderRadius.full, backgroundColor: colors.brand.surface },
   counterText: { ...typography.label, color: colors.brand.text },
   deck: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   card: { position: 'absolute', overflow: 'hidden', borderRadius: 30, backgroundColor: '#243136', borderWidth: 1, borderColor: '#3b4a4f', shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 12 },
