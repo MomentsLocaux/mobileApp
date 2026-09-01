@@ -44,7 +44,7 @@ import {
   toggleEventHeart,
 } from '@/utils/event-heart';
 import { haptics } from '@/utils/haptics';
-import { fetchProposalPool } from './proposal-pool';
+import { fetchProposalPool, waitForProposalCoverPrefetch } from './proposal-pool';
 import { ProposalSwipeDeck } from './ProposalSwipeDeck';
 import { ProposalWizard } from './ProposalWizard';
 import { ProposalHistory } from './ProposalHistory';
@@ -160,9 +160,12 @@ export default function ProposalsScreen() {
         excludedIds: exclusions,
       });
       const remainingTransition = Math.max(0, MIN_LOADING_TRANSITION_MS - (Date.now() - startedAt));
-      if (remainingTransition > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remainingTransition));
-      }
+      await Promise.all([
+        remainingTransition > 0
+          ? new Promise((resolve) => setTimeout(resolve, remainingTransition))
+          : Promise.resolve(),
+        waitForProposalCoverPrefetch(events),
+      ]);
       if (requestId === requestIdRef.current) setPool(events);
     } catch (error) {
       console.warn('[Proposals] pool load failed', error);
@@ -376,6 +379,7 @@ export default function ProposalsScreen() {
           onDateWindowChange={setDateWindow}
           onCustomDateChange={setCustomDateRange}
           onGenerate={() => void generatePool({ resetSession: true })}
+          onExit={showEntry}
         />
       ) : null}
 

@@ -97,6 +97,16 @@ export interface IDataProvider {
     timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
     mergeUpcoming?: boolean;
   }): Promise<{ events: EventWithCreator[]; featureCollection: FeatureCollection }>;
+  listProposalCandidates?(params: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    windowStart: string;
+    windowEnd: string;
+    categoryIds?: string[];
+    excludeIds?: string[];
+    limit?: number;
+  }): Promise<EventWithCreator[]>;
   getEventsByIds?(ids: string[]): Promise<EventWithCreator[]>;
 }
 

@@ -43,6 +43,23 @@ export const EventsService = {
     }
     return (dataProvider as any).listMapViewport(params);
   },
+  listProposalCandidates: (params: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    windowStart: string;
+    windowEnd: string;
+    categoryIds?: string[];
+    excludeIds?: string[];
+    limit?: number;
+  }): Promise<EventWithCreator[]> => {
+    if (!(dataProvider as any).listProposalCandidates) {
+      throw Object.assign(new Error('listProposalCandidates not implemented on dataProvider'), {
+        code: 'PGRST202',
+      });
+    }
+    return (dataProvider as any).listProposalCandidates(params);
+  },
   uploadEventCover: (userId: string, uri: string): Promise<string | null> =>
     (dataProvider as any).uploadEventCover ? (dataProvider as any).uploadEventCover(userId, uri) : Promise.resolve(null),
   getEventsByIds: async (ids: string[]): Promise<EventWithCreator[]> => {

@@ -19,12 +19,16 @@ Nouvel onglet B2C **Propositions**, indépendant du Discovery Engine. Cette livr
 
 ## Données et requêtes
 
-- Une récupération par pool via `listMapViewportForMap`, donc le RPC existant `list_map_viewport` avec RLS.
-- Bornes rectangulaires calculées depuis le point d'ancrage, puis contrôle exact du rayon côté client.
-- Défense en profondeur côté client : uniquement `published` + `public`, plage de dates, catégories et rayon.
+- Pool via `list_proposal_candidates` (cercle `ST_DWithin`, fenêtre `starts_at`/`ends_at`,
+  catégories, exclusions). Pas de tri distance : échantillon `ORDER BY random()` puis mélange
+  client (20 cartes). Boost / mention Sponsorisé : [SCRUM-149](https://moments-locaux.atlassian.net/browse/SCRUM-149).
+- Fallback si la RPC n'est pas déployée : `listMapViewportForMap` (`list_map_viewport`), puis
+  le même filtre client.
+- Défense en profondeur côté client : `published` + `public`, plage de dates (pas `operating_hours`),
+  catégories et rayon.
 - Exclusion des événements déjà likés, déjà présentés et passés pendant la session.
-- Tri déterministe par distance puis date ; pas de scoring ML.
-- Aucune migration, aucun accès service role, aucune nouvelle table.
+- Aucun accès service role, aucune nouvelle table. Migration `20260901_list_proposal_candidates.sql`
+  **non appliquée** sans validation humaine.
 
 ## Checklist manuelle
 

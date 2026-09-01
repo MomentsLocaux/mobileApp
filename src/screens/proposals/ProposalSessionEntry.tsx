@@ -89,10 +89,10 @@ export function ProposalSessionEntry({
           style={styles.historyButton}
           onPress={onHistory}
           accessibilityRole="button"
-          accessibilityLabel={`Voir l’historique de ${sessions.length} session${sessions.length > 1 ? 's' : ''}`}
+          accessibilityLabel={`Voir ou supprimer l’historique de ${sessions.length} session${sessions.length > 1 ? 's' : ''}`}
         >
           <History size={20} color={colors.brand.secondary} />
-          <Text style={styles.historyButtonText}>Voir mon historique</Text>
+          <Text style={styles.historyButtonText}>Voir ou supprimer l’historique</Text>
           <View style={styles.historyCount}>
             <Text style={styles.historyCountText}>{sessions.length}</Text>
           </View>

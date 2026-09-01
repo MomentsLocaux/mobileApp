@@ -277,6 +277,7 @@ export const useProposalsStore = create<ProposalsState>()(
       startNewSession: () => set({
         phase: 'wizard',
         wizardStep: 0,
+        preferences: defaultPreferences,
         ...emptySessionState,
         activeSessionId: null,
         selectedSessionId: null,

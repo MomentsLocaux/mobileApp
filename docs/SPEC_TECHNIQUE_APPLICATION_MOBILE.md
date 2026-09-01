@@ -219,7 +219,7 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 - `community.service.ts` : follow pairs, membres, `listEventEngagedByFollowing` (RPC `list_event_engaged_by_following`)
 - Profils pairs : `/community/[id]` ; invite : `/profile/invite`
 - Drawer **Membres** → `/(tabs)/community` (flag `socialPeers`)
-- **Propositions** : `app/(tabs)/proposals` + `src/screens/proposals/*` + `store/proposalsStore` — pool via `listMapViewportForMap`
+- **Propositions** : `app/(tabs)/proposals` + `src/screens/proposals/*` + `store/proposalsStore` — pool via `list_proposal_candidates` (fallback `listMapViewportForMap`)
 - Hub créateur `/creator/*` analytics : redirect hors MVP
 
 ### 7.4 Check-in

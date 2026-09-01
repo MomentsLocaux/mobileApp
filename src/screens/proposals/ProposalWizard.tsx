@@ -44,6 +44,7 @@ type Props = {
   onDateWindowChange: (window: ProposalDateWindow) => void;
   onCustomDateChange: (range: DateRangeValue) => void;
   onGenerate: () => void;
+  onExit: () => void;
 };
 
 const RADII: ProposalRadiusKm[] = [5, 10, 25, 50];
@@ -76,6 +77,7 @@ export function ProposalWizard({
   onDateWindowChange,
   onCustomDateChange,
   onGenerate,
+  onExit,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -395,17 +397,16 @@ export function ProposalWizard({
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}> 
-        {step > 0 ? (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => onStepChange((step - 1) as 0 | 1)}
-            accessibilityRole="button"
-          >
-            <Text style={styles.backButtonText}>Retour</Text>
-          </TouchableOpacity>
-        ) : null}
         <TouchableOpacity
-          style={[styles.primaryButton, step === 0 && styles.primaryButtonFull, !canContinue && styles.primaryButtonDisabled]}
+          style={styles.backButton}
+          onPress={() => (step === 0 ? onExit() : onStepChange((step - 1) as 0 | 1))}
+          accessibilityRole="button"
+          accessibilityLabel={step === 0 ? 'Retour aux propositions' : 'Étape précédente'}
+        >
+          <Text style={styles.backButtonText}>Retour</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}
           onPress={handlePrimary}
           disabled={!canContinue}
           accessibilityRole="button"
