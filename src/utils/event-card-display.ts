@@ -62,10 +62,14 @@ export function getEventTemporalState(event: Pick<EventWithCreator, 'starts_at' 
   return 'upcoming';
 }
 
-export function getHumanizedDate(event: Pick<EventWithCreator, 'starts_at' | 'ends_at'>): HumanizedDate {
+export function getHumanizedDate(
+  event: Pick<EventWithCreator, 'starts_at' | 'ends_at'>,
+  options?: { includeTime?: boolean },
+): HumanizedDate {
   const start = parseDate(event.starts_at);
   const end = parseDate(event.ends_at);
   const now = new Date();
+  const includeTime = options?.includeTime !== false;
 
   let headline: string | null = null;
   if (start) {
@@ -86,7 +90,7 @@ export function getHumanizedDate(event: Pick<EventWithCreator, 'starts_at' | 'en
   }
 
   const schedule = getEventCardSchedule(event, 'compact');
-  const rangeLine = formatEventCardRangeLine(event, 'compact');
+  const rangeLine = formatEventCardRangeLine(event, 'compact', { includeTime });
 
   return {
     headline,

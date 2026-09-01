@@ -232,7 +232,7 @@ function ProposalCardContent({
   categoryMap: Map<string, Category>;
 }) {
   const image = getEventImageUrls(event)[0];
-  const date = getHumanizedDate(event);
+  const date = getHumanizedDate(event, { includeTime: false });
   const category = categoryMap.get(event.category || '');
   const categoryColor = category ? getCategoryColor(category.slug) : undefined;
   const categoryTextColor = category ? getCategoryTextColor(category.slug) : undefined;

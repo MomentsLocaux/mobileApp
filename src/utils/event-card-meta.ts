@@ -132,25 +132,39 @@ const formatDateOnly = (date: Date, style: EventCardDateStyle): string => {
  * - same day: `Ven. 15 août · 18:00 – 22:00`
  * - multi-day: `Ven. 15 août · 18:00 → Dim. 17 août · 20:00`
  * - no end: start only
+ * Pass `{ includeTime: false }` to drop hours (proposal cards).
  */
+export type FormatEventCardRangeOptions = {
+  includeTime?: boolean;
+};
+
 export function formatEventCardRangeLine(
   event: EventLike,
   style: EventCardDateStyle = 'compact',
+  options: FormatEventCardRangeOptions = {},
 ): string {
+  const includeTime = options.includeTime !== false;
   const startDate = parseDate(event.starts_at);
   const endDate = parseDate(event.ends_at);
+  const formatPoint = (date: Date) =>
+    includeTime ? formatDateTime(date, style) : formatDateOnly(date, style);
 
   if (!startDate) {
-    return endDate ? `Jusqu’au ${formatDateTime(endDate, style)}` : 'Date à confirmer';
+    return endDate ? `Jusqu’au ${formatPoint(endDate)}` : 'Date à confirmer';
   }
 
   if (!endDate || endDate.getTime() < startDate.getTime()) {
-    return formatDateTime(startDate, style);
+    return formatPoint(startDate);
   }
 
   const sameDay = startOfDay(startDate).getTime() === startOfDay(endDate).getTime();
   if (sameDay) {
+    if (!includeTime) return formatDateOnly(startDate, style);
     return `${formatDateOnly(startDate, style)} · ${formatTimeOnly(startDate)} – ${formatTimeOnly(endDate)}`;
+  }
+
+  if (!includeTime) {
+    return `${formatDateOnly(startDate, style)} → ${formatDateOnly(endDate, style)}`;
   }
 
   return `${formatDateTime(startDate, style)} → ${formatDateTime(endDate, style)}`;

@@ -189,7 +189,7 @@ function SessionDetails({
         {session.pool.map((event, index) => {
           const decision = decisions.get(event.id);
           const image = getEventImageUrls(event)[0];
-          const date = getHumanizedDate(event);
+          const date = getHumanizedDate(event, { includeTime: false });
           const busy = busyEventId === event.id;
           return (
             <View key={event.id} style={[styles.eventCard, !decision && styles.eventCardPending]}>

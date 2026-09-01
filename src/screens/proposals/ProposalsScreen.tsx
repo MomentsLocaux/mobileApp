@@ -85,6 +85,7 @@ export default function ProposalsScreen() {
   const setRadius = useProposalsStore((state) => state.setRadius);
   const setAnchor = useProposalsStore((state) => state.setAnchor);
   const setDateWindow = useProposalsStore((state) => state.setDateWindow);
+  const setCustomDateRange = useProposalsStore((state) => state.setCustomDateRange);
   const beginLoading = useProposalsStore((state) => state.beginLoading);
   const setPool = useProposalsStore((state) => state.setPool);
   const applyDecision = useProposalsStore((state) => state.applyDecision);
@@ -373,6 +374,7 @@ export default function ProposalsScreen() {
           onRadiusChange={setRadius}
           onAnchorChange={setAnchor}
           onDateWindowChange={setDateWindow}
+          onCustomDateChange={setCustomDateRange}
           onGenerate={() => void generatePool({ resetSession: true })}
         />
       ) : null}
@@ -576,7 +578,7 @@ function ProposalSummary({
         <View style={styles.summaryList}>
           {likedEvents.map((event) => {
             const image = getEventImageUrls(event)[0];
-            const date = getHumanizedDate(event);
+            const date = getHumanizedDate(event, { includeTime: false });
             const hearted = isFavorite(event.id) || isLiked(event.id);
             return (
               <TouchableOpacity

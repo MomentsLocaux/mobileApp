@@ -20,10 +20,55 @@ export function distanceBetweenKm(
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function parseLocalYmd(ymd: string, endOfDay: boolean): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  if (endOfDay) date.setHours(23, 59, 59, 999);
+  else date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+export function formatProposalCustomDateLabel(
+  startDate?: string | null,
+  endDate?: string | null,
+): string {
+  if (!startDate) return 'Choisir une plage';
+  const format = (value: string) => {
+    const parsed = parseLocalYmd(value, false);
+    if (!parsed) return value;
+    return parsed.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  };
+  const end = endDate || startDate;
+  if (end === startDate) return format(startDate);
+  return `${format(startDate)} – ${format(end)}`;
+}
+
 export function getProposalDateRange(
   window: ProposalDateWindow,
   now: Date = new Date(),
-): { start: Date; end: Date } {
+  customRange?: { startDate?: string | null; endDate?: string | null },
+): { start: Date; end: Date } | null {
+  if (window === 'custom') {
+    const startYmd = customRange?.startDate;
+    if (!startYmd) return null;
+    const endYmd = customRange?.endDate || startYmd;
+    const start = parseLocalYmd(startYmd, false);
+    const end = parseLocalYmd(endYmd, true);
+    if (!start || !end) return null;
+    if (start.getTime() <= end.getTime()) return { start, end };
+    const swappedStart = parseLocalYmd(endYmd, false);
+    const swappedEnd = parseLocalYmd(startYmd, true);
+    if (!swappedStart || !swappedEnd) return null;
+    return { start: swappedStart, end: swappedEnd };
+  }
+
   if (window === 'today') return getTodayWindow(now);
   if (window === 'weekend') return getWeekendWindow(now);
 
@@ -54,7 +99,11 @@ export function filterProposalPool({
 
   const excluded = new Set(excludedIds);
   const selectedCategories = new Set(categoryValues);
-  const dateRange = getProposalDateRange(preferences.dateWindow, now);
+  const dateRange = getProposalDateRange(preferences.dateWindow, now, {
+    startDate: preferences.customStartDate,
+    endDate: preferences.customEndDate,
+  });
+  if (!dateRange) return [];
 
   return events
     .filter((event) => {

@@ -24,6 +24,8 @@ const defaultPreferences: ProposalPreferences = {
   radiusKm: 25,
   anchor: null,
   dateWindow: '7_days',
+  customStartDate: null,
+  customEndDate: null,
 };
 
 interface ProposalsState {
@@ -50,6 +52,7 @@ interface ProposalsState {
   setRadius: (radiusKm: ProposalRadiusKm) => void;
   setAnchor: (anchor: ProposalAnchor) => void;
   setDateWindow: (dateWindow: ProposalDateWindow) => void;
+  setCustomDateRange: (range: { startDate: string | null; endDate: string | null }) => void;
   beginLoading: (options?: { resetSession?: boolean }) => void;
   setPool: (pool: EventWithCreator[]) => void;
   applyDecision: (
@@ -150,7 +153,24 @@ export const useProposalsStore = create<ProposalsState>()(
       setAnchor: (anchor) =>
         set((state) => ({ preferences: { ...state.preferences, anchor } })),
       setDateWindow: (dateWindow) =>
-        set((state) => ({ preferences: { ...state.preferences, dateWindow } })),
+        set((state) => ({
+          preferences: {
+            ...state.preferences,
+            dateWindow,
+            ...(dateWindow === 'custom'
+              ? {}
+              : { customStartDate: null, customEndDate: null }),
+          },
+        })),
+      setCustomDateRange: (range) =>
+        set((state) => ({
+          preferences: {
+            ...state.preferences,
+            dateWindow: range.startDate ? 'custom' : state.preferences.dateWindow,
+            customStartDate: range.startDate,
+            customEndDate: range.endDate,
+          },
+        })),
       beginLoading: () => set({ phase: 'loading', ...emptySessionState, activeSessionId: null }),
       setPool: (pool) => {
         if (pool.length === 0) {
@@ -280,7 +300,7 @@ export const useProposalsStore = create<ProposalsState>()(
     }),
     {
       name: 'proposals-preferences-store',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => persistStorage),
       partialize: (state) => ({
         ownerUserId: state.ownerUserId,
@@ -296,9 +316,22 @@ export const useProposalsStore = create<ProposalsState>()(
       }),
       migrate: (persistedState) => {
         const state = persistedState as Partial<ProposalsState>;
+        const preferences = state.preferences
+          ? {
+              ...defaultPreferences,
+              ...state.preferences,
+              customStartDate: state.preferences.customStartDate ?? null,
+              customEndDate: state.preferences.customEndDate ?? null,
+              dateWindow:
+                state.preferences.dateWindow === 'custom' && !state.preferences.customStartDate
+                  ? '7_days'
+                  : (state.preferences.dateWindow ?? '7_days'),
+            }
+          : defaultPreferences;
         return {
           ...state,
           ownerUserId: state.ownerUserId ?? null,
+          preferences,
           sessions: state.sessions ?? [],
           activeSessionId: state.activeSessionId ?? null,
           selectedSessionId: null,

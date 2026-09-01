@@ -1,7 +1,7 @@
 import type { EventWithCreator } from '@/types/database';
 
 export type ProposalRadiusKm = 5 | 10 | 25 | 50;
-export type ProposalDateWindow = 'today' | 'weekend' | '7_days' | '30_days';
+export type ProposalDateWindow = 'today' | 'weekend' | '7_days' | '30_days' | 'custom';
 
 export type ProposalAnchor = {
   latitude: number;
@@ -14,6 +14,10 @@ export type ProposalPreferences = {
   radiusKm: ProposalRadiusKm;
   anchor: ProposalAnchor | null;
   dateWindow: ProposalDateWindow;
+  /** YYYY-MM-DD — used when dateWindow is `custom`. */
+  customStartDate?: string | null;
+  /** YYYY-MM-DD — used when dateWindow is `custom`. Defaults to customStartDate. */
+  customEndDate?: string | null;
 };
 
 export type ProposalPhase = 'entry' | 'wizard' | 'loading' | 'deck' | 'empty' | 'summary' | 'history';

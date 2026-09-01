@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { CalendarDays, Check, CheckCheck, LocateFixed, MapPin, Search, Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import type { DateRangeValue } from '@/types/eventDate.model';
 import type { Category } from '@/store/taxonomyStore';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 import { haptics } from '@/utils/haptics';
@@ -24,6 +26,7 @@ import type {
 } from './proposal.types';
 import { getProposalCategoryHint } from './proposal-category-hints';
 import { getProposalCategoryLabel } from './proposal-category-display';
+import { formatProposalCustomDateLabel } from './proposal-filtering';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 
 type Props = {
@@ -39,6 +42,7 @@ type Props = {
   onRadiusChange: (radius: ProposalRadiusKm) => void;
   onAnchorChange: (anchor: ProposalAnchor) => void;
   onDateWindowChange: (window: ProposalDateWindow) => void;
+  onCustomDateChange: (range: DateRangeValue) => void;
   onGenerate: () => void;
 };
 
@@ -48,6 +52,7 @@ const DATE_OPTIONS: { value: ProposalDateWindow; label: string; detail: string }
   { value: 'weekend', label: 'Ce week-end', detail: 'Samedi et dimanche' },
   { value: '7_days', label: '7 prochains jours', detail: 'Un peu de spontanéité' },
   { value: '30_days', label: '30 prochains jours', detail: 'Pour voir plus large' },
+  { value: 'custom', label: 'Dates précises', detail: 'Choisir une plage de dates' },
 ];
 
 const STEP_COPY = [
@@ -69,12 +74,14 @@ export function ProposalWizard({
   onRadiusChange,
   onAnchorChange,
   onDateWindowChange,
+  onCustomDateChange,
   onGenerate,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [showRangePicker, setShowRangePicker] = useState(false);
   const copy = STEP_COPY[step];
 
   useEffect(() => {
@@ -102,7 +109,9 @@ export function ProposalWizard({
     };
   }, [query]);
 
-  const canContinue = step !== 1 || Boolean(preferences.anchor);
+  const customRangeReady =
+    preferences.dateWindow !== 'custom' || Boolean(preferences.customStartDate);
+  const canContinue = (step !== 1 || Boolean(preferences.anchor)) && (step !== 2 || customRangeReady);
   const actionLabel = step === 2 ? 'Générer' : 'Continuer';
   const selectedCategoryCount = preferences.categoryIds.length;
   const allCategoriesSelected =
@@ -344,23 +353,38 @@ export function ProposalWizard({
           <View style={styles.section}>
             {DATE_OPTIONS.map((option) => {
               const active = preferences.dateWindow === option.value;
+              const detail =
+                option.value === 'custom'
+                  ? formatProposalCustomDateLabel(
+                      preferences.customStartDate,
+                      preferences.customEndDate,
+                    )
+                  : option.detail;
               return (
                 <TouchableOpacity
                   key={option.value}
                   style={[styles.dateOption, active && styles.dateOptionActive]}
                   onPress={() => {
                     haptics.selection();
+                    if (option.value === 'custom') {
+                      onDateWindowChange('custom');
+                      setShowRangePicker(true);
+                      return;
+                    }
                     onDateWindowChange(option.value);
                   }}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: active }}
+                  accessibilityLabel={
+                    option.value === 'custom' ? `${option.label}, ${detail}` : option.label
+                  }
                 >
                   <View style={[styles.dateIcon, active && styles.dateIconActive]}>
                     <CalendarDays size={20} color={active ? colors.brand.primary : colors.brand.secondary} />
                   </View>
                   <View style={styles.dateCopy}>
                     <Text style={[styles.dateLabel, active && styles.dateLabelActive]}>{option.label}</Text>
-                    <Text style={styles.dateDetail}>{option.detail}</Text>
+                    <Text style={styles.dateDetail}>{detail}</Text>
                   </View>
                   {active ? <Check size={19} color={colors.brand.secondary} strokeWidth={3} /> : null}
                 </TouchableOpacity>
@@ -398,6 +422,17 @@ export function ProposalWizard({
           {step === 2 ? <Sparkles size={18} color={colors.brand.primary} /> : null}
         </TouchableOpacity>
       </View>
+      <DateRangePicker
+        open={showRangePicker}
+        mode="range"
+        value={{
+          startDate: preferences.customStartDate || null,
+          endDate: preferences.customEndDate || null,
+        }}
+        onChange={onCustomDateChange}
+        onClose={() => setShowRangePicker(false)}
+        context="search"
+      />
     </KeyboardAvoidingView>
   );
 }
