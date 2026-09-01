@@ -6,6 +6,7 @@ export type ImageAsset = {
   width?: number;
   height?: number;
   mimeType?: string;
+  fileName?: string | null;
 };
 
 interface UseImagePickerResult {
@@ -21,6 +22,7 @@ const buildAsset = (asset: ImagePicker.ImagePickerAsset): ImageAsset => ({
   width: asset.width,
   height: asset.height,
   mimeType: asset.mimeType,
+  fileName: asset.fileName,
 });
 
 export const useImagePicker = (): UseImagePickerResult => {

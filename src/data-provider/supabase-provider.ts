@@ -3,6 +3,10 @@ import type { IBugsProvider, IDataProvider } from './types';
 import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/types/database';
 import type { FeatureCollection } from 'geojson';
 import { resolveEventMarkerIcon as resolveMarkerIconFromSlug } from '@/constants/category-visuals';
+import {
+  BUG_REPORT_ATTACHMENT_BUCKET,
+  normalizeBugReportPage,
+} from '@/constants/bug-report-pages';
 import type { EventTimeScope } from '@/utils/event-time-scope';
 import { nameQueryOrFilters } from '@/utils/event-name-search';
 
@@ -79,6 +83,25 @@ const generateUuid = () => {
     const nibble = char === 'x' ? value : (value & 0x3) | 0x8;
     return nibble.toString(16);
   });
+};
+
+const inferBugAttachmentExt = (uri: string, mimeType?: string, fileName?: string | null) => {
+  const fromMime = mimeType?.split('/')[1]?.toLowerCase();
+  if (fromMime === 'jpeg') return 'jpg';
+  if (fromMime && ['png', 'webp', 'heic', 'heif', 'jpg'].includes(fromMime)) return fromMime;
+  const fromName = (fileName || uri.split('?')[0] || '').split('.').pop()?.toLowerCase();
+  if (fromName === 'jpeg') return 'jpg';
+  if (fromName && ['png', 'webp', 'heic', 'heif', 'jpg'].includes(fromName)) return fromName;
+  return 'jpg';
+};
+
+const inferBugAttachmentContentType = (ext: string, mimeType?: string) => {
+  if (mimeType && mimeType.startsWith('image/')) return mimeType;
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'heic') return 'image/heic';
+  if (ext === 'heif') return 'image/heif';
+  return 'image/jpeg';
 };
 
 const EVENT_FULL_SELECT = `
@@ -905,16 +928,56 @@ export const supabaseProvider: (Pick<
     return data;
   },
 
-  async submitBug(payload: { category: string; severity: string; page?: string; description: string; reporterId?: string }) {
+  async submitBug(payload: {
+    category: string;
+    severity: string;
+    page?: string;
+    description: string;
+    reporterId?: string;
+    attachment?: { uri: string; mimeType?: string; fileName?: string | null } | null;
+  }) {
+    const userId = await getAuthedUserId('submitBug');
+    const page = normalizeBugReportPage(payload.page);
+    let attachmentPath: string | null = null;
+    let attachmentMimeType: string | null = null;
+    let attachmentName: string | null = null;
+
+    if (payload.attachment?.uri) {
+      const ext = inferBugAttachmentExt(
+        payload.attachment.uri,
+        payload.attachment.mimeType,
+        payload.attachment.fileName,
+      );
+      const contentType = inferBugAttachmentContentType(ext, payload.attachment.mimeType);
+      attachmentPath = `${userId}/${generateUuid()}.${ext}`;
+      attachmentMimeType = contentType;
+      attachmentName = payload.attachment.fileName || `evidence.${ext}`;
+
+      const response = await fetch(payload.attachment.uri);
+      const arrayBuffer = await response.arrayBuffer();
+      const { error: uploadError } = await supabase.storage
+        .from(BUG_REPORT_ATTACHMENT_BUCKET)
+        .upload(attachmentPath, arrayBuffer, { contentType, upsert: false });
+      if (uploadError) throw formatStorageUploadError(uploadError, 'submitBug-attachment');
+    }
+
     const { error } = await (supabase.from('bug_reports') as any).insert({
-      reporter_id: payload.reporterId,
-      page: payload.page,
+      reporter_id: userId,
+      page,
       category: payload.category,
       severity: payload.severity,
       description: payload.description,
       status: 'open',
+      attachment_path: attachmentPath,
+      attachment_mime_type: attachmentMimeType,
+      attachment_name: attachmentName,
     } as any);
-    if (error) throw formatSupabaseError(error, 'submitBug');
+    if (error) {
+      if (attachmentPath) {
+        await supabase.storage.from(BUG_REPORT_ATTACHMENT_BUCKET).remove([attachmentPath]);
+      }
+      throw formatSupabaseError(error, 'submitBug');
+    }
     return true;
   },
 

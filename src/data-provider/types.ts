@@ -77,6 +77,7 @@ export interface IDataProvider {
     page?: string;
     description: string;
     reporterId?: string;
+    attachment?: { uri: string; mimeType?: string; fileName?: string | null } | null;
   }): Promise<boolean>;
 
   uploadAvatar(userId: string, uri: string): Promise<string | null>;
@@ -118,5 +119,6 @@ export interface IBugsProvider {
     page?: string;
     description: string;
     reporterId?: string;
+    attachment?: { uri: string; mimeType?: string; fileName?: string | null } | null;
   }): Promise<boolean>;
 }
