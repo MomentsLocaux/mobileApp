@@ -119,6 +119,18 @@ describe('discovery filter contract', () => {
     assert.equal(summarize(until), 'Jusqu’au 03/09');
   });
 
+  it('summarizes a custom single day without a range dash', () => {
+    const filters = createDefaultDiscoveryFilters();
+    filters.when = { startDate: '2026-09-15', endDate: '2026-09-15' };
+    assert.equal(summarize(filters), '15/09');
+  });
+
+  it('prefers the custom dates over a generic include-past label', () => {
+    const filters = createDefaultDiscoveryFilters();
+    filters.when = { startDate: '2026-08-01', endDate: '2026-08-02', includePast: true };
+    assert.equal(summarize(filters), '01/08–02/08');
+  });
+
   it('maps the shared contract to event query filters', () => {
     const filters = createDefaultDiscoveryFilters();
     filters.when.preset = 'today';

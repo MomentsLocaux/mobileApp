@@ -1,4 +1,5 @@
 import { type DatePreset, type DiscoveryStatus } from '../constants/filters';
+import { closeOpenDateRange, toDateOnlyString } from './date-range-selection';
 import type { DiscoveryWhenFilter } from './discovery-filters';
 
 export type SearchTemporalChoice =
@@ -72,10 +73,14 @@ export function filtersForSearchTemporalChoice(choice: SearchTemporalChoice): {
 
 export function filtersForCustomDateRange(
   range: { startDate?: string | null; endDate?: string | null },
-  today: string
+  today: string = toDateOnlyString()
 ): { status: DiscoveryStatus; when: DiscoveryWhenFilter } {
-  const start = range.startDate || range.endDate || undefined;
-  const end = range.endDate || range.startDate || undefined;
+  const closed = closeOpenDateRange({
+    startDate: range.startDate || null,
+    endDate: range.endDate || null,
+  });
+  const start = closed.startDate || undefined;
+  const end = closed.endDate || undefined;
   if (!start && !end) {
     return defaultDiscoveryTemporalFilters();
   }

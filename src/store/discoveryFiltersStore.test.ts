@@ -84,6 +84,20 @@ describe('discovery filter store', () => {
     assert.deepEqual(useDiscoveryFiltersStore.getState().placeHistory, ['Metz']);
   });
 
+  it('keeps a custom past day instead of collapsing to include-past only', () => {
+    const store = useDiscoveryFiltersStore.getState();
+    store.setWhen({
+      startDate: '2026-08-01',
+      endDate: '2026-08-01',
+      includePast: true,
+    });
+
+    const current = useDiscoveryFiltersStore.getState();
+    assert.equal(current.when.startDate, '2026-08-01');
+    assert.equal(current.when.endDate, '2026-08-01');
+    assert.equal(current.when.includePast, true);
+  });
+
   it('publishes search criteria and presentation in one atomic update', () => {
     const beforeRevision = useDiscoveryFiltersStore.getState().searchRevision;
     let updates = 0;

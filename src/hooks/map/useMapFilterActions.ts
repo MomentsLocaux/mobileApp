@@ -221,25 +221,15 @@ export function useMapFilterActions({
   const handleCustomDateChange = useCallback(
     (range: DateRangeValue) => {
       const previous = discoveryStatus;
-      const todayDate = new Date();
-      const today = [
-        todayDate.getFullYear(),
-        String(todayDate.getMonth() + 1).padStart(2, '0'),
-        String(todayDate.getDate()).padStart(2, '0'),
-      ].join('-');
-      const next = filtersForCustomDateRange(range, today);
+      const next = filtersForCustomDateRange(range);
       clearFrozenViewport();
       setStatus(next.status);
-      if (next.when.startDate || next.when.endDate) {
-        setWhen({
-          preset: undefined,
-          startDate: next.when.startDate,
-          endDate: next.when.endDate,
-          includePast: next.when.includePast === true,
-        });
-      } else {
-        clearWhen();
-      }
+      setWhen({
+        preset: next.when.preset,
+        startDate: next.when.startDate,
+        endDate: next.when.endDate,
+        includePast: next.when.includePast === true,
+      });
       const reapplied = reapplyFromStore({ metaFilter: next.status });
       refreshIfNeeded(reapplied, {
         metaFilter: next.status,
@@ -249,7 +239,6 @@ export function useMapFilterActions({
     },
     [
       clearFrozenViewport,
-      clearWhen,
       discoveryStatus,
       reapplyFromStore,
       refreshIfNeeded,

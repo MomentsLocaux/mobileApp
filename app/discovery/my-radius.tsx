@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { features } from '@/config/features';
 import { AppBackground, Button, Card, ScreenHeader } from '@/components/ui';
 import { RadiusMap } from '@/components/discovery/RadiusMap';
 import { PremiumPaywallSheet } from '@/components/discovery/PremiumPaywallSheet';
@@ -15,6 +16,8 @@ import type { DiscoveryDailySummary, DiscoveryPlace } from '@/types/discovery.ty
 function MyRadiusContent() {
   const router = useRouter();
   const { isPremium } = usePremiumEntitlement();
+  const showOfferPaywall = features.offers;
+  const isOfferPremium = showOfferPaywall && isPremium;
   const { currentLocation } = useLocation();
   const [places, setPlaces] = useState<DiscoveryPlace[]>([]);
   const [summaries, setSummaries] = useState<DiscoveryDailySummary[]>([]);
@@ -58,7 +61,7 @@ function MyRadiusContent() {
               <Text style={styles.statLine}>{totalVisits} visites enregistrées</Text>
             </Card>
 
-            {isPremium ? (
+            {isOfferPremium ? (
               <>
                 <RadiusMap
                   places={places}
@@ -85,9 +88,13 @@ function MyRadiusContent() {
               <>
                 <Text style={styles.teaser}>
                   Aperçu : {places.length} lieu{places.length > 1 ? 'x' : ''} dans votre territoire récent.
-                  Le détail carte et l’historique complet sont réservés à Moments Locaux+.
+                  {showOfferPaywall
+                    ? ' Le détail carte et l’historique complet sont réservés à Moments Locaux+.'
+                    : ''}
                 </Text>
-                <Button title="Débloquer Mon territoire" onPress={() => setPaywallVisible(true)} />
+                {showOfferPaywall ? (
+                  <Button title="Débloquer Mon territoire" onPress={() => setPaywallVisible(true)} />
+                ) : null}
               </>
             )}
           </>
