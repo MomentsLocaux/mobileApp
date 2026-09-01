@@ -33,7 +33,7 @@ import {
   useMapFilterActions,
 } from '@/hooks/map';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Layers, Navigation, SlidersHorizontal } from 'lucide-react-native';
+import { Layers, Navigation, SlidersHorizontal, ZoomIn } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,7 +73,11 @@ import {
   toEventFilters,
   type DiscoveryFilters,
 } from '@/utils/discovery-filters';
-import { isMapBoundsTooLarge } from '@/utils/map-viewport-fetch-utils';
+import {
+  isMapBoundsTooLarge,
+  MAP_BBOX_TIGHTEN_DIAMETER_KM,
+  shrinkMapBoundsToMaxDiameter,
+} from '@/utils/map-viewport-fetch-utils';
 import { MAP_BBOX_TOO_LARGE_MESSAGE } from '@/utils/bbox-event-fetch';
 import {
   isDiscoverySearchActive,
@@ -295,6 +299,7 @@ export default function MapScreen() {
     lockViewportForSheet,
     unlockViewportForSheet,
     fitToRadius,
+    fitToBounds,
     focusOnEvent,
     viewportBootstrappedRef,
   } = viewport;
@@ -842,6 +847,32 @@ export default function MapScreen() {
     viewportFrozenRef,
   ]);
 
+  const tightenViewportToFetchableArea = useCallback(
+    (bounds: MapBounds) => {
+      const nextBounds = shrinkMapBoundsToMaxDiameter(bounds, MAP_BBOX_TIGHTEN_DIAMETER_KM);
+      setPendingSearchAreaBounds(null);
+      setViewportAreaWarning(null);
+      viewportFrozenRef.current = false;
+      clearFrozenViewport();
+      fitToBounds(nextBounds, { refreshAfter: true });
+    },
+    [clearFrozenViewport, fitToBounds, setViewportAreaWarning, viewportFrozenRef]
+  );
+
+  const handleTightenTooLargeArea = useCallback(() => {
+    const bounds =
+      pendingSearchAreaBounds ??
+      latestVisibleBoundsRef.current ??
+      frozenViewportBoundsRef.current;
+    if (bounds) {
+      tightenViewportToFetchableArea(bounds);
+      return;
+    }
+    void mapRef.current?.getVisibleBounds?.().then((visible) => {
+      if (visible) tightenViewportToFetchableArea(visible);
+    });
+  }, [frozenViewportBoundsRef, pendingSearchAreaBounds, tightenViewportToFetchableArea]);
+
   const toggleMapMode = useCallback(() => {
     setMapMode(mapMode === 'standard' ? 'satellite' : 'standard');
   }, [mapMode, setMapMode]);
@@ -1053,19 +1084,27 @@ export default function MapScreen() {
             ) : null}
 
             {viewportAreaWarning || pendingSearchAreaTooLarge ? (
-              <View
+              <TouchableOpacity
                 style={[
                   styles.mapAreaWarning,
                   pendingSearchAreaBounds ? styles.mapAreaWarningBelowSearchButton : null,
                 ]}
-                accessibilityRole="alert"
+                onPress={handleTightenTooLargeArea}
+                activeOpacity={0.85}
+                accessibilityRole="button"
                 accessibilityLiveRegion="polite"
+                accessibilityLabel="Zone trop large. Touchez pour vous rapprocher et afficher les événements."
               >
-                <Text style={styles.mapAreaWarningTitle}>Zone trop large</Text>
-                <Text style={styles.mapAreaWarningText}>
-                  Rapprochez-vous pour afficher les événements.
-                </Text>
-              </View>
+                <View style={styles.mapAreaWarningRow}>
+                  <ZoomIn size={18} color={colors.brand.text} />
+                  <View style={styles.mapAreaWarningCopy}>
+                    <Text style={styles.mapAreaWarningTitle}>Zone trop large</Text>
+                    <Text style={styles.mapAreaWarningText}>
+                      Touchez pour vous rapprocher et afficher les événements.
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
             ) : null}
 
             {pendingSearchAreaBounds && !searchExpanded ? (
@@ -1438,6 +1477,14 @@ const styles = StyleSheet.create({
   },
   mapAreaWarningBelowSearchButton: {
     top: 82,
+  },
+  mapAreaWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  mapAreaWarningCopy: {
+    flex: 1,
   },
   mapAreaWarningTitle: {
     color: colors.brand.text,
