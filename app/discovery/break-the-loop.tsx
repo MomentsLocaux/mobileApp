@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { features } from '@/config/features';
 import { AppBackground, ScreenHeader } from '@/components/ui';
 import { ForYouList } from '@/components/discovery/ForYouList';
 import { PremiumPaywallSheet } from '@/components/discovery/PremiumPaywallSheet';
@@ -16,13 +17,15 @@ import type { RecommendationWithEvent } from '@/services/discovery/discovery-rec
 function BreakTheLoopContent() {
   const router = useRouter();
   const { isPremium, loading: premiumLoading } = usePremiumEntitlement();
+  const showOfferPaywall = features.offers;
+  const isOfferPremium = showOfferPaywall && isPremium;
   const { currentLocation } = useLocation();
   const [items, setItems] = useState<RecommendationWithEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isPremium) return;
+    if (!isOfferPremium) return;
     setLoading(true);
     try {
       const coords = currentLocation?.coords;
@@ -42,13 +45,13 @@ function BreakTheLoopContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentLocation, isPremium]);
+  }, [currentLocation, isOfferPremium]);
 
   useEffect(() => {
-    if (!premiumLoading && isPremium) {
+    if (!premiumLoading && isOfferPremium) {
       load();
     }
-  }, [premiumLoading, isPremium, load]);
+  }, [premiumLoading, isOfferPremium, load]);
 
   if (premiumLoading) {
     return (
@@ -58,7 +61,7 @@ function BreakTheLoopContent() {
     );
   }
 
-  if (!isPremium) {
+  if (!isOfferPremium) {
     return (
       <SafeAreaView style={styles.safe}>
         <AppBackground />
@@ -68,12 +71,14 @@ function BreakTheLoopContent() {
           <Text style={styles.lockedBody}>
             Trois suggestions pour sortir de vos habitudes, quand vos insights le suggèrent.
           </Text>
-          <Text style={styles.link} onPress={() => setPaywallVisible(true)}>
-            Découvrir Moments Locaux+
-          </Text>
+          {showOfferPaywall ? (
+            <Text style={styles.link} onPress={() => setPaywallVisible(true)}>
+              Découvrir Moments Locaux+
+            </Text>
+          ) : null}
         </View>
         <PremiumPaywallSheet
-          visible={paywallVisible}
+          visible={showOfferPaywall && paywallVisible}
           source="discovery_home"
           onClose={() => setPaywallVisible(false)}
         />

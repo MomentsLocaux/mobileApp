@@ -9,6 +9,12 @@ type BboxParams = {
 
 export const RPC_CLIENT_TIMEOUT_MS = 4000;
 export const MAX_MAP_BBOX_DIAMETER_KM = 300;
+/**
+ * Auto-zoom target after tapping "zone trop large" (~40 km radius, same
+ * scale as the "À proximité" search). Kept far below the 300 km fetch cap so
+ * the camera actually moves when the viewport was only slightly oversized.
+ */
+export const MAP_BBOX_TIGHTEN_DIAMETER_KM = 80;
 
 const KM_PER_LATITUDE_DEGREE = 111;
 
@@ -33,6 +39,32 @@ export function isMapBoundsTooLarge(
   maxDiameterKm = MAX_MAP_BBOX_DIAMETER_KM
 ): boolean {
   return getMapBoundsDiameterKm(bounds) > maxDiameterKm + 0.01;
+}
+
+/**
+ * Scale a bbox around its center until its longest side is at most
+ * `maxDiameterKm`. Bounds that are already small enough are returned as-is.
+ */
+export function shrinkMapBoundsToMaxDiameter(
+  bounds: MapBounds,
+  maxDiameterKm = MAP_BBOX_TIGHTEN_DIAMETER_KM
+): MapBounds {
+  const diameterKm = getMapBoundsDiameterKm(bounds);
+  if (!(diameterKm > 0) || !Number.isFinite(diameterKm) || !(maxDiameterKm > 0)) {
+    return bounds;
+  }
+  if (diameterKm <= maxDiameterKm + 0.01) return bounds;
+
+  const scale = maxDiameterKm / diameterKm;
+  const centerLon = (bounds.ne[0] + bounds.sw[0]) / 2;
+  const centerLat = (bounds.ne[1] + bounds.sw[1]) / 2;
+  const halfLon = Math.abs(bounds.ne[0] - bounds.sw[0]) * 0.5 * scale;
+  const halfLat = Math.abs(bounds.ne[1] - bounds.sw[1]) * 0.5 * scale;
+
+  return {
+    sw: [centerLon - halfLon, centerLat - halfLat],
+    ne: [centerLon + halfLon, centerLat + halfLat],
+  };
 }
 
 const MAX_BOTTOM_OVERLAY_COVER_RATIO = 0.85;

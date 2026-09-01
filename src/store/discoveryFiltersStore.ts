@@ -84,16 +84,17 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set, get)
       const includePast = when.includePast === true;
       return {
         status:
-          (activatesDatedSearch || includePast) && state.status === 'past'
+          ((when.preset || (includePast && !activatesDatedSearch)) && state.status === 'past')
             ? 'all'
             : state.status,
-        when: includePast
-          ? { includePast: true }
-          : {
-              ...state.when,
-              ...when,
-              includePast: activatesDatedSearch ? false : when.includePast ?? state.when.includePast,
-            },
+        when:
+          includePast && !activatesDatedSearch
+            ? { includePast: true }
+            : {
+                ...state.when,
+                ...when,
+                includePast: includePast || (activatesDatedSearch ? false : when.includePast ?? state.when.includePast),
+              },
       };
     }),
 

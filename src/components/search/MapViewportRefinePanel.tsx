@@ -8,7 +8,7 @@ import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventMetaFilter } from '@/utils/filter-events';
-import type { DiscoveryWhenFilter } from '@/utils/discovery-filters';
+import { formatWhenDateRange, type DiscoveryWhenFilter } from '@/utils/discovery-filters';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import {
   isDefaultDiscoveryTemporal,
@@ -31,16 +31,7 @@ type Props = {
 };
 
 function formatCustomDateLabel(when: DiscoveryWhenFilter): string {
-  if (!when.startDate && !when.endDate) return 'Date précise';
-  const format = (value: string) => {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-  };
-  if (when.startDate && when.endDate && when.startDate !== when.endDate) {
-    return `${format(when.startDate)}–${format(when.endDate)}`;
-  }
-  return format(when.startDate || when.endDate || '');
+  return formatWhenDateRange(when) ?? 'Date précise';
 }
 
 export function MapViewportRefinePanel({

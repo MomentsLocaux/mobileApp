@@ -27,6 +27,7 @@
     "src/utils/map-marker-request.test.ts",
     "src/utils/map-viewport-request.test.ts",
     "src/utils/search-temporal-choice.test.ts",
+    "src/utils/date-range-selection.test.ts",
     "src/store/discoveryFiltersStore.test.ts",
     "src/store/mapResultsUIStore.test.ts",
     "src/store/mapTransferStore.test.ts",

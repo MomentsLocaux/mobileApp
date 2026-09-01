@@ -4,6 +4,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { Crown, RefreshCw } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { features } from '@/config/features';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { Button } from '@/components/ui';
@@ -92,7 +93,7 @@ function SubscriptionContent() {
 }
 
 export default function SubscriptionScreen() {
-  if (!DISCOVERY_ENABLED) {
+  if (!DISCOVERY_ENABLED || !features.offers) {
     return <Redirect href="/(tabs)/map" />;
   }
 

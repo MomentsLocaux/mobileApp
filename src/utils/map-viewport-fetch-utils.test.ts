@@ -7,7 +7,9 @@ import {
   haveMapBoundsMeaningfullyChanged,
   insetMapBoundsForBottomOverlay,
   isMapBoundsTooLarge,
+  MAP_BBOX_TIGHTEN_DIAMETER_KM,
   raceWithViewportTimeout,
+  shrinkMapBoundsToMaxDiameter,
 } from './map-viewport-fetch-utils';
 
 describe('map viewport fetch helpers', () => {
@@ -68,6 +70,37 @@ describe('map viewport fetch helpers', () => {
     assert.ok(Math.abs(getMapBoundsDiameterKm(accepted) - 300) < 0.01);
     assert.equal(isMapBoundsTooLarge(accepted), false);
     assert.equal(isMapBoundsTooLarge(rejected), true);
+  });
+
+  it('leaves a bbox already under the tighten target unchanged', () => {
+    const accepted = {
+      sw: [5, 49] as [number, number],
+      ne: [5.5, 49 + 50 / 111] as [number, number],
+    };
+    assert.equal(shrinkMapBoundsToMaxDiameter(accepted), accepted);
+  });
+
+  it('shrinks an oversized bbox around its center to a local diameter', () => {
+    const oversized = {
+      sw: [5, 49] as [number, number],
+      ne: [5.5, 49 + 600 / 111] as [number, number],
+    };
+    const tightened = shrinkMapBoundsToMaxDiameter(oversized);
+
+    assert.equal(isMapBoundsTooLarge(tightened), false);
+    assert.ok(
+      Math.abs(getMapBoundsDiameterKm(tightened) - MAP_BBOX_TIGHTEN_DIAMETER_KM) < 0.5
+    );
+    assert.ok(
+      Math.abs(
+        (oversized.ne[0] + oversized.sw[0]) / 2 - (tightened.ne[0] + tightened.sw[0]) / 2
+      ) < 1e-10
+    );
+    assert.ok(
+      Math.abs(
+        (oversized.ne[1] + oversized.sw[1]) / 2 - (tightened.ne[1] + tightened.sw[1]) / 2
+      ) < 1e-10
+    );
   });
 
   it('ignores camera-settle noise but detects a real searched-area move', () => {

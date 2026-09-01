@@ -50,11 +50,13 @@ import type { SavedSearchSnapshot } from '@/services/saved-searches.service';
 import {
   createDefaultDiscoveryCriteria,
   explainEmptyCombination,
+  formatWhenDateRange,
   type DiscoveryFilters,
   type DiscoverySurface,
 } from '@/utils/discovery-filters';
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import {
+  filtersForCustomDateRange,
   filtersForSearchTemporalChoice,
   isDefaultDiscoveryTemporal,
   resolveSearchTemporalChoice,
@@ -341,13 +343,12 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
       (where.radiusKm !== undefined && where.radiusKm !== DISCOVERY_DEFAULT_RADIUS_KM
         ? 'À proximité'
         : 'Choisir un lieu');
+    const customWhenLabel = formatWhenDateRange(when, formatDate);
     const temporalChoice = resolveSearchTemporalChoice(status, when);
-    const whenLabel = when.startDate && when.endDate
-        ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
-        : when.startDate
-          ? formatDate(when.startDate)
-          : SEARCH_TEMPORAL_CHOICES.find((item) => item.key === temporalChoice)?.label ??
-            'Dates personnalisées';
+    const whenLabel =
+      customWhenLabel ??
+      SEARCH_TEMPORAL_CHOICES.find((item) => item.key === temporalChoice)?.label ??
+      'Dates personnalisées';
     const categoryLabel = what.categories.length
       ? categories.find((c) => c.id === what.categories[0])?.label
       : undefined;
@@ -368,15 +369,11 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   };
 
   const handleRangeChange = (range: DateRangeValue) => {
+    const next = filtersForCustomDateRange(range);
     setDraftFilters((current) => ({
       ...current,
-      status: 'all',
-      when: {
-        startDate: range.startDate || undefined,
-        endDate: range.endDate || undefined,
-        preset: undefined,
-        includePast: false,
-      },
+      status: next.status,
+      when: next.when,
     }));
   };
 
@@ -956,13 +953,9 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                         ))}
                       </View>
                       <TouchableOpacity style={styles.dateBoxFull} onPress={() => setShowRangePicker(true)}>
-                        <Text style={styles.meta}>Date(s)</Text>
+                        <Text style={styles.meta}>Date précise</Text>
                         <Text style={styles.dateValue}>
-                          {when.startDate
-                            ? when.endDate
-                              ? `${formatDate(when.startDate)} - ${formatDate(when.endDate)}`
-                              : formatDate(when.startDate)
-                            : 'Choisir'}
+                          {formatWhenDateRange(when, formatDate) ?? 'Choisir un jour ou une période'}
                         </Text>
                       </TouchableOpacity>
                     </SectionCard>

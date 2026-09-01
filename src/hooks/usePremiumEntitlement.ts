@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { features } from '@/config/features';
 import {
   DEFAULT_PREMIUM_ENTITLEMENT,
   SubscriptionService,
@@ -9,11 +10,11 @@ import { useAuthStore } from '@/state/auth';
 export function usePremiumEntitlement(entitlement = DEFAULT_PREMIUM_ENTITLEMENT) {
   const userId = useAuthStore((state) => state.user?.id);
   const [data, setData] = useState<UserEntitlement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(features.offers);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!userId) {
+    if (!features.offers || !userId) {
       setData(null);
       setLoading(false);
       return;

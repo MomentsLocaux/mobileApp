@@ -385,7 +385,7 @@ export default function NotificationsSettingsScreen() {
       </SettingsSectionCard>
 
       {/* Discovery — V2 / offers gated */}
-      {DISCOVERY_ENABLED && !entitlementLoading && hasEclaireur && (
+      {DISCOVERY_ENABLED && features.offers && !entitlementLoading && hasEclaireur && (
         <SettingsSectionCard
           title="Suggestions Discovery"
           description="Idées personnalisées selon vos habitudes (Éclaireur)."

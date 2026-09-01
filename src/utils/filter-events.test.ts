@@ -27,6 +27,32 @@ describe('event client filters', () => {
     assert.deepEqual(result.map((item) => item.id), ['spanning']);
   });
 
+  it('keeps events that overlap a single custom day', () => {
+    const onDay = event('on-day', '2099-01-05T10:00:00.000Z', '2099-01-05T18:00:00.000Z');
+    const spanning = event('spanning', '2099-01-01T10:00:00.000Z', '2099-01-10T18:00:00.000Z');
+    const after = event('after', '2099-01-06T10:00:00.000Z', '2099-01-06T18:00:00.000Z');
+
+    const result = filterEvents([onDay, spanning, after], {
+      startDate: '2099-01-05',
+      endDate: '2099-01-05',
+    });
+
+    assert.deepEqual(result.map((item) => item.id), ['on-day', 'spanning']);
+  });
+
+  it('still applies a custom day when past events are included', () => {
+    const onDay = event('on-day', '2020-01-05T10:00:00.000Z', '2020-01-05T18:00:00.000Z');
+    const otherPast = event('other', '2020-01-01T10:00:00.000Z', '2020-01-01T18:00:00.000Z');
+
+    const result = filterEvents([onDay, otherPast], {
+      startDate: '2020-01-05',
+      endDate: '2020-01-05',
+      includePast: true,
+    });
+
+    assert.deepEqual(result.map((item) => item.id), ['on-day']);
+  });
+
   it('keeps events whose title or description contains every name token', () => {
     const marche = event('marche', '2099-01-01T10:00:00.000Z', '2099-01-01T18:00:00.000Z');
     (marche as { title: string }).title = 'Marché de Noël';

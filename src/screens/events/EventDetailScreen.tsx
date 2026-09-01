@@ -561,7 +561,7 @@ export default function EventDetailScreen() {
       } else {
         Alert.alert(
           'Check-in bientôt disponible',
-          'La validation de présence arrivera avec les offres Habitué.',
+          'La validation de présence n’est pas encore ouverte dans cette version.',
         );
       }
       return;
@@ -672,7 +672,7 @@ export default function EventDetailScreen() {
       } else {
         Alert.alert(
           'Check-in bientôt disponible',
-          'La validation de présence arrivera avec les offres Habitué.',
+          'La validation de présence n’est pas encore ouverte dans cette version.',
         );
       }
       return;

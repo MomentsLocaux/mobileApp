@@ -183,14 +183,27 @@ function formatDiscoveryDate(value: string): string {
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 }
 
+export function formatWhenDateRange(
+  when: Pick<DiscoveryWhenFilter, 'startDate' | 'endDate'>,
+  format: (value: string) => string = formatDiscoveryDate
+): string | null {
+  if (when.startDate && when.endDate && when.startDate !== when.endDate) {
+    return `${format(when.startDate)}–${format(when.endDate)}`;
+  }
+  if (when.startDate || when.endDate) {
+    return format(when.startDate || when.endDate || '');
+  }
+  return null;
+}
+
 function whenSummary(when: DiscoveryWhenFilter): string | null {
-  if (when.includePast) return 'Passés inclus';
   if (when.preset) return datePresetLabel(when.preset);
   if (when.startDate && when.endDate) {
-    return `${formatDiscoveryDate(when.startDate)}–${formatDiscoveryDate(when.endDate)}`;
+    return formatWhenDateRange(when);
   }
   if (when.startDate) return `Dès le ${formatDiscoveryDate(when.startDate)}`;
   if (when.endDate) return `Jusqu’au ${formatDiscoveryDate(when.endDate)}`;
+  if (when.includePast) return 'Passés inclus';
   return null;
 }
 

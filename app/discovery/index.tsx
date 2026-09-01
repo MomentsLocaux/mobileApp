@@ -29,6 +29,7 @@ import { useDiscoveryInsights } from '@/hooks/useDiscoveryInsights';
 import { PremiumCard } from '@/components/premium/PremiumCard';
 import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
+import { features } from '@/config/features';
 import { useAuthStore } from '@/state/auth';
 
 export default function DiscoveryHomeScreen() {
@@ -52,10 +53,13 @@ export default function DiscoveryHomeScreen() {
     'discovery_home',
   );
   const { isPremium, loading: premiumLoading } = usePremiumEntitlement();
+  const showOfferPaywall = features.offers;
+  const isOfferPremium = showOfferPaywall && isPremium;
   const { insights, markSeen } = useDiscoveryInsights();
   const [whyVisible, setWhyVisible] = useState(false);
 
   const openPaywall = (source: 'my_radius' | 'right_now' | 'discovery_home') => {
+    if (!showOfferPaywall) return;
     setPaywallSource(source);
     setPaywallVisible(true);
   };
@@ -146,7 +150,7 @@ export default function DiscoveryHomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {isPremium && (
+        {isOfferPremium && (
           <View style={styles.premiumHeader}>
             <PremiumMemberBadge />
           </View>
@@ -168,7 +172,7 @@ export default function DiscoveryHomeScreen() {
 
         {error && <Text style={styles.errorText}>{error}</Text>}
 
-        <PremiumCard isPremium={isPremium}>
+        <PremiumCard isPremium={isOfferPremium}>
           <View style={styles.quickLinks}>
             <Button
               title="Mon territoire"
@@ -193,13 +197,15 @@ export default function DiscoveryHomeScreen() {
           onBreakLoopPress={() => router.push('/discovery/break-the-loop' as any)}
         />
 
-        <MyRadiusTeaser
-          placesCount={placesCount}
-          isPremium={isPremium}
-          onUnlockPress={!isPremium ? () => openPaywall('my_radius') : undefined}
-        />
+        {showOfferPaywall ? (
+          <MyRadiusTeaser
+            placesCount={placesCount}
+            isPremium={isOfferPremium}
+            onUnlockPress={!isOfferPremium ? () => openPaywall('my_radius') : undefined}
+          />
+        ) : null}
 
-        {!premiumLoading && !isPremium && (
+        {showOfferPaywall && !premiumLoading && !isOfferPremium && (
           <TouchableOpacity
             style={styles.premiumBanner}
             onPress={() => openPaywall('right_now')}
@@ -234,7 +240,7 @@ export default function DiscoveryHomeScreen() {
               await react(topRightNow.id, 'route_requested');
               await DiscoveryRecommendationsService.openRoute(event.latitude, event.longitude);
             }}
-            showWhyThis={isPremium}
+            showWhyThis={isOfferPremium}
             onWhyThis={() => setWhyVisible(true)}
           />
         ) : (
@@ -243,7 +249,7 @@ export default function DiscoveryHomeScreen() {
             <Text style={styles.emptyBody}>
               Revenez plus tard ou explorez la carte pour nourrir vos recommandations.
             </Text>
-            {!isPremium && (
+            {showOfferPaywall && !isOfferPremium && (
               <Button
                 title="Débloquer plus de suggestions"
                 variant="outline"
@@ -264,7 +270,7 @@ export default function DiscoveryHomeScreen() {
       </ScrollView>
 
       <PremiumPaywallSheet
-        visible={paywallVisible}
+        visible={showOfferPaywall && paywallVisible}
         source={paywallSource}
         onClose={() => setPaywallVisible(false)}
       />

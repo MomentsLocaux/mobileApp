@@ -9,15 +9,25 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Image,
 } from 'react-native';
-import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { Check, ChevronDown, ImagePlus, Trash2, X } from 'lucide-react-native';
 import { AppBackground, Button } from '@/components/ui';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import {
+  bugReportPageLabel,
+  isBugReportPageId,
+  mobileBugReportPages,
+  normalizeBugReportPage,
+  type BugReportPageId,
+} from '@/constants/bug-report-pages';
 import { BugsService } from '@/services/bugs.service';
 import { useAuth } from '@/hooks';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
+import { useImagePicker, type ImageAsset } from '@/hooks/useImagePicker';
 
 const CATEGORIES = ['bug', 'ux', 'suggestion'] as const;
 const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
@@ -35,27 +45,41 @@ const SEVERITY_LABELS: Record<(typeof SEVERITIES)[number], string> = {
   critical: 'Critique',
 };
 
+const resolveInitialPage = (raw?: string): BugReportPageId | '' => {
+  if (!raw || /bug-report/i.test(raw)) return '';
+  const normalized = normalizeBugReportPage(raw);
+  return mobileBugReportPages.some((option) => option.id === normalized) ? normalized : '';
+};
+
 export default function BugReportScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ page?: string }>();
-  const pathname = usePathname();
   const { profile, session } = useAuth();
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
-
-  const defaultPage = useMemo(
-    () => (typeof params.page === 'string' && params.page ? params.page : pathname || ''),
-    [params.page, pathname],
-  );
+  const { pickImage, takePhoto } = useImagePicker();
 
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('bug');
   const [severity, setSeverity] = useState<(typeof SEVERITIES)[number]>('medium');
   const [description, setDescription] = useState('');
-  const [page, setPage] = useState(defaultPage);
+  const [page, setPage] = useState<BugReportPageId | ''>(() =>
+    resolveInitialPage(typeof params.page === 'string' ? params.page : undefined),
+  );
+  const [pagePickerOpen, setPagePickerOpen] = useState(false);
+  const [attachment, setAttachment] = useState<ImageAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedPageLabel = useMemo(
+    () => (page ? bugReportPageLabel(page) : 'Choisir l’écran concerné'),
+    [page],
+  );
+
   const validate = () => {
+    if (!page || !isBugReportPageId(page)) {
+      setError('Choisissez la page ou l’écran concerné.');
+      return false;
+    }
     if (!description.trim()) {
       setError('La description est obligatoire.');
       return false;
@@ -72,6 +96,26 @@ export default function BugReportScreen() {
     return true;
   };
 
+  const handlePickAttachment = () => {
+    Alert.alert('Pièce jointe', 'Ajouter une capture comme évidence', [
+      {
+        text: 'Galerie',
+        onPress: async () => {
+          const asset = await pickImage({ allowsEditing: false });
+          if (asset) setAttachment(asset);
+        },
+      },
+      {
+        text: 'Prendre une photo',
+        onPress: async () => {
+          const asset = await takePhoto({ allowsEditing: false });
+          if (asset) setAttachment(asset);
+        },
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
   const handleSubmit = async () => {
     if (!session) {
       setError('Connectez-vous pour envoyer un signalement.');
@@ -84,11 +128,15 @@ export default function BugReportScreen() {
         category,
         severity,
         description: description.trim(),
-        page: page || defaultPage || pathname || undefined,
+        page,
         reporterId: profile?.id,
+        attachment: attachment
+          ? { uri: attachment.uri, mimeType: attachment.mimeType, fileName: attachment.fileName }
+          : null,
       });
       Alert.alert('Merci !', 'Votre signalement a été envoyé.');
       setDescription('');
+      setAttachment(null);
       router.back();
     } catch (err: any) {
       console.error('Bug report error', err);
@@ -165,17 +213,17 @@ export default function BugReportScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Page/écran</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: /home ou event-detail/123"
-              placeholderTextColor={colors.brand.textSecondary}
-              value={page}
-              onChangeText={setPage}
-              autoCapitalize="none"
-              ref={registerFieldRef('page')}
-              onFocus={() => handleInputFocus('page')}
-            />
+            <Text style={styles.label}>Page / écran *</Text>
+            <TouchableOpacity
+              style={styles.select}
+              onPress={() => session && setPagePickerOpen(true)}
+              disabled={!session}
+              accessibilityRole="button"
+              accessibilityLabel="Choisir la page concernée"
+            >
+              <Text style={[styles.selectText, !page && styles.selectPlaceholder]}>{selectedPageLabel}</Text>
+              <ChevronDown size={18} color={colors.brand.textSecondary} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.field}>
@@ -194,6 +242,35 @@ export default function BugReportScreen() {
             />
           </View>
 
+          <View style={styles.field}>
+            <Text style={styles.label}>Pièce jointe (optionnel)</Text>
+            {attachment ? (
+              <View style={styles.attachmentPreviewWrap}>
+                <Image source={{ uri: attachment.uri }} style={styles.attachmentImage} />
+                <TouchableOpacity
+                  style={styles.attachmentRemove}
+                  onPress={() => setAttachment(null)}
+                  accessibilityLabel="Supprimer la pièce jointe"
+                >
+                  <Trash2 size={16} color={colors.error[500]} />
+                  <Text style={styles.attachmentRemoveText}>Retirer</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.attachmentButton}
+                onPress={handlePickAttachment}
+                disabled={!session}
+                accessibilityRole="button"
+                accessibilityLabel="Ajouter une capture"
+              >
+                <ImagePlus size={18} color={colors.brand.secondary} />
+                <Text style={styles.attachmentButtonText}>Ajouter une capture</Text>
+              </TouchableOpacity>
+            )}
+            <Text style={styles.attachmentHint}>Une photo ou capture d’écran pour illustrer le problème.</Text>
+          </View>
+
           {error && <Text style={styles.error}>{error}</Text>}
 
           <Button
@@ -205,6 +282,38 @@ export default function BugReportScreen() {
           />
         </View>
       </ScrollView>
+
+      <Modal visible={pagePickerOpen} transparent animationType="fade" onRequestClose={() => setPagePickerOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { paddingBottom: spacing.md + insets.bottom }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Page / écran concerné</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setPagePickerOpen(false)}>
+                <X size={18} color={colors.brand.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {mobileBugReportPages.map((option) => {
+                const active = option.id === page;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.modalOption, active && styles.modalOptionActive]}
+                    onPress={() => {
+                      setPage(option.id);
+                      setPagePickerOpen(false);
+                      if (error) setError(null);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, active && styles.modalOptionTextActive]}>{option.label}</Text>
+                    {active ? <Check size={16} color={colors.brand.primary} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -278,6 +387,25 @@ const styles = StyleSheet.create({
   textarea: {
     minHeight: 140,
   },
+  select: {
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    backgroundColor: colors.brand.surfaceMuted,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  selectText: {
+    ...typography.body,
+    color: colors.brand.text,
+    flex: 1,
+  },
+  selectPlaceholder: {
+    color: colors.brand.textSecondary,
+  },
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -304,8 +432,93 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: colors.brand.primary,
   },
+  attachmentButton: {
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    backgroundColor: colors.brand.surfaceMuted,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  attachmentButtonText: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  attachmentHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+  },
+  attachmentPreviewWrap: {
+    gap: spacing.sm,
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.brand.surfaceMuted,
+  },
+  attachmentRemove: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+  },
+  attachmentRemoveText: {
+    ...typography.bodySmall,
+    color: colors.error[500],
+    fontWeight: '600',
+  },
   error: {
     ...typography.bodySmall,
     color: colors.error[500],
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(26,51,41,0.35)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    maxHeight: '75%',
+    backgroundColor: colors.brand.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    padding: spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.brand.text,
+  },
+  modalList: {
+    maxHeight: 420,
+  },
+  modalOption: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  modalOptionActive: {
+    backgroundColor: colors.brand.surfaceMuted,
+  },
+  modalOptionText: {
+    ...typography.body,
+    color: colors.brand.text,
+    flex: 1,
+  },
+  modalOptionTextActive: {
+    fontWeight: '700',
   },
 });

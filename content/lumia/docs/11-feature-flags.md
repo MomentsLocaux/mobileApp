@@ -15,7 +15,7 @@ Le build mobile active ou cache des surfaces via des **flags** (variables d’en
 | `FEATURE_SOCIAL_PEERS` | **ON** | Membres, follow, Aimé par vos suivis |
 | `FEATURE_EVENT_CREATE` | off | Bouton +, création, mes events, ModeSwitch |
 | `FEATURE_CHECKIN` | off | QR / geo check-in |
-| `FEATURE_OFFERS` | off | Écran Nos offres / paywall Habitué–Éclaireur |
+| `FEATURE_OFFERS` | off | Écran d’achat in-app / paywalls. Les questions prix s’appuient sur les pages du **site** (`/offres`), pas sur un catalogue mobile. |
 | `FEATURE_DIFFUSEUR` | off | Parcours pro / diffuseur |
 | `FEATURE_GAMIFICATION` | off | Lumo, shop, missions, pass |
 | `FEATURE_DISCOVERY` | off | Discovery Engine, reco avancées |

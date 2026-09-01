@@ -53,6 +53,20 @@ describe('search temporal choice', () => {
       }
     );
     assert.deepEqual(
+      filtersForCustomDateRange({ startDate: '2026-09-10', endDate: null }, '2026-08-31'),
+      {
+        status: 'upcoming',
+        when: { startDate: '2026-09-10', endDate: '2026-09-10', includePast: false },
+      }
+    );
+    assert.deepEqual(
+      filtersForCustomDateRange({ startDate: '2026-08-31', endDate: '2026-08-31' }, '2026-08-31'),
+      {
+        status: 'all',
+        when: { startDate: '2026-08-31', endDate: '2026-08-31', includePast: false },
+      }
+    );
+    assert.deepEqual(
       filtersForCustomDateRange({ startDate: null, endDate: null }, '2026-08-31'),
       { status: 'all', when: { preset: 'today', includePast: false } }
     );

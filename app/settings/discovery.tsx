@@ -4,6 +4,7 @@ import { Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { Compass, Crown, MapPin, Trash2 } from 'lucide-react-native';
 import { DISCOVERY_CAPTURE_ENABLED, DISCOVERY_ENABLED } from '@/config/discovery.flags';
+import { features } from '@/config/features';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -164,14 +165,16 @@ function DiscoverySettingsContent() {
         </SettingsSectionCard>
       )}
 
-      <SettingsSectionCard title="Premium" icon={Crown}>
-        <SettingsRow
-          label="Moments Locaux+"
-          icon={Crown}
-          onPress={() => router.push('/profile/subscription' as any)}
-          noBorder
-        />
-      </SettingsSectionCard>
+      {features.offers ? (
+        <SettingsSectionCard title="Premium" icon={Crown}>
+          <SettingsRow
+            label="Moments Locaux+"
+            icon={Crown}
+            onPress={() => router.push('/profile/subscription' as any)}
+            noBorder
+          />
+        </SettingsSectionCard>
+      ) : null}
 
       <SettingsSectionCard title="Données" icon={Trash2} accent>
         <SettingsRow

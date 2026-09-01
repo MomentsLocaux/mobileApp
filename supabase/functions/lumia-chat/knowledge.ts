@@ -77,7 +77,7 @@ export function retrieveKnowledge(
   // Always include policy anchors for pricing / legal cues even if weak match
   const forceIds: string[] = [];
   if (/\b(prix|tarif|cout|euro|abonnement|payant|premium|offre)\b/.test(hay)) {
-    forceIds.push('offers-mvp', 'no-ticketing');
+    forceIds.push('offers-mvp', 'offers-matrix', 'no-ticketing');
   }
   if (/\b(rgpd|cgu|legal|confidential|donnee|supprim|cnil)\b/.test(hay)) {
     forceIds.push('rgpd-where', 'cgu', 'privacy-policy');

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDateRangeSelection } from '@/hooks/useDateRangeSelection';
 import type { DateRangeMode, DateRangeValue, DateRangeContext } from '@/types/eventDate.model';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { closeOpenDateRange, formatRangeSelectionLabel, isSingleDayRange } from '@/utils/date-range-selection';
 
 type Props = {
   open: boolean;
@@ -44,7 +45,13 @@ const isBetween = (date: string, start?: string | null, end?: string | null) => 
 };
 
 export const DateRangePicker = ({ open, mode, value, onChange, onClose, context = 'search' }: Props) => {
-  const { range, onDayPress, reset } = useDateRangeSelection(mode, value);
+  const { range, onDayPress, reset } = useDateRangeSelection(mode, value, open);
+  const selectionLabel = formatRangeSelectionLabel(range);
+  const searchHint = !selectionLabel
+    ? 'Touchez un jour, ou un deuxième jour pour une période.'
+    : isSingleDayRange(range)
+      ? `${selectionLabel} · touchez un autre jour pour une période.`
+      : selectionLabel;
 
   const months = useMemo(() => {
     const res: { id: string; year: number; month: number; label: string; days: string[] }[] = [];
@@ -69,7 +76,7 @@ export const DateRangePicker = ({ open, mode, value, onChange, onClose, context 
   };
 
   const handleValidate = () => {
-    onChange(range);
+    onChange(context === 'search' ? closeOpenDateRange(range) : range);
     onClose();
   };
 
@@ -82,7 +89,12 @@ export const DateRangePicker = ({ open, mode, value, onChange, onClose, context 
     <Modal visible={open} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>{context === 'creation' ? 'Choisir les dates' : 'Quand ?'}</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{context === 'creation' ? 'Choisir les dates' : 'Quand ?'}</Text>
+            {context === 'search' ? (
+              <Text style={styles.subtitle}>{searchHint}</Text>
+            ) : null}
+          </View>
           <Pressable onPress={onClose} hitSlop={8}>
             <Text style={styles.link}>Fermer</Text>
           </Pressable>
@@ -167,13 +179,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingTop: spacing.xxl,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  headerText: {
+    flex: 1,
+    gap: spacing.xs,
   },
   title: {
     ...typography.h4,
     color: colors.brand.text,
     fontWeight: '700',
+  },
+  subtitle: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
   },
   content: {
     padding: spacing.md,

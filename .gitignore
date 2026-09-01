@@ -42,6 +42,8 @@ yarn-error.*
 
 # local Mac-to-Mac handoff package (contains secrets and Git bundles)
 mac-transfer/
+MobileApp-transfer/
+mobileApp-transfer/
 
 # supabase cli temp artifacts
 supabase/.temp/
