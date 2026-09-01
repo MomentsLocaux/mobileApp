@@ -35,6 +35,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut, fullSignOut, session } = useAuth();
   const { isPremium } = usePremiumEntitlement();
+  const isOfferPremium = features.offers && isPremium;
   const {
     showModeSwitch,
     activeMode,
@@ -135,7 +136,7 @@ export default function ProfileScreen() {
             <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
           )}
           <View style={styles.headerOverlay}>
-            <PremiumAvatarFrame isPremium={isPremium} size={100}>
+            <PremiumAvatarFrame isPremium={isOfferPremium} size={100}>
               {profile.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
               ) : (
@@ -144,7 +145,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </PremiumAvatarFrame>
-            {isPremium && <PremiumMemberBadge />}
+            {isOfferPremium && <PremiumMemberBadge />}
             <Text style={styles.displayName}>{profile.display_name}</Text>
             <Text style={styles.email}>{profile.email}</Text>
             {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
@@ -186,7 +187,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.content}>
-          <PremiumCard isPremium={isPremium}>
+          <PremiumCard isPremium={isOfferPremium}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Profil</Text>
@@ -257,7 +258,7 @@ export default function ProfileScreen() {
             </PremiumCard>
           ) : null}
 
-          <PremiumCard isPremium={isPremium} style={styles.actionCard}>
+          <PremiumCard isPremium={isOfferPremium} style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
             {features.socialPeers ? (
               <TouchableOpacity
@@ -270,21 +271,21 @@ export default function ProfileScreen() {
             ) : null}
             {!isProfessionnelAccount && DISCOVERY_ENABLED && (
               <TouchableOpacity
-                style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
+                style={[styles.linkButton, isOfferPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/discovery' as any)}
               >
-                <Compass size={18} color={isPremium ? colors.brand.premiumLight : colors.brand.secondary} />
-                <Text style={[styles.linkText, isPremium && styles.linkTextPremium]}>Discovery</Text>
+                <Compass size={18} color={isOfferPremium ? colors.brand.premiumLight : colors.brand.secondary} />
+                <Text style={[styles.linkText, isOfferPremium && styles.linkTextPremium]}>Discovery</Text>
               </TouchableOpacity>
             )}
-            {!isProfessionnelAccount && DISCOVERY_ENABLED && (
+            {!isProfessionnelAccount && DISCOVERY_ENABLED && features.offers && (
               <TouchableOpacity
-                style={[styles.linkButton, isPremium && styles.linkButtonPremium]}
+                style={[styles.linkButton, isOfferPremium && styles.linkButtonPremium]}
                 onPress={() => router.push('/profile/subscription' as any)}
               >
-                <Crown size={18} color={isPremium ? colors.brand.premiumLight : colors.brand.secondary} />
-                <Text style={[styles.linkText, isPremium && styles.linkTextPremium]}>
-                  {isPremium ? 'Moments Locaux+ actif' : 'Moments Locaux+'}
+                <Crown size={18} color={isOfferPremium ? colors.brand.premiumLight : colors.brand.secondary} />
+                <Text style={[styles.linkText, isOfferPremium && styles.linkTextPremium]}>
+                  {isOfferPremium ? 'Moments Locaux+ actif' : 'Moments Locaux+'}
                 </Text>
               </TouchableOpacity>
             )}

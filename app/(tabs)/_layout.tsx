@@ -67,6 +67,8 @@ import { useLumiaTourStore } from '@/store/lumiaTourStore';
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
+  const showPaidOfferChrome = features.offers;
+  const isOfferPremium = showPaidOfferChrome && isPremium;
   const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
   const publishSurfaces = useEventPublishSurfaces();
@@ -434,10 +436,10 @@ export default function TabsLayout() {
                 focused,
                 <View style={styles.profileTabIconWrap}>
                   {profile?.avatar_url ? (
-                    <PremiumAvatarFrame isPremium={isPremium} size={26} showBadge={false}>
+                    <PremiumAvatarFrame isPremium={isOfferPremium} size={26} showBadge={false}>
                       <Image
                         source={{ uri: profile.avatar_url }}
-                        style={[styles.tabAvatar, focused && !isPremium && styles.tabAvatarActive]}
+                        style={[styles.tabAvatar, focused && !isOfferPremium && styles.tabAvatarActive]}
                       />
                     </PremiumAvatarFrame>
                   ) : (
@@ -480,7 +482,7 @@ export default function TabsLayout() {
                 router.push('/(tabs)/profile' as any);
               }}
             >
-              <PremiumAvatarFrame isPremium={isPremium} size={56}>
+              <PremiumAvatarFrame isPremium={isOfferPremium} size={56}>
                 {profile?.avatar_url ? (
                   <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
                 ) : (
@@ -492,12 +494,12 @@ export default function TabsLayout() {
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-              {!isProfessionnelAccount && hasEclaireur ? (
+              {showPaidOfferChrome && !isProfessionnelAccount && hasEclaireur ? (
                 <View style={styles.drawerPremiumPill}>
                   <Crown size={12} color={colors.brand.primary} strokeWidth={2.5} />
                   <Text style={styles.drawerPremiumText}>Éclaireur</Text>
                 </View>
-              ) : !isProfessionnelAccount && hasHabitue ? (
+              ) : showPaidOfferChrome && !isProfessionnelAccount && hasHabitue ? (
                 <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
                   <Sparkles size={12} color={colors.brand.primary} strokeWidth={2.5} />
                   <Text style={styles.drawerPremiumText}>Habitué</Text>
@@ -533,8 +535,8 @@ export default function TabsLayout() {
               <DrawerLink
                 icon={Compass}
                 label="Discovery"
-                iconColor={isPremium ? colors.brand.premiumLight : undefined}
-                premium={isPremium}
+                iconColor={isOfferPremium ? colors.brand.premiumLight : undefined}
+                premium={isOfferPremium}
                 onPress={() => {
                   toggleDrawer(false);
                   router.push('/discovery' as any);
@@ -646,24 +648,21 @@ export default function TabsLayout() {
                   onPress={() => {
                     toggleDrawer(false);
                     if (!hasHabitue) {
-                      const upsellHref = features.offers ? '/profile/offers' : '/(tabs)/map';
-                      Alert.alert(
-                        'Gagnez des Lumo en sortant',
-                        features.offers
-                          ? 'Avec Habitué, chaque présence validée vous rapporte des Lumo à dépenser dans la boutique. Éclaireur inclut Habitué.'
-                          : 'Le portefeuille Lumo sera disponible avec l’offre Habitué.',
-                        [
-                          ...(features.offers
-                            ? [
-                                {
-                                  text: 'Découvrir Habitué',
-                                  onPress: () => router.push(upsellHref as any),
-                                },
-                              ]
-                            : []),
-                          { text: 'Plus tard', style: 'cancel' as const },
-                        ],
-                      );
+                      if (features.offers) {
+                        Alert.alert(
+                          'Gagnez des Lumo en sortant',
+                          'Avec Habitué, chaque présence validée vous rapporte des Lumo à dépenser dans la boutique. Éclaireur inclut Habitué.',
+                          [
+                            {
+                              text: 'Découvrir Habitué',
+                              onPress: () => router.push('/profile/offers' as any),
+                            },
+                            { text: 'Plus tard', style: 'cancel' as const },
+                          ],
+                        );
+                        return;
+                      }
+                      router.push('/(tabs)/map' as any);
                       return;
                     }
                     router.push('/profile/wallet' as any);
@@ -675,24 +674,21 @@ export default function TabsLayout() {
                   onPress={() => {
                     toggleDrawer(false);
                     if (!hasHabitue) {
-                      const upsellHref = features.offers ? '/profile/offers' : '/(tabs)/map';
-                      Alert.alert(
-                        'La boutique vous attend',
-                        features.offers
-                          ? 'Boostez vos moments ou personnalisez votre profil avec vos Lumo. Passez Habitué pour y accéder — Éclaireur inclut Habitué.'
-                          : 'La boutique Lumo sera disponible avec l’offre Habitué.',
-                        [
-                          ...(features.offers
-                            ? [
-                                {
-                                  text: 'Découvrir Habitué',
-                                  onPress: () => router.push(upsellHref as any),
-                                },
-                              ]
-                            : []),
-                          { text: 'Plus tard', style: 'cancel' as const },
-                        ],
-                      );
+                      if (features.offers) {
+                        Alert.alert(
+                          'La boutique vous attend',
+                          'Boostez vos moments ou personnalisez votre profil avec vos Lumo. Passez Habitué pour y accéder — Éclaireur inclut Habitué.',
+                          [
+                            {
+                              text: 'Découvrir Habitué',
+                              onPress: () => router.push('/profile/offers' as any),
+                            },
+                            { text: 'Plus tard', style: 'cancel' as const },
+                          ],
+                        );
+                        return;
+                      }
+                      router.push('/(tabs)/map' as any);
                       return;
                     }
                     router.push('/(tabs)/shop' as any);

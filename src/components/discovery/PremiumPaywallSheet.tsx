@@ -11,6 +11,7 @@ import { Crown, Sparkles, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { features } from '@/config/features';
 import { PREMIUM_PLANS } from '@/services/subscription.service';
 import { ActivityLogService } from '@/services/activity-log.service';
 
@@ -30,10 +31,14 @@ const SOURCE_COPY: Record<PremiumPaywallSource, string> = {
 };
 
 export function PremiumPaywallSheet({ visible, source = 'discovery_home', onClose }: Props) {
+  const canShow = features.offers && visible;
+
   React.useEffect(() => {
-    if (!visible) return;
+    if (!canShow) return;
     ActivityLogService.log('premium_paywall_view', { source }).catch(() => undefined);
-  }, [visible, source]);
+  }, [canShow, source]);
+
+  if (!canShow) return null;
 
   const handlePurchase = (plan: 'monthly' | 'annual') => {
     Toast.show({

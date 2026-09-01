@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { features } from '@/config/features';
 import {
   ECLAIREUR_ENTITLEMENT,
   HABITUE_ENTITLEMENT,
@@ -9,17 +10,17 @@ import { useAuthStore } from '@/state/auth';
 
 /**
  * Incremental offers: Éclaireur ⇒ Habitué ⇒ Local.
- * Until IAP is live, entitlements stay inactive for normal users (upsell UX).
+ * Client chrome and RPC stay behind FEATURE_OFFERS — no paid-tier UI when the flag is off.
  */
 export function useOfferEntitlements() {
   const userId = useAuthStore((state) => state.user?.id);
   const [habitue, setHabitue] = useState<UserEntitlement | null>(null);
   const [eclaireur, setEclaireur] = useState<UserEntitlement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(features.offers);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!userId) {
+    if (!features.offers || !userId) {
       setHabitue(null);
       setEclaireur(null);
       setLoading(false);

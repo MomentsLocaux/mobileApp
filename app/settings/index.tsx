@@ -161,7 +161,7 @@ export default function SettingsScreen() {
         />
       </SettingsSectionCard>
 
-      {DISCOVERY_ENABLED && hasEclaireur && (
+      {DISCOVERY_ENABLED && features.offers && hasEclaireur && (
         <SettingsSectionCard title="Discovery" icon={Compass}>
           <SettingsRow
             label="Personnalisation Discovery"
