@@ -25,7 +25,7 @@ CGU peuvent inclure une section Lumo si gamification ON.
 
 ## Discovery Engine (`FEATURE_DISCOVERY`)
 
-Fonctionnalités type Éclaireur : idées maintenant, carte de zone, recommandations, insights. Paramètres Discovery visibles si entitlement Éclaireur + flag ON.
+Module Discovery (flag `FEATURE_DISCOVERY`) : idées maintenant, carte de zone, recommandations, insights. Pas un palier d’offre public : le discours payant public est **Habitué** / Diffuseur / Partenaire sur le site (`/offres`).
 
 ## Concours (`FEATURE_CONTESTS`)
 

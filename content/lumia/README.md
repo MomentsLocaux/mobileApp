@@ -8,9 +8,9 @@ Le **copy public validé** pour Partenaire / Diffuseur / Acteurs locaux vit dans
 
 `~/Projects/moments-locaux-website/src/messages/fr.json`
 
-Namespaces : `partenaires`, `diffuseur`, `acteurs`, `roadmap.fork`.
+Namespaces : `offers`, `lumo`, `partenaires`, `diffuseur`, `acteurs`, `roadmap.fork`.
 
-**Quand le site est mis à jour :** aligner les fiches Lumia correspondantes dans `content/lumia/docs/` (fichiers `14-*`, `15-*`, `16-*`), puis ingest + deploy.
+**Quand le site est mis à jour :** aligner les fiches Lumia correspondantes dans `content/lumia/docs/` (`04-offres.md`, `12-lumo-gamification-v2.md`, `14-*`, `15-*`, `16-*`), puis ingest + deploy.
 
 Ne pas s'appuyer sur les roadmaps internes (`PARTNER_PASS_MODEL.md`, ADR) pour le discours Lumia **public** — réservé au technique / ops sauf mention explicite dans une fiche.
 
@@ -44,7 +44,7 @@ Corps en prose claire, tutoiement ou vouvoiement cohérent avec le reste (aujour
 **Categories :**
 - `usage` — navigation, paramètres, comment faire
 - `legal` — CGU, RGPD, confidentialité (orientation, pas conseil juridique)
-- `offers` — Local / Habitué / Éclaireur, sans prix inventé
+- `offers` — Habitué / Diffuseur / Partenaire (copy **site** `/offres`), sans prix inventé
 - `policy` — limites de Lumia, hors sujet, pas de billetterie
 - `social` — membres, follow, invite
 - `events` — découverte, favoris, recherche de moments

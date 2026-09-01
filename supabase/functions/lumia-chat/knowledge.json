@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-24",
+  "updated_at": "2026-09-01",
   "product": "Moments Locaux",
   "assistant": "Lumia",
   "articles": [
@@ -153,17 +153,16 @@
     {
       "id": "offers-mvp",
       "category": "offers",
-      "title": "Offres et abonnements (état produit)",
-      "keywords": ["offre", "abonnement", "prix", "tarif", "payant", "premium", "habitue", "eclaireur", "nos offres", "cout", "euro"],
-      "body": "Moments Locaux prévoit des niveaux Local / Habitué / Éclaireur (carte des avantages dans l’app quand « Nos offres » est activé). Sur le MVP mobile store-ready, l’écran offres peut être désactivé (flag). Je ne cite aucun prix inventé : s’il n’y a pas de fiche tarifaire validée dans ma base, je dis de regarder Nos offres dans l’app ou d’attendre l’activation de l’écran."
+      "title": "Offres et tarifs (pages du site)",
+      "keywords": ["offre", "abonnement", "prix", "tarif", "payant", "premium", "habitue", "eclaireur", "nos offres", "cout", "euro", "formule"],
+      "body": "L’app sert d’abord à découvrir les sorties autour de soi, sans achat in-app pour l’instant. Les offres payantes sont décrites sur le site : elles sont en préparation, périmètres / tarifs / conditions ne sont pas encore arrêtés — je ne cite aucun prix. Voir https://moments-locaux.com/offres (particuliers et professionnels). Pour Lumo : https://moments-locaux.com/lumo. Pour les acteurs locaux : https://moments-locaux.com/acteurs-locaux. Contact : hello@moments-locaux.com."
     },
     {
       "id": "offers-matrix",
       "category": "offers",
-      "title": "Différences Local Habitué Éclaireur (fonctionnel, sans prix)",
-      "keywords": ["local", "habitue", "eclaireur", "tier", "niveau", "gamification", "lumo", "boutique", "mission", "decouverte"],
-      "feature_flag": "offers",
-      "body": "Sans parler de prix : Local couvre carte, fil, recherche, favoris, signalement, CGU. Habitué ajoute typiquement check-in, Lumo, boutique, missions, pass, accès anticipé. Éclaireur ajoute les capacités découverte (idées maintenant, zone, reco, insights, badge premium). Les surfaces exactes dépendent des flags du build."
+      "title": "Habitué, Moments Diffuseur, Moments Partenaire",
+      "keywords": ["local", "habitue", "eclaireur", "tier", "niveau", "gamification", "lumo", "boutique", "mission", "decouverte", "diffuseur", "partenaire", "professionnel"],
+      "body": "Trois offres publiques, comme sur https://moments-locaux.com/offres. Habitué (particuliers qui sortent souvent) : Lumo, boutique app et lieux Partenaire, concours de saison — https://moments-locaux.com/lumo et https://moments-locaux.com/concours-de-saison. Moments Diffuseur (vous organisez ou relayez) : visibilité des dates — https://moments-locaux.com/diffuseur. Moments Partenaire (vous accueillez) : attention concrète aux personnes déjà de sortie à proximité — https://moments-locaux.com/partenaires. Les deux offres pro peuvent se cumuler. Découvrir et enrichir la carte reste accessible sans offre payante. Pas de palier « Éclaireur » sur le site."
     },
     {
       "id": "no-ticketing",

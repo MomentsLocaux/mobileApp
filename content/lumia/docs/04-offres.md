@@ -1,50 +1,62 @@
 ---
 id: guide-offres
-title: Offres Local Habitué Éclaireur
+title: Offres — Habitué, Diffuseur, Partenaire (site web)
 category: offers
+source: moments-locaux-website/src/messages/fr.json#offers
 ---
 
-# Offres et abonnements
+# Offres Moments Locaux
 
-Moments Locaux prévoit trois niveaux fonctionnels : **Local**, **Habitué**, **Éclaireur**.
+**Source produit validée :** page site `/offres` (septembre 2026), complétée par `/lumo`, `/acteurs-locaux`, `/partenaires`, `/diffuseur`.
+
+L’app sert **d’abord** à découvrir les sorties autour de soi. Il n’y a **pas d’écran d’achat** d’abonnement dans le build mobile tant que `FEATURE_OFFERS` est off. Pour toute question prix / tarif / abonnement, oriente vers le **site**, pas vers un écran in-app.
 
 ## Important pour Lumia
 
-- **Ne jamais inventer un prix** (montant en euros, promo, essai gratuit…) sauf si une fiche tarifaire validée est ajoutée explicitement à cette base documentaire.
-- L’écran **« Nos offres »** n’apparaît que si le flag `FEATURE_OFFERS` est activé dans le build. En MVP store-ready, il est souvent **désactivé**.
+- **Ne jamais inventer un prix** (montant en euros, promo, essai gratuit, rythme mensuel/annuel).
+- Le site dit clairement : *périmètres, tarifs et conditions ne sont pas encore arrêtés*. Ils seront présentés **avant tout engagement**.
+- Ne pas parler d’**Éclaireur** ni d’une grille **Local / Habitué / Éclaireur**. Ce n’est plus le discours public.
+- Citer les URL en **texte brut** (pas de deeplink in-app vers le site) :
+  - https://moments-locaux.com/offres
+  - https://moments-locaux.com/lumo
+  - https://moments-locaux.com/acteurs-locaux
+  - https://moments-locaux.com/partenaires
+  - https://moments-locaux.com/diffuseur
+  - https://moments-locaux.com/concours-de-saison
 
-Si l’utilisateur demande le prix : orienter vers l’écran Nos offres (si visible) ou indiquer que les tarifs ne sont pas affichés dans cette version, sans chiffre inventé.
+## Le cœur reste accessible
 
-## Local (gratuit / base)
+Découvrir les sorties et enrichir la carte reste la mission première. Les offres payantes **ajoutent** des services et des avantages ; elles ne retiennent pas l’essentiel en otage.
 
-Inclus typiquement : carte + fil + recherche, favoris, likes, follow communauté pairs, notifications classiques, signalement, accès CGU / confidentialité.
+## Habitué (particuliers)
 
-## Habitué (V1+, souvent payant — sans citer de prix ici)
+Page `/offres` (ancre particuliers) et `/lumo`.
 
-Ajouts typiques par rapport à Local :
-- Check-in sur place (+ Lumo si gamification activée)
-- Gagner des Lumo, boutique (boosts & cosmétiques), missions, pass partenaires
-- Accès anticipé aux événements, badge Ambassadeur
-- Boost créateur via boutique / Lumo
+Habitué s’adresse à celles et ceux qui **utilisent régulièrement** Moments Locaux. Elle réunira les expériences au-delà de la découverte :
 
-Surfaces visibles seulement si les flags correspondants sont ON (offers, checkin, gamification…).
+- la monnaie **Lumo** et les attentions dans la boutique de l’app
+- des attentions concrètes chez les lieux **Partenaire**
+- les **concours de saison**
 
-## Éclaireur (V2 discovery premium — sans citer de prix ici)
+Format, tarif et quantité de Lumo : **encore à définir**.
 
-Ajouts typiques par rapport à Habitué :
-- Idées de moments à rejoindre tout de suite
-- Carte de « votre zone » (où vous sortez)
-- Recommandations calées sur vos sorties
-- Idées hors de vos habitudes
-- Résumé de vos découvertes (insights)
-- Cadre / badge premium
+## Professionnels — deux offres cumulables
 
-Nécessite en général `FEATURE_DISCOVERY` et entitlement Éclaireur.
+Page `/offres` (ancre professionnels), `/acteurs-locaux`.
+
+| Offre | Pour qui | Promesse |
+|---|---|---|
+| **Moments Diffuseur** | Vous organisez ou relayez des dates | Programmation visible, sans un outil de plus à alimenter — https://moments-locaux.com/diffuseur |
+| **Moments Partenaire** | Vous accueillez (café, commerce, lieu) | Transformer l’activité autour de vous en visites utiles — https://moments-locaux.com/partenaires |
+
+Un même établissement peut **cumuler** les deux (ex. café : son concert du vendredi en Diffuseur + une attention Partenaire pour les personnes déjà de sortie à proximité).
+
+Formules et limites professionnelles : **détail encore à définir**. Orienter vers hello@moments-locaux.com ou le formulaire du site.
 
 ## Ce que Moments Locaux n’est pas
 
-Pas une billetterie : pas de vente de places via l’app ni via Lumia. Un lien externe sur une fiche événement peut exister ; sinon ne pas en inventer.
+Pas une **billetterie** : pas de vente de places via l’app ni via Lumia.
 
-## Création d’événements et offres
+## Contact
 
-La matrice produit prévoit « créer / soumettre un événement » pour les tiers payants, mais en MVP découverte la **création est flaggée off** : ne pas promettre la publication si le build n’a pas `FEATURE_EVENT_CREATE`.
+hello@moments-locaux.com — ou les CTA du site (prévenir au lancement / présenter une activité).
