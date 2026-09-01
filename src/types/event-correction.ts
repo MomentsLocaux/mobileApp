@@ -1,5 +1,5 @@
 /**
- * SCRUM-120 — Community proposals to correct published event fields or flag duplicates.
+ * SCRUM-120 / SCRUM-152 — Community proposals to correct published event fields or flag duplicates.
  * Applied to `events` only after WebConsole / service_role accept (ADR 001).
  */
 
@@ -25,6 +25,8 @@ export const EVENT_CORRECTION_ALLOWED_FIELDS = [
   'price',
   'cover_url',
   'external_url',
+  'category',
+  'subcategory',
 ] as const;
 
 export type EventCorrectionFieldKey = (typeof EVENT_CORRECTION_ALLOWED_FIELDS)[number];

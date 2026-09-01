@@ -29,6 +29,7 @@ import { features } from '@/config/features';
 import { Motion } from '@/constants/motion';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { CategorySelector } from '@/components/events/CategorySelector';
 import { EventCorrectionService } from '@/services/event-correction.service';
 import type { EventWithCreator } from '@/types/database';
 import {
@@ -60,6 +61,8 @@ type FieldDraft = {
   price: string;
   cover_url: string;
   external_url: string;
+  category: string;
+  subcategory: string;
 };
 
 const FIELD_LABELS: Partial<Record<EventCorrectionFieldKey, string>> = {
@@ -75,6 +78,8 @@ const FIELD_LABELS: Partial<Record<EventCorrectionFieldKey, string>> = {
   price: 'Prix',
   cover_url: 'Couverture',
   external_url: 'Lien',
+  category: 'Catégorie',
+  subcategory: 'Sous-catégorie',
 };
 
 const emptyDraft = (): FieldDraft => ({
@@ -90,6 +95,8 @@ const emptyDraft = (): FieldDraft => ({
   price: '',
   cover_url: '',
   external_url: '',
+  category: '',
+  subcategory: '',
 });
 
 const draftFromEvent = (event: EventWithCreator): FieldDraft => ({
@@ -105,6 +112,8 @@ const draftFromEvent = (event: EventWithCreator): FieldDraft => ({
   price: event.price == null ? '' : String(event.price),
   cover_url: event.cover_url || '',
   external_url: event.external_url || '',
+  category: event.category || '',
+  subcategory: event.subcategory || '',
 });
 
 const baselineFields = (event: EventWithCreator): EventCorrectionProposedFields => ({
@@ -120,6 +129,8 @@ const baselineFields = (event: EventWithCreator): EventCorrectionProposedFields 
   price: event.price,
   cover_url: event.cover_url || null,
   external_url: event.external_url || null,
+  category: event.category || null,
+  subcategory: event.subcategory || null,
 });
 
 const draftToProposed = (draft: FieldDraft): EventCorrectionProposedFields => {
@@ -144,6 +155,8 @@ const draftToProposed = (draft: FieldDraft): EventCorrectionProposedFields => {
     price: draft.is_free ? null : price,
     cover_url: draft.cover_url.trim() || null,
     external_url: draft.external_url.trim() || null,
+    category: draft.category.trim() || null,
+    subcategory: draft.subcategory.trim() || null,
   });
 };
 
@@ -181,6 +194,18 @@ const formatDateTime = (value: string) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+const correctionErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : 'Impossible d’envoyer la proposition.';
+  if (message.includes('QUOTA')) return 'Tu as atteint la limite du jour (5 propositions).';
+  if (message.includes('EVENT_CORRECTION_CATEGORY')) {
+    return 'Cette catégorie n’est pas reconnue. Choisis-en une dans la liste.';
+  }
+  if (message.includes('EVENT_CORRECTION_SUBCATEGORY')) {
+    return 'Cette sous-catégorie ne correspond pas à la catégorie choisie.';
+  }
+  return message;
 };
 
 export function EventCorrectionSheet({ visible, event, onClose }: Props) {
@@ -315,11 +340,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
         : '';
       Alert.alert('Merci', `Ta proposition sera vérifiée.${lumoHint}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Impossible d’envoyer la proposition.';
-      Alert.alert(
-        'Erreur',
-        message.includes('QUOTA') ? 'Tu as atteint la limite du jour (5 propositions).' : message,
-      );
+      Alert.alert('Erreur', correctionErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -354,11 +375,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
         : '';
       Alert.alert('Merci', `Ta proposition sera vérifiée.${lumoHint}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Impossible d’envoyer la proposition.';
-      Alert.alert(
-        'Erreur',
-        message.includes('QUOTA') ? 'Tu as atteint la limite du jour (5 propositions).' : message,
-      );
+      Alert.alert('Erreur', correctionErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -407,7 +424,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
               <OptionRow
                 icon={Pencil}
                 title="Corriger des infos"
-                subtitle="Horaire, lieu, tarif, titre…"
+                subtitle="Horaire, lieu, catégorie, tarif, titre…"
                 onPress={() => {
                   haptics.selection();
                   setStep('field_correction');
@@ -429,6 +446,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
               contentContainerStyle={styles.formContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
             >
               {step === 'field_correction' ? (
                 <>
@@ -446,6 +464,29 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
                     multiline
                     changed={isChanged('description')}
                   />
+
+                  <View
+                    style={[
+                      styles.taxonomyWrap,
+                      (isChanged('category') || isChanged('subcategory')) && styles.changedCard,
+                    ]}
+                  >
+                    {isChanged('category') || isChanged('subcategory') ? (
+                      <Text style={styles.fieldLabel}>Taxonomie · modifié</Text>
+                    ) : null}
+                    <CategorySelector
+                      selected={draft.category || undefined}
+                      subcategory={draft.subcategory || undefined}
+                      onSelect={(value) => {
+                        setDraft((prev) =>
+                          prev.category === value
+                            ? prev
+                            : { ...prev, category: value, subcategory: '' },
+                        );
+                      }}
+                      onSelectSubcategory={(value) => updateDraft('subcategory', value || '')}
+                    />
+                  </View>
 
                   <SectionTitle>Horaires</SectionTitle>
                   <DateFieldRow
@@ -875,6 +916,14 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: 6,
+  },
+  taxonomyWrap: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 51, 41, 0.12)',
+    backgroundColor: colors.brand.surface,
   },
   fieldLabel: {
     ...typography.caption,
