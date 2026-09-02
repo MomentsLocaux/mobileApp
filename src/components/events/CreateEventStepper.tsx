@@ -28,6 +28,7 @@ import { EventsService } from '@/services/events.service';
 import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import { useEventsStore } from '@/store';
 import { EventSuggestEntryButton } from '@/components/events/EventSuggestEntryButton';
+import { eventScheduleModeToDb, isSameDayRange, operatingHoursFromDraft } from '@/utils/event-schedule';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 
@@ -60,6 +61,10 @@ export const CreateEventStepper = () => {
     const videoLink = useCreateEventStore((s) => s.videoLink);
     const gallery = useCreateEventStore((s) => s.gallery);
     const submissionSource = useCreateEventStore((s) => s.submissionSource);
+    const scheduleMode = useCreateEventStore((s) => s.scheduleMode);
+    const scheduleOpenDays = useCreateEventStore((s) => s.scheduleOpenDays);
+    const scheduleFixedSlots = useCreateEventStore((s) => s.scheduleFixedSlots);
+    const scheduleVariableDays = useCreateEventStore((s) => s.scheduleVariableDays);
     const resetStore = useCreateEventStore((s) => s.reset);
 
     const canProceedStep1 = useMemo(
@@ -196,6 +201,17 @@ export const CreateEventStepper = () => {
                 external_url: externalLink || videoLink || null,
                 contact_email,
                 contact_phone,
+                schedule_mode: eventScheduleModeToDb(
+                    isSameDayRange(startDate, endDate) ? 'single_day' : scheduleMode,
+                ),
+                operating_hours: operatingHoursFromDraft({
+                    startDate,
+                    endDate,
+                    scheduleMode: isSameDayRange(startDate, endDate) ? 'single_day' : scheduleMode,
+                    scheduleOpenDays,
+                    scheduleFixedSlots,
+                    scheduleVariableDays,
+                }),
                 status: 'pending',
                 creator_id: user?.id,
                 submission_source: submissionSource,

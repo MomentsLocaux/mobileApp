@@ -1,4 +1,8 @@
-import type { Event } from '@/types/database';
+export type EventScheduleSource = {
+  starts_at?: string | null;
+  ends_at?: string | null;
+  operating_hours?: unknown;
+};
 
 export type EventScheduleModeMobile = 'single_day' | 'fixed' | 'variable';
 
@@ -13,6 +17,20 @@ export type VariableDaySchedule = {
 };
 
 export type VariableSchedules = Record<string, VariableDaySchedule>;
+
+export type EventScheduleDraft = {
+  startDate?: string;
+  endDate?: string;
+  scheduleMode: EventScheduleModeMobile;
+  scheduleOpenDays: number[];
+  scheduleFixedSlots: EventTimeSlot[];
+  scheduleVariableDays: VariableSchedules;
+};
+
+export const DEFAULT_EVENT_TIME_SLOT: EventTimeSlot = { start: '09:00', end: '18:00' };
+
+export const eventScheduleModeToDb = (mode: EventScheduleModeMobile): 'ponctuel' | 'recurrent' =>
+  mode === 'single_day' ? 'ponctuel' : 'recurrent';
 
 const DEFAULT_SLOT: EventTimeSlot = { start: '09:00', end: '18:00' };
 const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7];
@@ -170,7 +188,7 @@ const buildVariableDefaults = (startDate?: string, endDate?: string, baseSlot = 
   return entries;
 };
 
-export const deriveScheduleStateFromEvent = (event: Partial<Event> | null | undefined) => {
+export const deriveScheduleStateFromEvent = (event: EventScheduleSource | null | undefined) => {
   const startDate = event?.starts_at || undefined;
   const endDate = event?.ends_at || undefined;
   const fallback = {
@@ -237,6 +255,85 @@ export const deriveScheduleStateFromEvent = (event: Partial<Event> | null | unde
   }
 
   return fallback;
+};
+
+export const scheduleDraftFromEvent = (event: EventScheduleSource | null | undefined): EventScheduleDraft => {
+  const derived = deriveScheduleStateFromEvent(event);
+  return syncScheduleDraft({
+    startDate: event?.starts_at || undefined,
+    endDate: event?.ends_at || undefined,
+    scheduleMode: derived.mode,
+    scheduleOpenDays: derived.openDays,
+    scheduleFixedSlots: derived.fixedSlots,
+    scheduleVariableDays: derived.variableSchedules,
+  });
+};
+
+export const syncScheduleDraft = (draft: EventScheduleDraft): EventScheduleDraft => {
+  const next: EventScheduleDraft = { ...draft };
+  if (next.startDate && !next.endDate) {
+    const autoEnd = new Date(next.startDate);
+    if (!Number.isNaN(autoEnd.getTime())) {
+      autoEnd.setHours(autoEnd.getHours() + 2);
+      next.endDate = autoEnd.toISOString();
+    }
+  }
+  if (next.startDate && next.endDate) {
+    next.scheduleVariableDays = normalizeScheduleByDateRange({
+      startDate: next.startDate,
+      endDate: next.endDate,
+      variableSchedules: next.scheduleVariableDays,
+    });
+    if (isSameDayRange(next.startDate, next.endDate)) next.scheduleMode = 'single_day';
+    else if (next.scheduleMode === 'single_day') next.scheduleMode = 'fixed';
+  }
+  return next;
+};
+
+export const operatingHoursFromDraft = (draft: EventScheduleDraft) =>
+  buildOperatingHoursPayload({
+    startDate: draft.startDate,
+    endDate: draft.endDate,
+    mode: draft.scheduleMode,
+    fixedSlots: draft.scheduleFixedSlots,
+    openDays: draft.scheduleOpenDays,
+    variableSchedules: draft.scheduleVariableDays,
+  });
+
+const localTimeFromIso = (iso: string | undefined, fallback: string) => {
+  if (!iso) return fallback;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+};
+
+/** Prefill the create/suggest planner from a start/end window (poster dates or manual). */
+export const scheduleDraftFromDateRange = (startDate?: string, endDate?: string): EventScheduleDraft => {
+  let resolvedEnd = endDate;
+  if (startDate && resolvedEnd) {
+    const start = new Date(startDate);
+    const end = new Date(resolvedEnd);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end <= start) {
+      const bumped = new Date(start);
+      bumped.setHours(bumped.getHours() + 2);
+      resolvedEnd = bumped.toISOString();
+    }
+  }
+
+  const startTime = localTimeFromIso(startDate, DEFAULT_EVENT_TIME_SLOT.start);
+  const endTime = localTimeFromIso(resolvedEnd, DEFAULT_EVENT_TIME_SLOT.end);
+  const slot = { start: startTime, end: endTime };
+  const dates = enumerateDateRange(startDate, resolvedEnd);
+  const openDays = [...new Set(dates.map(getIsoDay))].sort((a, b) => a - b);
+
+  return syncScheduleDraft({
+    startDate,
+    endDate: resolvedEnd,
+    scheduleMode: isSameDayRange(startDate, resolvedEnd) ? 'single_day' : 'fixed',
+    scheduleOpenDays: openDays.length ? openDays : WEEK_DAYS,
+    scheduleFixedSlots: isValidSlot(slot) ? [slot] : [{ start: startTime, end: '23:00' }],
+    scheduleVariableDays: {},
+  });
 };
 
 export const normalizeScheduleByDateRange = (params: {

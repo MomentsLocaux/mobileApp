@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  DISCOVERY_DEFAULT_RADIUS_KM,
-  NO_ACTIVE_FILTER_LABEL,
-} from '../constants/filters';
+import { DISCOVERY_DEFAULT_RADIUS_KM } from '../constants/filters';
 import {
   activeFilterCount,
   createDefaultDiscoveryFilters,
@@ -16,7 +13,7 @@ import {
 import { hasSearchCriteria } from './search-helpers';
 
 describe('discovery filter contract', () => {
-  it('does not count discovery defaults as active filters', () => {
+  it('does not count discovery defaults as extra filters, but still names them', () => {
     const filters = createDefaultDiscoveryFilters();
 
     assert.equal(filters.status, 'all');
@@ -26,7 +23,7 @@ describe('discovery filter contract', () => {
     assert.deepEqual(filters.sort.home, { sortBy: 'distance', sortOrder: 'asc' });
     assert.equal(toTimeScope(filters), 'current');
     assert.equal(activeFilterCount(filters, { surface: 'home' }), 0);
-    assert.equal(summarize(filters, { surface: 'home' }), NO_ACTIVE_FILTER_LABEL);
+    assert.equal(summarize(filters, { surface: 'home' }), "Aujourd'hui · 20 km");
     assert.equal(
       hasSearchCriteria({
         place: filters.place,
@@ -55,8 +52,9 @@ describe('discovery filter contract', () => {
     filters.mapMode = 'satellite';
 
     assert.equal(activeFilterCount(filters, { surface: 'map' }), 0);
-    assert.equal(summarize(filters, { surface: 'map' }), NO_ACTIVE_FILTER_LABEL);
-    assert.equal(summarize(filters, { surface: 'map', includeMapMode: true }), 'Satellite');
+    assert.equal(summarize(filters, { surface: 'map' }), "Aujourd'hui");
+    assert.equal(summarize(filters, { surface: 'home' }), "Aujourd'hui · 20 km");
+    assert.equal(summarize(filters, { surface: 'map', includeMapMode: true }), "Aujourd'hui · Satellite");
   });
 
   it('counts sort independently for home and map', () => {

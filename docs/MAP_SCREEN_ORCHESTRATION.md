@@ -18,9 +18,9 @@
 
 En **search**, le pan n’auto-fetche pas. En **browse**, si. Le chip conserve quoi/quand et relâche seulement le verrou géographique.
 
-**Filtres temporels** : le défaut Home / Map browse est **Aujourd’hui** (`status: all` + `when.preset: today`), pas En cours. En cours reste disponible dans le panneau. `today` n’est pas un critère de recherche (pas de lock carte).
+**Filtres temporels** : le défaut Home / Map browse est **Aujourd’hui** (`status: all` + `when.preset: today`), pas En cours. En cours reste disponible dans le panneau. `today` n’est pas un critère de recherche (pas de lock carte). La SearchBar Home affiche ce défaut (« Aujourd’hui · 20 km ») comme n’importe quel filtre choisi, pour que l’utilisateur voie ce qui est listé. Sur la carte, le rayon n’est pas affiché par défaut (browse = viewport visible).
 
-**Refine viewport (sans lock)** : bouton curseurs à droite de la SearchBar. Sous-section **sous la barre** : période (Tous / En cours / Aujourd’hui / Demain / Ce week-end / À venir / Passés + date précise) et catégories (tout sélectionner / désélectionner). `setStatus` / `setWhen` / `setContent` **sans** `searchApplied`. Pins = liste. Refetch bbox si le time scope change ou si une date (preset / range) l’exige. Visible en browse **et** en recherche. Lieu et texte restent dans la modale SearchBar. La bottom sheet ne contient plus que le tri.
+**Refine viewport (sans lock)** : bouton curseurs à droite de la SearchBar, **avec le point vert** (filtre temporel toujours actif, y compris Aujourd’hui). Sous-section **sous la barre** : période (Tous / En cours / Aujourd’hui / Demain / Ce week-end / À venir / Passés + date précise) et catégories (tout sélectionner / désélectionner). `setStatus` / `setWhen` / `setContent` **sans** `searchApplied`. Pins = liste. Refetch bbox si le time scope change ou si une date (preset / range) l’exige. Visible en browse **et** en recherche. Lieu et texte restent dans la modale SearchBar. La bottom sheet ne contient plus que le tri. « Effacer les filtres » n’apparaît que pour un écart au défaut (catégories ou autre période).
 
 Le toggle satellite n’est plus à côté de la recherche : il est groupé avec le recentrage GPS (outils carte).
 

@@ -196,12 +196,12 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 
 - Service : `src/services/events.service.ts` (+ `listMapViewport` → RPC)
 - Création active (V1) : `app/events/create/*` (stepper) — **pas** le legacy `src/screens/events/EventCreateScreen.tsx`
-- Suggestion affiche (V1) : `app/events/suggest-from-poster` + `event-poster-extract.service` → Edge `suggest-event-from-poster`
+- Suggestion affiche (V1) : `app/events/suggest-from-poster` + `event-poster-extract.service` → Edge `suggest-event-from-poster` ; dates IA → `EventScheduleEditor` (mêmes horaires particuliers que create)
 - Statuts : `draft` → `pending` (soumission mobile) → `published` \| `refused` \| `archived` (console)
 - Édition UI : `draft` \| `refused` uniquement
 - Géocodage création : `geocoding.service.ts` / Mapbox
 - Médias : upload Storage + `event-media-submissions` pour échos
-- Corrections utilisateur : `event-correction.service.ts` + sheet (signalement / proposition de correction)
+- Corrections utilisateur : `event-correction.service.ts` + sheet — champs user = dates/`operating_hours`, lieu géocodé, taxonomie, tarif ; commentaire auto ; doublon = liste 5 km / titre proche (`duplicate-candidates.ts`) + commentaire libre
 
 ### 7.2 Carte
 

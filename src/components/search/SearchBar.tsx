@@ -179,16 +179,6 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
     [mapMode, place, sort, status, what, when]
   );
 
-  const appliedHasSearchCriteria = useMemo(
-    () =>
-      checkSearchCriteria({
-        place: appliedPlace,
-        when: appliedWhen,
-        content: appliedContent,
-      }),
-    [appliedContent, appliedPlace, appliedWhen]
-  );
-
   const setWhere = (payload: Partial<SearchWhereState>) => {
     const next: Partial<typeof place> = {};
     if ('location' in payload) {
@@ -325,15 +315,10 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   );
   const displayedRadiusKm = where.radiusKm ?? effectiveRadiusKm ?? PROXIMITY_RADIUS_KM;
 
-  const summaryText = useMemo(() => {
-    if (
-      (!applied || !appliedHasSearchCriteria) &&
-      isDefaultDiscoveryTemporal(appliedStatus, appliedWhen)
-    ) {
-      return undefined;
-    }
-    return buildSearchSummary(appliedFilters, categories, subcategories, surface);
-  }, [applied, appliedFilters, appliedHasSearchCriteria, appliedStatus, appliedWhen, categories, subcategories, surface]);
+  const summaryText = useMemo(
+    () => buildSearchSummary(appliedFilters, categories, subcategories, surface),
+    [appliedFilters, categories, subcategories, surface],
+  );
 
   const combinationError = useMemo(() => explainEmptyCombination(filters), [filters]);
 
@@ -651,16 +636,20 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
     };
   });
 
-  const collapsedLabel =
-    summaryText ||
-    (enableCommunitySearch && searchMode === 'members' ? 'Rechercher un membre' : placeholder);
+  const isMembersSearch = enableCommunitySearch && searchMode === 'members';
+  const collapsedLabel = isMembersSearch
+    ? 'Rechercher un membre'
+    : summaryText || placeholder;
 
   return (
     <View style={styles.wrapper}>
       <Animated.View style={[styles.collapsedRow, barAnimatedStyle]} ref={barRef}>
         <Pressable style={styles.searchPill} onPress={openExpanded}>
           <Search size={18} color={colors.brand.textSecondary} />
-          <Text style={styles.searchText} numberOfLines={1}>
+          <Text
+            style={[styles.searchText, !isMembersSearch && summaryText ? styles.searchTextActive : null]}
+            numberOfLines={1}
+          >
             {collapsedLabel}
           </Text>
         </Pressable>
@@ -1260,6 +1249,10 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     ...typography.body,
     flex: 1,
+  },
+  searchTextActive: {
+    color: colors.brand.text,
+    fontWeight: '600',
   },
   overlayRoot: {
     ...StyleSheet.absoluteFillObject,

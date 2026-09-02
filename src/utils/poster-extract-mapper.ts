@@ -2,6 +2,11 @@ import type { EventLocation } from '@/hooks/useCreateEventStore';
 import { MapboxService } from '@/services/mapbox.service';
 import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
 import type { ConfidentField, PosterExtractionFields, PosterPrefillSummary } from '@/types/poster-extract';
+import {
+  DEFAULT_EVENT_TIME_SLOT,
+  scheduleDraftFromDateRange,
+  type EventScheduleDraft,
+} from '@/utils/event-schedule';
 
 export const CONFIDENCE_HIGH = 0.85;
 export const CONFIDENCE_MEDIUM = 0.6;
@@ -18,6 +23,7 @@ export type PosterStoreDraft = {
   price?: string;
   contact?: string;
   externalLink?: string;
+  schedule?: EventScheduleDraft;
 };
 
 function pickValue<T>(field: ConfidentField<T | null>, fieldKey: string, summary: PosterPrefillSummary): T | null {
@@ -153,25 +159,31 @@ export async function mapPosterExtractionToStoreDraft(
   const summary: PosterPrefillSummary = { uncertainFields: [], appliedFields: [] };
 
   const startDateStr = pickString(fields.start_date, 'start_date', summary);
-  const startTimeStr = fields.start_time.value;
+  const startTimeStr = pickString(fields.start_time, 'start_time', summary);
   const endDateStr = pickString(fields.end_date, 'end_date', summary);
-  const endTimeStr = fields.end_time.value;
+  const endTimeStr = pickString(fields.end_time, 'end_time', summary);
 
   let startDate: string | undefined;
   let endDate: string | undefined;
 
   if (startDateStr) {
-    startDate = mergeDateTime(startDateStr, startTimeStr, '19:00');
+    startDate = mergeDateTime(startDateStr, startTimeStr, DEFAULT_EVENT_TIME_SLOT.start);
     if (fields.year_inferred.value && fields.year_inferred.confidence >= CONFIDENCE_MEDIUM) {
       summary.uncertainFields.push('year_inferred');
     }
   }
 
   if (endDateStr) {
-    endDate = mergeDateTime(endDateStr, endTimeStr, '22:00');
+    endDate = mergeDateTime(endDateStr, endTimeStr, DEFAULT_EVENT_TIME_SLOT.end);
   } else if (startDate) {
     const auto = new Date(startDate);
-    auto.setUTCHours(auto.getUTCHours() + 2);
+    auto.setHours(auto.getHours() + 2);
+    endDate = auto.toISOString();
+  }
+
+  if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
+    const auto = new Date(startDate);
+    auto.setHours(auto.getHours() + 2);
     endDate = auto.toISOString();
   }
 
@@ -196,6 +208,7 @@ export async function mapPosterExtractionToStoreDraft(
     price: resolvePrice(fields, summary),
     contact: resolveContact(fields, summary),
     externalLink: pickString(fields.external_url, 'external_url', summary),
+    schedule: startDate || endDate ? scheduleDraftFromDateRange(startDate, endDate) : undefined,
   };
 
   return { draft, summary };
@@ -216,6 +229,10 @@ export function applyPosterDraftToCreateStore(
     setContact: (v?: string) => void;
     setExternalLink: (v?: string) => void;
     setCoverImage: (v: { storagePath: string; publicUrl: string }) => void;
+    setScheduleMode: (v: EventScheduleDraft['scheduleMode']) => void;
+    setScheduleOpenDays: (v: number[]) => void;
+    setScheduleFixedSlots: (v: EventScheduleDraft['scheduleFixedSlots']) => void;
+    setScheduleVariableDays: (v: EventScheduleDraft['scheduleVariableDays']) => void;
   },
   cover: { storagePath: string; publicUrl: string },
 ): void {
@@ -224,6 +241,12 @@ export function applyPosterDraftToCreateStore(
   if (draft.description) setters.setDescription(draft.description);
   if (draft.startDate) setters.setStartDate(draft.startDate);
   if (draft.endDate) setters.setEndDate(draft.endDate);
+  if (draft.schedule) {
+    setters.setScheduleMode(draft.schedule.scheduleMode);
+    setters.setScheduleOpenDays(draft.schedule.scheduleOpenDays);
+    setters.setScheduleFixedSlots(draft.schedule.scheduleFixedSlots);
+    setters.setScheduleVariableDays(draft.schedule.scheduleVariableDays);
+  }
   if (draft.location) setters.setLocation(draft.location);
   if (draft.category) setters.setCategory(draft.category);
   if (draft.subcategory) setters.setSubcategory(draft.subcategory);

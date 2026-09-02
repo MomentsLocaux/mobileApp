@@ -29,12 +29,23 @@ const SEARCH_MIN_CHARS = 2;
 type Props = {
   visible: boolean;
   onClose: () => void;
+  location?: EventLocation | null;
+  categoryId?: string | null;
+  onConfirmLocation?: (location: EventLocation) => void;
 };
 
-export const LocationPickerModal = ({ visible, onClose }: Props) => {
-  const location = useCreateEventStore((s) => s.location);
-  const categoryId = useCreateEventStore((s) => s.category);
+export const LocationPickerModal = ({
+  visible,
+  onClose,
+  location: locationOverride,
+  categoryId: categoryIdOverride,
+  onConfirmLocation,
+}: Props) => {
+  const storeLocation = useCreateEventStore((s) => s.location);
+  const storeCategoryId = useCreateEventStore((s) => s.category);
   const setLocation = useCreateEventStore((s) => s.setLocation);
+  const location = locationOverride !== undefined ? locationOverride || undefined : storeLocation;
+  const categoryId = categoryIdOverride !== undefined ? categoryIdOverride || undefined : storeCategoryId;
   const category = useTaxonomyStore((s) => s.categoriesMap[categoryId || '']);
 
   const [query, setQuery] = useState('');
@@ -136,7 +147,8 @@ export const LocationPickerModal = ({ visible, onClose }: Props) => {
       postalCode: selected.postalCode,
       country: selected.country,
     };
-    setLocation(loc);
+    if (onConfirmLocation) onConfirmLocation(loc);
+    else setLocation(loc);
     onClose();
   };
 

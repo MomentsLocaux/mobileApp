@@ -61,8 +61,9 @@ RÈGLES DURES :
 4) tag_slugs : uniquement des slugs autorisés, max 3 (ex. "gratuit" si affiché).
 5) Si l'année n'est pas sur l'affiche, infère ${year} ou ${year + 1} selon le contexte ; mets year_inferred=true et confidence modérée.
 6) Dates au format YYYY-MM-DD, horaires HH:mm (24h). Prix en euros (nombre, pas de symbole).
-7) confidence entre 0 et 1 par champ (_confidence). ≥0.85 = très lisible, 0.6–0.84 = incertain, <0.6 = douteux.
-8) warnings : liste de notes courtes (ex. "date partiellement coupée").
+7) Extraire uniquement start_date / end_date (la fenêtre globale). start_time / end_time seulement si une heure globale est écrite. N'invente PAS de planning jour par jour, créneaux multiples ou horaires variables.
+8) confidence entre 0 et 1 par champ (_confidence). ≥0.85 = très lisible, 0.6–0.84 = incertain, <0.6 = douteux.
+9) warnings : liste de notes courtes (ex. "date partiellement coupée").
 
 ${taxonomy}`;
 }

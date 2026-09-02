@@ -6,6 +6,7 @@ import {
   HOME_DEFAULT_SORT_OPTION,
   NO_ACTIVE_FILTER_LABEL,
   datePresetLabel,
+  formatRadiusLabel,
   metaFilterLabel,
   sortOptionLabel,
   type DatePreset,
@@ -207,6 +208,20 @@ function whenSummary(when: DiscoveryWhenFilter): string | null {
   return null;
 }
 
+/** Visible temporal package, including the default « Aujourd'hui ». */
+export function temporalSummary(filters: Pick<DiscoveryFilters, 'status' | 'when'>): string | null {
+  const choice = resolveSearchTemporalChoice(filters.status, filters.when);
+  const whenLabel = whenSummary(filters.when);
+  if (choice === 'all' && whenLabel) return whenLabel;
+  if (choice) {
+    return (
+      SEARCH_TEMPORAL_CHOICES.find((item) => item.key === choice)?.label ??
+      metaFilterLabel(filters.status)
+    );
+  }
+  return whenLabel;
+}
+
 function placeSummary(place: DiscoveryPlaceFilter): string | null {
   if (!isPlaceFilterActive(place)) return null;
 
@@ -261,29 +276,21 @@ export interface SummarizeOptions {
   includeMapMode?: boolean;
 }
 
-/** Human-readable recap of the active filters, e.g. "En cours · Demain · 2 catégories". */
+/** Human-readable recap of applied filters, including the default « Aujourd'hui ». */
 export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions): string {
   const { surface, categoryLabels, emptyLabel = NO_ACTIVE_FILTER_LABEL, includeMapMode } =
     options ?? {};
   const parts: string[] = [];
 
-  if (!isDefaultDiscoveryTemporal(filters.status, filters.when)) {
-    const choice = resolveSearchTemporalChoice(filters.status, filters.when);
-    const whenLabel = whenSummary(filters.when);
-    if (choice === 'all' && whenLabel) {
-      parts.push(whenLabel);
-    } else if (choice) {
-      parts.push(
-        SEARCH_TEMPORAL_CHOICES.find((item) => item.key === choice)?.label ??
-          metaFilterLabel(filters.status)
-      );
-    } else if (whenLabel) {
-      parts.push(whenLabel);
-    }
-  }
+  const whenLabel = temporalSummary(filters);
+  if (whenLabel) parts.push(whenLabel);
 
   const placeLabel = placeSummary(filters.place);
-  if (placeLabel) parts.push(placeLabel);
+  if (placeLabel) {
+    parts.push(placeLabel);
+  } else if (surface === 'home') {
+    parts.push(formatRadiusLabel(filters.place.radiusKm ?? DISCOVERY_DEFAULT_RADIUS_KM));
+  }
 
   const query = filters.content.query?.trim();
   if (query) parts.push(`« ${query} »`);

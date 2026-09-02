@@ -52,6 +52,10 @@ function SuggestFromPosterContent() {
   const setContact = useCreateEventStore((s) => s.setContact);
   const setExternalLink = useCreateEventStore((s) => s.setExternalLink);
   const setCoverImage = useCreateEventStore((s) => s.setCoverImage);
+  const setScheduleMode = useCreateEventStore((s) => s.setScheduleMode);
+  const setScheduleOpenDays = useCreateEventStore((s) => s.setScheduleOpenDays);
+  const setScheduleFixedSlots = useCreateEventStore((s) => s.setScheduleFixedSlots);
+  const setScheduleVariableDays = useCreateEventStore((s) => s.setScheduleVariableDays);
 
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -126,6 +130,10 @@ function SuggestFromPosterContent() {
             setContact,
             setExternalLink,
             setCoverImage,
+            setScheduleMode,
+            setScheduleOpenDays,
+            setScheduleFixedSlots,
+            setScheduleVariableDays,
           },
           upload,
         );
@@ -183,6 +191,10 @@ function SuggestFromPosterContent() {
       setContact,
       setExternalLink,
       setCoverImage,
+      setScheduleMode,
+      setScheduleOpenDays,
+      setScheduleFixedSlots,
+      setScheduleVariableDays,
       setSubmissionSource,
       resolvedSource,
       router,

@@ -254,11 +254,13 @@ published ──(admin)──► archived
 - Sauvegarde brouillon possible.
 - CTA « Publier » → passage en **`pending`** (pas publication directe).
 
-**Suggestion depuis affiche** (`/events/suggest-from-poster`) — flag `eventSuggest` : préremplissage IA → formulaire create (indépendant de `eventCreate` pour l’entrée contribute).
+**Suggestion depuis affiche** (`/events/suggest-from-poster`) — flag `eventSuggest` : préremplissage IA → formulaire create (indépendant de `eventCreate` pour l’entrée contribute). L’IA ne prend que les **dates de début/fin** (et l’heure globale si elle est écrite). Le formulaire réutilise le **même planner d’horaires** que la création (journée unique / fixes / variables), aussi en saisie manuelle.
 
 **Édition** : autorisée uniquement si `draft` ou `refused` (`canEditEvent`).
 
 **Mes suggestions** (`/profile/my-suggestions`) : historique connecté des contributions de l’utilisateur (événements `community_suggest`, corrections de fiche, signalements de doublon, bugs / idées) avec statut.
+
+**Correction de fiche** (événement `published`) : l’utilisateur connecté propose un diff, **sans** éditer la fiche. Champs soumissibles : **date et horaires** (planner create : journée unique / horaires fixes / variables), **lieu** (géocodage Mapbox + reverse du pin → adresse, CP, ville, lat/lng), **catégorie / sous-catégorie**, **tarif**. La justification est **générée** à partir des champs modifiés. Le doublon propose une **liste préfiltrée** (5 km, titre approchant) et garde un commentaire libre. Application des changements = console admin (ADR 001).
 
 **Mes événements** (`/profile/my-events`) : publications organisateur, **uniquement** si `eventCreate` ; liste avec badges de statut + temporalité (À venir / En cours / Passé). Les anciennes URLs `my-events` sans le flag redirigent vers Mes suggestions.
 

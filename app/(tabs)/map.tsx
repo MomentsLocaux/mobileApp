@@ -969,16 +969,12 @@ export default function MapScreen() {
               onPress={toggleRefine}
               accessibilityRole="button"
               accessibilityState={{ expanded: refineOpen }}
-              accessibilityLabel={
-                hasViewportRefine
-                  ? 'Filtrer les événements, filtres actifs'
-                  : 'Filtrer les événements de la carte'
-              }
+              accessibilityLabel="Filtrer les événements, filtres actifs"
               accessibilityHint="Ouvre les filtres de période et de catégorie sans lancer une recherche."
               animateEntrance={false}
             >
               <SlidersHorizontal size={20} color={colors.brand.text} />
-              {hasViewportRefine ? <View style={styles.filterActiveDot} /> : null}
+              <View style={styles.filterActiveDot} />
             </FloatingPressable>
           </View>
           <MapViewportRefinePanel
