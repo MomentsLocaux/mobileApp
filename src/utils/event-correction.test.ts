@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { pickCorrectionDiff } from '../types/event-correction';
 import {
   baselineCorrectionFields,
+  buildDuplicateCorrectionComment,
   buildFieldCorrectionComment,
   changedCorrectionGroupLabels,
+  countTodayCorrectionProposals,
   diffCorrectionFields,
+  formatCorrectionQuotaLabel,
   proposedCorrectionFields,
 } from './event-correction';
 import type { EventScheduleDraft } from './event-schedule';
@@ -136,4 +139,41 @@ test('generated comment describes only the groups that changed', () => {
   assert.match(comment, /Tarif : gratuit devient 8 €/);
   assert.match(comment, /Catégorie et sous-catégorie : Marché \/ Ancienne devient Concert \/ aucune/);
   assert.doesNotMatch(comment, /Nouveau titre|Ancien texte|cover/i);
+});
+
+test('duplicate justification includes both event ids for moderation', () => {
+  const comment = buildDuplicateCorrectionComment({
+    comment: 'Même concert, deux fiches',
+    sourceEventId: 'src-1',
+    duplicateEventId: 'dup-2',
+  });
+  assert.match(comment, /^Même concert, deux fiches/);
+  assert.match(comment, /fiche signalée : src-1/);
+  assert.match(comment, /fiche présumée doublon : dup-2/);
+});
+
+test('duplicate justification keeps a placeholder when the other fiche is unknown', () => {
+  const comment = buildDuplicateCorrectionComment({
+    comment: 'Doublon sans id',
+    sourceEventId: 'src-1',
+  });
+  assert.match(comment, /fiche présumée doublon : non identifiée/);
+});
+
+test('quota label and today count ignore bugs and yesterday', () => {
+  const now = new Date('2026-09-02T15:00:00.000Z');
+  assert.equal(formatCorrectionQuotaLabel(3), '3 / 10 propositions aujourd’hui');
+  assert.equal(
+    countTodayCorrectionProposals(
+      [
+        { kind: 'duplicate', createdAt: '2026-09-02T01:00:00.000Z' },
+        { kind: 'field_correction', createdAt: '2026-09-02T10:00:00.000Z' },
+        { kind: 'field_correction', createdAt: '2026-09-01T23:00:00.000Z' },
+        { kind: 'bug', createdAt: '2026-09-02T12:00:00.000Z' },
+        { kind: 'event_suggest', createdAt: '2026-09-02T12:00:00.000Z' },
+      ],
+      now,
+    ),
+    2,
+  );
 });

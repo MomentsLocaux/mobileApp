@@ -6,6 +6,10 @@
 export const EVENT_CORRECTION_KINDS = ['field_correction', 'duplicate'] as const;
 export type EventCorrectionKind = (typeof EVENT_CORRECTION_KINDS)[number];
 
+/** Soft anti-spam, mirrored by `enforce_event_correction_proposal_quota()` (UTC day). */
+export const EVENT_CORRECTION_DAILY_QUOTA = 10;
+export const EVENT_CORRECTION_COMMENT_MAX = 2000;
+
 export const EVENT_CORRECTION_STATUSES = ['pending', 'accepted', 'rejected'] as const;
 export type EventCorrectionStatus = (typeof EVENT_CORRECTION_STATUSES)[number];
 

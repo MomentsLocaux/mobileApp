@@ -98,9 +98,13 @@ export function clampContributionFabDragPosition(
   x: number,
   y: number,
   bounds: ContributionFabBounds,
+  lockSide?: 'left' | 'right',
 ): ContributionFabPoint {
+  'worklet';
+  const minX = lockSide === 'left' ? bounds.peekMinX : lockSide === 'right' ? bounds.maxX : bounds.peekMinX;
+  const maxX = lockSide === 'left' ? bounds.minX : lockSide === 'right' ? bounds.peekMaxX : bounds.peekMaxX;
   return {
-    x: Math.min(bounds.peekMaxX, Math.max(bounds.peekMinX, x)),
+    x: Math.min(maxX, Math.max(minX, x)),
     y: Math.min(bounds.maxY, Math.max(bounds.minY, y)),
   };
 }
@@ -110,6 +114,7 @@ export function contributionFabSide(
   bounds: ContributionFabBounds,
   velocityX = 0,
 ): 'left' | 'right' {
+  'worklet';
   if (velocityX <= -CONTRIBUTION_FAB_SNAP_VELOCITY) return 'left';
   if (velocityX >= CONTRIBUTION_FAB_SNAP_VELOCITY) return 'right';
   return x + CONTRIBUTION_FAB_SIZE / 2 < bounds.screenWidth / 2 ? 'left' : 'right';
@@ -130,8 +135,10 @@ export function resolveContributionFabRelease(
   y: number,
   bounds: ContributionFabBounds,
   velocityX = 0,
+  lockSide?: 'left' | 'right',
 ): ContributionFabSnap {
-  const side = contributionFabSide(x, bounds, velocityX);
+  'worklet';
+  const side = lockSide ?? contributionFabSide(x, bounds, velocityX);
   const dockedX = side === 'left' ? bounds.minX : bounds.maxX;
   const peekX = side === 'left' ? bounds.peekMinX : bounds.peekMaxX;
   const peekMid = (dockedX + peekX) / 2;

@@ -140,6 +140,33 @@ test('a shove while already on the edge also peeks', () => {
   assert.equal(shoved.x, portrait.peekMaxX);
 });
 
+test('pulling a peeked FAB out keeps it on the same edge even with a fast fling', () => {
+  const fromLeft = resolveContributionFabRelease(portrait.minX, 200, portrait, 900, 'left');
+  assert.equal(fromLeft.peeked, false);
+  assert.equal(fromLeft.x, portrait.minX);
+
+  const fromRight = resolveContributionFabRelease(portrait.maxX, 200, portrait, -900, 'right');
+  assert.equal(fromRight.peeked, false);
+  assert.equal(fromRight.x, portrait.maxX);
+});
+
+test('a short pull on a peeked FAB leaves it peeked on the same side', () => {
+  const left = resolveContributionFabRelease(portrait.peekMinX + 4, 200, portrait, 400, 'left');
+  assert.equal(left.peeked, true);
+  assert.equal(left.x, portrait.peekMinX);
+
+  const right = resolveContributionFabRelease(portrait.peekMaxX - 4, 200, portrait, -400, 'right');
+  assert.equal(right.peeked, true);
+  assert.equal(right.x, portrait.peekMaxX);
+});
+
+test('peeked drag cannot cross to the other edge', () => {
+  const left = clampContributionFabDragPosition(300, 200, portrait, 'left');
+  assert.equal(left.x, portrait.minX);
+  const right = clampContributionFabDragPosition(0, 200, portrait, 'right');
+  assert.equal(right.x, portrait.maxX);
+});
+
 test('restore keeps a peeked FAB peeked after rotation', () => {
   const stored = { x: portrait.peekMinX, y: 400, width: 390, height: 844, peeked: true };
   const landscape = getContributionFabBounds({

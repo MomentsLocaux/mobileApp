@@ -38,6 +38,7 @@ import { EventsService } from '@/services/events.service';
 import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventWithCreator } from '@/types/database';
+import { EVENT_CORRECTION_DAILY_QUOTA } from '@/types/event-correction';
 import {
   distinctiveTitleQuery,
   DUPLICATE_CANDIDATE_FETCH_LIMIT,
@@ -49,11 +50,13 @@ import {
 import { getEventCardSchedule } from '@/utils/event-card-meta';
 import {
   baselineCorrectionFields,
+  buildDuplicateCorrectionComment,
   buildFieldCorrectionComment,
   changedCorrectionGroupIds,
   changedCorrectionGroupLabels,
   diffCorrectionFields,
   eventLocationFromEvent,
+  formatCorrectionQuotaLabel,
   proposedCorrectionFields,
 } from '@/utils/event-correction';
 import { scheduleDraftFromEvent, validateEventSchedule, type EventScheduleDraft } from '@/utils/event-schedule';
@@ -72,7 +75,9 @@ type Props = {
 
 const correctionErrorMessage = (error: unknown) => {
   const message = error instanceof Error ? error.message : 'Impossible d’envoyer la proposition.';
-  if (message.includes('QUOTA')) return 'Tu as atteint la limite du jour (5 propositions).';
+  if (message.includes('QUOTA')) {
+    return `Tu as atteint la limite du jour (${EVENT_CORRECTION_DAILY_QUOTA} propositions).`;
+  }
   if (message.includes('EVENT_CORRECTION_CATEGORY')) {
     return 'Cette catégorie n’est pas reconnue. Choisis-en une dans la liste.';
   }
@@ -109,6 +114,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
   const [duplicateLoadStatus, setDuplicateLoadStatus] = useState<DuplicateLoadStatus>('idle');
   const [locationOpen, setLocationOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [quotaUsed, setQuotaUsed] = useState<number | null>(null);
 
   useEffect(() => {
     if (!visible) {
@@ -135,6 +141,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
     setDuplicateLoadStatus('idle');
     setLocationOpen(false);
     setSubmitting(false);
+    setQuotaUsed(null);
     progress.value = reduceMotion ? 1 : withSpring(1, Motion.spring.sheet);
   }, [visible, event, progress, reduceMotion]);
 
@@ -182,6 +189,21 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
     // Ranking inputs only — parent often passes a new `event` object each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- event identity is unstable
   }, [visible, step, event.id, event.title, event.latitude, event.longitude]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    EventCorrectionService.countMineToday()
+      .then((quota) => {
+        if (!cancelled) setQuotaUsed(quota.used);
+      })
+      .catch(() => {
+        if (!cancelled) setQuotaUsed(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const sheetStyle = useAnimatedStyle(() => ({
@@ -245,6 +267,9 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
     [schedule],
   );
 
+  const quotaReached = quotaUsed != null && quotaUsed >= EVENT_CORRECTION_DAILY_QUOTA;
+  const quotaLabel = quotaUsed == null ? null : formatCorrectionQuotaLabel(quotaUsed);
+
   const title =
     step === 'kind'
       ? 'Proposer une correction'
@@ -262,6 +287,13 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
   const groupChanged = (id: 'schedule' | 'place' | 'category' | 'price') => groupIds.includes(id);
 
   const submitFieldCorrection = async () => {
+    if (quotaReached) {
+      Alert.alert(
+        'Limite atteinte',
+        `Tu as atteint la limite du jour (${EVENT_CORRECTION_DAILY_QUOTA} propositions).`,
+      );
+      return;
+    }
     if (changedCount === 0) {
       Alert.alert('Rien à envoyer', 'Modifie au moins un champ avant de proposer.');
       return;
@@ -284,6 +316,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
         comment: generatedComment,
         sourceHint: sourceHint.trim() || null,
       });
+      setQuotaUsed((current) => (current == null ? current : current + 1));
       invalidateMySuggestionHistory();
       haptics.success();
       closeAnimated();
@@ -310,6 +343,13 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
   };
 
   const submitDuplicate = async () => {
+    if (quotaReached) {
+      Alert.alert(
+        'Limite atteinte',
+        `Tu as atteint la limite du jour (${EVENT_CORRECTION_DAILY_QUOTA} propositions).`,
+      );
+      return;
+    }
     if (comment.trim().length < 3) {
       Alert.alert('Commentaire requis', 'Explique pourquoi c’est un doublon (min. 3 caractères).');
       return;
@@ -326,11 +366,16 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
       await EventCorrectionService.create({
         eventId: event.id,
         kind: 'duplicate',
-        comment: comment.trim(),
+        comment: buildDuplicateCorrectionComment({
+          comment,
+          sourceEventId: event.id,
+          duplicateEventId: otherId || null,
+        }),
         duplicateOfEventId: otherId || null,
         duplicateHint: duplicateHint.trim() || null,
         sourceHint: sourceHint.trim() || null,
       });
+      setQuotaUsed((current) => (current == null ? current : current + 1));
       invalidateMySuggestionHistory();
       haptics.success();
       closeAnimated();
@@ -346,8 +391,13 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
   };
 
   return (
-    <>
-    <Modal visible={visible} animationType="none" transparent onRequestClose={closeAnimated}>
+    <Modal
+      visible={visible}
+      animationType="none"
+      transparent
+      onRequestClose={closeAnimated}
+      presentationStyle="overFullScreen"
+    >
       <KeyboardAvoidingView
         style={styles.root}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -383,6 +433,15 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
 
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
+          {quotaLabel ? (
+            <Text
+              style={[styles.quotaLabel, quotaReached && styles.quotaLabelReached]}
+              accessibilityLabel={quotaLabel}
+            >
+              {quotaLabel}
+              {quotaReached ? ' — limite atteinte' : ''}
+            </Text>
+          ) : null}
 
           {step === 'kind' ? (
             <View style={styles.options}>
@@ -602,9 +661,9 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
               ) : null}
 
               <TouchableOpacity
-                style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, (submitting || quotaReached) && styles.submitBtnDisabled]}
                 onPress={step === 'field_correction' ? submitFieldCorrection : submitDuplicate}
-                disabled={submitting}
+                disabled={submitting || quotaReached}
                 accessibilityRole="button"
                 accessibilityLabel="Envoyer la proposition"
               >
@@ -625,20 +684,19 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
             </ScrollView>
           )}
         </Animated.View>
+        <LocationPickerModal
+          embedded
+          visible={locationOpen}
+          onClose={() => setLocationOpen(false)}
+          location={location || null}
+          categoryId={category || null}
+          onConfirmLocation={(next) => {
+            setLocation(next);
+            setLocationOpen(false);
+          }}
+        />
       </KeyboardAvoidingView>
     </Modal>
-
-      <LocationPickerModal
-        visible={locationOpen}
-        onClose={() => setLocationOpen(false)}
-        location={location || null}
-        categoryId={category || null}
-        onConfirmLocation={(next) => {
-          setLocation(next);
-          setLocationOpen(false);
-        }}
-      />
-    </>
   );
 }
 
@@ -817,6 +875,16 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     marginBottom: spacing.sm,
+  },
+  quotaLabel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+    marginTop: -spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  quotaLabelReached: {
+    color: colors.warning[700],
   },
   options: {
     gap: spacing.sm,

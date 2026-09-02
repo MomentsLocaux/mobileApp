@@ -19,6 +19,8 @@ import {
   loadMySuggestionHistory,
   peekMySuggestionHistory,
 } from '@/services/suggestion-history.service';
+import { EVENT_CORRECTION_DAILY_QUOTA } from '@/types/event-correction';
+import { countTodayCorrectionProposals, formatCorrectionQuotaLabel } from '@/utils/event-correction';
 import { haptics } from '@/utils/haptics';
 import {
   SUGGESTION_FILTER_OPTIONS,
@@ -119,6 +121,9 @@ export default function MySuggestionsScreen() {
     () => filterSuggestionHistory(items, filter),
     [filter, items],
   );
+  const quotaUsedToday = useMemo(() => countTodayCorrectionProposals(items), [items]);
+  const quotaLabel = formatCorrectionQuotaLabel(quotaUsedToday);
+  const quotaReached = quotaUsedToday >= EVENT_CORRECTION_DAILY_QUOTA;
 
   if (isGuest) {
     return (
@@ -162,6 +167,13 @@ export default function MySuggestionsScreen() {
             <View style={styles.headerBlock}>
               <Text style={styles.intro}>
                 L’historique de tes propositions : événements, corrections, doublons et retours.
+              </Text>
+              <Text
+                style={[styles.quotaLabel, quotaReached && styles.quotaLabelReached]}
+                accessibilityLabel={quotaLabel}
+              >
+                Corrections et doublons : {quotaLabel}
+                {quotaReached ? ' — limite atteinte' : ''}
               </Text>
               {partialError ? (
                 <Text style={styles.partialError}>
@@ -276,6 +288,14 @@ const styles = StyleSheet.create({
   intro: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
+  },
+  quotaLabel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+  },
+  quotaLabelReached: {
+    color: colors.warning[700],
   },
   partialError: {
     ...typography.caption,

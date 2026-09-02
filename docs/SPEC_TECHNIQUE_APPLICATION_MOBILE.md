@@ -201,7 +201,7 @@ Modules flaggés : wallets / missions / shop ; `discovery_*` ; contests / entrie
 - Édition UI : `draft` \| `refused` uniquement
 - Géocodage création : `geocoding.service.ts` / Mapbox
 - Médias : upload Storage + `event-media-submissions` pour échos
-- Corrections utilisateur : `event-correction.service.ts` + sheet — champs user = dates/`operating_hours`, lieu géocodé, taxonomie, tarif ; commentaire auto ; doublon = liste 5 km / titre proche (`duplicate-candidates.ts`) + commentaire libre
+- Corrections utilisateur : `event-correction.service.ts` + sheet — champs user = dates/`operating_hours`, lieu géocodé, taxonomie, tarif ; commentaire auto ; doublon = liste 5 km / titre proche (`duplicate-candidates.ts`) + commentaire avec les deux UUIDs ; quota 10 / jour UTC
 
 ### 7.2 Carte
 

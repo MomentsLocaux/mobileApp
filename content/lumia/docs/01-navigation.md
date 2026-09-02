@@ -30,7 +30,7 @@ Les recherches récentes peuvent être mémorisées **localement** sur l’appar
 
 Depuis une carte ou la liste : titre, lieu, dates, description, partage, favori / like, commentaires (si disponibles), section « Aimé par vos suivis » si le social pairs est activé.
 
-Sur une fiche publiée tu peux **proposer une correction** (dates / horaires, lieu, catégorie, tarif) ou signaler un doublon — sans modifier la fiche toi-même. Pour un doublon, tu peux choisir une fiche proche dans une liste, ou le décrire. La justification de correction est rédigée automatiquement.
+Sur une fiche publiée tu peux **proposer une correction** (dates / horaires, lieu, catégorie, tarif) ou signaler un doublon — sans modifier la fiche toi-même. Pour un doublon, tu peux choisir une fiche proche dans une liste, ou le décrire. La justification de correction est rédigée automatiquement. Tu as **10 propositions par jour** (corrections + doublons) ; le compteur est dans **Mes suggestions**.
 
 L’organisateur affiché sur les moments importés OpenAgenda est **Moments Locaux** : pas de « suivre l’organisateur » en MVP.
 

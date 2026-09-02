@@ -1,9 +1,11 @@
 import { supabase } from '@/lib/supabase/client';
 import {
+  EVENT_CORRECTION_DAILY_QUOTA,
   pickCorrectionDiff,
   type CreateEventCorrectionInput,
   type EventCorrectionProposal,
 } from '@/types/event-correction';
+import { startOfUtcDayIso } from '@/utils/event-correction';
 
 const formatError = (error: unknown, context: string) => {
   const raw =
@@ -96,5 +98,15 @@ export const EventCorrectionService = {
       .limit(limit);
     if (fallback.error) throw formatError(fallback.error, 'listMyEventCorrections');
     return (fallback.data || []) as EventCorrectionProposal[];
+  },
+
+  async countMineToday(): Promise<{ used: number; limit: number }> {
+    const proposerId = await requireUserId('countMyEventCorrectionsToday');
+    const { count, error } = await (supabase.from('event_correction_proposals') as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('proposer_id', proposerId)
+      .gte('created_at', startOfUtcDayIso());
+    if (error) throw formatError(error, 'countMyEventCorrectionsToday');
+    return { used: count ?? 0, limit: EVENT_CORRECTION_DAILY_QUOTA };
   },
 };

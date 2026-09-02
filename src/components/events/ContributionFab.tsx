@@ -16,13 +16,13 @@ import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { persistStorage } from '@/store/persistStorage';
 import { haptics } from '@/utils/haptics';
 import {
-  CONTRIBUTION_FAB_PEEK_ENTER,
   CONTRIBUTION_FAB_POSITION_KEY,
   CONTRIBUTION_FAB_SIZE,
-  CONTRIBUTION_FAB_SNAP_VELOCITY,
+  clampContributionFabDragPosition,
   defaultContributionFabPosition,
   getContributionFabBounds,
   parseContributionFabStoredPosition,
+  resolveContributionFabRelease,
   restoreContributionFabPosition,
   type ContributionFabStoredPosition,
 } from '@/utils/contribution-fab';
@@ -79,6 +79,8 @@ export function ContributionFab({
   const peekMaxX = useSharedValue(bounds.peekMaxX);
   const screenWidth = useSharedValue(bounds.screenWidth);
   const peekedSV = useSharedValue(initial.peeked ? 1 : 0);
+  const startedPeekedSV = useSharedValue(0);
+  const startSideSV = useSharedValue(1);
   const reduceMotionSV = useSharedValue(reduceMotion);
   const hiddenSV = useSharedValue(hidden);
   const readySV = useSharedValue(memoryPosition != null);
@@ -176,6 +178,8 @@ export function ContributionFab({
     .onBegin(() => {
       startX.value = translateX.value;
       startY.value = translateY.value;
+      startedPeekedSV.value = peekedSV.value;
+      startSideSV.value = translateX.value + CONTRIBUTION_FAB_SIZE / 2 < screenWidth.value / 2 ? 0 : 1;
     })
     .onStart(() => {
       if (!reduceMotionSV.value) {
@@ -184,43 +188,54 @@ export function ContributionFab({
       runOnJS(haptics.selection)();
     })
     .onUpdate((event) => {
-      const nextX = Math.min(peekMaxX.value, Math.max(peekMinX.value, startX.value + event.translationX));
-      const nextY = Math.min(maxY.value, Math.max(minY.value, startY.value + event.translationY));
-      translateX.value = nextX;
-      translateY.value = nextY;
+      const lockSide = startedPeekedSV.value ? (startSideSV.value === 0 ? 'left' : 'right') : undefined;
+      const next = clampContributionFabDragPosition(
+        startX.value + event.translationX,
+        startY.value + event.translationY,
+        {
+          minX: minX.value,
+          maxX: maxX.value,
+          minY: minY.value,
+          maxY: maxY.value,
+          peekMinX: peekMinX.value,
+          peekMaxX: peekMaxX.value,
+          screenWidth: screenWidth.value,
+          screenHeight: 0,
+        },
+        lockSide,
+      );
+      translateX.value = next.x;
+      translateY.value = next.y;
     })
     .onEnd((event) => {
-      const x = translateX.value;
-      const y = translateY.value;
-      let side: 'left' | 'right' = x + CONTRIBUTION_FAB_SIZE / 2 < screenWidth.value / 2 ? 'left' : 'right';
-      if (event.velocityX <= -CONTRIBUTION_FAB_SNAP_VELOCITY) side = 'left';
-      else if (event.velocityX >= CONTRIBUTION_FAB_SNAP_VELOCITY) side = 'right';
-      const dockedX = side === 'left' ? minX.value : maxX.value;
-      const peekX = side === 'left' ? peekMinX.value : peekMaxX.value;
-      const peekMid = (dockedX + peekX) / 2;
-      const pushedPastDock =
-        side === 'left' ? x <= minX.value - CONTRIBUTION_FAB_PEEK_ENTER : x >= maxX.value + CONTRIBUTION_FAB_PEEK_ENTER;
-      const nearDocked = side === 'left' ? x <= minX.value + 8 : x >= maxX.value - 8;
-      const shoveOffScreen =
-        nearDocked &&
-        (side === 'left'
-          ? event.velocityX <= -CONTRIBUTION_FAB_SNAP_VELOCITY
-          : event.velocityX >= CONTRIBUTION_FAB_SNAP_VELOCITY);
-      const alreadyPeeked = side === 'left' ? x <= peekMid : x >= peekMid;
-      const nextPeeked = pushedPastDock || shoveOffScreen || alreadyPeeked;
-      const snapX = nextPeeked ? peekX : dockedX;
-      const snapY = Math.min(maxY.value, Math.max(minY.value, y));
-      peekedSV.value = nextPeeked ? 1 : 0;
+      const lockSide = startedPeekedSV.value ? (startSideSV.value === 0 ? 'left' : 'right') : undefined;
+      const next = resolveContributionFabRelease(
+        translateX.value,
+        translateY.value,
+        {
+          minX: minX.value,
+          maxX: maxX.value,
+          minY: minY.value,
+          maxY: maxY.value,
+          peekMinX: peekMinX.value,
+          peekMaxX: peekMaxX.value,
+          screenWidth: screenWidth.value,
+          screenHeight: 0,
+        },
+        event.velocityX,
+        lockSide,
+      );
+      peekedSV.value = next.peeked ? 1 : 0;
       if (reduceMotionSV.value) {
-        translateX.value = snapX;
-        translateY.value = snapY;
+        translateX.value = next.x;
+        translateY.value = next.y;
         scale.value = 1;
       } else {
-        translateX.value = withSpring(snapX, Motion.spring.snappy);
-        translateY.value = withSpring(snapY, Motion.spring.snappy);
+        translateX.value = withSpring(next.x, Motion.spring.snappy);
+        translateY.value = withSpring(next.y, Motion.spring.snappy);
         scale.value = withSpring(1, Motion.spring.soft);
       }
-      runOnJS(persistPosition)(snapX, snapY, nextPeeked);
+      runOnJS(persistPosition)(next.x, next.y, next.peeked);
     });
 
   const tap = Gesture.Tap()

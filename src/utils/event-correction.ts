@@ -1,4 +1,6 @@
 import {
+  EVENT_CORRECTION_COMMENT_MAX,
+  EVENT_CORRECTION_DAILY_QUOTA,
   EVENT_CORRECTION_USER_FIELDS,
   pickCorrectionDiff,
   type EventCorrectionProposedFields,
@@ -247,4 +249,42 @@ export function buildFieldCorrectionComment(input: {
   });
 
   return `Correction proposée — ${parts.join(' ; ')}.`;
+}
+
+export function startOfUtcDayIso(now = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+}
+
+export function formatCorrectionQuotaLabel(
+  used: number,
+  limit = EVENT_CORRECTION_DAILY_QUOTA,
+): string {
+  const safeUsed = Math.max(0, used);
+  return `${safeUsed} / ${limit} propositions aujourd’hui`;
+}
+
+export function countTodayCorrectionProposals(
+  items: { kind: string; createdAt?: string | null }[],
+  now = new Date(),
+): number {
+  const start = Date.parse(startOfUtcDayIso(now));
+  return items.filter((item) => {
+    if (item.kind !== 'field_correction' && item.kind !== 'duplicate') return false;
+    const ts = item.createdAt ? Date.parse(item.createdAt) : NaN;
+    return Number.isFinite(ts) && ts >= start;
+  }).length;
+}
+
+/** Append both event UUIDs so the web console can open the pair from the comment. */
+export function buildDuplicateCorrectionComment(input: {
+  comment: string;
+  sourceEventId: string;
+  duplicateEventId?: string | null;
+}): string {
+  const duplicateId = input.duplicateEventId?.trim() || 'non identifiée';
+  const suffix = `\n\nIdentifiants :\nfiche signalée : ${input.sourceEventId}\nfiche présumée doublon : ${duplicateId}`;
+  const body = input.comment.trim();
+  const maxBody = EVENT_CORRECTION_COMMENT_MAX - suffix.length;
+  const clipped = maxBody > 0 && body.length > maxBody ? body.slice(0, maxBody).trimEnd() : body;
+  return `${clipped}${suffix}`;
 }

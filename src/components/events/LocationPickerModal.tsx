@@ -32,12 +32,18 @@ type Props = {
   location?: EventLocation | null;
   categoryId?: string | null;
   onConfirmLocation?: (location: EventLocation) => void;
+  /**
+   * Render as a full-screen overlay instead of a second RN Modal.
+   * Required when the picker is opened from another Modal (iOS ignores stacked sibling Modals).
+   */
+  embedded?: boolean;
 };
 
 export const LocationPickerModal = ({
   visible,
   onClose,
   location: locationOverride,
+  embedded = false,
   categoryId: categoryIdOverride,
   onConfirmLocation,
 }: Props) => {
@@ -168,130 +174,145 @@ export const LocationPickerModal = ({
     }
   };
 
+  const content = (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>Choisir un emplacement</Text>
+          <Text style={styles.helper}>Recherchez une adresse, puis affinez sur la carte si besoin.</Text>
+        </View>
+        <TouchableOpacity
+          onPress={onClose}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Fermer"
+          hitSlop={8}
+        >
+          <X size={20} color={colors.brand.text} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Adresse ou lieu</Text>
+          <View style={styles.searchField}>
+            <MapPin size={18} color={colors.brand.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Ex. 10 rue de Rivoli, Paris"
+              placeholderTextColor={colors.brand.textSecondary}
+              value={query}
+              onChangeText={handleSearchChange}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              accessibilityLabel="Rechercher une adresse"
+            />
+          </View>
+        </View>
+
+        {loading && !selected ? (
+          <View style={styles.searchStatus}>
+            <ActivityIndicator size="small" color={colors.brand.secondary} />
+            <Text style={styles.meta}>Recherche en cours…</Text>
+          </View>
+        ) : null}
+
+        {results.length > 0 ? (
+          <View style={styles.resultsContainer}>
+            {results.map((item) => (
+              <TouchableOpacity
+                key={`${item.latitude}-${item.longitude}-${item.label}`}
+                style={styles.resultRow}
+                onPress={() => handleSelectResult(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Choisir ${item.label}`}
+              >
+                <MapPin size={16} color={colors.brand.secondary} />
+                <Text style={styles.resultText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
+        {showNoResults ? (
+          <View style={styles.searchStatus}>
+            <SearchX size={16} color={colors.brand.textSecondary} />
+            <Text style={styles.meta}>Aucun lieu trouvé, essayez une autre orthographe.</Text>
+          </View>
+        ) : null}
+
+        {selected ? (
+          <View style={styles.selection}>
+            <MapPin size={16} color={colors.brand.secondary} />
+            <View style={styles.selectionCopy}>
+              <Text style={styles.meta}>Lieu sélectionné</Text>
+              <Text style={styles.info}>{selected.label}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.mapContainer}>
+          <MapboxGL.MapView style={StyleSheet.absoluteFill} styleURL={MapboxGL.StyleURL.Dark}>
+            <MapboxGL.Camera centerCoordinate={center} zoomLevel={selected ? 14 : 5} animationMode="flyTo" />
+            <MapboxGL.PointAnnotation
+              id="selected-point"
+              coordinate={selected ? [selected.longitude, selected.latitude] : center}
+              draggable={!!selected}
+              onDragEnd={(e) => onDragEnd(e.geometry.coordinates as number[])}
+            >
+              <View style={[styles.markerDot, { backgroundColor: markerColor }]} />
+            </MapboxGL.PointAnnotation>
+          </MapboxGL.MapView>
+          {reverseLoading ? (
+            <View style={styles.mapOverlay}>
+              <ActivityIndicator color={colors.brand.secondary} />
+            </View>
+          ) : null}
+        </View>
+        {selected ? (
+          <Text style={styles.mapHint}>Déplacez le pin pour affiner l’adresse exacte.</Text>
+        ) : (
+          <Text style={styles.mapHint}>Sélectionnez un résultat pour afficher le point sur la carte.</Text>
+        )}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Button
+          title="Confirmer l'emplacement"
+          onPress={handleConfirm}
+          disabled={!selected || reverseLoading}
+          size="sm"
+          style={styles.confirmBtn}
+          accessibilityLabel="Confirmer l'emplacement"
+        />
+      </View>
+    </SafeAreaView>
+  );
+
+  if (embedded) {
+    if (!visible) return null;
+    return <View style={styles.embeddedRoot}>{content}</View>;
+  }
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>Choisir un emplacement</Text>
-            <Text style={styles.helper}>Recherchez une adresse, puis affinez sur la carte si besoin.</Text>
-          </View>
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Fermer"
-            hitSlop={8}
-          >
-            <X size={20} color={colors.brand.text} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Adresse ou lieu</Text>
-            <View style={styles.searchField}>
-              <MapPin size={18} color={colors.brand.textSecondary} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Ex. 10 rue de Rivoli, Paris"
-                placeholderTextColor={colors.brand.textSecondary}
-                value={query}
-                onChangeText={handleSearchChange}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-                accessibilityLabel="Rechercher une adresse"
-              />
-            </View>
-          </View>
-
-          {loading && !selected ? (
-            <View style={styles.searchStatus}>
-              <ActivityIndicator size="small" color={colors.brand.secondary} />
-              <Text style={styles.meta}>Recherche en cours…</Text>
-            </View>
-          ) : null}
-
-          {results.length > 0 ? (
-            <View style={styles.resultsContainer}>
-              {results.map((item) => (
-                <TouchableOpacity
-                  key={`${item.latitude}-${item.longitude}-${item.label}`}
-                  style={styles.resultRow}
-                  onPress={() => handleSelectResult(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Choisir ${item.label}`}
-                >
-                  <MapPin size={16} color={colors.brand.secondary} />
-                  <Text style={styles.resultText}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-
-          {showNoResults ? (
-            <View style={styles.searchStatus}>
-              <SearchX size={16} color={colors.brand.textSecondary} />
-              <Text style={styles.meta}>Aucun lieu trouvé, essayez une autre orthographe.</Text>
-            </View>
-          ) : null}
-
-          {selected ? (
-            <View style={styles.selection}>
-              <MapPin size={16} color={colors.brand.secondary} />
-              <View style={styles.selectionCopy}>
-                <Text style={styles.meta}>Lieu sélectionné</Text>
-                <Text style={styles.info}>{selected.label}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          <View style={styles.mapContainer}>
-            <MapboxGL.MapView style={StyleSheet.absoluteFill} styleURL={MapboxGL.StyleURL.Dark}>
-              <MapboxGL.Camera centerCoordinate={center} zoomLevel={selected ? 14 : 5} animationMode="flyTo" />
-              <MapboxGL.PointAnnotation
-                id="selected-point"
-                coordinate={selected ? [selected.longitude, selected.latitude] : center}
-                draggable={!!selected}
-                onDragEnd={(e) => onDragEnd(e.geometry.coordinates as number[])}
-              >
-                <View style={[styles.markerDot, { backgroundColor: markerColor }]} />
-              </MapboxGL.PointAnnotation>
-            </MapboxGL.MapView>
-            {reverseLoading ? (
-              <View style={styles.mapOverlay}>
-                <ActivityIndicator color={colors.brand.secondary} />
-              </View>
-            ) : null}
-          </View>
-          {selected ? (
-            <Text style={styles.mapHint}>Déplacez le pin pour affiner l’adresse exacte.</Text>
-          ) : (
-            <Text style={styles.mapHint}>Sélectionnez un résultat pour afficher le point sur la carte.</Text>
-          )}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <Button
-            title="Confirmer l'emplacement"
-            onPress={handleConfirm}
-            disabled={!selected || reverseLoading}
-            size="sm"
-            style={styles.confirmBtn}
-            accessibilityLabel="Confirmer l'emplacement"
-          />
-        </View>
-      </SafeAreaView>
+      {content}
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  embeddedRoot: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 40,
+    elevation: 40,
+    backgroundColor: colors.brand.page,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.brand.page,
