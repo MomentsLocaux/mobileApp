@@ -40,7 +40,7 @@ Si `FEATURE_EVENT_CREATE` est activé dans le build :
 - Paramètres → Activer la création de moments (compte Particulier requis).
 - Switch Découvreur / Créateur sur le profil pour publier.
 
-Si le flag est **désactivé** (MVP découverte) : pas de bouton + central, pas de publication — uniquement explorer accueil, carte, favoris.
+Si le flag est **désactivé** (MVP découverte) : pas de publication organisateur — tu explores l’accueil, la carte et les favoris. Tes propositions (événements, corrections, bugs) se retrouvent dans **Mes suggestions**.
 
 ## Compte invité
 

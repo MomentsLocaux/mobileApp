@@ -29,7 +29,7 @@ export const features = {
    * Not creator-follow / not creator directory rankings.
    */
   socialPeers: process.env.EXPO_PUBLIC_FEATURE_SOCIAL_PEERS !== 'false',
-  /** V1 — event creation, ModeSwitch, mes events, create hub */
+  /** V1 — event creation, ModeSwitch, mes events (organizer list) */
   eventCreate: process.env.EXPO_PUBLIC_FEATURE_EVENT_CREATE === 'true',
   /** V1 — QR / geo check-in + creator QR share */
   checkin: process.env.EXPO_PUBLIC_FEATURE_CHECKIN === 'true',

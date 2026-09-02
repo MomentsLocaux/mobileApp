@@ -25,6 +25,7 @@ import {
   type BugReportPageId,
 } from '@/constants/bug-report-pages';
 import { BugsService } from '@/services/bugs.service';
+import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import { useAuth } from '@/hooks';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { useImagePicker, type ImageAsset } from '@/hooks/useImagePicker';
@@ -134,6 +135,7 @@ export default function BugReportScreen() {
           ? { uri: attachment.uri, mimeType: attachment.mimeType, fileName: attachment.fileName }
           : null,
       });
+      invalidateMySuggestionHistory(profile?.id);
       Alert.alert('Merci !', 'Votre signalement a été envoyé.');
       setDescription('');
       setAttachment(null);

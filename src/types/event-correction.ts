@@ -51,6 +51,8 @@ export type EventCorrectionProposal = {
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Present when listed with the events embed (Mes suggestions). */
+  event?: { id: string; title: string | null } | null;
 };
 
 export type CreateFieldCorrectionInput = {

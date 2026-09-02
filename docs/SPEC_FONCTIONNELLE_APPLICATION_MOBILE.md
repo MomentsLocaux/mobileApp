@@ -144,11 +144,11 @@ Autres gardes :
 | Favoris | `/(tabs)/favorites` | Requis |
 | Profil | Ouvre le **drawer** | Requis pour actions compte |
 
-Quand `eventCreate` et `eventSuggest` sont off, l’onglet Créer est masqué (`href: null`).
+Quand `eventCreate` et `eventSuggest` sont off, l’onglet Créer est masqué (`href: null`). Un bouton **+ flottant** (suggestion / bug) reste au-dessus de la tab bar : il s’aimante à gauche ou à droite, et un poussé complet contre le bord le range en pastille (tap pour le ressortir, comme une fenêtre vidéo).
 
 ### 6.3 Drawer (menu profil)
 
-Sections typiques : Découverte · **Membres** (si `socialPeers`) · Compte (Paramètres, Notifications, Autorisations) · Activité (Favoris ; Mes événements si flags create/suggest) · Assistance (Reporter un bug) · Déconnexion.
+Sections typiques : Découverte · **Membres** (si `socialPeers`) · Compte (Paramètres, Notifications, Autorisations) · Activité (Favoris ; **Mes suggestions** si connecté ; Mes événements si `eventCreate`) · Assistance (Reporter un bug) · Déconnexion.
 
 Les entrées gamification / Discovery / Concours / Lumia / Roadtrip / Diffuseur n’apparaissent que si le flag correspondant est actif.
 
@@ -258,7 +258,9 @@ published ──(admin)──► archived
 
 **Édition** : autorisée uniquement si `draft` ou `refused` (`canEditEvent`).
 
-**Mes événements** (`/profile/my-events`) : accessible si `eventCreate` ou `eventSuggest` ; liste avec badges de statut + temporalité (À venir / En cours / Passé).
+**Mes suggestions** (`/profile/my-suggestions`) : historique connecté des contributions de l’utilisateur (événements `community_suggest`, corrections de fiche, signalements de doublon, bugs / idées) avec statut.
+
+**Mes événements** (`/profile/my-events`) : publications organisateur, **uniquement** si `eventCreate` ; liste avec badges de statut + temporalité (À venir / En cours / Passé). Les anciennes URLs `my-events` sans le flag redirigent vers Mes suggestions.
 
 ### 7.5 Interactions sociales
 

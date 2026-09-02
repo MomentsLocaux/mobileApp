@@ -57,6 +57,7 @@ import { fetchDiscoverySearchEvents } from '@/utils/fetch-discovery-search-event
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
+import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import { buildSearchSummary } from '@/utils/search-summary';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import {
@@ -1067,7 +1068,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   listContent: {
-    paddingBottom: spacing.xl * 3,
+    paddingBottom: spacing.xl * 3 + CONTRIBUTION_FAB_STACK_SPACE,
     gap: spacing.sm,
   },
   feedItemWrap: {

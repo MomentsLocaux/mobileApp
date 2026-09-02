@@ -16,6 +16,8 @@ Pour **ouvrir la carte** : tape l’onglet **Carte** dans la barre du bas, ou ou
 - **Carte** — moments sur le territoire (Mapbox), filtres, tap sur un pin pour le détail, liste en bas (poignée). Comment aller sur la carte ? Onglet Carte en bas.
 - **Propositions** (baguette) — idées à explorer en swipe (garder, passer, ouvrir). Ce n’est pas un achat de places.
 - **Favoris** (cœur) — moments sauvegardés via le cœur sur une carte ou une fiche.
+- **+ flottant** — proposer un événement (affiche ou saisie) et reporter un bug / une amélioration. Tu peux le faire glisser : il s’aimante au bord, et si tu le pousses complètement à gauche ou à droite il se range (une pastille reste pour le ressortir), comme une fenêtre vidéo.
+- **Mes suggestions** (menu profil) — historique de tes propositions (événements, corrections, doublons, bugs) avec leur statut.
 - **Profil / menu** (icône en bas à droite) — profil, paramètres, membres (si activé), déconnexion, bug / support.
 
 ## Recherche et filtres

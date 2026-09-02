@@ -18,8 +18,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronDown, Compass, Heart, MapPin, Search } from 'lucide-react-native';
 
 import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
-import { EventCard } from '@/components/events/EventCard';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
+import { EventResultCard } from '@/components/search/EventResultCard';
+import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth, useLocation } from '@/hooks';
 import { supabase } from '@/lib/supabase/client';
@@ -36,6 +37,7 @@ import {
   type FavoriteTimeFilter,
 } from '@/utils/favorite-events';
 import { calculateDistanceKm, sortEvents } from '@/utils/sort-events';
+import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 
 type FavoriteRow = {
   event_id: string;
@@ -71,6 +73,7 @@ export default function FavoritesScreen() {
   const [loadingFavorites, setLoadingFavorites] = useState(true);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
 
   const userLocation = useMemo(() => {
     if (!currentLocation) return null;
@@ -196,6 +199,38 @@ export default function FavoritesScreen() {
     // Date ascending is also the safe fallback while location is unavailable.
     return sortEvents(temporal, 'date', null, 'asc');
   }, [favoriteSort, favorites, nowMs, queryValue, timeFilter, userLocation]);
+
+  const filteredEventIds = useMemo(
+    () => filteredEvents.map((event) => event.id),
+    [filteredEvents],
+  );
+  const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!filteredEventIds.length) {
+      setEventCardStatsById({});
+      return;
+    }
+
+    const loadStats = async () => {
+      try {
+        const stats = await EventCardStatsService.getStatsForEvents(filteredEventIds, profile?.id);
+        if (!cancelled) {
+          setEventCardStatsById(stats);
+        }
+      } catch {
+        if (!cancelled) {
+          setEventCardStatsById({});
+        }
+      }
+    };
+
+    void loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [filteredEventIds, filteredEventIdsKey, profile?.id]);
 
   const filteredCreators = useMemo(() => {
     return creatorFavorites.filter((creator) => {
@@ -502,17 +537,17 @@ export default function FavoritesScreen() {
               />
             }
             renderItem={({ item }) => (
-              <EventCard
+              <EventResultCard
                 event={item}
-                variant="favorite"
-                isFavorite={favoritesSet.has(item.id) || likesSet.has(item.id)}
-                isLiked={likesSet.has(item.id) || favoritesSet.has(item.id)}
-                isParticipating={Boolean(item.is_interested)}
-                onHeartPress={() => handleToggleHeart(item)}
+                variant="discovery"
+                showCarousel={false}
+                noBottomMargin
+                viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
+                friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
+                isHearted={favoritesSet.has(item.id) || likesSet.has(item.id)}
                 onPress={() => router.push(`/events/${item.id}` as any)}
-                onPrimaryAction={() => setNavEvent(item)}
-                onSecondaryAction={() => router.push(`/events/${item.id}` as any)}
                 onNavigate={() => setNavEvent(item)}
+                onToggleHeart={handleToggleHeart}
                 distanceKm={
                   userLocation
                     ? calculateDistanceKm(
@@ -523,7 +558,6 @@ export default function FavoritesScreen() {
                       )
                     : undefined
                 }
-                style={styles.eventCard}
               />
             )}
           />
@@ -742,11 +776,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    paddingBottom: spacing.xxxl,
+    paddingBottom: spacing.xxxl + CONTRIBUTION_FAB_STACK_SPACE,
     gap: spacing.lg,
-  },
-  eventCard: {
-    marginBottom: 0,
   },
   creatorCard: {
     backgroundColor: 'rgba(255,255,255,0.06)',

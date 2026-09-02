@@ -5,7 +5,7 @@ import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 
 /**
  * Tab stub for deep links to /(tabs)/create.
- * Prefer the FAB + EventContributeSheet; this only handles direct navigation.
+ * Prefer the contribution FAB + EventContributeSheet; this only handles direct navigation.
  */
 export default function CreateTabRedirect() {
   const { canCreateNow, canCreate } = useAccountIdentity();

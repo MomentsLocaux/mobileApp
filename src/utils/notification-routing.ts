@@ -9,6 +9,7 @@ type RouteTarget =
   | { href: `/creator/${string}` }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
+  | { href: '/profile/my-suggestions' }
   | { href: `/contests/${string}` }
   | { href: '/contests' };
 
@@ -75,7 +76,10 @@ export function resolveNotificationRoute(
   }
 
   if (type === 'event_refused' || type === 'event_request_changes' || type === 'event_published') {
-    return features.eventCreate || features.eventSuggest ? { href: '/profile/my-events' } : inbox();
+    if (features.eventCreate && !features.eventSuggest) {
+      return { href: '/profile/my-events' };
+    }
+    return { href: '/profile/my-suggestions' };
   }
 
   if (

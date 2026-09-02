@@ -11,6 +11,7 @@ import {
   PlusCircle,
   UserCircle2,
   Heart,
+  Lightbulb,
   Bug,
   Settings,
   LogOut,
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   interpolate,
@@ -46,6 +48,11 @@ import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { features } from '@/config/features';
 import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { EventContributeSheet } from '@/components/events/EventContributeSheet';
+import { ContributionFab } from '@/components/events/ContributionFab';
+import {
+  getContributionFabAccessibilityLabel,
+  shouldShowContributionFab,
+} from '@/utils/contribution-fab';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
@@ -53,7 +60,7 @@ import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
-import { EventsService } from '@/services/events.service';
+import { prefetchMySuggestionHistory } from '@/services/suggestion-history.service';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { LumiaTourOverlay } from '@/components/lumia/LumiaTourOverlay';
 import { useLumiaTour } from '@/hooks/useLumiaTour';
@@ -69,7 +76,7 @@ export default function TabsLayout() {
   const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
   const showPaidOfferChrome = features.offers;
   const isOfferPremium = showPaidOfferChrome && isPremium;
-  const { canCreateNow, canCreate, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
+  const { canCreateNow, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
   const publishSurfaces = useEventPublishSurfaces();
   const canCreateEvents = canCreateNow;
@@ -94,10 +101,17 @@ export default function TabsLayout() {
   const resetCreateStore = useCreateEventStore((s) => s.reset);
   const setSubmissionSource = useCreateEventStore((s) => s.setSubmissionSource);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [hasMyEventsShortcut, setHasMyEventsShortcut] = useState(false);
   const drawerProgress = useSharedValue(0);
   useTaxonomy();
   const isGuest = !isAuthenticated;
+  const showContributionFab = shouldShowContributionFab({
+    canContribute: publishSurfaces.showCenterTabAction,
+    isAuthenticated: !isGuest,
+  });
+  const contributionFabLabel = getContributionFabAccessibilityLabel({
+    canContribute: publishSurfaces.showCenterTabAction,
+    canReportBug: !isGuest,
+  });
   const { visible: lumiaTourVisible, steps: lumiaTourSteps, dismiss: dismissLumiaTour } = useLumiaTour();
   const setTourTarget = useLumiaTourStore((s) => s.setTarget);
   const bumpTourMeasure = useLumiaTourStore((s) => s.bumpMeasure);
@@ -181,24 +195,10 @@ export default function TabsLayout() {
     });
   }, [loadUnreadNotifications]);
 
-  const loadMyEventsShortcut = useCallback(async () => {
-    if ((!features.eventCreate && !features.eventSuggest) || !profile?.id || isGuest) {
-      setHasMyEventsShortcut(false);
-      return;
-    }
-
-    try {
-      const events = await EventsService.listEvents({ creatorId: profile.id, limit: 1 } as any);
-      setHasMyEventsShortcut(events.length > 0);
-    } catch {
-      setHasMyEventsShortcut(false);
-    }
-  }, [profile?.id, isGuest]);
-
   useEffect(() => {
-    if (!drawerOpen) return;
-    loadMyEventsShortcut();
-  }, [drawerOpen, loadMyEventsShortcut]);
+    if (!drawerOpen || !profile?.id || isGuest) return;
+    prefetchMySuggestionHistory(profile.id);
+  }, [drawerOpen, profile?.id, isGuest]);
 
   const toggleDrawer = (open: boolean) => {
     setDrawerOpen(open);
@@ -370,45 +370,7 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="create"
-          options={
-            publishSurfaces.showCenterTabAction
-              ? {
-                  title: '',
-                  tabBarButton: () => (
-                    <View style={styles.createTargetWrap}>
-                      <TouchableOpacity
-                        style={[
-                          styles.createButton,
-                          { backgroundColor: accent.accent, marginBottom: 12 + insets.bottom },
-                        ]}
-                        activeOpacity={0.85}
-                        accessibilityRole="button"
-                        accessibilityLabel="Ajouter un événement"
-                        onPress={() => {
-                          haptics.selection();
-                          if (isGuest) {
-                            openGuestGate('Ajouter un événement');
-                            return;
-                          }
-                          // Organizer-only (no suggest): go straight to form.
-                          if (publishSurfaces.canOrganize && !publishSurfaces.eventSuggest) {
-                            resetCreateStore();
-                            setSubmissionSource('organizer_create');
-                            router.push(publishSurfaces.routes.eventFormStepper as any);
-                            return;
-                          }
-                          setContributeOpen(true);
-                        }}
-                      >
-                        <PlusCircle size={28} color="#0f1719" />
-                      </TouchableOpacity>
-                    </View>
-                  ),
-                }
-              : {
-                  href: null,
-                }
-          }
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="favorites"
@@ -746,8 +708,17 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
-            {publishSurfaces.showMyEvents &&
-              (canCreate || hasMyEventsShortcut || isProfessionnelAccount || features.eventSuggest) && (
+            {publishSurfaces.showMySuggestions ? (
+              <DrawerLink
+                icon={Lightbulb}
+                label="Mes suggestions"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push(publishSurfaces.routes.mySuggestions as any);
+                }}
+              />
+            ) : null}
+            {publishSurfaces.showMyEvents ? (
               <DrawerLink
                 icon={MapPinned}
                 label="Mes événements"
@@ -756,7 +727,7 @@ export default function TabsLayout() {
                   router.push(publishSurfaces.routes.myEvents as any);
                 }}
               />
-            )}
+            ) : null}
           </View>
 
           {!isGuest ? (
@@ -792,10 +763,33 @@ export default function TabsLayout() {
         </View>
       </Animated.View>
 
+      {showContributionFab ? (
+        <GestureHandlerRootView
+          pointerEvents={drawerOpen || lumiaTourVisible ? 'none' : 'box-none'}
+          style={styles.fabLayer}
+        >
+          <ContributionFab
+            tabBarHeight={tabBarHeight}
+            hidden={drawerOpen || lumiaTourVisible}
+            color={accent.accent}
+            accessibilityLabel={contributionFabLabel}
+            onPress={() => {
+              haptics.selection();
+              if (isGuest && !publishSurfaces.showCenterTabAction) {
+                openGuestGate('Reporter un bug');
+                return;
+              }
+              setContributeOpen(true);
+            }}
+          />
+        </GestureHandlerRootView>
+      ) : null}
+
       <EventContributeSheet
         visible={contributeOpen}
         onClose={() => setContributeOpen(false)}
         isGuest={isGuest}
+        showBugReport={!isGuest}
         onRequireAuth={(title) => openGuestGate(title)}
       />
       <GuestGateModal
@@ -928,6 +922,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     inset: 0,
     backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 40,
   },
   drawer: {
     position: 'absolute',
@@ -941,6 +936,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderLeftWidth: 1,
     borderLeftColor: 'rgba(26, 51, 41, 0.08)',
+    zIndex: 40,
   },
 
   drawerHeader: {
@@ -1124,25 +1120,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     fontWeight: '600',
   },
-  createTargetWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  createButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.brand.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: colors.brand.page,
-  },
-  createButtonDisabled: {
-    backgroundColor: colors.brand.surface,
-  },
   tabDisabled: {
     opacity: 0.5,
+  },
+  fabLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    overflow: 'visible',
   },
 });

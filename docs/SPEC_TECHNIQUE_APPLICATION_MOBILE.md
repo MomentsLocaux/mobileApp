@@ -373,7 +373,9 @@ Préférences user_preferences filtrant l’éligibilité côté génération / 
 | Carte / recherche | `app/(tabs)/map.tsx`, `listMapViewportForMap` → `list_map_viewport`, orchestration doc |
 | Fiche + échos | `app/events/[id]`, `echoes`, `comments`, media submissions |
 | Social pairs | `community.service`, `social.service`, `/(tabs)/community`, `/community/[id]`, invite |
-| Création / mes events (V1) | `app/events/create/*`, `profile/my-events`, `events.service`, `useEventPublishSurfaces` |
+| Création / mes events (V1) | `app/events/create/*`, `profile/my-events` (flag `eventCreate`), `events.service`, `useEventPublishSurfaces` |
+| FAB contribution | `ContributionFab` overlay tabs : snap bords + peek type PiP, persist `contribution-fab-position` |
+| Mes suggestions | `app/profile/my-suggestions`, `suggestion-history`, corrections + bugs + `community_suggest` |
 | Suggest affiche (V1) | `suggest-from-poster`, Edge `suggest-event-from-poster` |
 | Check-in (V1) | `checkin.service` → `event-checkin` |
 | Reports | `report.service` |
@@ -414,7 +416,7 @@ Flaggés / annexes : `checkin` ; `event-poster-extract` ; `lumia-chat`, `lumia-h
 | `/discovery/*`, subscription discovery | → map / settings si `!discovery` |
 | `/contests/*` | → map si `!contests` |
 | `/lumia-chat` | → `/(tabs)` si `!lumiaChat` |
-| Create / my-events | → map si `!eventCreate && !eventSuggest` |
+| Create / my-events | → `my-suggestions` si `!eventCreate` |
 | Settings placeholders (email, sessions, export…) | → `/settings` |
 
 ### C. Dette technique connue

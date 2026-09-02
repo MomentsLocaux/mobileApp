@@ -79,13 +79,22 @@ export const EventCorrectionService = {
 
   async listMine(limit = 50): Promise<EventCorrectionProposal[]> {
     const proposerId = await requireUserId('listMyEventCorrections');
-    const { data, error } = await (supabase.from('event_correction_proposals') as any)
+
+    const embedded = await (supabase.from('event_correction_proposals') as any)
+      .select('*, event:events!event_correction_proposals_event_id_fkey(id, title)')
+      .eq('proposer_id', proposerId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (!embedded.error) {
+      return (embedded.data || []) as EventCorrectionProposal[];
+    }
+
+    const fallback = await (supabase.from('event_correction_proposals') as any)
       .select('*')
       .eq('proposer_id', proposerId)
       .order('created_at', { ascending: false })
       .limit(limit);
-
-    if (error) throw formatError(error, 'listMyEventCorrections');
-    return (data || []) as EventCorrectionProposal[];
+    if (fallback.error) throw formatError(fallback.error, 'listMyEventCorrections');
+    return (fallback.data || []) as EventCorrectionProposal[];
   },
 };

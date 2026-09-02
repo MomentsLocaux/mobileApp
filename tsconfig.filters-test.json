@@ -16,6 +16,8 @@
     "src/utils/discovery-filters.test.ts",
     "src/utils/contextual-sort-labels.test.ts",
     "src/utils/favorite-events.test.ts",
+    "src/utils/contribution-fab.test.ts",
+    "src/utils/suggestion-history.test.ts",
     "src/utils/community-photo-eligibility.test.ts",
     "src/utils/event-time-scope.test.ts",
     "src/utils/event-name-search.test.ts",

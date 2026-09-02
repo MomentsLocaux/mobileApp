@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Briefcase, Sparkles, Camera, Pencil, X, ChevronRight } from 'lucide-react-native';
+import { Briefcase, Sparkles, Camera, Pencil, X, ChevronRight, Bug } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -35,18 +35,28 @@ type Props = {
   /** Called when guest taps contribute — parent opens GuestGateModal. */
   onRequireAuth?: (title: string) => void;
   isGuest?: boolean;
+  /** Authenticated users can open the existing bug reporter from this sheet. */
+  showBugReport?: boolean;
 };
 
 /**
- * Unified contribute sheet behind the tab-bar "+".
- * Intent (orga vs suggest) when both available, then method (affiche IA vs manuel).
+ * Unified contribute sheet behind the contribution FAB.
+ * Intent (orga vs suggest) when both available, then method (affiche IA vs manuel),
+ * plus bug / improvement reporting.
  */
-export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest }: Props) {
+export function EventContributeSheet({
+  visible,
+  onClose,
+  onRequireAuth,
+  isGuest,
+  showBugReport = false,
+}: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(0);
   const { canOrganize, eventSuggest, needsIntentChooser, routes } = useEventPublishSurfaces();
+  const canContribute = canOrganize || eventSuggest;
   const resetStore = useCreateEventStore((s) => s.reset);
   const setSubmissionSource = useCreateEventStore((s) => s.setSubmissionSource);
 
@@ -86,10 +96,10 @@ export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest 
     setTimeout(onClose, Motion.duration.fast);
   };
 
-  const ensureAuth = (title: string) => {
+  const ensureAuth = (gateTitle: string) => {
     if (isGuest) {
       closeAnimated();
-      onRequireAuth?.(title);
+      onRequireAuth?.(gateTitle);
       return false;
     }
     return true;
@@ -108,6 +118,15 @@ export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest 
     setSubmissionSource(source);
     closeAnimated();
     router.push(`${routes.posterSuggest}?source=${source}` as any);
+  };
+
+  const goBugReport = () => {
+    if (!ensureAuth('Reporter un bug')) {
+      return;
+    }
+    haptics.selection();
+    closeAnimated();
+    router.push('/bug-report' as any);
   };
 
   const goManual = (source: EventSubmissionSource) => {
@@ -135,17 +154,30 @@ export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest 
   // Direct open path when only organizer create (no suggest): skip sheet UI for method if needed.
   // Parent may still open sheet; we render method for suggest or both.
 
-  const title =
-    step === 'intent'
+  const assistanceOnly = !canContribute && showBugReport;
+
+  const title = assistanceOnly
+    ? 'Reporter un bug / Suggérer une amélioration'
+    : step === 'intent'
       ? 'Que souhaitez-vous faire ?'
       : intent === 'community_suggest'
         ? 'Proposer un événement'
         : 'Créer un événement';
 
-  const subtitle =
-    step === 'intent'
+  const subtitle = assistanceOnly
+    ? 'Décrivez le problème ou l’idée. Le formulaire de signalement s’ouvre ensuite.'
+    : step === 'intent'
       ? 'Choisissez votre rôle pour cet événement.'
       : 'Préremplir avec une affiche, ou saisir vous-même.';
+
+  const bugOption = showBugReport ? (
+    <OptionRow
+      icon={Bug}
+      title="Reporter un bug / Suggérer une amélioration"
+      subtitle="Ouvre le formulaire de signalement"
+      onPress={goBugReport}
+    />
+  ) : null;
 
   return (
     <Modal visible={visible} animationType="none" transparent onRequestClose={closeAnimated}>
@@ -182,7 +214,9 @@ export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest 
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
 
-          {step === 'intent' ? (
+          {assistanceOnly ? (
+            <View style={styles.options}>{bugOption}</View>
+          ) : step === 'intent' ? (
             <View style={styles.options}>
               <OptionRow
                 icon={Briefcase}
@@ -196,6 +230,13 @@ export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest 
                 subtitle="Événement repéré (affiche, flyer…)"
                 onPress={() => chooseIntent('community_suggest')}
               />
+              {bugOption ? (
+                <>
+                  <View style={styles.assistDivider} />
+                  <Text style={styles.assistLabel}>ASSISTANCE</Text>
+                  {bugOption}
+                </>
+              ) : null}
             </View>
           ) : (
             <View style={styles.options}>
@@ -221,6 +262,13 @@ export function EventContributeSheet({ visible, onClose, onRequireAuth, isGuest 
                 >
                   <Text style={styles.backLinkText}>← Changer d’intention</Text>
                 </TouchableOpacity>
+              ) : null}
+              {bugOption ? (
+                <>
+                  <View style={styles.assistDivider} />
+                  <Text style={styles.assistLabel}>ASSISTANCE</Text>
+                  {bugOption}
+                </>
               ) : null}
             </View>
           )}
@@ -354,5 +402,17 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     fontWeight: '600',
+  },
+  assistDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(26, 51, 41, 0.12)',
+    marginTop: spacing.xs,
+  },
+  assistLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.brand.textSecondary,
+    letterSpacing: 1.2,
+    marginTop: spacing.xs,
   },
 });

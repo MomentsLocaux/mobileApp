@@ -25,6 +25,7 @@ import { Step3Content } from '@/components/events/steps/Step3Content';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
+import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import { useEventsStore } from '@/store';
 import { EventSuggestEntryButton } from '@/components/events/EventSuggestEntryButton';
 
@@ -215,6 +216,9 @@ export const CreateEventStepper = () => {
             resetStore();
             haptics.success();
             const isSuggest = submissionSource === 'community_suggest';
+            if (isSuggest && user?.id) {
+              invalidateMySuggestionHistory(user.id);
+            }
             Toast.show({
                 type: 'success',
                 text1: edit ? 'Événement mis à jour' : isSuggest ? 'Proposition envoyée' : 'Événement créé',
@@ -224,7 +228,7 @@ export const CreateEventStepper = () => {
                       ? 'Merci ! Votre proposition sera vérifiée avant publication.'
                       : 'Ton événement a été créé et sera vérifié avant publication.',
             });
-            router.replace('/profile/my-events' as any);
+            router.replace((isSuggest ? '/profile/my-suggestions' : '/profile/my-events') as any);
         } catch (e) {
             console.error('publish event', e);
             Alert.alert('Erreur', 'Impossible de publier cet événement pour le moment.');

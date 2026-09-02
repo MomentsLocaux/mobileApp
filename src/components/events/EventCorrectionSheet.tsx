@@ -31,6 +31,7 @@ import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { CategorySelector } from '@/components/events/CategorySelector';
 import { EventCorrectionService } from '@/services/event-correction.service';
+import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import type { EventWithCreator } from '@/types/database';
 import {
   pickCorrectionDiff,
@@ -333,6 +334,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
         comment: comment.trim(),
         sourceHint: sourceHint.trim() || null,
       });
+      invalidateMySuggestionHistory();
       haptics.success();
       closeAnimated();
       const lumoHint = features.gamification
@@ -368,6 +370,7 @@ export function EventCorrectionSheet({ visible, event, onClose }: Props) {
         duplicateHint: duplicateHint.trim() || null,
         sourceHint: sourceHint.trim() || null,
       });
+      invalidateMySuggestionHistory();
       haptics.success();
       closeAnimated();
       const lumoHint = features.gamification

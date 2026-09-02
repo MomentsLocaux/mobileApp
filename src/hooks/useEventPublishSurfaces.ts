@@ -3,13 +3,13 @@ import { useAuth } from '@/hooks';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 
 /**
- * Unified "+" contribute entry (organizer create vs community suggest).
+ * Unified contribute FAB (organizer create vs community suggest vs bug report).
  *
  * | eventCreate | eventSuggest | canCreateNow | FAB + behavior              |
  * |-------------|--------------|--------------|-----------------------------|
- * | off         | off          | —            | hidden                      |
+ * | off         | off          | —            | bug report only (if authed) |
  * | off         | on           | —            | method sheet (suggest)      |
- * | on          | off          | yes          | direct organizer form       |
+ * | on          | off          | yes          | method sheet (create+bug)   |
  * | on          | on           | yes          | intent sheet → method       |
  * | on          | on           | no           | method sheet (suggest only) |
  */
@@ -26,7 +26,8 @@ export function useEventPublishSurfaces() {
 
   const showOrganizerCreateDrawer = eventCreate && canCreate;
   const showPosterSuggestDrawer = eventSuggest;
-  const showMyEvents = (eventCreate && (canCreate || canCreateNow)) || eventSuggest;
+  const showMyEvents = eventCreate && (canCreate || canCreateNow);
+  const showMySuggestions = isAuthenticated;
   const showPosterSuggestOnCreateHub = canOrganize && eventSuggest;
 
   const canAccessEventForm =
@@ -41,6 +42,7 @@ export function useEventPublishSurfaces() {
     showOrganizerCreateDrawer,
     showPosterSuggestDrawer,
     showMyEvents,
+    showMySuggestions,
     showPosterSuggestOnCreateHub,
     canAccessEventForm,
     routes: {
@@ -48,6 +50,7 @@ export function useEventPublishSurfaces() {
       organizerCreate: '/events/create' as const,
       eventFormStepper: '/events/create' as const,
       myEvents: '/profile/my-events' as const,
+      mySuggestions: '/profile/my-suggestions' as const,
     },
   };
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send, Sparkles } from 'lucide-react-native';
+import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send, Sparkles, Lightbulb } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
@@ -30,6 +30,7 @@ import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { useDiffuseur } from '@/hooks/useDiffuseur';
 import { DIFFUSEUR_PLANS } from '@/constants/diffuseur';
+import { prefetchMySuggestionHistory } from '@/services/suggestion-history.service';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -45,9 +46,14 @@ export default function ProfileScreen() {
     accountKind,
   } = useAccountIdentity();
   const { organization, entitlements, plan, memberCount, loading: diffuseurLoading } = useDiffuseur();
-  const { showPosterSuggestDrawer, showMyEvents, routes } = useEventPublishSurfaces();
+  const { showPosterSuggestDrawer, showMyEvents, showMySuggestions, routes } = useEventPublishSurfaces();
   const isProfessionnelAccount = accountKind === 'professionnel';
   const isGuest = !session;
+
+  useEffect(() => {
+    if (!profile?.id || isGuest) return;
+    prefetchMySuggestionHistory(profile.id);
+  }, [isGuest, profile?.id]);
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -83,6 +89,10 @@ export default function ProfileScreen() {
         },
       ],
     );
+  };
+
+  const handleViewMySuggestions = () => {
+    router.push('/profile/my-suggestions' as any);
   };
 
   const handleViewMyEvents = () => {
@@ -300,6 +310,12 @@ export default function ProfileScreen() {
                 <Text style={[styles.linkText, { color: accent.accent }]}>
                   Proposer depuis une affiche
                 </Text>
+              </TouchableOpacity>
+            ) : null}
+            {showMySuggestions ? (
+              <TouchableOpacity style={styles.linkButton} onPress={handleViewMySuggestions}>
+                <Lightbulb size={18} color={accent.accent} />
+                <Text style={[styles.linkText, { color: accent.accent }]}>Mes suggestions</Text>
               </TouchableOpacity>
             ) : null}
             {showMyEvents ? (

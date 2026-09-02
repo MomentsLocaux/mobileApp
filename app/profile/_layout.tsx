@@ -54,9 +54,16 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="my-suggestions"
+        options={{
+          title: 'Mes suggestions',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="my-events"
         options={{
-          title: 'Mes évènements',
+          title: 'Mes événements',
           headerShown: false,
         }}
       />

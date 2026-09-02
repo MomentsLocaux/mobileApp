@@ -2,10 +2,10 @@ import { Redirect } from 'expo-router';
 import { features } from '@/config/features';
 import MyEventsScreen from '../../src/screens/profile/MyEventsScreen';
 
-/** Accessible for organizers (eventCreate) and community suggestors (eventSuggest). */
+/** Organizer publications — hidden unless `eventCreate` is on. */
 export default function MyEventsRoute() {
-  if (!features.eventCreate && !features.eventSuggest) {
-    return <Redirect href="/(tabs)/map" />;
+  if (!features.eventCreate) {
+    return <Redirect href="/profile/my-suggestions" />;
   }
   return <MyEventsScreen />;
 }
