@@ -1,12 +1,7 @@
--- Propositions : candidats pour le deck swipe.
--- Cercle (ST_DWithin) + fenêtre starts_at/ends_at + catégories + exclusions.
--- Pas de tri distance : ORDER BY random() puis mélange côté client.
--- Ne pas matcher operating_hours (dates carte = starts_at / ends_at).
---
--- ⚠️ NE PAS appliquer en production sans validation humaine.
---
--- Sécurité : SECURITY DEFINER aligné sur list_map_viewport
--- (published + public uniquement). Params bornés.
+-- Correctif : 20260901 convertissait le rayon après GREATEST(1000, km),
+-- donc 25 km → 1 000 km. Le deck client recoupait le vrai cercle et ne
+-- gardait que ~5 cartes. Convertir en mètres APRES le clamp km.
+-- CREATE OR REPLACE : idempotent si la fonction DEV a déjà été patchée.
 
 CREATE OR REPLACE FUNCTION public.list_proposal_candidates(
   p_lat double precision,
@@ -185,10 +180,3 @@ BEGIN
   LIMIT v_limit;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.list_proposal_candidates(
-  double precision, double precision, integer, timestamptz, timestamptz, uuid[], uuid[], integer
-) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.list_proposal_candidates(
-  double precision, double precision, integer, timestamptz, timestamptz, uuid[], uuid[], integer
-) TO anon, authenticated, service_role;
