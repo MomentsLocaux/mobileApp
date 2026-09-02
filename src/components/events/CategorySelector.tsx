@@ -32,7 +32,12 @@ export const CategorySelector = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Catégorie</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
+      <ScrollView
+        horizontal
+        nestedScrollEnabled
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollRow}
+      >
         {categories.map((cat) => {
           const active = selected === cat.id;
           const Icon = getCategoryLucideIcon(cat.slug);
@@ -62,7 +67,12 @@ export const CategorySelector = ({
       {selected && onSelectSubcategory && (
         <View style={styles.subSection} onLayout={onSubcategoryLayout}>
           <Text style={styles.title}>Sous-catégorie</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.scrollRow}
+          >
             {selectedSubcategories.map((sub) => {
               const active = subcategory === sub.id;
               return (
