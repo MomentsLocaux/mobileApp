@@ -59,15 +59,15 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.</string>
+    <string>Moments Locaux utilise la caméra pour prendre des photos d’événements et illustrer vos contributions.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments près de vous, et — si vous activez Discovery — pour enrichir vos suggestions. Vous pouvez désactiver ces options à tout moment.</string>
+    <string>Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments en cours ou bientôt près de vous. Vous pouvez désactiver cette option à tout moment.</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.</string>
+    <string>Moments Locaux utilise votre position pour afficher les événements proches de vous sur la carte.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
