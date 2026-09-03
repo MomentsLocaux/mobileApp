@@ -10,6 +10,7 @@ import {
 import { GREETING_REPLY, buildLumiaSystemPrompt } from './prompt.ts';
 import { isGreeting, routeLumiaMessage } from './route.ts';
 import { searchEvents, type EventRow } from './search-events.ts';
+import { composeSearchText, isFollowUp, isNearMeQuery, sanitizeHistory } from './history.ts';
 import { filterLumiaActions } from './deeplinks.ts';
 import ragChunksJson from './rag-chunks.json' with { type: 'json' };
 
@@ -135,7 +136,7 @@ serve(async (req) => {
   }
   const userId = userData.user.id;
 
-  let payload: { message?: string; city?: string | null };
+  let payload: { message?: string; city?: string | null; history?: unknown };
   try {
     payload = await req.json();
   } catch {
@@ -149,6 +150,10 @@ serve(async (req) => {
       400,
     );
   }
+
+  const history = sanitizeHistory(payload.history);
+  const searchText = composeSearchText(message, history);
+  const priorHadEvents = isFollowUp(message) && history.some((turn) => turn.role === 'user');
 
   // --- Layer 4: greeting guard ---
   if (isGreeting(message)) {
@@ -233,7 +238,10 @@ serve(async (req) => {
     );
   }
 
-  const route = routeLumiaMessage(message);
+  const route = routeLumiaMessage(priorHadEvents ? searchText : message);
+  if (priorHadEvents) {
+    route.useSearchEvents = true;
+  }
 
   // --- Layer 2: app_help (RAG) ---
   let docHits: ReturnType<typeof retrieveByEmbedding> = [];
@@ -254,7 +262,9 @@ serve(async (req) => {
   let searchMeta: Awaited<ReturnType<typeof searchEvents>>['query'] | null = null;
   if (route.useSearchEvents) {
     try {
-      const result = await searchEvents(supabase, message, payload.city ?? null, 8);
+      const hintCity =
+        isNearMeQuery(message) || isNearMeQuery(searchText) ? payload.city ?? null : null;
+      const result = await searchEvents(supabase, searchText, hintCity, 8);
       candidateEvents = result.events;
       searchMeta = result.query;
     } catch (_searchErr) {
@@ -281,6 +291,7 @@ serve(async (req) => {
 
   const userPrompt = JSON.stringify({
     message,
+    conversation_history: history,
     tool_app_help: formatRagForPrompt(docHits),
     tool_search_events: catalogForPrompt,
     search_meta: searchMeta,
@@ -301,6 +312,7 @@ serve(async (req) => {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: buildLumiaSystemPrompt() },
+          ...history.map((turn) => ({ role: turn.role, content: turn.text })),
           { role: 'user', content: userPrompt },
         ],
       }),

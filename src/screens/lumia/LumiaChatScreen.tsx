@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,30 +18,31 @@ import { features } from '@/config/features';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { isAllowedLumiaHref } from '@/constants/lumia-deeplinks';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { useAuth } from '@/hooks';
 import {
   askLumia,
-  LUMIA_CHAT_WELCOME,
   type LumiaAction,
   type LumiaChatReply,
 } from '@/services/lumia-chat.service';
+import { useLumiaChatStore } from '@/store/lumiaChatStore';
+import type { LumiaHistoryTurn } from '@/utils/lumia-conversation';
 import type { EventWithCreator } from '@/types/database';
 
 type ChatMessage = {
   id: string;
   role: 'lumia' | 'user';
   text: string;
-  events?: EventWithCreator[];
+  events?: Pick<EventWithCreator, 'id' | 'title' | 'city'>[];
   actions?: LumiaAction[];
 };
 
-const INITIAL: ChatMessage[] = [
-  { id: 'welcome', role: 'lumia', text: LUMIA_CHAT_WELCOME },
-];
-
 export default function LumiaChatScreen() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const listRef = useRef<FlatList<ChatMessage>>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL);
+  const messages = useLumiaChatStore((state) => state.messages);
+  const hydrateForUser = useLumiaChatStore((state) => state.hydrateForUser);
+  const appendMessage = useLumiaChatStore((state) => state.appendMessage);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [quota, setQuota] = useState<{
@@ -49,6 +50,10 @@ export default function LumiaChatScreen() {
     remaining: number | null;
     period: string;
   } | null>(null);
+
+  useEffect(() => {
+    hydrateForUser(user?.id ?? null);
+  }, [hydrateForUser, user?.id]);
 
   const openHref = useCallback(
     (href: string) => {
@@ -62,37 +67,41 @@ export default function LumiaChatScreen() {
     const text = draft.trim();
     if (!text || busy) return;
     setDraft('');
+    const history: LumiaHistoryTurn[] = messages
+      .filter((item) => item.id !== 'welcome' && item.text.trim().length > 0)
+      .map((item) => ({ role: item.role, text: item.text }));
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text };
-    setMessages((prev) => [...prev, userMsg]);
+    appendMessage(userMsg);
     setBusy(true);
     try {
-      const reply: LumiaChatReply = await askLumia(text);
+      const reply: LumiaChatReply = await askLumia(text, {
+        history,
+        city: profile?.city ?? null,
+      });
       if (reply.quota) {
         setQuota(reply.quota);
       }
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `l-${Date.now()}`,
-          role: 'lumia',
-          text: reply.text,
-          events: reply.events,
-          actions: reply.actions,
-        },
-      ]);
+      appendMessage({
+        id: `l-${Date.now()}`,
+        role: 'lumia',
+        text: reply.text,
+        events: reply.events.map((event) => ({
+          id: event.id,
+          title: event.title,
+          city: event.city,
+        })),
+        actions: reply.actions,
+      });
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `e-${Date.now()}`,
-          role: 'lumia',
-          text: 'Je n’ai pas pu chercher pour le moment. Réessaie dans un instant, ou ouvre la carte.',
-        },
-      ]);
+      appendMessage({
+        id: `e-${Date.now()}`,
+        role: 'lumia',
+        text: 'Je n’ai pas pu chercher pour le moment. Réessaie dans un instant, ou ouvre la carte.',
+      });
     } finally {
       setBusy(false);
     }
-  }, [busy, draft]);
+  }, [appendMessage, busy, draft, messages, profile?.city]);
 
   const quotaLabel =
     quota && typeof quota.remaining === 'number'

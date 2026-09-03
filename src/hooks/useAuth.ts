@@ -3,6 +3,7 @@ import { useAuthStore } from '@/state/auth';
 import { AuthService } from '@/services/auth.service';
 import type { SocialProvider } from '@/services/oauth.service';
 import { UserService } from '@/services/user.service';
+import { useLumiaChatStore } from '@/store/lumiaChatStore';
 
 export function useAuth() {
   const {
@@ -149,6 +150,7 @@ export function useAuth() {
       return false;
     }
     setLoading(false);
+    useLumiaChatStore.getState().clearConversation();
     reset();
     return true;
   }, [reset, setError, setLoading]);

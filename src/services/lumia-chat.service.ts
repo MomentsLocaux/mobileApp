@@ -1,4 +1,4 @@
-import { LUMIA_NAME } from '@/constants/lumia';
+import { LUMIA_CHAT_WELCOME } from '@/constants/lumia';
 import {
   isAllowedLumiaHref,
   normalizeLumiaHref,
@@ -7,6 +7,12 @@ import { supabase } from '@/lib/supabase/client';
 import { EventsService } from '@/services/events.service';
 import { lumiaFeatureFlagsForApi, matchAppHelp } from '@/services/lumia-help';
 import type { EventWithCreator } from '@/types/database';
+import {
+  composeLumiaSearchText,
+  isLumiaNearMeQuery,
+  toLumiaEdgeHistory,
+  type LumiaHistoryTurn,
+} from '@/utils/lumia-conversation';
 
 export type LumiaAction = { href: string; label: string };
 
@@ -68,6 +74,11 @@ const STOP_WORDS = new Set([
   'il',
   'y',
   'a-t-il',
+  'quel',
+  'quels',
+  'quelle',
+  'quelles',
+  'combien',
 ]);
 
 function normalize(value: string): string {
@@ -88,7 +99,7 @@ function tokens(query: string): string[] {
 const GREETING_RE =
   /^(hello|hi|hey|yo|hola|bonjour|bonsoir|salut|coucou|hey\s+lumia|salut\s+lumia|bonjour\s+lumia)([\s!.?…]*)?$/i;
 
-export const LUMIA_CHAT_WELCOME = `Salut, je suis ${LUMIA_NAME} ! Dis-moi ce que tu cherches près de chez toi, ou pose-moi une question sur l’app — carte, favoris, compte… Je suis là pour t’aider. CGU & confidentialité : Paramètres → Informations légales / Confidentialité. Support : hello@moments-locaux.com.`;
+export { LUMIA_CHAT_WELCOME };
 
 const GREETING_REPLY =
   `Salut ! Content de te voir. Tu cherches un moment près de chez toi, ou tu as une question sur l’app ? Je t’écoute.`;
@@ -135,7 +146,12 @@ export function matchEventsLocally(
     .map((row) => row.event);
 }
 
-export async function askLumiaLocal(query: string): Promise<LumiaChatReply> {
+export type AskLumiaOptions = {
+  history?: LumiaHistoryTurn[];
+  city?: string | null;
+};
+
+export async function askLumiaLocal(query: string, options: AskLumiaOptions = {}): Promise<LumiaChatReply> {
   const trimmed = query.trim();
   if (!trimmed) {
     return {
@@ -153,8 +169,9 @@ export async function askLumiaLocal(query: string): Promise<LumiaChatReply> {
     return { text: help.answer, events: [] };
   }
 
+  const searchText = composeLumiaSearchText(trimmed, options.history ?? []);
   const catalog = await EventsService.listEvents({ limit: 80 });
-  const events = matchEventsLocally(trimmed, catalog);
+  const events = matchEventsLocally(searchText, catalog);
 
   if (events.length) {
     const names = events.map((event) => event.title).join(', ');
@@ -189,15 +206,18 @@ function filterClientActions(raw: LumiaAction[] | undefined): LumiaAction[] {
 }
 
 /** Prefer Edge Function (OpenAI + DB grounding); fall back to local matcher if offline/errors. */
-export async function askLumia(query: string): Promise<LumiaChatReply> {
+export async function askLumia(query: string, options: AskLumiaOptions = {}): Promise<LumiaChatReply> {
   const trimmed = query.trim();
   if (!trimmed) {
-    return askLumiaLocal(trimmed);
+    return askLumiaLocal(trimmed, options);
   }
 
   if (isGreeting(trimmed)) {
     return { text: GREETING_REPLY, events: [], actions: [] };
   }
+
+  const history = toLumiaEdgeHistory(options.history ?? []);
+  const cityHint = isLumiaNearMeQuery(trimmed) ? options.city?.trim() || null : null;
 
   try {
     const { data, error } = await supabase.functions.invoke<LumiaChatEdgeSuccess | LumiaChatEdgeError>(
@@ -205,6 +225,8 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
       {
         body: {
           message: trimmed,
+          history,
+          city: cityHint,
           feature_flags: lumiaFeatureFlagsForApi(),
         },
       },
@@ -227,7 +249,7 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
           // Fall through to local.
         }
       }
-      return askLumiaLocal(trimmed);
+      return askLumiaLocal(trimmed, options);
     }
 
     if (!data || data.ok !== true || typeof (data as LumiaChatEdgeSuccess).text !== 'string') {
@@ -235,7 +257,7 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
       if (err?.message) {
         return { text: err.message, events: [], actions: [], quota: err.quota ?? null };
       }
-      return askLumiaLocal(trimmed);
+      return askLumiaLocal(trimmed, options);
     }
 
     const success = data as LumiaChatEdgeSuccess;
@@ -260,6 +282,6 @@ export async function askLumia(query: string): Promise<LumiaChatReply> {
       quota: success.quota ?? null,
     };
   } catch {
-    return askLumiaLocal(trimmed);
+    return askLumiaLocal(trimmed, options);
   }
 }

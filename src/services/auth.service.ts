@@ -311,6 +311,8 @@ export class AuthService {
         this.blockAutoRestore(),
         supabase.auth.signOut().catch(() => undefined),
       ]);
+      const { useLumiaChatStore } = await import('@/store/lumiaChatStore');
+      useLumiaChatStore.getState().clearConversation();
       return { success: true };
     } catch (error) {
       return {
@@ -354,6 +356,9 @@ export class AuthService {
         this.blockAutoRestore(),
         supabase.auth.signOut().catch(() => undefined),
       ]);
+
+      const { useLumiaChatStore } = await import('@/store/lumiaChatStore');
+      useLumiaChatStore.getState().clearConversation();
 
       return { success: true };
     } catch (error) {

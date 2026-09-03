@@ -10,6 +10,7 @@ export type EventRow = {
   description: string | null;
   city: string | null;
   address: string | null;
+  venue_name: string | null;
   category: string | null;
   starts_at: string | null;
   status: string | null;
@@ -73,6 +74,24 @@ const STOP_WORDS = new Set([
   'events',
   'evenement',
   'evenements',
+  'quel',
+  'quels',
+  'quelle',
+  'quelles',
+  'combien',
+  'quoi',
+  'as',
+  'tu',
+  'ya',
+  'til',
+  'aujourd',
+  'hui',
+  'demain',
+  'soir',
+  'matin',
+  'week',
+  'weekend',
+  'semaine',
 ]);
 
 /** Synonym expansion for common FR leisure queries. */
@@ -99,16 +118,50 @@ function normalize(value: string): string {
     .trim();
 }
 
+const NOT_A_CITY = new Set([
+  'concert',
+  'concerts',
+  'festival',
+  'marche',
+  'brocante',
+  'expo',
+  'atelier',
+  'theatre',
+  'cinema',
+  'sport',
+  'rando',
+  'demain',
+  'aujourd',
+  'soir',
+  'matin',
+  'week',
+  'weekend',
+  'semaine',
+  'evenement',
+  'moment',
+  'moments',
+  'jazz',
+  'musique',
+  'moi',
+  'toi',
+  'nous',
+  'vous',
+]);
+
 function extractCity(message: string): string | null {
   const n = normalize(message);
-  const m =
-    n.match(/\b(?:pres de|pres|aupres de|a|sur|dans)\s+([a-z0-9-]{3,}(?:\s+[a-z0-9-]{2,})?)/) ??
-    null;
-  if (!m?.[1]) return null;
-  const city = m[1].trim();
-  // Drop if it's a time word mistaken as place
-  if (/^(demain|aujourd|soir|matin|week|semaine)/.test(city)) return null;
-  return city;
+  const matches = [
+    ...n.matchAll(/\b(?:pres de|pres|aupres de|a|sur|dans)\s+([a-z0-9-]{3,}(?:\s+[a-z0-9-]{2,})?)/g),
+  ];
+  for (let i = matches.length - 1; i >= 0; i -= 1) {
+    const city = matches[i]?.[1]?.trim();
+    if (!city) continue;
+    const head = city.split(/\s+/)[0] ?? city;
+    if (/^(demain|aujourd|soir|matin|week|semaine)/.test(head)) continue;
+    if (NOT_A_CITY.has(head)) continue;
+    return city;
+  }
+  return null;
 }
 
 function extractDateRange(message: string, now = new Date()): { from: string | null; to: string | null } {
@@ -168,7 +221,7 @@ function expandKeywords(message: string): string[] {
 
 function scoreEvent(event: EventRow, keywords: string[], city: string | null): number {
   const hay = normalize(
-    [event.title, event.description, event.city, event.address, event.category]
+    [event.title, event.description, event.city, event.address, event.venue_name, event.category]
       .filter(Boolean)
       .join(' '),
   );
@@ -195,7 +248,7 @@ export async function searchEvents(
 
   let query = supabase
     .from('events')
-    .select('id,title,description,city,address,category,starts_at,status')
+    .select('id,title,description,city,address,venue_name,category,starts_at,status')
     .eq('status', 'published')
     .limit(60);
 
@@ -209,7 +262,7 @@ export async function searchEvents(
       .slice(0, 6)
       .flatMap((t) => {
         const safe = t.replace(/[%(),]/g, '');
-        return [`title.ilike.%${safe}%`, `description.ilike.%${safe}%`, `city.ilike.%${safe}%`, `category.ilike.%${safe}%`];
+        return [`title.ilike.%${safe}%`, `description.ilike.%${safe}%`, `city.ilike.%${safe}%`, `category.ilike.%${safe}%`, `venue_name.ilike.%${safe}%`];
       })
       .join(',');
     if (orFilter) query = query.or(orFilter);
@@ -233,7 +286,7 @@ export async function searchEvents(
   if (city && !scored.length && keywords.length) {
     const retry = await supabase
       .from('events')
-      .select('id,title,description,city,address,category,starts_at,status')
+      .select('id,title,description,city,address,venue_name,category,starts_at,status')
       .eq('status', 'published')
       .gte('starts_at', from ?? new Date().toISOString())
       .or(
@@ -241,7 +294,7 @@ export async function searchEvents(
           .slice(0, 5)
           .flatMap((t) => {
             const safe = t.replace(/[%(),]/g, '');
-            return [`title.ilike.%${safe}%`, `description.ilike.%${safe}%`, `city.ilike.%${safe}%`];
+            return [`title.ilike.%${safe}%`, `description.ilike.%${safe}%`, `city.ilike.%${safe}%`, `venue_name.ilike.%${safe}%`];
           })
           .join(','),
       )

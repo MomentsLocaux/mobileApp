@@ -38,12 +38,13 @@ export default function PrivacyPolicyScreen() {
             Lorsque l’assistant conversationnel Lumia est activé dans le build, vos questions sont
             traitées pour répondre à des demandes d’aide sur l’application ou pour rechercher des
             moments déjà publiés. L’historique du chat n’est pas enregistré sur nos serveurs : il
-            reste en mémoire sur votre appareil le temps de la session d’écran. Nous pouvons
+            reste sur votre appareil pour que la conversation continue si vous quittez l’écran, et
+            il est effacé à la déconnexion complète ou à la suppression du compte. Nous pouvons
             conserver un compteur d’usage (nombre de messages par mois) pour limiter les abus et
             maîtriser les coûts, sans conserver le texte des messages. Pour générer une réponse,
-            le contenu de la question peut être transmis temporairement à un prestataire
-            d’intelligence artificielle (traitement pour notre compte). Contact privacy /
-            support : hello@moments-locaux.com.
+            le contenu de la question (et un court historique local) peut être transmis
+            temporairement à un prestataire d’intelligence artificielle (traitement pour notre
+            compte). Contact privacy / support : hello@moments-locaux.com.
           </Text>
           <Text style={styles.heading}>7. Vos droits</Text>
           <Text style={styles.text}>
