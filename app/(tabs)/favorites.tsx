@@ -341,7 +341,6 @@ export default function FavoritesScreen() {
       <View style={styles.loadingContainer}>
         <AppBackground />
         <DiscoveryLoadingState
-          icon={Heart}
           title="Nous préparons vos favoris"
           subtitle="Encore un instant, vos pépites arrivent…"
         />

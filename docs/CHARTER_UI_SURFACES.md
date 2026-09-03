@@ -25,10 +25,10 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 
 | Surface | Path(s) | Watch for |
 |---------|---------|-----------|
-| Loading spinners | Any `ActivityIndicator`; prefer `colors.brand.secondary` | Legacy `primary[600]` / `#0f1719` |
-| Loading encarts (« on prépare… ») | `DiscoveryLoadingState`, `favorites` loading card, `ProposalLoadingState` | Dark `rgba(26,36,38)` panels + ink text = unreadable; use `surface` / `surfaceMuted` |
+| Loading spinners | `BrandLogoSpinner` on Home / Favoris / Membres / tab bootstrap; other `ActivityIndicator` keep `colors.brand.secondary` | No Lucide overlay on the discovery loader; legacy `primary[600]` / `#0f1719` |
+| Loading encarts (« on prépare… ») | `DiscoveryLoadingState`, `favorites` loading card, `ProposalLoadingState` | Dark `rgba(26,36,38)` panels + ink text = unreadable; use `surface` / `surfaceMuted`; `BrandLogoSpinner` fill loop, no Lucide badge |
 | Bug report form | `app/bug-report.tsx` | Form panel / chips contrast |
-| Contribution FAB | `src/components/events/ContributionFab.tsx`, `app/(tabs)/_layout.tsx` | Leaf fill, `onAccent` plus, mint border; draggable chat-head that snaps or peeks on the left/right edge above the tab bar |
+| Contribution FAB | `src/components/events/ContributionFab.tsx`, `app/(tabs)/_layout.tsx` | Leaf fill, `onAccent` plus, mint border; draggable chat-head with throw inertia, then snap or peek on the left/right edge above the tab bar |
 | Mes suggestions | `src/screens/profile/MySuggestionsScreen.tsx` | Light cards + status chips; not dark ink sheets |
 | Contribute sheet | `src/components/events/EventContributeSheet.tsx` | Light sheet + assistance row (bug reporter) |
 | Photo communauté sheet | `src/components/events/EventPhotoContributionModal.tsx` | Sheet bg + text + close |

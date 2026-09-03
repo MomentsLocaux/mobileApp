@@ -1054,6 +1054,62 @@ Branche Git recommandée: `feat/p2-event-gallery-limit`
 
 Notes: Bug reporter `triage`. Pas d'achat boutique.
 
+### ID: MVP-P2-014
+
+Titre: Retirer le cercle vert à la base du marker sélectionné
+
+Priorité: P2
+
+Source audit: signalement produit (tap marker carte) ; `docs/CHARTER_UI_SURFACES.md` (Map markers)
+
+Responsable / agent recommandé: UX/UI Guardian
+
+Type d'action: Bug / map chrome
+
+Fichiers probablement concernés: `src/components/map/MapWrapper.tsx` (`selected-event-halo`), éventuellement `src/components/map/CategoryEventMarker.tsx`
+
+Description: Au tap sur un pin, un `CircleLayer` Mapbox `selected-event-halo` (couleur `colors.brand.secondary`, rayon 20, `circleTranslate: [0, -16]`) apparaît et reste visuellement collé à la base / pointe du marker. Le translate prévu pour remonter le halo vers la tête du pin ne suffit pas. L’état sélectionné doit agrandir le pin sans disque vert au sol.
+
+Critères d'acceptation: Aucun cercle / halo vert au pied du pin au tap (iOS et Android) ; le marker sélectionné reste lisible (agrandissement existant OK) ; pas de régression clusters ni puck GPS ; charte markers inchangée par ailleurs.
+
+Commandes de vérification: `npm run typecheck`, `npm run lint`, UAT visuelle tap marker / désélection / cluster.
+
+Risques: Cacher trop fort l’état selected ; halo qui se décale encore selon zoom / taille d’icône.
+
+Dépendances: aucune.
+
+Branche Git recommandée: `fix/p2-map-selected-marker-halo`
+
+Notes: Cause probable déjà en place : `MapWrapper` ligne ~647 `id="selected-event-halo"`. Ne pas confondre avec le halo SVG interne de `CategoryEventMarker` (derrière la tête du pin). GitHub : https://github.com/MomentsLocaux/mobileApp/issues/18
+
+### ID: WEB-MOCKUPS-001
+
+Titre: Mettre à jour les mockups d’écrans de l’app sur le site web
+
+Priorité: P2
+
+Source audit: signalement produit ; mockups CSS du site vs UI mobile actuelle
+
+Responsable / agent recommandé: UX/UI Guardian
+
+Type d'action: Site marketing / charte
+
+Fichiers probablement concernés (repo `moments-locaux-website`): `src/components/PhoneMockups.tsx`, `src/components/PhoneFrame.tsx`, `src/components/Screenshots.tsx`, `src/components/DiscoverJourney.tsx`, `src/components/Hero.tsx`, `src/components/mockup-labels.ts`, `src/messages/fr.json` / `en.json` (`mockups`, `screenshots`)
+
+Description: Les mockups téléphone du site (hero, page Découvrir, bande screenshots) ne reflètent plus l’app MVP : pins ronds génériques vs pins catégorie, chrome carte (recherche, filtres, sheet, FAB contribution), tab bar, écran Membres avec onglet Profil actif, copy/labels potentiellement datés. Recaler les 4 écrans (carte, propositions, fiche, proches) sur l’UI réelle, sans inventer de surfaces hors MVP.
+
+Critères d'acceptation: Mockups alignés sur les tabs MVP (Accueil, Propositions, Carte, Favoris, Profil) et la charte (`docs/charte-graphique.md` + app) ; pins / chrome / sheets reconnaissables par rapport à l’app ; FR et EN cohérents ; pas de surfaces admin / shop / Lumo.
+
+Commandes de vérification: revue visuelle locale hero + `/decouvrir` + bande screenshots (FR/EN), desktop et mobile.
+
+Risques: Mockups trop « screenshot pixel-perfect » qui vieillissent à chaque PR UI ; ou au contraire trop schématiques pour rassurer un visiteur.
+
+Dépendances: idéalement après `MVP-P2-014` si la carte mockup montre un pin sélectionné.
+
+Branche Git recommandée: `fix/website-app-mockups` (dans `moments-locaux-website`)
+
+Notes: 1 ticket = 1 repo = 1 PR. Ne pas mélanger avec le fix mobile du halo marker. GitHub : https://github.com/MomentsLocaux/moments-locaux-website/issues/1
+
 ## Post-MVP
 
 ### ID: MVP-POST-001

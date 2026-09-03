@@ -248,7 +248,6 @@ function PeersMembersScreen() {
 
         {loadingMembers && !refreshing ? (
           <DiscoveryLoadingState
-            icon={Users}
             title="Nous recherchons les membres de la communauté"
             subtitle="Encore un instant, nous préparons les profils à découvrir."
           />

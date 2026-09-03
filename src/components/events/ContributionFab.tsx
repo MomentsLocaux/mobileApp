@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { StyleSheet, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -19,6 +20,7 @@ import {
   CONTRIBUTION_FAB_POSITION_KEY,
   CONTRIBUTION_FAB_SIZE,
   clampContributionFabDragPosition,
+  contributionFabInertiaVelocity,
   defaultContributionFabPosition,
   getContributionFabBounds,
   parseContributionFabStoredPosition,
@@ -176,6 +178,8 @@ export function ContributionFab({
     .hitSlop(peeked ? 28 : 16)
     .enabled(!hidden && ready)
     .onBegin(() => {
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
       startX.value = translateX.value;
       startY.value = translateY.value;
       startedPeekedSV.value = peekedSV.value;
@@ -231,8 +235,20 @@ export function ContributionFab({
         translateY.value = next.y;
         scale.value = 1;
       } else {
-        translateX.value = withSpring(next.x, Motion.spring.snappy);
-        translateY.value = withSpring(next.y, Motion.spring.snappy);
+        translateX.value = withSpring(next.x, {
+          damping: Motion.spring.inertial.damping,
+          stiffness: Motion.spring.inertial.stiffness,
+          mass: Motion.spring.inertial.mass,
+          overshootClamping: true,
+          velocity: contributionFabInertiaVelocity(event.velocityX),
+        });
+        translateY.value = withSpring(next.y, {
+          damping: Motion.spring.inertial.damping,
+          stiffness: Motion.spring.inertial.stiffness,
+          mass: Motion.spring.inertial.mass,
+          overshootClamping: true,
+          velocity: contributionFabInertiaVelocity(event.velocityY),
+        });
         scale.value = withSpring(1, Motion.spring.soft);
       }
       runOnJS(persistPosition)(next.x, next.y, next.peeked);

@@ -4,6 +4,9 @@ export const CONTRIBUTION_FAB_STACK_SPACE = CONTRIBUTION_FAB_SIZE + CONTRIBUTION
 export const CONTRIBUTION_FAB_SNAP_VELOCITY = 600;
 export const CONTRIBUTION_FAB_PEEK = 20;
 export const CONTRIBUTION_FAB_PEEK_ENTER = 10;
+/** Gesture velocity is much higher than a short dock spring needs. */
+export const CONTRIBUTION_FAB_INERTIA_SCALE = 0.14;
+export const CONTRIBUTION_FAB_INERTIA_MAX = 240;
 export const CONTRIBUTION_FAB_POSITION_KEY = 'contribution-fab-position';
 
 export type ContributionFabBounds = {
@@ -88,6 +91,7 @@ export function clampContributionFabPosition(
   y: number,
   bounds: ContributionFabBounds,
 ): ContributionFabPoint {
+  'worklet';
   return {
     x: Math.min(bounds.maxX, Math.max(bounds.minX, x)),
     y: Math.min(bounds.maxY, Math.max(bounds.minY, y)),
@@ -126,6 +130,7 @@ export function snapContributionFabToEdge(
   bounds: ContributionFabBounds,
   velocityX = 0,
 ): ContributionFabPoint {
+  'worklet';
   const side = contributionFabSide(x, bounds, velocityX);
   return clampContributionFabPosition(side === 'left' ? bounds.minX : bounds.maxX, y, bounds);
 }
@@ -154,6 +159,14 @@ export function resolveContributionFabRelease(
   const peeked = pushedPastDock || shoveOffScreen || alreadyPeeked;
   const nextY = Math.min(bounds.maxY, Math.max(bounds.minY, y));
   return { x: peeked ? peekX : dockedX, y: nextY, peeked };
+}
+
+export function contributionFabInertiaVelocity(velocity: number): number {
+  'worklet';
+  const scaled = velocity * CONTRIBUTION_FAB_INERTIA_SCALE;
+  if (scaled > CONTRIBUTION_FAB_INERTIA_MAX) return CONTRIBUTION_FAB_INERTIA_MAX;
+  if (scaled < -CONTRIBUTION_FAB_INERTIA_MAX) return -CONTRIBUTION_FAB_INERTIA_MAX;
+  return scaled;
 }
 
 export function parseContributionFabStoredPosition(raw: string | null): ContributionFabStoredPosition | null {

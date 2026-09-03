@@ -31,6 +31,12 @@ export const Motion = {
       stiffness: 170,
       mass: 1,
     } satisfies WithSpringConfig,
+    inertial: {
+      damping: 18,
+      stiffness: 210,
+      mass: 0.85,
+      overshootClamping: true,
+    } satisfies WithSpringConfig,
   },
 
   transform: {

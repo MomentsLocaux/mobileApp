@@ -30,7 +30,8 @@ import {
   WandSparkles,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
+import { BrandLogoSpinner } from '@/components/ui';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -281,7 +282,7 @@ export default function TabsLayout() {
     return (
       <View style={styles.container}>
         <IdentityAppBackground />
-        <ActivityIndicator size="large" color={accent.accent} />
+        <BrandLogoSpinner size={80} accessibilityLabel="Chargement de l'application" />
       </View>
     );
   }

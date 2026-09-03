@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  CONTRIBUTION_FAB_INERTIA_MAX,
   CONTRIBUTION_FAB_SIZE,
   clampContributionFabDragPosition,
   clampContributionFabPosition,
+  contributionFabInertiaVelocity,
   defaultContributionFabPosition,
   getContributionFabAccessibilityLabel,
   getContributionFabBounds,
@@ -180,6 +182,14 @@ test('restore keeps a peeked FAB peeked after rotation', () => {
   const restored = restoreContributionFabPosition(stored, landscape);
   assert.equal(restored.peeked, true);
   assert.equal(restored.x, landscape.peekMinX);
+});
+
+test('inertia velocity is a short follow-through, not the raw fling', () => {
+  assert.ok(contributionFabInertiaVelocity(900) < 250);
+  assert.ok(contributionFabInertiaVelocity(900) > 0);
+  assert.equal(contributionFabInertiaVelocity(4000), CONTRIBUTION_FAB_INERTIA_MAX);
+  assert.equal(contributionFabInertiaVelocity(-4000), -CONTRIBUTION_FAB_INERTIA_MAX);
+  assert.equal(contributionFabInertiaVelocity(0), 0);
 });
 
 

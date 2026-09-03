@@ -1,16 +1,15 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { MapPin, type LucideIcon } from 'lucide-react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { BrandLogoSpinner } from './BrandLogoSpinner';
 import { MotionReveal } from './MotionReveal';
 
 type Props = {
   title: string;
   subtitle?: string;
-  icon?: LucideIcon;
 };
 
-export function DiscoveryLoadingState({ title, subtitle, icon: LoadingIcon = MapPin }: Props) {
+export function DiscoveryLoadingState({ title, subtitle }: Props) {
   return (
     <MotionReveal style={styles.reveal}>
       <View
@@ -20,12 +19,7 @@ export function DiscoveryLoadingState({ title, subtitle, icon: LoadingIcon = Map
         accessibilityLabel={title}
         accessibilityLiveRegion="polite"
       >
-        <View style={styles.spinnerShell}>
-          <ActivityIndicator size="large" color={colors.brand.secondary} />
-          <View style={styles.pinBadge} pointerEvents="none">
-            <LoadingIcon size={16} color={colors.brand.secondary} strokeWidth={2.5} />
-          </View>
-        </View>
+        <BrandLogoSpinner accessibilityLabel={title} />
 
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -42,31 +36,13 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.brand.surface,
     borderWidth: 1,
     borderColor: colors.neutral[200],
-  },
-  spinnerShell: {
-    width: 68,
-    height: 68,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  pinBadge: {
-    position: 'absolute',
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.surfaceMuted,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.4)',
   },
   title: {
     ...typography.h5,
