@@ -644,20 +644,6 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
         {styleReady ? (
         <Mapbox.ShapeSource id="selected-event-source" shape={selectedEventShape}>
-          <Mapbox.CircleLayer
-            id="selected-event-halo"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              circleRadius: 20,
-              circleColor: colors.brand.secondary,
-              circleOpacity: 0.22,
-              circleStrokeWidth: 2.5,
-              circleStrokeColor: colors.brand.secondary,
-              circleStrokeOpacity: 0.9,
-              // Lift halo toward pin head (icon is bottom-anchored on the tip).
-              circleTranslate: [0, -16],
-            }}
-          />
           <Mapbox.SymbolLayer
             id="selected-event-marker"
             filter={['!', ['has', 'point_count']]}
