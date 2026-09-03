@@ -436,10 +436,10 @@ function CreateEventPreviewInner() {
           accessibilityLabel="Soumettre pour validation"
         >
           {submitting ? (
-            <ActivityIndicator color="#0f1719" />
+            <ActivityIndicator color={colors.brand.onAccent} />
           ) : (
             <>
-              <Rocket size={20} color="#0f1719" />
+              <Rocket size={20} color={colors.brand.onAccent} />
               <Text style={styles.publishText}>Soumettre pour validation</Text>
             </>
           )}
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
   },
   publishText: {
     ...typography.body,
-    color: '#0f1719',
+    color: colors.brand.onAccent,
     fontWeight: '700',
   },
   missingHint: {

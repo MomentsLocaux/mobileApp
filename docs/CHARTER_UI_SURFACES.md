@@ -26,6 +26,8 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Surface | Path(s) | Watch for |
 |---------|---------|-----------|
 | Loading spinners | `BrandLogoSpinner` on Home / Favoris / Membres / tab bootstrap; other `ActivityIndicator` keep `colors.brand.secondary` | No Lucide overlay on the discovery loader; legacy `primary[600]` / `#0f1719` |
+| Shared button spinner | `src/components/ui/Button.tsx` | Spinner takes the `${variant}Text` color, so it stays legible on the leaf fill; never white on `brand.secondary` (SCRUM-68) |
+| Create / preview publish CTA | `src/components/events/CreateEventStepper.tsx`, `app/events/create/preview.tsx`, `app/events/create/step-1.tsx`, `step-2.tsx` | Leaf fill with `brand.onAccent` label, icon and spinner; not `#0f1719` (SCRUM-68) |
 | Loading encarts (« on prépare… ») | `DiscoveryLoadingState`, `favorites` loading card, `ProposalLoadingState` | Dark `rgba(26,36,38)` panels + ink text = unreadable; use `surface` / `surfaceMuted`; `BrandLogoSpinner` fill loop, no Lucide badge |
 | Bug report form | `app/bug-report.tsx` | Form panel / chips contrast |
 | Contribution FAB | `src/components/events/ContributionFab.tsx`, `app/(tabs)/_layout.tsx` | Leaf fill, `onAccent` plus, mint border; draggable chat-head with throw inertia, then snap or peek on the left/right edge above the tab bar |
