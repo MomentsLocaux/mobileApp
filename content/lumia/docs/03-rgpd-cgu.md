@@ -32,10 +32,10 @@ Email (Auth), profil, favoris, likes, follows, commentaires, signalements, bug r
 ## Assistant Lumia (si activé dans le build)
 
 - Les messages du chat **ne sont pas enregistrés** en base Moments Locaux.
-- Ils restent en mémoire sur l’appareil pendant la session d’écran.
+- Ils restent sur l’appareil pour continuer la conversation après avoir quitté l’écran ; effacés à la déconnexion complète / suppression de compte.
 - Un **compteur de quota** (ex. 20 messages / mois) peut être stocké sans le texte des messages.
-- Pour répondre, la question peut être envoyée temporairement à un prestataire d’IA.
-- **Export de compte :** l’historique Lumia n’est **pas** inclus (non persisté).
+- Pour répondre, la question (et un court historique local) peut être envoyée temporairement à un prestataire d’IA.
+- **Export de compte :** l’historique Lumia n’est **pas** inclus (non persisté côté serveur).
 - Support / privacy : **hello@moments-locaux.com** — voir aussi [Politique de confidentialité](/settings/privacy/policy) et [CGU](/settings/legal/cgu).
 
 ## Suppression de compte

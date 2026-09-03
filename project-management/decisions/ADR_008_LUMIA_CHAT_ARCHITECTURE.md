@@ -59,7 +59,7 @@ Exactly **two** tools for MVP:
 
 `search_events` is the **only** source of event IDs. No inventing events from the LLM.
 
-Out of MVP: multi-tool agents, CMS non-dev, full conversation memory across sessions, pgvector-in-DB (optional later — draft migration exists).
+Out of MVP: multi-tool agents, CMS non-dev, **server-side** conversation memory, pgvector-in-DB (optional later — draft migration exists). Device-local history (no chat table) is in scope — SCRUM-155.
 
 ### Layer 4 — Guardrails
 

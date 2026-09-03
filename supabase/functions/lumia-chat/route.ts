@@ -10,7 +10,7 @@ const USAGE_HINT_RE =
   /\b(comment|ou\s+(est|trouver|ouvrir)|parametr|compte|cgu|rgpd|confidentialit|supprim(er)?(\s+mon)?\s+compte|signaler|favori|notification|abonnement|tarif|prix|offre|habitue|eclaireur|partenaire|diffuseur|c.?est\s+quoi)\b/i;
 
 const EVENT_HINT_RE =
-  /\b(concert|spectacle|expo|exposition|festival|marche|brocante|vide[\s-]?grenier|atelier|sortie|soiree|cinema|theatre|sport|match|rando|concerts?|evenement|moment|pres\s+de|aupr[eè]s|demain|aujourd.?hui|ce\s+week|weekend|cette\s+semaine|ce\s+soir|ce\s+week-end)\b/i;
+  /\b(concert|spectacle|expo|exposition|festival|marche|brocante|vide[\s-]?grenier|atelier|sortie|soiree|cinema|theatre|sport|match|rando|concerts?|evenement|moment|pres\s+de|aupr[eè]s|demain|aujourd.?hui|ce\s+week|weekend|cette\s+semaine|ce\s+soir|ce\s+week-end|quoi\s+faire|il\s+y\s+a\s+quoi|au\s+programme|agenda|activit)\b/i;
 
 const PLACE_HINT_RE = /\b(a|à|pres\s+de|près\s+de|sur|dans)\s+[a-zàâäéèêëïîôùûüç-]{3,}/i;
 
