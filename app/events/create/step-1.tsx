@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   },
   nextText: {
     ...typography.body,
-    color: '#0f1719', // Dark text on bright button
+    color: colors.brand.onAccent,
     fontWeight: '700',
   },
   content: {

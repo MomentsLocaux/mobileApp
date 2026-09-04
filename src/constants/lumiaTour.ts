@@ -124,7 +124,7 @@ export function buildLumiaTourSteps(opts: BuildOpts): LumiaTourStep[] {
       steps.push({
         id: 'headerChat',
         title: 'Moi, en haut à droite',
-        body: 'Une question ? Je suis aussi là, l’icône étincelle. On se parle quand tu veux.',
+        body: 'Une question ? Ce petit portrait, c’est moi. Tap dessus et on se parle quand tu veux.',
         target: 'headerChat',
         href: '/(tabs)',
       });
@@ -133,7 +133,7 @@ export function buildLumiaTourSteps(opts: BuildOpts): LumiaTourStep[] {
     steps.push({
       id: 'headerNotifications',
       title: 'Les notifications',
-      body: 'La cloche, juste à côté. Rien d’important ne te passe sous le nez.',
+      body: 'La cloche, en haut à droite. Rien d’important ne te passe sous le nez.',
       target: 'headerNotifications',
       href: '/(tabs)',
     });

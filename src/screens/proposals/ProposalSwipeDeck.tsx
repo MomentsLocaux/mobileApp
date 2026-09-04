@@ -35,7 +35,6 @@ import {
 } from '@/utils/event-card-display';
 import { distanceBetweenKm } from './proposal-filtering';
 import { getProposalCategoryLabel } from './proposal-category-display';
-import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import type { ProposalAnchor, ProposalDecision } from './proposal.types';
 
 type Props = {
@@ -196,7 +195,7 @@ export function ProposalSwipeDeck({
       </View>
 
       <Text style={styles.instruction}>Glisse à droite pour aimer · à gauche pour passer</Text>
-      <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.sm), paddingRight: CONTRIBUTION_FAB_STACK_SPACE }]}> 
+      <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TouchableOpacity
           style={[styles.actionButton, styles.passButton]}
           onPress={() => animateDecision('pass')}

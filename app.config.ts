@@ -49,11 +49,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSPhotoLibraryAddUsageDescription:
         'Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.',
       NSCameraUsageDescription:
-        'Moments Locaux utilise la caméra pour scanner les QR codes de check-in et prendre des photos d’événements.',
+        'Moments Locaux utilise la caméra pour prendre des photos d’événements et illustrer vos contributions.',
       NSLocationWhenInUseUsageDescription:
-        'Moments Locaux utilise votre position pour afficher les événements proches et valider les check-ins.',
+        'Moments Locaux utilise votre position pour afficher les événements proches de vous sur la carte.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
-        'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments en cours ou bientôt près de vous, et — si vous activez Discovery — pour enrichir vos suggestions. Vous pouvez désactiver ces options à tout moment.',
+        'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments en cours ou bientôt près de vous. Vous pouvez désactiver cette option à tout moment.',
       UIBackgroundModes: ['location', 'remote-notification'],
       NSFaceIDUsageDescription:
         'Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.',

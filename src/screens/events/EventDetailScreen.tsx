@@ -2266,6 +2266,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.lg,
+    marginBottom: spacing.lg,
   },
   statBox: {
     flex: 1,
@@ -2294,7 +2295,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.lg,
     marginBottom: spacing.lg,
     paddingVertical: 8,
   },

@@ -18,13 +18,24 @@ import Animated, {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+
 interface ButtonProps extends PressableProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: ButtonVariant;
   size?: 'small' | 'sm' | 'md' | 'lg';
   loading?: boolean;
   fullWidth?: boolean;
 }
+
+/** Mirrors the `${variant}Text` colors so the spinner reads like the label it replaces. */
+const spinnerColor: Record<ButtonVariant, string> = {
+  primary: colors.brand.onAccent,
+  secondary: colors.brand.text,
+  outline: colors.brand.secondary,
+  ghost: colors.brand.secondary,
+  danger: colors.secondaryAccent[500],
+};
 
 export const Button: React.FC<ButtonProps> = ({
   title,
@@ -78,9 +89,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' || variant === 'danger' ? colors.secondaryAccent[500] : colors.primary[600]}
-        />
+        <ActivityIndicator color={spinnerColor[variant]} />
       ) : (
         <Text style={[styles.text, styles[`${variant}Text`], styles[`${normalizedSize}Text`]]}>
           {title}
