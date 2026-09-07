@@ -221,7 +221,7 @@ PODS:
     - ZXingObjC/PDF417
   - ExpoClipboard (8.0.7):
     - ExpoModulesCore
-  - ExpoFileSystem (19.0.19):
+  - ExpoFileSystem (19.0.24):
     - ExpoModulesCore
   - ExpoFont (14.0.9):
     - ExpoModulesCore
@@ -2778,7 +2778,7 @@ SPEC CHECKSUMS:
   ExpoCalendar: b35805a0a9e3f46a4cef0cbfdf36673b4c973c63
   ExpoCamera: 2a87c210f8955350ea5c70f1d539520b2fc5d940
   ExpoClipboard: af650d14765f19c60ce2a1eaf9dfe6445eff7365
-  ExpoFileSystem: 77157a101e03150a4ea4f854b4dd44883c93ae0a
+  ExpoFileSystem: 8e87545aef1d8d31f244edbfdd0780df4e5bac2e
   ExpoFont: cf9d90ec1d3b97c4f513211905724c8171f82961
   ExpoHaptics: 807476b0c39e9d82b7270349d6487928ce32df84
   ExpoHead: 95a6ee0be1142320bccf07961d6a1502ded5d6ac
