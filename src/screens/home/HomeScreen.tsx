@@ -22,6 +22,7 @@ import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { withUpdatedLikeCount } from '@/utils/likes-count';
 import { sortEvents } from '@/utils/sort-events';
 import { colors, spacing, typography } from '@/constants/theme';
 import { features } from '@/config/features';
@@ -52,8 +53,13 @@ import {
   resolveSearchTemporalChoice,
   SEARCH_TEMPORAL_CHOICES,
 } from '@/utils/search-temporal-choice';
-import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import { isMapBoundsTooLargeError, listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { fetchDiscoverySearchEvents } from '@/utils/fetch-discovery-search-events';
+import {
+  isQueryTimeoutError,
+  SEARCH_CRITERIA_TIMEOUT_SUBTITLE,
+  SEARCH_CRITERIA_TIMEOUT_TITLE,
+} from '@/utils/query-timeout';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -416,12 +422,16 @@ export default function HomeScreen() {
           setSearchResults(filtered);
           setSearchError(null);
         }
-      } catch (error) {
-        console.warn('[Home] search failed', error);
-        if (!cancelled) {
-          setSearchResults([]);
-          setSearchError('Impossible de charger les résultats de recherche.');
-        }
+    } catch (error) {
+      console.warn('[Home] search failed', error);
+      if (!cancelled) {
+        setSearchResults([]);
+        setSearchError(
+          isMapBoundsTooLargeError(error) || isQueryTimeoutError(error)
+            ? SEARCH_CRITERIA_TIMEOUT_SUBTITLE
+            : 'Impossible de charger les résultats de recherche.'
+        );
+      }
       } finally {
         if (!cancelled) {
           setSearchLoading(false);
@@ -496,6 +506,13 @@ export default function HomeScreen() {
       try {
         const after = await toggleEventHeart(profile.id, event, before);
         syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+        const patch = (list: EventWithCreator[]) =>
+          withUpdatedLikeCount(list, event.id, before.isLiked, after.isLiked);
+        setMetaFeedEvents((prev) => patch(prev));
+        setSearchResults((prev) => patch(prev));
+        if (homeFeedCache) {
+          homeFeedCache = { ...homeFeedCache, events: patch(homeFeedCache.events) };
+        }
       } catch (e) {
         console.warn('toggle heart error', e);
       }
@@ -680,6 +697,9 @@ export default function HomeScreen() {
     ]
   );
 
+  const isSearchCriteriaTimeout =
+    showSearchResults && searchError === SEARCH_CRITERIA_TIMEOUT_SUBTITLE;
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { marginTop: insets.top }]}>
@@ -804,16 +824,26 @@ export default function HomeScreen() {
           ) : (showSearchResults ? searchError : metaFeedError) ? (
             <EmptyState
               icon={Search}
-              title="Chargement impossible"
+              title={isSearchCriteriaTimeout ? SEARCH_CRITERIA_TIMEOUT_TITLE : 'Chargement impossible'}
               subtitle={(showSearchResults ? searchError : metaFeedError) || 'Réessayez dans un instant.'}
-              ctaLabel="Réessayer"
+              ctaLabel={isSearchCriteriaTimeout ? 'Modifier la recherche' : 'Réessayer'}
               onCtaPress={() => {
+                if (isSearchCriteriaTimeout) {
+                  openSearch();
+                  return;
+                }
                 if (showSearchResults) {
                   useDiscoveryFiltersStore.getState().commitSearch();
-                } else {
-                  void loadMetaFeed(true);
+                  return;
                 }
+                void loadMetaFeed(true);
               }}
+              secondaryCtaLabel={isSearchCriteriaTimeout ? 'Réessayer' : undefined}
+              onSecondaryCtaPress={
+                isSearchCriteriaTimeout
+                  ? () => useDiscoveryFiltersStore.getState().commitSearch()
+                  : undefined
+              }
             />
           ) : showSearchResults ? (
             <EmptyState

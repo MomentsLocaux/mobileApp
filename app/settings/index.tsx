@@ -15,6 +15,8 @@ import {
   PlusCircle,
   Sparkles,
   ShieldCheck,
+  Download,
+  MapPin,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
@@ -178,6 +180,16 @@ export default function SettingsScreen() {
           icon={FileText}
           onPress={() => router.push('/settings/privacy/policy' as any)}
           noBorder
+        />
+        <SettingsRow
+          label="Visibilité de ma position"
+          icon={MapPin}
+          onPress={() => router.push('/settings/privacy/location' as any)}
+        />
+        <SettingsRow
+          label="Exporter mes données"
+          icon={Download}
+          onPress={() => router.push('/settings/privacy/export' as any)}
         />
         <SettingsRow
           label="Supprimer mon compte"

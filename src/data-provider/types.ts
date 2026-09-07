@@ -24,6 +24,7 @@ export interface IDataProvider {
     rating?: number | null;
     parentCommentId?: string | null;
   }): Promise<CommentWithAuthor | null>;
+  updateComment(id: string, message: string): Promise<CommentWithAuthor | null>;
   deleteComment(id: string): Promise<boolean>;
 
   checkInEvent(eventId: string, lat: number, lon: number, token?: string): Promise<CheckInResult>;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ export default function CommunityProfileScreen() {
   const [followLoading, setFollowLoading] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [isAmbassadeur, setIsAmbassadeur] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const currentUserId = user?.id || session?.user?.id || profile?.id;
 
   const refreshFollowingState = React.useCallback(async () => {
@@ -104,6 +105,15 @@ export default function CommunityProfileScreen() {
     return parts.length ? parts.join(' • ') : 'Tous les événements';
   }, [dateFilter, visibilityFilter]);
 
+  const galleryUrls = useMemo(() => {
+    const urls = [member?.cover_url, ...events.map((evt) => evt.cover_url)].filter(
+      (url): url is string => typeof url === 'string' && url.trim().length > 0,
+    );
+    return Array.from(new Set(urls)).slice(0, 6);
+  }, [member?.cover_url, events]);
+
+  const coverWidth = Dimensions.get('window').width;
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -130,7 +140,31 @@ export default function CommunityProfileScreen() {
           <ArrowLeft size={20} color={colors.brand.text} />
           <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
-        {member.cover_url ? (
+        {galleryUrls.length > 1 ? (
+          <View style={styles.galleryWrap}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const next = Math.round(e.nativeEvent.contentOffset.x / coverWidth);
+                setGalleryIndex(next);
+              }}
+            >
+              {galleryUrls.map((url) => (
+                <Image key={url} source={{ uri: url }} style={[styles.cover, { width: coverWidth }]} />
+              ))}
+            </ScrollView>
+            <View style={styles.galleryDots}>
+              {galleryUrls.map((url, index) => (
+                <View
+                  key={url}
+                  style={[styles.galleryDot, index === galleryIndex && styles.galleryDotActive]}
+                />
+              ))}
+            </View>
+          </View>
+        ) : member.cover_url ? (
           <Image source={{ uri: member.cover_url }} style={styles.cover} />
         ) : (
           <View style={[styles.cover, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
@@ -186,8 +220,16 @@ export default function CommunityProfileScreen() {
 
       <View style={styles.statsRow}>
         <Stat label="Événements" value={member.events_created_count} />
-        <Stat label="Followers" value={member.followers_count} />
-        <Stat label="Suivis" value={member.following_count || 0} />
+        <Stat
+          label="Followers"
+          value={member.followers_count}
+          onPress={() => router.push(`/community/follows?userId=${member.user_id}&tab=followers` as any)}
+        />
+        <Stat
+          label="Suivis"
+          value={member.following_count || 0}
+          onPress={() => router.push(`/community/follows?userId=${member.user_id}&tab=following` as any)}
+        />
         {GAMIFICATION_ENABLED ? <Stat label="Engagement" value={member.lumo_total ?? 0} /> : null}
       </View>
 
@@ -271,12 +313,34 @@ export default function CommunityProfileScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={styles.statBox}>
+function Stat({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: number;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </>
+  );
+  if (!onPress) {
+    return <View style={styles.statBox}>{content}</View>;
+  }
+  return (
+    <TouchableOpacity
+      style={styles.statBox}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} : ${value}`}
+      activeOpacity={0.8}
+    >
+      {content}
+    </TouchableOpacity>
   );
 }
 
@@ -325,6 +389,27 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: 180,
+  },
+  galleryWrap: {
+    position: 'relative',
+  },
+  galleryDots: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  galleryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  galleryDotActive: {
+    backgroundColor: colors.brand.secondary,
   },
   headerOverlay: {
     alignItems: 'center',

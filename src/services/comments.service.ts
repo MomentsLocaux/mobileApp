@@ -12,4 +12,6 @@ export const CommentsService = {
   ): Promise<CommentWithAuthor | null> =>
     dataProvider.createComment({ eventId, authorId, message, rating, parentCommentId }),
   delete: (commentId: string): Promise<boolean> => dataProvider.deleteComment(commentId),
+  update: (commentId: string, message: string): Promise<CommentWithAuthor | null> =>
+    dataProvider.updateComment(commentId, message),
 };

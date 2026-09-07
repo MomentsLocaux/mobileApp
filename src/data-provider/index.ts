@@ -14,6 +14,7 @@ export const dataProvider: DataProvider = {
 
   listComments: (eventId) => supabaseProvider.listComments(eventId),
   createComment: (payload) => supabaseProvider.createComment(payload),
+  updateComment: (id, message) => supabaseProvider.updateComment(id, message),
   deleteComment: (id) => supabaseProvider.deleteComment(id),
 
   checkInEvent: async () => {

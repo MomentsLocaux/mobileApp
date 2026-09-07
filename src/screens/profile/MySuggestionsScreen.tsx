@@ -246,7 +246,7 @@ export default function MySuggestionsScreen() {
                           item.tone === 'danger' ? styles.noteLabelDanger : styles.noteLabelMuted,
                         ]}
                       >
-                        Retour de modération
+                        {item.statusLabel === 'Correctifs demandés' ? 'Correctifs demandés' : 'Retour de modération'}
                       </Text>
                       <Text style={styles.noteText}>{item.reviewNote}</Text>
                     </View>

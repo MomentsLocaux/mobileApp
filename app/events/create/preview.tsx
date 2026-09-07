@@ -27,12 +27,11 @@ import {
   isSameDayRange,
   validateEventSchedule,
 } from '@/utils/event-schedule';
-import MapboxGL from '@rnmapbox/maps';
+import { EventLocationPreviewMap } from '@/components/events/EventPreviewMiniMap';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { RequireCreateAccess } from '@/components/identity/RequireCreateAccess';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
-MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 const EDITABLE_EVENT_STATUSES = new Set(['draft', 'refused']);
 
@@ -405,23 +404,7 @@ function CreateEventPreviewInner() {
             <Text style={styles.description}>{description || 'Aucune description pour le moment.'}</Text>
 
             <View style={styles.mapBox}>
-              {location ? (
-                <MapboxGL.MapView
-                  style={StyleSheet.absoluteFill}
-                  styleURL={MapboxGL.StyleURL.Dark}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                >
-                  <MapboxGL.Camera zoomLevel={13} centerCoordinate={[location.longitude, location.latitude]} />
-                  <MapboxGL.PointAnnotation id="preview-marker" coordinate={[location.longitude, location.latitude]}>
-                    <View style={[styles.mapMarker, { backgroundColor: markerColor }]} />
-                  </MapboxGL.PointAnnotation>
-                </MapboxGL.MapView>
-              ) : (
-                <View style={styles.mapFallback} />
-              )}
+              <EventLocationPreviewMap location={location} />
             </View>
           </View>
         </View>
@@ -508,7 +491,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.md,
-    paddingBottom: spacing.xl * 2,
+    paddingBottom: 168,
     gap: spacing.md,
   },
   sectionTitle: {
@@ -605,18 +588,7 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  mapFallback: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  mapMarker: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 3,
-    borderColor: 'rgba(15,23,25,0.9)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
   footer: {
     padding: spacing.md,

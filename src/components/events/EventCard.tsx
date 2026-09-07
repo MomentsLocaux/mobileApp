@@ -21,7 +21,6 @@ import {
   Eye,
   Heart,
   MapPin,
-  Ticket,
 } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
@@ -40,12 +39,10 @@ import {
   getEventDescriptionPreview,
   getEventImageUrls,
   getEventLocationLabel,
-  getEventPriceLabel,
   getEventSocialProofLabel,
   getEventTemporalState,
   getHumanizedDate,
   isMeaningfulAccessLabel,
-  isMeaningfulPriceLabel,
   MIN_VIEWS_BADGE_THRESHOLD,
 } from '@/utils/event-card-display';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
@@ -119,26 +116,22 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const locationLabel = getEventLocationLabel(event);
   const distance = formatDistanceLabel(distanceKm, distanceLabel);
   const humanDate = getHumanizedDate(event);
-  const priceLabel = getEventPriceLabel(event);
   const accessLabel = getEventAccessLabel(event);
   const temporal = getEventTemporalState(event);
   const participating = isParticipating || Boolean(event.is_interested);
   const socialLabel = getEventSocialProofLabel(friendsGoingCount, event.likes_count || 0);
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
   const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
-  const showPriceBadge = isMeaningfulPriceLabel(priceLabel);
+  const showPriceBadge = false;
   const showAccessBadge = isMeaningfulAccessLabel(accessLabel);
   const showViewsBadge = viewCount >= MIN_VIEWS_BADGE_THRESHOLD;
-  const hasSocialProof =
-    (Number.isFinite(friendsGoingCount) && Number(friendsGoingCount) > 0) ||
-    (event.likes_count || 0) > 0;
 
   const showDescription = Boolean(description) && variant !== 'compact' && variant !== 'map-preview';
   const showSchedulePanel = variant === 'discovery' || variant === 'favorite';
   const showMetaBadges =
     variant !== 'map-preview' &&
     (showPriceBadge || showAccessBadge || showViewsBadge || temporal === 'cancelled');
-  const showSocial = variant !== 'compact' && hasSocialProof;
+  const showSocial = variant !== 'compact' && variant !== 'map-preview';
   const showFooter = variant === 'favorite';
   const canNavigate = Boolean(onNavigate);
   const heartActive = isLiked || isFavorite;
@@ -336,12 +329,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
           {showMetaBadges ? (
             <View style={styles.metaBadgesRow}>
-              {showPriceBadge ? (
-                <View style={styles.metaBadge}>
-                  <Ticket size={12} color={CARD_THEME.accent} />
-                  <Text style={styles.metaBadgeText}>{priceLabel}</Text>
-                </View>
-              ) : null}
               {showAccessBadge ? (
                 <View style={styles.metaBadge}>
                   <Calendar size={12} color={CARD_THEME.accent} />
@@ -360,10 +347,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 </View>
               ) : null}
             </View>
-          ) : null}
-
-          {humanDate.headline && showSchedulePanel ? (
-            <Text style={styles.headline}>{humanDate.headline}</Text>
           ) : null}
 
           {showSocial ? (
@@ -476,8 +459,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(26,51,41,0.12)',
   },
   body: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    gap: 6,
   },
   bodyCompact: {
     padding: spacing.sm,
@@ -532,14 +517,15 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   schedulePanel: {
-    width: '42%',
-    maxWidth: 156,
+    width: '38%',
+    maxWidth: 140,
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    padding: spacing.sm,
-    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    gap: 4,
   },
   scheduleBlock: {
     gap: 2,

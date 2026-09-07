@@ -9,6 +9,15 @@ const APP_VERSION = '1.0.0';
 const IOS_BUILD_NUMBER = '1';
 const ANDROID_VERSION_CODE = 1;
 
+const CAMERA_USAGE_FR =
+  'Moments Locaux utilise la caméra pour prendre des photos d’événements et illustrer vos contributions.';
+const LOCATION_WHEN_IN_USE_FR =
+  'Moments Locaux utilise votre position pour afficher les événements proches de vous sur la carte.';
+const LOCATION_ALWAYS_FR =
+  'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments en cours ou bientôt près de vous. Vous pouvez désactiver cette option à tout moment.';
+const CALENDAR_USAGE_FR =
+  'Moments Locaux peut proposer d’ajouter un événement à votre calendrier. L’ajout se confirme dans l’app Calendrier.';
+
 if (forbiddenPublicSecretKeys.length > 0) {
   throw new Error(
     `Refusing to build with public secret-like env keys: ${forbiddenPublicSecretKeys.join(', ')}`,
@@ -48,12 +57,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.',
       NSPhotoLibraryAddUsageDescription:
         'Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.',
-      NSCameraUsageDescription:
-        'Moments Locaux utilise la caméra pour prendre des photos d’événements et illustrer vos contributions.',
-      NSLocationWhenInUseUsageDescription:
-        'Moments Locaux utilise votre position pour afficher les événements proches de vous sur la carte.',
-      NSLocationAlwaysAndWhenInUseUsageDescription:
-        'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments en cours ou bientôt près de vous. Vous pouvez désactiver cette option à tout moment.',
+      NSCameraUsageDescription: CAMERA_USAGE_FR,
+      NSCalendarsUsageDescription: CALENDAR_USAGE_FR,
+      NSCalendarsFullAccessUsageDescription: CALENDAR_USAGE_FR,
+      NSCalendarsWriteOnlyAccessUsageDescription: CALENDAR_USAGE_FR,
+      NSLocationWhenInUseUsageDescription: LOCATION_WHEN_IN_USE_FR,
+      NSLocationAlwaysAndWhenInUseUsageDescription: LOCATION_ALWAYS_FR,
+      NSLocationAlwaysUsageDescription: LOCATION_ALWAYS_FR,
       UIBackgroundModes: ['location', 'remote-notification'],
       NSFaceIDUsageDescription:
         'Moments Locaux peut utiliser Face ID pour sécuriser la reconnexion à votre compte.',
@@ -75,6 +85,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.ACCESS_FINE_LOCATION',
       'android.permission.ACCESS_BACKGROUND_LOCATION',
       'android.permission.CAMERA',
+      'android.permission.READ_CALENDAR',
+      'android.permission.WRITE_CALENDAR',
       // Android 13+ runtime notification permission
       'android.permission.POST_NOTIFICATIONS',
       // Android 13+ requires READ_MEDIA_IMAGES instead of READ_EXTERNAL_STORAGE
@@ -96,10 +108,26 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-notifications',
     'expo-apple-authentication',
     [
+      'expo-camera',
+      {
+        cameraPermission: CAMERA_USAGE_FR,
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+    [
+      'expo-calendar',
+      {
+        calendarPermission: CALENDAR_USAGE_FR,
+        remindersPermission: false,
+      },
+    ],
+    [
       'expo-location',
       {
-        locationAlwaysAndWhenInUsePermission:
-          'Moments Locaux utilise votre position en arrière-plan pour vous prévenir des moments près de vous, et — si vous activez Discovery — pour enrichir vos suggestions. Vous pouvez désactiver ces options à tout moment.',
+        locationAlwaysAndWhenInUsePermission: LOCATION_ALWAYS_FR,
+        locationAlwaysPermission: LOCATION_ALWAYS_FR,
+        locationWhenInUsePermission: LOCATION_WHEN_IN_USE_FR,
         isAndroidBackgroundLocationEnabled: true,
         isIosBackgroundLocationEnabled: true,
       },

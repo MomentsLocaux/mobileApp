@@ -60,10 +60,10 @@ Le terme **SIT** n'est utilisé que lorsque c'est **réellement** votre source d
 
 - **Ouverture :** après le lancement de l'app
 - **Dès maintenant :** présenter vos événements et vos outils à l'équipe
-- **Contact :** hello@moments-locaux.com — « Parlons de vos événements »
+- **Contact :** même formulaire que le site — `https://moments-locaux.com/fr/contact?intent=diffuseur` (« Parlons de vos événements »)
 
 ## App mobile MVP (état technique)
 
 Le parcours pro in-app (`FEATURE_DIFFUSEUR`) peut être **désactivé** sur le build store-ready. La promesse site reste valide ; l'**onboarding self-service** arrive avec l'ouverture des espaces pro.
 
-Lumia oriente vers le **contact** si l'utilisateur veut candidater avant l'ouverture des espaces.
+Le CTA mobile (fiche agrégée « Moments Locaux ») ouvre le **même formulaire web** que le site, sans lead maison dans l'app.

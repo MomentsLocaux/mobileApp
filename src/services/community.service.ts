@@ -8,6 +8,15 @@ export type EventLikerProfile = {
   avatar_url: string | null;
 };
 
+export type FollowListMember = {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  city: string | null;
+};
+
+export type FollowListDirection = 'followers' | 'following';
+
 type PublicMemberProfile = {
   id: string;
   display_name: string | null;
@@ -30,6 +39,28 @@ const toCommunityMember = (profile: PublicMemberProfile): CommunityMember => ({
 });
 
 export const CommunityService = {
+  async listFollows(userId: string, direction: FollowListDirection): Promise<FollowListMember[]> {
+    if (!userId) return [];
+    const { data, error } = await supabase.rpc('list_profile_follows' as never, {
+      p_user_id: userId,
+      p_direction: direction,
+      p_limit: 80,
+    } as never);
+    if (error) {
+      const code = String((error as { code?: string }).code || '');
+      if (code !== 'PGRST202' && code !== '42883') throw error;
+      return [];
+    }
+    return ((data || []) as Array<{ user_id: string; display_name: string; avatar_url: string | null; city: string | null }>).map(
+      (row) => ({
+        user_id: row.user_id,
+        display_name: row.display_name || 'Membre',
+        avatar_url: row.avatar_url,
+        city: row.city,
+      }),
+    );
+  },
+
   async listMyFollowers(): Promise<Array<{ id: string; display_name: string; avatar_url: string | null }>> {
     const currentUser = (await supabase.auth.getUser()).data.user?.id;
     if (!currentUser) throw new Error('Not authenticated');

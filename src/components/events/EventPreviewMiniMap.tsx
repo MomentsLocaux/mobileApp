@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
@@ -15,10 +15,81 @@ type Props = {
   location?: EventLocation;
 };
 
+function hasValidCoordinates(location?: EventLocation): location is EventLocation {
+  return (
+    !!location &&
+    Number.isFinite(location.latitude) &&
+    Number.isFinite(location.longitude) &&
+    !(location.latitude === 0 && location.longitude === 0)
+  );
+}
+
+export function EventLocationPreviewMap({ location }: { location?: EventLocation }) {
+  const pin = hasValidCoordinates(location) ? location : undefined;
+  const pinShape = useMemo(
+    () =>
+      pin
+        ? {
+            type: 'FeatureCollection' as const,
+            features: [
+              {
+                type: 'Feature' as const,
+                id: 'preview-pin',
+                geometry: {
+                  type: 'Point' as const,
+                  coordinates: [pin.longitude, pin.latitude],
+                },
+                properties: {},
+              },
+            ],
+          }
+        : null,
+    [pin],
+  );
+
+  if (!pin || !pinShape) {
+    return (
+      <View style={[StyleSheet.absoluteFill, styles.mapPlaceholder]}>
+        <Text style={styles.mapPlaceholderText}>Lieu non renseigné</Text>
+      </View>
+    );
+  }
+
+  return (
+    <MapboxGL.MapView
+      style={StyleSheet.absoluteFill}
+      styleURL={MapboxGL.StyleURL.Street}
+      scrollEnabled={false}
+      zoomEnabled={false}
+      pitchEnabled={false}
+      rotateEnabled={false}
+    >
+      <MapboxGL.Camera zoomLevel={13} centerCoordinate={[pin.longitude, pin.latitude]} />
+      <MapboxGL.ShapeSource id="preview-pin-source" shape={pinShape}>
+        <MapboxGL.CircleLayer
+          id="preview-pin-halo"
+          style={{
+            circleRadius: 14,
+            circleColor: 'rgba(124, 181, 24, 0.28)',
+          }}
+        />
+        <MapboxGL.CircleLayer
+          id="preview-pin-dot"
+          style={{
+            circleRadius: 7,
+            circleColor: colors.brand.secondary,
+            circleStrokeWidth: 3,
+            circleStrokeColor: colors.brand.surface,
+          }}
+        />
+      </MapboxGL.ShapeSource>
+    </MapboxGL.MapView>
+  );
+}
+
 export const EventPreviewMiniMap = ({ coverUrl, title, dateLabel, category, city, location }: Props) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Aperçu</Text>
       <View style={styles.card}>
         <View style={styles.headerRow}>
           {coverUrl ? (
@@ -32,33 +103,11 @@ export const EventPreviewMiniMap = ({ coverUrl, title, dateLabel, category, city
             </Text>
             <Text style={styles.meta}>{dateLabel}</Text>
             <Text style={styles.meta}>{category || 'Catégorie'}</Text>
-            <Text style={styles.meta}>{city || 'Ville'}</Text>
+            <Text style={styles.meta}>{city || location?.addressLabel || 'Ville'}</Text>
           </View>
         </View>
         <View style={styles.mapBox}>
-          {location ? (
-            <MapboxGL.MapView
-              style={StyleSheet.absoluteFill}
-              styleURL={MapboxGL.StyleURL.Street}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <MapboxGL.Camera
-                zoomLevel={13}
-                centerCoordinate={[location.longitude, location.latitude]}
-              />
-              <MapboxGL.PointAnnotation
-                id="preview"
-                coordinate={[location.longitude, location.latitude]}
-              >
-                <View />
-              </MapboxGL.PointAnnotation>
-            </MapboxGL.MapView>
-          ) : (
-            <View style={[StyleSheet.absoluteFill, styles.mapPlaceholder]} />
-          )}
+          <EventLocationPreviewMap location={location} />
         </View>
       </View>
     </View>
@@ -68,11 +117,6 @@ export const EventPreviewMiniMap = ({ coverUrl, title, dateLabel, category, city
 const styles = StyleSheet.create({
   container: {
     gap: spacing.sm,
-  },
-  title: {
-    ...typography.body,
-    color: colors.neutral[900],
-    fontWeight: '700',
   },
   card: {
     borderRadius: borderRadius.lg,
@@ -98,20 +142,27 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     ...typography.body,
-    color: colors.neutral[900],
+    color: colors.brand.text,
     fontWeight: '700',
   },
   meta: {
     ...typography.caption,
-    color: colors.neutral[600],
+    color: colors.brand.textSecondary,
   },
   mapBox: {
-    height: 160,
+    height: 180,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surfaceMuted,
   },
   mapPlaceholder: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.brand.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapPlaceholderText: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
   },
 });

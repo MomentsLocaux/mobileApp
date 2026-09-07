@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   FlatList,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { Calendar, MapPin } from 'lucide-react-native';
+import { Calendar, MapPin, Trash2 } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
@@ -18,6 +19,7 @@ import type { EventWithCreator } from '@/types/database';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AppBackground, EventCardSkeleton, ScreenHeader } from '@/components/ui';
 import { isCommunitySuggestedEvent } from '@/utils/suggestion-history';
+import { hasNeedsChangesTag } from '@/constants/moderation-tags';
 
 type StatusMeta = {
   label: string;
@@ -177,10 +179,19 @@ export default function MyEventsScreen() {
               </View>
             }
             renderItem={({ item }) => {
-              const statusMeta = getModerationStatusMeta(item.status);
+              const needsChanges = item.status === 'refused' && hasNeedsChangesTag(item.tags);
+              const statusMeta = needsChanges
+                ? {
+                    label: 'Correctifs demandés',
+                    textColor: '#FCD34D',
+                    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+                  }
+                : getModerationStatusMeta(item.status);
               const temporalLabel = getTemporalLabel(item.starts_at, item.ends_at);
               const isEditable = item.status === 'draft' || item.status === 'refused';
               const isRefused = item.status === 'refused';
+              const canDelete =
+                item.status === 'draft' || item.status === 'refused' || item.status === 'pending';
               const refusalReason = item.refusal_reason?.trim() || null;
               const editHref = `/events/create?edit=${item.id}`;
 
@@ -219,7 +230,9 @@ export default function MyEventsScreen() {
 
                   {isRefused ? (
                     <View style={styles.refusalBox}>
-                      <Text style={styles.refusalLabel}>Motif du refus</Text>
+                      <Text style={styles.refusalLabel}>
+                        {needsChanges ? 'Correctifs demandés' : 'Motif du refus'}
+                      </Text>
                       <Text style={styles.refusalText}>
                         {refusalReason || 'Motif non précisé. Corrigez votre événement puis resoumettez-le.'}
                       </Text>
@@ -232,6 +245,37 @@ export default function MyEventsScreen() {
                         <Text style={styles.resubmitText}>Modifier et resoumettre</Text>
                       </TouchableOpacity>
                     </View>
+                  ) : null}
+
+                  {canDelete ? (
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => {
+                        Alert.alert(
+                          'Supprimer cet événement',
+                          'Cette action est définitive.',
+                          [
+                            { text: 'Annuler', style: 'cancel' },
+                            {
+                              text: 'Supprimer',
+                              style: 'destructive',
+                              onPress: () => {
+                                void EventsService.delete(item.id)
+                                  .then(() => loadEvents())
+                                  .catch(() => {
+                                    Alert.alert('Erreur', "Impossible de supprimer cet événement pour le moment.");
+                                  });
+                              },
+                            },
+                          ],
+                        );
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Supprimer l’événement"
+                    >
+                      <Trash2 size={14} color={colors.error[500]} />
+                      <Text style={styles.deleteText}>Supprimer</Text>
+                    </TouchableOpacity>
                   ) : null}
                 </TouchableOpacity>
               );
@@ -325,6 +369,19 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.primary,
     fontWeight: '800',
+  },
+  deleteBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 40,
+  },
+  deleteText: {
+    ...typography.caption,
+    color: colors.error[500],
+    fontWeight: '700',
   },
   centerState: {
     alignItems: 'center',

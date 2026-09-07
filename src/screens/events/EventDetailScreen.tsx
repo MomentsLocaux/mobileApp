@@ -29,10 +29,12 @@ import {
   Flag,
   Edit,
   ChevronLeft,
+  ChevronRight,
   Star,
   QrCode,
   Eye,
   PenLine,
+  Trash2,
 } from 'lucide-react-native';
 import {
   Button,
@@ -44,10 +46,16 @@ import {
   EventDetailSkeleton,
 } from '../../components/ui';
 import { features } from '@/config/features';
+import { getEventShareMessage } from '@/utils/event-share';
+import {
+  EVENT_CALENDAR_LABEL,
+  presentAddToDeviceCalendar,
+} from '@/utils/event-calendar';
 import {
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
   MOMENTS_LOCAUX_ORGANIZER_NAME,
+  isMomentsLocauxOrganizerFallback,
 } from '@/constants/branding';
 import Animated, {
   useAnimatedStyle,
@@ -61,7 +69,7 @@ import { Motion, createEnterTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { haptics } from '@/utils/haptics';
 import { EventsService } from '../../services/events.service';
-import { useAuth } from '../../hooks';
+import { useAccountIdentity, useAuth } from '../../hooks';
 import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import {
@@ -88,6 +96,7 @@ import { EarlyAccessService, type EarlyAccessTeaser } from '@/services/early-acc
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { EventCorrectionSheet } from '@/components/events/EventCorrectionSheet';
+import { EventPlatformOrganizerSheet } from '@/components/events/EventPlatformOrganizerSheet';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
@@ -95,6 +104,8 @@ import { useLikesStore } from '@/store/likesStore';
 import { getEventLiveWindow } from '@/utils/event-status';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { likesCountAfterHeartToggle } from '@/utils/likes-count';
+import { openDiffuseurContact } from '@/utils/open-website';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
@@ -155,6 +166,7 @@ export default function EventDetailScreen() {
   const { id, qr } = useLocalSearchParams<{ id: string; qr?: string }>();
   const router = useRouter();
   const { profile, session, isLoading: authLoading } = useAuth();
+  const { accountKind } = useAccountIdentity();
   const { hasHabitue } = useOfferEntitlements();
   const { currentLocation } = useLocationStore();
   const insets = useSafeAreaInsets();
@@ -169,6 +181,7 @@ export default function EventDetailScreen() {
   const bottomBarProgress = useSharedValue(0);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [navSheetVisible, setNavSheetVisible] = useState(false);
+  const [platformOrganizerSheetVisible, setPlatformOrganizerSheetVisible] = useState(false);
   const [communityPhotos, setCommunityPhotos] = useState<EventMediaSubmission[]>([]);
   const [loadingCommunityPhotos, setLoadingCommunityPhotos] = useState(false);
   const [contribModalVisible, setContribModalVisible] = useState(false);
@@ -187,6 +200,7 @@ export default function EventDetailScreen() {
   });
   const [qrScannerVisible, setQrScannerVisible] = useState(false);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [calendarBusy, setCalendarBusy] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [descriptionCanExpand, setDescriptionCanExpand] = useState(false);
@@ -207,11 +221,16 @@ export default function EventDetailScreen() {
 
   const isGuest = !session;
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
+  const isPlatformOrganizer = isMomentsLocauxOrganizerFallback(event?.creator);
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
   const canEditEvent =
     features.eventCreate &&
     isOwner &&
     (event?.status === 'draft' || event?.status === 'refused');
+  const canDeleteEvent =
+    features.eventCreate &&
+    isOwner &&
+    (event?.status === 'draft' || event?.status === 'refused' || event?.status === 'pending');
   const isEventLiked = event ? isLiked(event.id) : false;
   const isEventFavorited = event ? isFavorite(event.id) : false;
   const isEventHearted = isEventLiked || isEventFavorited;
@@ -525,9 +544,14 @@ export default function EventDetailScreen() {
               ...prev,
               is_liked: after.isLiked,
               is_favorited: after.isFavorite,
+              likes_count: likesCountAfterHeartToggle(prev.likes_count, before.isLiked, after.isLiked),
             }
           : null
       );
+      setEventStats((prev) => ({
+        ...prev,
+        likes: likesCountAfterHeartToggle(prev.likes, before.isLiked, after.isLiked),
+      }));
       await loadEventStats(event.id);
     } catch (error) {
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
@@ -695,8 +719,7 @@ export default function EventDetailScreen() {
     }
     if (!event) return;
     try {
-      const message = `${event.title}${event.external_url ? `\n${event.external_url}` : ''}`;
-      await Share.share({ message });
+      await Share.share({ message: getEventShareMessage(event.title, event.id, event.external_url) });
     } catch (err) {
       console.warn('share error', err);
     }
@@ -718,6 +741,31 @@ export default function EventDetailScreen() {
     }
     if (!event?.id || event.status !== 'published') return;
     setEventCorrectionVisible(true);
+  };
+
+  const handleDeleteEvent = () => {
+    if (!canDeleteEvent || !event?.id) return;
+    Alert.alert(
+      'Supprimer cet événement',
+      'Cette action est définitive. L’événement disparaîtra de tes listes.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await EventsService.delete(event.id);
+                router.replace('/profile/my-events' as any);
+              } catch (error) {
+                Alert.alert('Erreur', "Impossible de supprimer cet événement pour le moment.");
+              }
+            })();
+          },
+        },
+      ],
+    );
   };
 
   const handleReportEvent = async (reason: ReportReasonCode) => {
@@ -797,16 +845,6 @@ export default function EventDetailScreen() {
     router.push(`/events/echoes?id=${event.id}` as any);
   };
 
-  const formatDate = (date: string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
-
   const formatTime = (date: string) => {
     const d = new Date(date);
     return d.toLocaleTimeString('fr-FR', {
@@ -830,41 +868,37 @@ export default function EventDetailScreen() {
     [event?.price],
   );
 
-  const formatCalendarDate = (date: Date) => {
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  };
-
-  const openCalendar = async () => {
-    if (!event) return;
-    const start = new Date(event.starts_at);
-    if (isNaN(start.getTime())) return;
-    const end = event.ends_at ? new Date(event.ends_at) : start;
-    const endDate = isNaN(end.getTime()) || end < start ? start : end;
-
+  const calendarPayload = () => {
+    if (!event) return null;
     const locationLabel = [event.address, [event.postal_code, event.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris';
-    const calendarUrl =
-      'https://www.google.com/calendar/render' +
-      `?action=TEMPLATE&text=${encodeURIComponent(event.title || 'Événement')}` +
-      `&dates=${encodeURIComponent(`${formatCalendarDate(start)}/${formatCalendarDate(endDate)}`)}` +
-      `&details=${encodeURIComponent(event.description || '')}` +
-      `&location=${encodeURIComponent(locationLabel)}` +
-      `&ctz=${encodeURIComponent(timezone)}`;
-
-    await Linking.openURL(calendarUrl);
+    return {
+      id: event.id,
+      title: event.title || 'Événement',
+      description: event.description || '',
+      startsAt: event.starts_at,
+      endsAt: event.ends_at,
+      locationLabel,
+    };
   };
 
-  const confirmOpenCalendar = () => {
-    if (!event) return;
-    Alert.alert(
-      'Ajouter au calendrier',
-      `Voulez-vous créer un événement dans votre calendrier pour:\n${event.title}\nLe ${formatDate(event.starts_at)} à ${formatTime(event.starts_at)} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Créer', onPress: () => void openCalendar() },
-      ],
-    );
+  const handleAddToCalendar = async () => {
+    const payload = calendarPayload();
+    if (!payload || calendarBusy) return;
+    haptics.selection();
+    setCalendarBusy(true);
+    try {
+      const outcome = await presentAddToDeviceCalendar(payload);
+      if (outcome === 'saved') {
+        Toast.show({ type: 'success', text1: 'C’est noté dans votre agenda' });
+      } else if (outcome === 'opened') {
+        Toast.show({ type: 'success', text1: 'Votre agenda est ouvert' });
+      }
+    } catch (error) {
+      console.warn('add to calendar', error);
+      Alert.alert('Agenda', 'Impossible d’ouvrir votre calendrier pour le moment.');
+    } finally {
+      setCalendarBusy(false);
+    }
   };
 
   const openExternalUrl = async (value?: string | null) => {
@@ -1368,10 +1402,20 @@ export default function EventDetailScreen() {
             {canEditEvent ? (
               <FloatingPressable
                 style={styles.iconButton}
-                onPress={() => router.push(`/events/create/step-1?edit=${event.id}` as any)}
+                onPress={() => router.push(`/events/create?edit=${event.id}` as any)}
                 entranceDelay={120}
               >
                 <Edit size={20} color={colors.brand.secondary} />
+              </FloatingPressable>
+            ) : null}
+            {canDeleteEvent ? (
+              <FloatingPressable
+                style={styles.iconButton}
+                onPress={handleDeleteEvent}
+                entranceDelay={140}
+                accessibilityLabel="Supprimer l’événement"
+              >
+                <Trash2 size={20} color={colors.error[500]} />
               </FloatingPressable>
             ) : null}
             <FloatingPressable style={styles.iconButton} onPress={handleToggleHeart} entranceDelay={160}>
@@ -1558,37 +1602,48 @@ export default function EventDetailScreen() {
           ) : null}
 
           <MotionReveal delay={Motion.stagger.content * 2}>
-          <TouchableOpacity
-            style={styles.cardTouchable}
-            activeOpacity={0.85}
-            onPress={() => setCalendarExpanded((prev) => !prev)}
-          >
-            <Card padding="md" style={styles.infoCard}>
-              <View style={styles.infoRowNoMargin}>
-                <TouchableOpacity style={styles.infoIconWrap} onPress={confirmOpenCalendar} activeOpacity={0.85}>
-                  <Calendar size={20} color={colors.brand.secondary} />
-                </TouchableOpacity>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoDatePrimary}>{startDateTimeLabel}</Text>
-                  <Text style={styles.infoDateSecondary}>{endDateTimeLabel}</Text>
-                </View>
-                <View style={styles.priceBlock}>
-                  <Text style={styles.priceValue}>{formatPrice(event.price)}</Text>
-                  {hasTicketPrice ? <Text style={styles.priceHint}>PAR BILLET</Text> : null}
-                </View>
+          <Card padding="md" style={styles.infoCard}>
+            <TouchableOpacity
+              style={styles.infoRowNoMargin}
+              activeOpacity={0.85}
+              onPress={() => setCalendarExpanded((prev) => !prev)}
+            >
+              <View style={styles.infoIconWrap}>
+                <Calendar size={20} color={colors.brand.secondary} />
               </View>
-              {calendarExpanded ? (
-                <View style={styles.calendarExpandedWrap}>
-                  {calendarDetailLines.map((line, index) => (
-                    <View key={`${line.title}-${line.value}-${index}`} style={styles.calendarExpandedRow}>
-                      <Text style={styles.calendarExpandedTitle}>{line.title}</Text>
-                      <Text style={styles.calendarExpandedValue}>{line.value}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-            </Card>
-          </TouchableOpacity>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoDatePrimary}>{startDateTimeLabel}</Text>
+                <Text style={styles.infoDateSecondary}>{endDateTimeLabel}</Text>
+              </View>
+              <View style={styles.priceBlock}>
+                <Text style={styles.priceValue}>{formatPrice(event.price)}</Text>
+                {hasTicketPrice ? <Text style={styles.priceHint}>PAR BILLET</Text> : null}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.calendarCta}
+              activeOpacity={0.85}
+              disabled={calendarBusy}
+              onPress={() => void handleAddToCalendar()}
+              accessibilityRole="button"
+              accessibilityLabel={EVENT_CALENDAR_LABEL}
+            >
+              <Calendar size={16} color={colors.brand.secondary} />
+              <Text style={styles.calendarCtaText}>
+                {calendarBusy ? 'Ouverture de l’agenda…' : EVENT_CALENDAR_LABEL}
+              </Text>
+            </TouchableOpacity>
+            {calendarExpanded ? (
+              <View style={styles.calendarExpandedWrap}>
+                {calendarDetailLines.map((line, index) => (
+                  <View key={`${line.title}-${line.value}-${index}`} style={styles.calendarExpandedRow}>
+                    <Text style={styles.calendarExpandedTitle}>{line.title}</Text>
+                    <Text style={styles.calendarExpandedValue}>{line.value}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </Card>
           </MotionReveal>
 
           <MotionReveal delay={Motion.stagger.content * 3}>
@@ -1685,7 +1740,7 @@ export default function EventDetailScreen() {
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
-              <Eye size={20} color={colors.neutral[400]} style={{ marginBottom: 4 }} />
+              <Eye size={20} color={colors.brand.textSecondary} style={{ marginBottom: 4 }} />
               <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
             <View style={styles.statBox}>
@@ -1775,7 +1830,34 @@ export default function EventDetailScreen() {
           ) : null}
 
           <Card padding="md" style={styles.creatorCard}>
-            <View style={styles.creatorCardRow}>
+            {isPlatformOrganizer ? (
+              <TouchableOpacity
+                style={styles.creatorMain}
+                onPress={() => setPlatformOrganizerSheetVisible(true)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Organisateur Moments Locaux. En savoir plus."
+              >
+                {event.creator?.avatar_url ? (
+                  <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
+                ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
+                  <Image
+                    source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
+                    defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
+                    style={styles.creatorCardAvatar}
+                  />
+                ) : (
+                  <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
+                )}
+                <View style={styles.creatorCardInfo}>
+                  <Text style={styles.creatorCardName}>
+                    {event.creator?.display_name || MOMENTS_LOCAUX_ORGANIZER_NAME}
+                  </Text>
+                  <Text style={styles.creatorCardMeta}>Agenda public</Text>
+                </View>
+                <ChevronRight size={18} color={colors.brand.textSecondary} />
+              </TouchableOpacity>
+            ) : (
               <View style={styles.creatorMain}>
                 {event.creator?.avatar_url ? (
                   <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
@@ -1792,10 +1874,9 @@ export default function EventDetailScreen() {
                   <Text style={styles.creatorCardName}>
                     {event.creator?.display_name || MOMENTS_LOCAUX_ORGANIZER_NAME}
                   </Text>
-                  <Text style={styles.creatorCardMeta}>Source · OpenAgenda</Text>
                 </View>
               </View>
-            </View>
+            )}
           </Card>
 
           {features.socialPeers && peersEngaged.length > 0 ? (
@@ -1879,6 +1960,22 @@ export default function EventDetailScreen() {
         onOpenInAppMap={() => {
           setNavSheetVisible(false);
           router.push(`/(tabs)/map?focus=${event.id}` as any);
+        }}
+      />
+
+      <EventPlatformOrganizerSheet
+        visible={platformOrganizerSheetVisible}
+        showClaimCta={accountKind !== 'professionnel'}
+        onClose={() => setPlatformOrganizerSheetVisible(false)}
+        onClaim={() => {
+          setPlatformOrganizerSheetVisible(false);
+          void openDiffuseurContact({
+            name: profile?.display_name,
+            email: profile?.email ?? session?.user?.email,
+            eventTitle: event?.title,
+          }).catch(() => {
+            router.push('/settings/diffuseur' as any);
+          });
         }}
       />
 
@@ -2078,9 +2175,6 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     fontWeight: '700',
   },
-  cardTouchable: {
-    borderRadius: borderRadius.lg,
-  },
   infoCard: {
     marginBottom: 0,
   },
@@ -2137,6 +2231,24 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  calendarCta: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 181, 24,0.5)',
+    backgroundColor: 'rgba(124, 181, 24,0.12)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  calendarCtaText: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '700',
   },
   calendarExpandedWrap: {
     marginTop: spacing.sm,
@@ -2271,16 +2383,16 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     minWidth: (width - spacing.lg * 2 - spacing.sm * 2) / 3,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(124, 181, 24, 0.22)',
   },
   statBoxValue: {
-    color: '#FFF',
+    color: colors.brand.text,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -2385,10 +2497,6 @@ const styles = StyleSheet.create({
   },
   creatorCard: {
     marginBottom: spacing.lg,
-  },
-  creatorCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   creatorMain: {
     flexDirection: 'row',

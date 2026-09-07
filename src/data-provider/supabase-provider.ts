@@ -332,6 +332,7 @@ export const supabaseProvider: (Pick<
   | 'deleteEvent'
   | 'listComments'
   | 'createComment'
+  | 'updateComment'
   | 'deleteComment'
   | 'reportEvent'
   | 'reportComment'
@@ -856,6 +857,26 @@ export const supabaseProvider: (Pick<
     }
 
     return data as CommentWithAuthor;
+  },
+
+  async updateComment(id: string, message: string) {
+    const userId = await getAuthedUserId('updateComment');
+    const trimmed = message.trim();
+    if (!trimmed) throw formatSupabaseError('Message vide', 'updateComment');
+    const { data, error } = await supabase
+      .from('event_comments')
+      .update({ message: trimmed, updated_at: new Date().toISOString() } as any)
+      .eq('id', id)
+      .eq('author_id', userId)
+      .select(
+        `
+          *,
+          author:profiles!event_comments_author_id_fkey(*)
+        `,
+      )
+      .maybeSingle();
+    if (error) throw formatSupabaseError(error, 'updateComment');
+    return (data || null) as CommentWithAuthor | null;
   },
 
   async deleteComment(id: string) {
