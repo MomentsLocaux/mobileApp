@@ -148,13 +148,18 @@ export function isEventVerified(event: Pick<EventWithCreator, 'status'>): boolea
 
 export function getEventSocialProofLabel(
   friendsGoingCount?: number,
-  likesCount?: number
+  likesCount?: number,
+  options?: { isLiked?: boolean },
 ): string {
+  const likes = Number.isFinite(likesCount) ? Number(likesCount) : 0;
+  const effectiveLikes = options?.isLiked ? Math.max(likes, 1) : likes;
+
+  if (effectiveLikes > 0) {
+    return `${effectiveLikes} personne${effectiveLikes > 1 ? 's' : ''} aime${effectiveLikes > 1 ? 'nt' : ''}`;
+  }
+
   const friends = Number.isFinite(friendsGoingCount) ? Number(friendsGoingCount) : 0;
   if (friends > 0) return `${friends} ami·e·s aiment`;
-
-  const likes = Number.isFinite(likesCount) ? Number(likesCount) : 0;
-  if (likes > 0) return `${likes} personne${likes > 1 ? 's' : ''} aime${likes > 1 ? 'nt' : ''}`;
 
   return 'Soyez le premier à aimer';
 }

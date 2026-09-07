@@ -278,6 +278,23 @@ export default function FavoritesScreen() {
       syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
       const latest = useFavoritesStore.getState().favorites;
       replaceFavorites(withUpdatedLikeCount(latest, event.id, before.isLiked, after.isLiked));
+      const self = {
+        id: profile.id,
+        display_name: profile.display_name || 'Moi',
+        avatar_url: profile.avatar_url || null,
+        is_followed: false,
+      };
+      setEventCardStatsById((prev) => ({
+        ...prev,
+        [event.id]: EventCardStatsService.applyLikeToggle(
+          event.id,
+          before.isLiked,
+          after.isLiked,
+          self,
+          profile.id,
+          prev[event.id],
+        ),
+      }));
     } catch (error) {
       console.warn('favorites screen toggle heart error', error);
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
@@ -546,6 +563,8 @@ export default function FavoritesScreen() {
                 noBottomMargin
                 viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
                 friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
+                likesCount={eventCardStatsById[item.id]?.likesCount ?? item.likes_count ?? 0}
+                likers={eventCardStatsById[item.id]?.likers ?? []}
                 isHearted={favoritesSet.has(item.id) || likesSet.has(item.id)}
                 onPress={() => router.push(`/events/${item.id}` as any)}
                 onNavigate={() => setNavEvent(item)}

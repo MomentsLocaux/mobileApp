@@ -104,6 +104,17 @@ serve(async (req) => {
   if (!openaiRes.ok) {
     const errBody = await openaiRes.text();
     console.log('[generate-event-cover] openai error', openaiRes.status, errBody.slice(0, 500));
+    if (openaiRes.status === 401) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: 'openai_images_scope',
+          message:
+            'La génération d’image n’est pas autorisée sur la clé OpenAI du projet. Ajoute le droit Images, puis réessaie.',
+        },
+        503,
+      );
+    }
     return jsonResponse({ ok: false, message: 'La génération a échoué. Réessaie ou ajoute une photo.' }, 502);
   }
 

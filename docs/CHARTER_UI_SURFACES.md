@@ -41,9 +41,11 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Navigation (“Y aller”) sheet | `src/components/search/NavigationOptionsSheet.tsx` | Sheet bg + close + option rows |
 | Proposal wizard | `src/screens/proposals/ProposalWizard.tsx` | Category colors (not all leaf); geocode / radius chips |
 | Proposal deck distance chip | `src/screens/proposals/ProposalSwipeDeck.tsx` | Contrast on photo overlay |
-| Suggestion / create location preview | `EventPreviewMiniMap`, `app/events/create/preview.tsx` | Pin as Mapbox CircleLayer (not clipped PointAnnotation); map sits above the submit footer |
+| Suggestion / create location preview | `EventPreviewMiniMap`, `app/events/create/preview.tsx` | Pin as Mapbox CircleLayer; Camera `defaultSettings` + `onDidFinishLoadingMap` so Nyons is not Africa; map sits above the submit footer |
+| Follows list location maps | `app/community/follows.tsx` | Static Mapbox image only when RPC allows; otherwise “Position non partagée” |
+| Contact assistance | `app/contact.tsx` | Light settings form, leaf CTA, closed subjects matching website |
 | Map unit overlay close / heart | `src/components/search/MapEventUnitOverlay.tsx` | Croix **haut-droit**, cœur **bas-droit** (pills light) — pas les deux en haut |
-| Map event card footer | `src/components/events/EventCard.tsx` (`map-preview`) | Pure white footer → use muted surface |
+| EventCard social proof | `src/components/events/EventCard.tsx` | Liker avatar stack (follows first) + leaf count; empty copy only when 0 likes |
 | Map markers | `src/components/map/CategoryEventMarker.tsx` | Harsh white stroke / disc halo behind the pin head (SVG), not a ground disc |
 | Map selected marker | `src/components/map/MapWrapper.tsx` | Selection = enlarged pin only; no Mapbox `CircleLayer` halo at the pin tip |
 | Map user-location puck | `src/components/map/MapWrapper.tsx` | Keep the native `LocationPuck`; React `UserLocation` heading layers race with style reloads |
@@ -56,7 +58,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Onboarding text fields | `src/screens/onboarding/OnboardingScreen.tsx`, `OnboardingConnectorStep.tsx` | No `lineHeight` on `TextInput`; extra bottom padding so descenders (g/p/y) are not clipped |
 | Lumia chat | `src/screens/lumia/LumiaChatScreen.tsx` | Flag off = hidden; light bubbles, leaf send — no dark glass |
 | Lumia first-run tour | `src/components/lumia/LumiaTourOverlay.tsx` | Light surface card, leaf CTA, ink text — not a dark glass sheet |
-| Profile edit identity row | `src/screens/profile/ProfileEditScreen.tsx` | Hide “Profil : Particulier” |
+| Profile edit identity row | `src/screens/profile/ProfileEditScreen.tsx` | Hide “Profil : Particulier”; home location uses `LocationPickerModal` + leaf outline GPS CTA |
 | Community invite | `src/screens/community/CommunityScreen.tsx` | Header “Inviter un ami” |
 | Organizer avatar fallback | `src/constants/branding.ts` + assets | Keep in sync with app icon |
 | App / store icon | `assets/images/icon.png`, `icon-meta-1024.png`, `app.config.ts`, native AppIcon | Rebuild after asset change |

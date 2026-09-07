@@ -133,6 +133,7 @@ export default function RootLayout() {
         <Stack.Screen name="events" />
         <Stack.Screen name="notifications/index" />
         <Stack.Screen name="bug-report" />
+        <Stack.Screen name="contact" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="discovery" />
         <Stack.Screen name="contests" />

@@ -72,19 +72,33 @@ serve(async (req) => {
     .maybeSingle();
 
   if (recentReady?.storage_path) {
-    const { data: signed } = await supabase.storage
+    const { data: existing } = await supabase.storage
       .from('account-exports')
-      .createSignedUrl(recentReady.storage_path, EXPORT_TTL_HOURS * 3600);
-    if (signed?.signedUrl) {
-      return json({
-        success: true,
-        reused: true,
-        request_id: recentReady.id,
-        status: 'ready',
-        download_url: signed.signedUrl,
-        expires_at: recentReady.expires_at,
-        created_at: recentReady.created_at,
-      });
+      .download(recentReady.storage_path);
+    let isV2 = false;
+    if (existing) {
+      try {
+        const parsed = JSON.parse(await existing.text());
+        isV2 = parsed?.format === 'moments-locaux-account-export-v2';
+      } catch {
+        isV2 = false;
+      }
+    }
+    if (isV2) {
+      const { data: signed } = await supabase.storage
+        .from('account-exports')
+        .createSignedUrl(recentReady.storage_path, EXPORT_TTL_HOURS * 3600);
+      if (signed?.signedUrl) {
+        return json({
+          success: true,
+          reused: true,
+          request_id: recentReady.id,
+          status: 'ready',
+          download_url: signed.signedUrl,
+          expires_at: recentReady.expires_at,
+          created_at: recentReady.created_at,
+        });
+      }
     }
   }
 
@@ -119,8 +133,18 @@ serve(async (req) => {
       corrections,
       mediaSubmissions,
     ] = await Promise.all([
-      selectMaybe(supabase, 'profiles', '*', { column: 'id', value: user.id }),
-      selectMaybe(supabase, 'user_preferences', '*', { column: 'user_id', value: user.id }),
+      selectMaybe(
+        supabase,
+        'profiles',
+        'id, display_name, city, bio, avatar_url, cover_url, created_at',
+        { column: 'id', value: user.id },
+      ),
+      selectMaybe(
+        supabase,
+        'user_preferences',
+        'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_social, notify_radius_km, notify_frequency, notify_event_reminders, location_visibility, quiet_hours_start, quiet_hours_end, preferred_category_slugs, updated_at',
+        { column: 'user_id', value: user.id },
+      ),
       selectMaybe(supabase, 'events', 'id, title, description, city, address, starts_at, ends_at, status, visibility, submission_source, created_at', {
         column: 'creator_id',
         value: user.id,
@@ -142,16 +166,32 @@ serve(async (req) => {
       }),
     ]);
 
+    const preferenceRow = (preferences[0] ?? null) as Record<string, unknown> | null;
+    let homeLocation: { lat: number; lon: number } | null = null;
+    const { data: coords } = await supabase.rpc('get_home_location_coords', { p_user_id: user.id });
+    if (coords && typeof coords === 'object') {
+      const lat = Number((coords as { lat?: unknown }).lat);
+      const lon = Number((coords as { lon?: unknown }).lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        homeLocation = { lat, lon };
+      }
+    }
+
     const payload = {
       exported_at: now.toISOString(),
-      format: 'moments-locaux-account-export-v1',
+      format: 'moments-locaux-account-export-v2',
       account: {
         id: user.id,
         email: user.email ?? null,
         created_at: user.created_at ?? null,
       },
       profile: profile[0] ?? null,
-      preferences: preferences[0] ?? null,
+      preferences: preferenceRow
+        ? {
+            ...preferenceRow,
+            home_location: homeLocation,
+          }
+        : null,
       events_created: createdEvents,
       likes,
       favorites,

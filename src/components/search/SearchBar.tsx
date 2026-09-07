@@ -37,6 +37,10 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import { useLocationStore } from '@/store';
 import { fetchSearchPreviewEvents } from '@/utils/search-preview-events';
+import {
+  isQueryTimeoutError,
+  SEARCH_CRITERIA_TIMEOUT_SUBTITLE,
+} from '@/utils/query-timeout';
 import { buildSearchSummary } from '@/utils/search-summary';
 import {
   hasSearchCriteria as checkSearchCriteria,
@@ -113,7 +117,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const [loading, setLoading] = useState(false);
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [searchCount, setSearchCount] = useState<number | null>(null);
-  const [searchCountError, setSearchCountError] = useState(false);
+  const [searchCountError, setSearchCountError] = useState<'timeout' | 'error' | false>(false);
   const [countLoading, setCountLoading] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [searchMode, setSearchMode] = useState<'events' | 'members'>('events');
@@ -389,10 +393,10 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
           setSearchCount(filteredEvents.length);
           setSearchCountError(false);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setSearchCount(null);
-          setSearchCountError(true);
+          setSearchCountError(isQueryTimeoutError(error) ? 'timeout' : 'error');
         }
       } finally {
         if (!cancelled) {
@@ -448,8 +452,10 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
 
   const countLabel = countLoading
     ? 'Recherche...'
+    : searchCountError === 'timeout'
+      ? 'Affiner la recherche'
     : searchCountError
-      ? 'Résultats indisponibles'
+      ? 'Affiner la recherche'
     : searchCount !== null
       ? `Voir les ${searchCount} évènement${searchCount > 1 ? 's' : ''}`
       : 'Rechercher';
@@ -1079,9 +1085,11 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                 ) : null}
                 {combinationError ? (
                   <Text style={styles.zeroHint}>{combinationError}</Text>
+                ) : searchCountError === 'timeout' ? (
+                  <Text style={styles.zeroHint}>{SEARCH_CRITERIA_TIMEOUT_SUBTITLE}</Text>
                 ) : searchCountError ? (
                   <Text style={styles.zeroHint}>
-                    Impossible de prévisualiser les résultats. Vous pouvez réessayer.
+                    Trop de résultats correspondent. Affinez le lieu, les dates ou les mots-clés.
                   </Text>
                 ) : null}
                 <View style={styles.footer}>

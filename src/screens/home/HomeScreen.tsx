@@ -87,6 +87,8 @@ type HomeFeedEventItemProps = {
   event: EventWithCreator;
   viewsCount: number;
   friendsGoingCount: number;
+  likesCount: number;
+  likers: EventCardStats['likers'];
   isHearted: boolean;
   onPressEvent: (eventId: string) => void;
   onNavigateEvent: (event: EventWithCreator) => void;
@@ -97,6 +99,8 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
   event,
   viewsCount,
   friendsGoingCount,
+  likesCount,
+  likers,
   isHearted,
   onPressEvent,
   onNavigateEvent,
@@ -110,6 +114,8 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
       event={event}
       viewsCount={viewsCount}
       friendsGoingCount={friendsGoingCount}
+      likesCount={likesCount}
+      likers={likers}
       showCarousel={false}
       variant="discovery"
       onPress={onPress}
@@ -513,11 +519,28 @@ export default function HomeScreen() {
         if (homeFeedCache) {
           homeFeedCache = { ...homeFeedCache, events: patch(homeFeedCache.events) };
         }
+        const self = {
+          id: profile.id,
+          display_name: profile.display_name || 'Moi',
+          avatar_url: profile.avatar_url || null,
+          is_followed: false,
+        };
+        setEventCardStatsById((prev) => ({
+          ...prev,
+          [event.id]: EventCardStatsService.applyLikeToggle(
+            event.id,
+            before.isLiked,
+            after.isLiked,
+            self,
+            profile.id,
+            prev[event.id],
+          ),
+        }));
       } catch (e) {
         console.warn('toggle heart error', e);
       }
     },
-    [favoritesSet, likesSet, profile?.id, toggleFavorite, toggleLike]
+    [favoritesSet, likesSet, profile?.avatar_url, profile?.display_name, profile?.id, toggleFavorite, toggleLike]
   );
 
   const handlePressEvent = useCallback(
@@ -538,6 +561,8 @@ export default function HomeScreen() {
           event={item}
           viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}
           friendsGoingCount={eventCardStatsById[item.id]?.friendsGoingCount ?? 0}
+          likesCount={eventCardStatsById[item.id]?.likesCount ?? item.likes_count ?? 0}
+          likers={eventCardStatsById[item.id]?.likers ?? []}
           isHearted={likesSet.has(item.id) || favoritesSet.has(item.id)}
           onPressEvent={handlePressEvent}
           onNavigateEvent={handleNavigateEvent}

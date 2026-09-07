@@ -45,6 +45,11 @@ import {
   isMeaningfulAccessLabel,
   MIN_VIEWS_BADGE_THRESHOLD,
 } from '@/utils/event-card-display';
+import { useAuth } from '@/hooks';
+import {
+  mergeLikerPreviews,
+  type EventCardLikerPreview,
+} from '@/services/event-card-stats.service';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventImageCarousel } from './EventImageCarousel';
 
@@ -77,6 +82,8 @@ export interface EventCardProps {
   distanceLabel?: string | null;
   viewsCount?: number;
   friendsGoingCount?: number;
+  likesCount?: number;
+  likers?: EventCardLikerPreview[];
   showCarousel?: boolean;
   style?: ViewStyle;
   noBottomMargin?: boolean;
@@ -99,11 +106,14 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   distanceLabel,
   viewsCount = 0,
   friendsGoingCount = 0,
+  likesCount,
+  likers,
   showCarousel = true,
   style,
   noBottomMargin = false,
   mediaHeight: mediaHeightOverride,
 }) => {
+  const { profile } = useAuth();
   const [isSwiping, setIsSwiping] = useState(false);
 
   const images = useMemo(() => getEventImageUrls(event), [event.cover_url, event.media]);
@@ -119,7 +129,26 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const accessLabel = getEventAccessLabel(event);
   const temporal = getEventTemporalState(event);
   const participating = isParticipating || Boolean(event.is_interested);
-  const socialLabel = getEventSocialProofLabel(friendsGoingCount, event.likes_count || 0);
+  const resolvedLikesCount =
+    typeof likesCount === 'number' && Number.isFinite(likesCount)
+      ? likesCount
+      : event.likes_count || 0;
+  const socialLabel = getEventSocialProofLabel(friendsGoingCount, resolvedLikesCount, { isLiked });
+  const stackedLikers = useMemo(
+    () =>
+      mergeLikerPreviews(likers ?? [], {
+        isLiked,
+        self: profile?.id
+          ? {
+              id: profile.id,
+              display_name: profile.display_name || 'Moi',
+              avatar_url: profile.avatar_url || null,
+              is_followed: false,
+            }
+          : null,
+      }),
+    [isLiked, likers, profile?.avatar_url, profile?.display_name, profile?.id],
+  );
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
   const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
   const showPriceBadge = false;
@@ -350,7 +379,32 @@ const EventCardComponent: React.FC<EventCardProps> = ({
           ) : null}
 
           {showSocial ? (
-            <View style={styles.socialRow}>
+            <View
+              style={styles.socialRow}
+              accessibilityRole="text"
+              accessibilityLabel={socialLabel}
+            >
+              {stackedLikers.length > 0 ? (
+                <View style={styles.likerStack} accessible={false}>
+                  {stackedLikers.map((liker, index) => {
+                    const initial = (liker.display_name || '?').slice(0, 1).toUpperCase();
+                    return liker.avatar_url ? (
+                      <Image
+                        key={liker.id}
+                        source={{ uri: liker.avatar_url }}
+                        style={[styles.likerAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: stackedLikers.length - index }]}
+                      />
+                    ) : (
+                      <View
+                        key={liker.id}
+                        style={[styles.likerAvatar, styles.likerFallback, { marginLeft: index === 0 ? 0 : -8, zIndex: stackedLikers.length - index }]}
+                      >
+                        <Text style={styles.likerFallbackText}>{initial}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
               <Text style={styles.socialText}>{socialLabel}</Text>
             </View>
           ) : null}
@@ -606,6 +660,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  likerStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 4,
+  },
+  likerAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: CARD_THEME.surface,
+    backgroundColor: colors.brand.surfaceMuted,
+  },
+  likerFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  likerFallbackText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: CARD_THEME.text,
   },
   socialText: {
     fontSize: 12,
