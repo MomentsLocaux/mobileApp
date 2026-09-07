@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Star, Heart, Flag } from 'lucide-react-native';
+import { Star, Heart, Flag, Pencil, Trash2 } from 'lucide-react-native';
 import { AppBackground, Button, Card, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
@@ -23,7 +23,7 @@ export default function EventEchoesScreen() {
   const router = useRouter();
   const { profile, session } = useAuth();
   const isGuest = !session;
-  const { comments, loading: loadingComments, addComment, reload: reloadComments } = useComments(id || '');
+  const { comments, loading: loadingComments, addComment, reload: reloadComments, editComment, removeComment } = useComments(id || '');
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
   const [tab, setTab] = useState<'reviews' | 'organizer' | 'community'>('reviews');
@@ -40,6 +40,7 @@ export default function EventEchoesScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [reportCommentId, setReportCommentId] = useState<string | null>(null);
   const [reportedCommentIds, setReportedCommentIds] = useState<Set<string>>(new Set());
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
 
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
@@ -143,7 +144,10 @@ export default function EventEchoesScreen() {
     if (!commentText.trim()) return;
     setSubmittingComment(true);
     try {
-      if (replyTo) {
+      if (editingCommentId) {
+        await editComment(editingCommentId, commentText.trim());
+        setEditingCommentId(null);
+      } else if (replyTo) {
         await addComment(commentText.trim(), null, replyTo.id);
       } else {
         await addComment(commentText.trim(), commentRating ?? undefined);
@@ -158,6 +162,28 @@ export default function EventEchoesScreen() {
     } finally {
       setSubmittingComment(false);
     }
+  };
+
+  const handleStartEdit = (commentId: string, message: string) => {
+    setEditingCommentId(commentId);
+    setReplyTo(null);
+    setCommentRating(null);
+    setCommentText(message);
+  };
+
+  const handleDeleteOwnComment = (commentId: string) => {
+    Alert.alert('Supprimer ce commentaire', 'Cette action est définitive.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => {
+          void removeComment(commentId).catch(() => {
+            Alert.alert('Erreur', 'Impossible de supprimer ce commentaire pour le moment.');
+          });
+        },
+      },
+    ]);
   };
 
   const handleToggleCommentLike = async (commentId: string) => {
@@ -305,6 +331,24 @@ export default function EventEchoesScreen() {
                           {reportedCommentIds.has(comment.id) ? 'Signalé' : 'Signaler'}
                         </Text>
                       </TouchableOpacity>
+                      {profile?.id === comment.author_id ? (
+                        <>
+                          <TouchableOpacity
+                            style={styles.commentAction}
+                            onPress={() => handleStartEdit(comment.id, comment.message)}
+                          >
+                            <Pencil size={14} color={colors.brand.textSecondary} />
+                            <Text style={styles.commentActionText}>Modifier</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.commentAction}
+                            onPress={() => handleDeleteOwnComment(comment.id)}
+                          >
+                            <Trash2 size={14} color={colors.error[500]} />
+                            <Text style={[styles.commentActionText, { color: colors.error[500] }]}>Supprimer</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : null}
                     </View>
 
                     {replies.length > 0 ? (
@@ -348,6 +392,24 @@ export default function EventEchoesScreen() {
                                   {reportedCommentIds.has(reply.id) ? 'Signalé' : 'Signaler'}
                                 </Text>
                               </TouchableOpacity>
+                              {profile?.id === reply.author_id ? (
+                                <>
+                                  <TouchableOpacity
+                                    style={styles.commentAction}
+                                    onPress={() => handleStartEdit(reply.id, reply.message)}
+                                  >
+                                    <Pencil size={13} color={colors.brand.textSecondary} />
+                                    <Text style={styles.commentActionText}>Modifier</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.commentAction}
+                                    onPress={() => handleDeleteOwnComment(reply.id)}
+                                  >
+                                    <Trash2 size={13} color={colors.error[500]} />
+                                    <Text style={[styles.commentActionText, { color: colors.error[500] }]}>Supprimer</Text>
+                                  </TouchableOpacity>
+                                </>
+                              ) : null}
                             </View>
                           </View>
                         ))}
@@ -360,8 +422,20 @@ export default function EventEchoesScreen() {
 
             {!isGuest ? (
               <Card padding="md" style={styles.card}>
-                <Text style={styles.label}>Votre avis</Text>
-                {replyTo ? (
+                <Text style={styles.label}>{editingCommentId ? 'Modifier votre commentaire' : 'Votre avis'}</Text>
+                {editingCommentId ? (
+                  <View style={styles.replyContext}>
+                    <Text style={styles.replyContextText}>Modification en cours</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditingCommentId(null);
+                        setCommentText('');
+                      }}
+                    >
+                      <Text style={styles.replyCancel}>Annuler</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : replyTo ? (
                   <View style={styles.replyContext}>
                     <Text style={styles.replyContextText}>Réponse à {replyTo.name}</Text>
                     <TouchableOpacity onPress={() => setReplyTo(null)}>
@@ -388,7 +462,7 @@ export default function EventEchoesScreen() {
                   onChangeText={setCommentText}
                   multiline
                 />
-                <Button title="Publier" onPress={handleSubmitComment} loading={submittingComment} disabled={!commentText.trim()} fullWidth />
+                <Button title={editingCommentId ? 'Enregistrer' : 'Publier'} onPress={handleSubmitComment} loading={submittingComment} disabled={!commentText.trim()} fullWidth />
               </Card>
             ) : null}
           </>
@@ -469,6 +543,7 @@ const styles = StyleSheet.create({
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.md,
     marginTop: spacing.sm,
   },

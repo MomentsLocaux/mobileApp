@@ -4,6 +4,7 @@
  */
 
 import { bugReportPageLabel } from '../constants/bug-report-pages';
+import { hasNeedsChangesTag } from '../constants/moderation-tags';
 
 export const SUGGESTION_KINDS = [
   'event_suggest',
@@ -38,6 +39,7 @@ export type SuggestionEventInput = {
   refusal_reason?: string | null;
   created_at?: string | null;
   submission_source?: string | null;
+  tags?: string[] | null;
 };
 
 export type SuggestionCorrectionInput = {
@@ -137,7 +139,10 @@ function relatedTitle(
 
 export function eventSuggestToHistoryItem(event: SuggestionEventInput): SuggestionHistoryItem {
   const status = event.status ?? 'pending';
-  const meta = eventModerationStatusMeta(status);
+  const needsChanges = status === 'refused' && hasNeedsChangesTag(event.tags);
+  const meta = needsChanges
+    ? { label: 'Correctifs demandés', tone: 'pending' as const }
+    : eventModerationStatusMeta(status);
   const editable = status === 'draft' || status === 'refused';
   const place = event.city || event.address || null;
   return {

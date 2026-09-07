@@ -13,6 +13,8 @@ type Props = {
 };
 
 export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props) => {
+    const submissionSource = useCreateEventStore((s) => s.submissionSource);
+    const showOrganizerFields = submissionSource !== 'community_suggest';
     const category = useCreateEventStore((s) => s.category);
     const subcategory = useCreateEventStore((s) => s.subcategory);
     const visibility = useCreateEventStore((s) => s.visibility);
@@ -56,7 +58,9 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
         >
-            <Text style={styles.sectionTitle}>Catégorie & Visibilité</Text>
+            <Text style={styles.sectionTitle}>
+                {showOrganizerFields ? 'Catégorie & Visibilité' : 'Catégorie'}
+            </Text>
             <CategorySelector
                 selected={category}
                 subcategory={subcategory}
@@ -70,37 +74,40 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
                 }}
                 onSubcategoryLayout={registerSection('subcategory')}
             />
-            <View onLayout={registerSection('visibility')}>
-                <VisibilitySelector
-                    value={visibility}
-                    privateAudienceIds={privateAudienceIds}
-                    onChange={(next) => {
-                        setVisibility(next);
-                        if (next === 'public') setPrivateAudienceIds([]);
-                    }}
-                    onChangeAudience={setPrivateAudienceIds}
-                />
-                <View style={styles.togglesContainer}>
-                    <View style={styles.toggleRow}>
-                        <View>
-                            <Text style={styles.toggleLabel}>Places limitées</Text>
-                            <Text style={styles.toggleSubLabel}>Définir un nombre maximum de participants</Text>
+            {showOrganizerFields ? (
+                <View onLayout={registerSection('visibility')}>
+                    <VisibilitySelector
+                        value={visibility}
+                        privateAudienceIds={privateAudienceIds}
+                        onChange={(next) => {
+                            setVisibility(next);
+                            if (next === 'public') setPrivateAudienceIds([]);
+                        }}
+                        onChangeAudience={setPrivateAudienceIds}
+                    />
+                    <View style={styles.togglesContainer}>
+                        <View style={styles.toggleRow}>
+                            <View>
+                                <Text style={styles.toggleLabel}>Places limitées</Text>
+                                <Text style={styles.toggleSubLabel}>Définir un nombre maximum de participants</Text>
+                            </View>
+                            <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                                <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
+                            </View>
                         </View>
-                        <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
-                        </View>
-                    </View>
-                    <View style={styles.toggleRow}>
-                        <View>
-                            <Text style={styles.toggleLabel}>Inscription requise</Text>
-                            <Text style={styles.toggleSubLabel}>Valider chaque demande manuellement</Text>
-                        </View>
-                        <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
+                        <View style={styles.toggleRow}>
+                            <View>
+                                <Text style={styles.toggleLabel}>Inscription requise</Text>
+                                <Text style={styles.toggleSubLabel}>Valider chaque demande manuellement</Text>
+                            </View>
+                            <View style={[styles.switchTrack, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                                <View style={[styles.switchThumb, { transform: [{ translateX: 2 }] }]} />
+                            </View>
                         </View>
                     </View>
                 </View>
-            </View>
+            ) : null}
+            {showOrganizerFields ? (
             <View onLayout={registerSection('optional')}>
                 <OptionalInfoSection
                     price={price}
@@ -116,6 +123,7 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
                     }}
                 />
             </View>
+            ) : null}
         </ScrollView>
     );
 };

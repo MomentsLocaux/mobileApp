@@ -213,6 +213,8 @@ PODS:
     - ExpoModulesCore
   - ExpoBlur (15.0.7):
     - ExpoModulesCore
+  - ExpoCalendar (15.0.8):
+    - ExpoModulesCore
   - ExpoCamera (17.0.9):
     - ExpoModulesCore
     - ZXingObjC/OneD
@@ -2408,6 +2410,7 @@ DEPENDENCIES:
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
+  - ExpoCalendar (from `../node_modules/expo-calendar/ios`)
   - ExpoCamera (from `../node_modules/expo-camera/ios`)
   - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
@@ -2551,6 +2554,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-asset/ios"
   ExpoBlur:
     :path: "../node_modules/expo-blur/ios"
+  ExpoCalendar:
+    :path: "../node_modules/expo-calendar/ios"
   ExpoCamera:
     :path: "../node_modules/expo-camera/ios"
   ExpoClipboard:
@@ -2770,6 +2775,7 @@ SPEC CHECKSUMS:
   ExpoAppleAuthentication: 9413ae9a5e631a424cc04c1b13b0694dbab7d594
   ExpoAsset: d839c8eae8124470332408427327e8f88beb2dfd
   ExpoBlur: 2dd8f64aa31f5d405652c21d3deb2d2588b1852f
+  ExpoCalendar: b35805a0a9e3f46a4cef0cbfdf36673b4c973c63
   ExpoCamera: 2a87c210f8955350ea5c70f1d539520b2fc5d940
   ExpoClipboard: af650d14765f19c60ce2a1eaf9dfe6445eff7365
   ExpoFileSystem: 77157a101e03150a4ea4f854b4dd44883c93ae0a

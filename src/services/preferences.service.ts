@@ -6,6 +6,9 @@ import {
 
 export type NotifyFrequency = 'instant' | 'daily' | 'weekly';
 
+/** Social visibility of home_location (SCRUM-74). Nearby alerts stay separate. */
+export type LocationVisibility = 'nobody' | 'followers' | 'public';
+
 /** HH:MM:SS or HH:MM from Postgres `time`, or null when quiet hours off. */
 export type QuietTime = string | null;
 
@@ -31,10 +34,11 @@ export type UserPreferences = {
   quiet_hours_start: QuietTime;
   quiet_hours_end: QuietTime;
   preferred_category_slugs: string[];
+  location_visibility: LocationVisibility;
 };
 
 const PREF_FIELDS =
-  'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_rewards, notify_social, notify_radius_km, notify_frequency, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, discovery_max_push_per_week, max_push_per_day, quiet_hours_start, quiet_hours_end, preferred_category_slugs';
+  'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_rewards, notify_social, notify_radius_km, notify_frequency, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, discovery_max_push_per_week, max_push_per_day, quiet_hours_start, quiet_hours_end, preferred_category_slugs, location_visibility';
 
 // Mirrors the column defaults so a user without a row still sees sane values.
 export const DEFAULT_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
@@ -57,6 +61,7 @@ export const DEFAULT_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
   quiet_hours_start: null,
   quiet_hours_end: null,
   preferred_category_slugs: [],
+  location_visibility: 'nobody',
 };
 
 export const THEME_CHIP_LABELS: Record<CategoryVisualSlug, string> = CATEGORY_VISUAL_LABELS;
@@ -78,19 +83,26 @@ const normalizePrefs = (row: Record<string, unknown>, userId: string): UserPrefe
   preferred_category_slugs: Array.isArray(row.preferred_category_slugs)
     ? (row.preferred_category_slugs as string[])
     : [],
+  location_visibility:
+    row.location_visibility === 'followers' || row.location_visibility === 'public'
+      ? row.location_visibility
+      : 'nobody',
   max_push_per_day:
     typeof row.max_push_per_day === 'number' ? row.max_push_per_day : DEFAULT_PREFERENCES.max_push_per_day,
 });
 
 export const PreferencesService = {
   async getMine(userId: string): Promise<UserPreferences> {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select(PREF_FIELDS)
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message || 'Impossible de charger les préférences');
-    if (data) return normalizePrefs(data as Record<string, unknown>, userId);
+    const load = (fields: string) =>
+      supabase.from('user_preferences').select(fields).eq('user_id', userId).maybeSingle();
+
+    const primary = await load(PREF_FIELDS);
+    const result =
+      primary.error && /location_visibility/i.test(primary.error.message || '')
+        ? await load(PREF_FIELDS.replace(', location_visibility', ''))
+        : primary;
+    if (result.error) throw new Error(result.error.message || 'Impossible de charger les préférences');
+    if (result.data) return normalizePrefs(result.data as unknown as Record<string, unknown>, userId);
     return { user_id: userId, ...DEFAULT_PREFERENCES };
   },
 

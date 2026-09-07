@@ -25,10 +25,12 @@ import { Step3Content } from '@/components/events/steps/Step3Content';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
+import { EventDedupService } from '@/services/event-dedup.service';
 import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
-import { useEventsStore } from '@/store';
 import { EventSuggestEntryButton } from '@/components/events/EventSuggestEntryButton';
 import { eventScheduleModeToDb, isSameDayRange, operatingHoursFromDraft } from '@/utils/event-schedule';
+import { prefillCreateEventStore } from '@/utils/prefill-create-event-store';
+import { withoutNeedsChangesTag } from '@/constants/moderation-tags';
 
 const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 
@@ -66,6 +68,7 @@ export const CreateEventStepper = () => {
     const scheduleFixedSlots = useCreateEventStore((s) => s.scheduleFixedSlots);
     const scheduleVariableDays = useCreateEventStore((s) => s.scheduleVariableDays);
     const resetStore = useCreateEventStore((s) => s.reset);
+    const [editPrefill, setEditPrefill] = useState<'idle' | 'loading' | 'ready' | 'blocked'>('idle');
 
     const canProceedStep1 = useMemo(
         () => !!coverImage && formValid && !!title.trim() && !!startDate && !!location,
@@ -139,8 +142,46 @@ export const CreateEventStepper = () => {
         return idx !== -1 ? url.slice(idx + marker.length) : undefined;
     };
 
-    const handlePublish = async () => {
+    const handlePublish = async (options?: { skipDedup?: boolean }) => {
         if (!canPublish || !location || !startDate || !user) return;
+
+        if (!edit && !options?.skipDedup) {
+            try {
+                setSubmitting(true);
+                const duplicates = await EventDedupService.findSubmitDuplicates({
+                    title,
+                    startsAt: typeof startDate === 'string' ? startDate : new Date(startDate).toISOString(),
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                });
+                const top = duplicates[0];
+                if (top) {
+                    setSubmitting(false);
+                    Alert.alert(
+                        'Cet événement existe déjà',
+                        `« ${top.title} »${top.city ? ` à ${top.city}` : ''} ressemble à votre saisie.`,
+                        [
+                            { text: 'Annuler', style: 'cancel' },
+                            ...(top.status === 'published'
+                                ? [{
+                                    text: 'Voir la fiche',
+                                    onPress: () => router.push(`/events/${top.id}` as any),
+                                }]
+                                : []),
+                            {
+                                text: 'Signaler quand même',
+                                onPress: () => {
+                                    void handlePublish({ skipDedup: true });
+                                },
+                            },
+                        ],
+                    );
+                    return;
+                }
+            } catch (error) {
+                console.warn('dedup check', error);
+            }
+        }
 
         const activeImages = gallery
             .filter((g) => g.status !== 'removed' && g.publicUrl && g.publicUrl.trim().length > 0)
@@ -161,10 +202,11 @@ export const CreateEventStepper = () => {
 
         try {
             setSubmitting(true);
-            const contact_email = contact && contact.includes('@') ? contact : null;
-            const contact_phone = contact && !contact.includes('@') ? contact : null;
+            const isSuggest = submissionSource === 'community_suggest';
+            const contact_email = !isSuggest && contact && contact.includes('@') ? contact : null;
+            const contact_phone = !isSuggest && contact && !contact.includes('@') ? contact : null;
             let priceValue: number | null = null;
-            if (price) {
+            if (!isSuggest && price) {
                 const normalized = Number(price.replace(',', '.').replace(/[^0-9.-]/g, ''));
                 if (!Number.isNaN(normalized)) {
                     priceValue = normalized;
@@ -184,7 +226,7 @@ export const CreateEventStepper = () => {
                 description: description || '',
                 category: category as any,
                 subcategory: subcategory || null,
-                tags,
+                tags: withoutNeedsChangesTag(tags),
                 starts_at: startDate,
                 ends_at: endDate || null,
                 latitude: location.latitude,
@@ -192,8 +234,8 @@ export const CreateEventStepper = () => {
                 address: location.addressLabel,
                 city: location.city,
                 postal_code: location.postalCode,
-                visibility: visibility === 'public' ? 'public' : 'prive',
-                is_free: !price || price.toLowerCase().includes('gratuit'),
+                visibility: isSuggest || visibility === 'public' ? 'public' : 'prive',
+                is_free: isSuggest ? true : !price || price.toLowerCase().includes('gratuit'),
                 price: priceValue,
                 cover_url: finalCoverUrl,
                 max_participants: null,
@@ -231,7 +273,6 @@ export const CreateEventStepper = () => {
 
             resetStore();
             haptics.success();
-            const isSuggest = submissionSource === 'community_suggest';
             if (isSuggest && user?.id) {
               invalidateMySuggestionHistory(user.id);
             }
@@ -270,6 +311,33 @@ export const CreateEventStepper = () => {
     const getSubtitle = () => {
         return `Étape ${currentStep + 1} sur 3`;
     };
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!edit) {
+            setEditPrefill('ready');
+            return;
+        }
+        setEditPrefill('loading');
+        void prefillCreateEventStore(edit).then((result) => {
+            if (cancelled) return;
+            if (!result.ok) {
+                setEditPrefill('blocked');
+                Alert.alert(
+                    'Édition indisponible',
+                    result.reason === 'missing'
+                        ? 'Événement introuvable.'
+                        : 'Seuls les brouillons et les événements refusés peuvent être modifiés depuis l’app.',
+                    [{ text: 'OK', onPress: () => router.replace(`/events/${edit}` as any) }],
+                );
+                return;
+            }
+            setEditPrefill('ready');
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [edit, router]);
 
     useEffect(() => {
         const target = ((currentStep + 1) / 3) * 100;
@@ -319,7 +387,7 @@ export const CreateEventStepper = () => {
                         <TouchableOpacity
                             style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
                             disabled={!canPublish || submitting}
-                            onPress={handlePublish}
+                            onPress={() => void handlePublish()}
                             accessibilityRole="button"
                             accessibilityLabel="Soumettre pour validation"
                         >
@@ -399,6 +467,11 @@ export const CreateEventStepper = () => {
 
                 {/* Footer */}
                 {renderFooter()}
+                {editPrefill === 'loading' ? (
+                    <View style={styles.prefillOverlay}>
+                        <ActivityIndicator color={colors.brand.secondary} />
+                    </View>
+                ) : null}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -524,5 +597,11 @@ const styles = StyleSheet.create({
         ...typography.body,
         color: '#fff',
         fontWeight: '600',
+    },
+    prefillOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(15,23,25,0.45)',
     },
 });

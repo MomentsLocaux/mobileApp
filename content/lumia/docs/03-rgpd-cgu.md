@@ -17,6 +17,8 @@ Moments Locaux est soumis au droit français. Lumia **n’est pas un avocat** : 
 
 **Paramètres → Confidentialité & données**
 - [Politique de confidentialité](/settings/privacy/policy)
+- [Visibilité de ma position](/settings/privacy/location)
+- [Exporter mes données](/settings/privacy/export)
 - [Supprimer mon compte](/settings/privacy/delete)
 
 ## Contact
@@ -48,11 +50,11 @@ Les données privées sont supprimées ou anonymisées selon le flux prévu ; ce
 
 ## Export de données
 
-L’export structuré via un écran dédié peut être en cours de déploiement. En attendant : demande par email à hello@moments-locaux.com.
+Depuis [Exporter mes données](/settings/privacy/export) : demande → fichier JSON (profil, préférences, likes, favoris, abonnements, contributions). Le lien expire au bout de 24 h. L’historique Lumia n’est **pas** inclus.
 
 ## Géolocalisation
 
-Utilisée pour afficher les moments proches et certains check-ins (si flag activé). Dépend des autorisations système (Paramètres → Autorisations).
+Utilisée pour afficher les moments proches et certains check-ins (si flag activé). Dépend des autorisations système (Paramètres → Autorisations). Le partage social de la position se règle dans [Visibilité de ma position](/settings/privacy/location) (personne / abonnés / tout le monde). Les alertes de proximité restent un réglage Notifications séparé.
 
 ## Modération
 

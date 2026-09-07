@@ -4,6 +4,8 @@ import { Calendar, MapPin, Euro } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
 import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { getCategoryLabel } from '@/constants/categories';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 
 export const Step3Content = () => {
     const coverImage = useCreateEventStore((s) => s.coverImage);
@@ -13,6 +15,8 @@ export const Step3Content = () => {
     const description = useCreateEventStore((s) => s.description);
     const category = useCreateEventStore((s) => s.category);
     const price = useCreateEventStore((s) => s.price);
+    const categoriesMap = useTaxonomyStore((s) => s.categoriesMap);
+    const categoryLabel = categoriesMap[category || '']?.label || (category ? getCategoryLabel(category as any) : undefined);
 
     const dateLabel = useMemo(() => {
         if (!startDate) return '';
@@ -35,7 +39,7 @@ export const Step3Content = () => {
                     coverUrl={coverImage?.publicUrl}
                     title={title}
                     dateLabel={dateLabel}
-                    category={category}
+                    category={categoryLabel}
                     city={location?.city}
                     location={location}
                 />
@@ -66,19 +70,6 @@ export const Step3Content = () => {
                     {description ? <Text style={styles.description}>{description}</Text> : null}
                 </View>
             </View>
-
-            <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Simulation du fil</Text>
-            <View style={styles.feedSimulation}>
-                <View style={styles.feedHeader}>
-                    <View style={styles.feedAvatar} />
-                    <View style={{ gap: 2 }}>
-                        <View style={styles.feedNamePatch} />
-                        <View style={styles.feedTimePatch} />
-                    </View>
-                </View>
-                <View style={styles.feedImagePlaceholder} />
-                <View style={styles.feedTitlePatch} />
-            </View>
         </ScrollView>
     );
 };
@@ -86,7 +77,7 @@ export const Step3Content = () => {
 const styles = StyleSheet.create({
     content: {
         padding: spacing.md,
-        paddingBottom: spacing.xl * 3,
+        paddingBottom: 168,
     },
     sectionTitle: {
         ...typography.h6,
@@ -135,48 +126,5 @@ const styles = StyleSheet.create({
         ...typography.body,
         color: colors.brand.text,
         lineHeight: 22,
-    },
-    feedSimulation: {
-        backgroundColor: colors.brand.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        gap: spacing.md,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-    },
-    feedHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-    },
-    feedAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    feedNamePatch: {
-        width: 120,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    feedTimePatch: {
-        width: 80,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-    },
-    feedImagePlaceholder: {
-        width: '100%',
-        height: 180,
-        borderRadius: borderRadius.md,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-    },
-    feedTitlePatch: {
-        width: '80%',
-        height: 14,
-        borderRadius: 7,
-        backgroundColor: 'rgba(255,255,255,0.1)',
     },
 });

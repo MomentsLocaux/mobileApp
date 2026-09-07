@@ -14,7 +14,7 @@ import {
 const HISTORY_LIMIT = 50;
 
 const EVENT_SELECT =
-  'id, title, status, city, address, refusal_reason, created_at, submission_source';
+  'id, title, status, city, address, refusal_reason, created_at, submission_source, tags';
 const CORRECTION_SELECT =
   'id, kind, comment, status, review_note, created_at, event_id, duplicate_hint';
 const BUG_SELECT = 'id, category, description, page, status, created_at';

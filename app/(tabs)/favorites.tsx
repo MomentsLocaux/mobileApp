@@ -30,6 +30,7 @@ import { useFavoritesStore } from '@/store/favoritesStore';
 import type { EventWithCreator } from '@/types/database';
 import type { CommunityMember } from '@/types/community';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { withUpdatedLikeCount } from '@/utils/likes-count';
 import { useLikesStore } from '@/store/likesStore';
 import {
   DEFAULT_FAVORITE_TIME_FILTER,
@@ -275,6 +276,8 @@ export default function FavoritesScreen() {
     try {
       const after = await toggleEventHeart(profile.id, event, before);
       syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+      const latest = useFavoritesStore.getState().favorites;
+      replaceFavorites(withUpdatedLikeCount(latest, event.id, before.isLiked, after.isLiked));
     } catch (error) {
       console.warn('favorites screen toggle heart error', error);
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");

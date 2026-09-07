@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Camera, ImageIcon, Sparkles } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { RequireEventSuggestAccess } from '@/components/identity/RequireEventSuggestAccess';
+import { PosterAnalysisProgress } from '@/components/events/PosterAnalysisProgress';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
@@ -23,6 +23,7 @@ import {
   applyPosterDraftToCreateStore,
   mapPosterExtractionToStoreDraft,
 } from '@/utils/poster-extract-mapper';
+import type { PosterAnalysisStepId } from '@/utils/poster-analysis-progress';
 import {
   isEventSubmissionSource,
   type EventSubmissionSource,
@@ -58,17 +59,26 @@ function SuggestFromPosterContent() {
   const setScheduleVariableDays = useCreateEventStore((s) => s.setScheduleVariableDays);
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState<PosterAnalysisStepId>('prepare');
+  const [analysisComplete, setAnalysisComplete] = useState(false);
 
   const runAnalysis = useCallback(
     async (uri: string, mimeType?: string) => {
       if (!user?.id) return;
 
+      setAnalysisStep('prepare');
+      setAnalysisComplete(false);
       setAnalyzing(true);
       try {
         await loadTaxonomy();
         const taxonomy = useTaxonomyStore.getState();
 
-        const pipeline = await uploadAndExtractEventFromPoster(user.id, uri, mimeType);
+        const pipeline = await uploadAndExtractEventFromPoster(
+          user.id,
+          uri,
+          mimeType,
+          setAnalysisStep,
+        );
         if (!pipeline.ok) {
           const { result } = pipeline;
           if (result.code === 'quota_exceeded') {
@@ -107,6 +117,7 @@ function SuggestFromPosterContent() {
         }
 
         const { upload, extraction } = pipeline;
+        setAnalysisStep('place');
         const { draft, summary } = await mapPosterExtractionToStoreDraft(extraction.fields, {
           categories: taxonomy.categories,
           subcategories: taxonomy.subcategories,
@@ -115,6 +126,7 @@ function SuggestFromPosterContent() {
 
         resetStore();
         setSubmissionSource(resolvedSource);
+        setAnalysisStep('prefill');
         applyPosterDraftToCreateStore(
           draft,
           {
@@ -153,6 +165,8 @@ function SuggestFromPosterContent() {
           });
         }
 
+        setAnalysisComplete(true);
+        await new Promise((resolve) => setTimeout(resolve, 280));
         router.replace('/events/create');
       } catch (err) {
         console.warn('[suggest-from-poster]', err);
@@ -232,10 +246,7 @@ function SuggestFromPosterContent() {
         </View>
 
         {analyzing ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={colors.brand.secondary} />
-            <Text style={styles.loadingText}>Analyse en cours…</Text>
-          </View>
+          <PosterAnalysisProgress stepId={analysisStep} complete={analysisComplete} />
         ) : (
           <View style={styles.actions}>
             <TouchableOpacity style={styles.primaryBtn} onPress={onTakePhoto} accessibilityRole="button">
@@ -284,15 +295,6 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
   },
   subtitle: {
-    ...typography.body,
-    color: colors.neutral[600],
-  },
-  loadingBox: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xl,
-  },
-  loadingText: {
     ...typography.body,
     color: colors.neutral[600],
   },

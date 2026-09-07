@@ -52,7 +52,18 @@ export function useComments(eventId: string) {
     async (commentId: string) => {
       if (!currentUserId) throw new Error('Non authentifié');
       await CommentsService.delete(commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_comment_id !== commentId));
+    },
+    [currentUserId],
+  );
+
+  const editComment = useCallback(
+    async (commentId: string, message: string) => {
+      if (!currentUserId) throw new Error('Non authentifié');
+      const updated = await CommentsService.update(commentId, message);
+      if (updated) {
+        setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, ...updated } : c)));
+      }
     },
     [currentUserId],
   );
@@ -61,5 +72,14 @@ export function useComments(eventId: string) {
     loadComments();
   }, [loadComments]);
 
-  return { comments, loading, error, reload: loadComments, addComment, replyToComment, removeComment };
+  return {
+    comments,
+    loading,
+    error,
+    reload: loadComments,
+    addComment,
+    replyToComment,
+    removeComment,
+    editComment,
+  };
 }

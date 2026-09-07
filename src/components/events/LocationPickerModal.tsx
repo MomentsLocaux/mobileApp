@@ -122,7 +122,7 @@ export const LocationPickerModal = ({
       try {
         // Full address geocoding for event creation (street + place + locality).
         const res = await MapboxService.search(value, {
-          types: 'address,place,locality',
+          types: 'poi,address,place,locality',
         });
         if (seq !== searchSeq.current) return;
         setResults(res);
@@ -158,8 +158,9 @@ export const LocationPickerModal = ({
     onClose();
   };
 
-  const onDragEnd = async (coords: number[]) => {
+  const applyCoordinates = useCallback(async (coords: number[]) => {
     const [lon, lat] = coords;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
     setReverseLoading(true);
     try {
       const rev = await MapboxService.reverse(lat, lon);
@@ -172,14 +173,14 @@ export const LocationPickerModal = ({
     } finally {
       setReverseLoading(false);
     }
-  };
+  }, []);
 
   const content = (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Choisir un emplacement</Text>
-          <Text style={styles.helper}>Recherchez une adresse, puis affinez sur la carte si besoin.</Text>
+          <Text style={styles.helper}>Recherchez une adresse, ou posez le pin sur la carte pour remplir l’adresse.</Text>
         </View>
         <TouchableOpacity
           onPress={onClose}
@@ -257,13 +258,20 @@ export const LocationPickerModal = ({
         ) : null}
 
         <View style={styles.mapContainer}>
-          <MapboxGL.MapView style={StyleSheet.absoluteFill} styleURL={MapboxGL.StyleURL.Dark}>
+          <MapboxGL.MapView
+            style={StyleSheet.absoluteFill}
+            styleURL={MapboxGL.StyleURL.Dark}
+            onPress={(e) => {
+              const coords = (e?.geometry as { coordinates?: number[] } | undefined)?.coordinates;
+              if (coords) void applyCoordinates(coords);
+            }}
+          >
             <MapboxGL.Camera centerCoordinate={center} zoomLevel={selected ? 14 : 5} animationMode="flyTo" />
             <MapboxGL.PointAnnotation
               id="selected-point"
               coordinate={selected ? [selected.longitude, selected.latitude] : center}
               draggable={!!selected}
-              onDragEnd={(e) => onDragEnd(e.geometry.coordinates as number[])}
+              onDragEnd={(e) => void applyCoordinates(e.geometry.coordinates as number[])}
             >
               <View style={[styles.markerDot, { backgroundColor: markerColor }]} />
             </MapboxGL.PointAnnotation>
@@ -275,9 +283,9 @@ export const LocationPickerModal = ({
           ) : null}
         </View>
         {selected ? (
-          <Text style={styles.mapHint}>Déplacez le pin pour affiner l’adresse exacte.</Text>
+          <Text style={styles.mapHint}>Touchez la carte ou déplacez le pin pour affiner l’adresse exacte.</Text>
         ) : (
-          <Text style={styles.mapHint}>Sélectionnez un résultat pour afficher le point sur la carte.</Text>
+          <Text style={styles.mapHint}>Touchez la carte ou choisissez un résultat de recherche.</Text>
         )}
       </ScrollView>
 
