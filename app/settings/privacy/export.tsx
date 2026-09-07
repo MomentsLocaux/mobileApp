@@ -1,7 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Linking, Text, View, StyleSheet } from 'react-native';
+import { Alert, Linking, Text, View, StyleSheet, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Download, FileJson } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { Button } from '@/components/ui/Button';
@@ -69,20 +71,37 @@ export default function ExportDataScreen() {
 
   const openDownload = async () => {
     if (!downloadUrl) return;
-    const canOpen = await Linking.canOpenURL(downloadUrl);
-    if (!canOpen) {
-      Alert.alert('Téléchargement', 'Impossible d’ouvrir le fichier sur cet appareil.');
-      return;
+    try {
+      const fileUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}moments-locaux-export.json`;
+      const downloaded = await FileSystem.downloadAsync(downloadUrl, fileUri);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(downloaded.uri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Export Moments Locaux',
+          UTI: 'public.json',
+        });
+        return;
+      }
+      if (Platform.OS === 'web') {
+        await Linking.openURL(downloadUrl);
+        return;
+      }
+      Alert.alert('Fichier prêt', 'Le JSON a été enregistré dans le cache de l’app.');
+    } catch (error) {
+      console.warn('download export', error);
+      Alert.alert(
+        'Téléchargement',
+        error instanceof Error ? error.message : 'Impossible d’enregistrer le fichier sur cet appareil.',
+      );
     }
-    await Linking.openURL(downloadUrl);
   };
 
   return (
     <SettingsLayout title="Exporter mes données">
       <SettingsSectionCard title="Droit à la portabilité" icon={FileJson}>
         <Text style={styles.copy}>
-          Vous pouvez demander une copie JSON de votre compte : profil, préférences, événements créés,
-          likes, favoris, abonnements, commentaires et contributions.
+          Vous pouvez demander une copie JSON de votre compte : profil, préférences (sans données techniques internes),
+          événements créés, likes, favoris, abonnements, commentaires et contributions.
         </Text>
         <Text style={styles.hint}>
           Préparation en quelques secondes. Le lien de téléchargement expire au bout de 24 h.

@@ -39,9 +39,9 @@ export default function RegisterScreen() {
       legalAccepted?: string;
     } = {};
 
-    if (!email) {
+    if (!email.trim()) {
       newErrors.email = 'Email requis';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(email.trim())) {
       newErrors.email = 'Email invalide';
     }
 
@@ -83,20 +83,29 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!validate()) return;
 
-    const response = await signUp(email, password);
+    const response = await signUp(email.trim(), password);
     if (!response) {
       Alert.alert('Erreur', "Impossible de créer le compte. Vérifiez votre email et réessayez.");
       return;
     }
 
-    const alreadyRegistered =
-      typeof response.error === 'string' &&
-      response.error.toLowerCase().includes('already registered');
+    const alreadyRegistered = response.errorCode === 'email_already_registered';
+    if (alreadyRegistered) {
+      setErrors((current) => ({ ...current, email: 'Cet email est déjà utilisé' }));
+      Alert.alert(
+        'Compte existant',
+        response.error || 'Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.',
+        [
+          { text: 'Se connecter', onPress: () => router.replace('/auth/login') },
+          { text: 'Mot de passe oublié', onPress: () => router.push('/auth/forgot-password') },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
+      return;
+    }
 
-    // Supabase retourne souvent session null + user non confirmé => success true, mais require email
-    const requiresEmailConfirmation = response.success && !response.session;
-
-    if (requiresEmailConfirmation || alreadyRegistered) {
+    // Nouveau compte, confirmation email activée : session nulle jusqu’à validation du lien.
+    if (response.success && !response.session) {
       Alert.alert(
         'Vérification requise',
         'Un email de confirmation vous a été envoyé. Validez votre adresse puis connectez-vous. Pensez à vérifier vos spams si vous ne le voyez pas.',

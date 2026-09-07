@@ -16,17 +16,26 @@ import { AppBackground, EmptyState, ScreenHeader } from '@/components/ui';
 import { Users } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { CommunityService, type FollowListMember } from '@/services/community.service';
+import {
+  getVisibleHomeLocations,
+  type VisibleHomeLocation,
+} from '@/services/home-location.service';
+import { buildStaticMapUrl } from '@/utils/static-map-url';
+import { useAuth } from '@/hooks';
 
 type FollowTab = 'followers' | 'following';
 
 export default function CommunityFollowsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
   const params = useLocalSearchParams<{ userId?: string; tab?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId : '';
+  const isOwnList = !!profile?.id && profile.id === userId;
   const initialTab: FollowTab = params.tab === 'following' ? 'following' : 'followers';
   const [tab, setTab] = useState<FollowTab>(initialTab);
   const [members, setMembers] = useState<FollowListMember[]>([]);
+  const [locations, setLocations] = useState<Record<string, VisibleHomeLocation>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -37,9 +46,12 @@ export default function CommunityFollowsScreen() {
       try {
         const rows = await CommunityService.listFollows(userId, direction);
         setMembers(rows);
+        const coords = await getVisibleHomeLocations(rows.map((row) => row.user_id));
+        setLocations(coords);
       } catch (error) {
         console.warn('list follows', error);
         setMembers([]);
+        setLocations({});
       } finally {
         setLoading(false);
       }
@@ -64,7 +76,7 @@ export default function CommunityFollowsScreen() {
       <AppBackground />
       <View style={{ paddingTop: insets.top }}>
         <ScreenHeader
-          title={tab === 'followers' ? 'Abonnés' : 'Abonnements'}
+          title={isOwnList ? 'Ma communauté' : tab === 'followers' ? 'Abonnés' : 'Abonnements'}
           onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/community' as any))}
         />
       </View>
@@ -73,13 +85,17 @@ export default function CommunityFollowsScreen() {
           style={[styles.segment, tab === 'followers' && styles.segmentActive]}
           onPress={() => setTab('followers')}
         >
-          <Text style={[styles.segmentText, tab === 'followers' && styles.segmentTextActive]}>Abonnés</Text>
+          <Text style={[styles.segmentText, tab === 'followers' && styles.segmentTextActive]}>
+            {isOwnList ? 'Ceux qui me suivent' : 'Abonnés'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.segment, tab === 'following' && styles.segmentActive]}
           onPress={() => setTab('following')}
         >
-          <Text style={[styles.segmentText, tab === 'following' && styles.segmentTextActive]}>Abonnements</Text>
+          <Text style={[styles.segmentText, tab === 'following' && styles.segmentTextActive]}>
+            {isOwnList ? 'Ceux que je suis' : 'Abonnements'}
+          </Text>
         </TouchableOpacity>
       </View>
       {loading && members.length === 0 ? (
@@ -100,13 +116,19 @@ export default function CommunityFollowsScreen() {
               title={tab === 'followers' ? 'Aucun abonné' : 'Aucun abonnement'}
               subtitle={
                 tab === 'followers'
-                  ? 'Quand des membres suivront ce profil, ils apparaîtront ici.'
-                  : 'Les personnes suivies par ce profil apparaîtront ici.'
+                  ? isOwnList
+                    ? 'Quand des membres vous suivront, ils apparaîtront ici.'
+                    : 'Quand des membres suivront ce profil, ils apparaîtront ici.'
+                  : isOwnList
+                    ? 'Les personnes que vous suivez apparaîtront ici.'
+                    : 'Les personnes suivies par ce profil apparaîtront ici.'
               }
             />
           }
           renderItem={({ item }) => {
             const initial = (item.display_name || '?').slice(0, 1).toUpperCase();
+            const coords = locations[item.user_id];
+            const mapUrl = coords ? buildStaticMapUrl(coords.lat, coords.lon) : null;
             return (
               <TouchableOpacity
                 style={styles.row}
@@ -127,6 +149,11 @@ export default function CommunityFollowsScreen() {
                   <Text style={styles.meta} numberOfLines={1}>
                     {item.city || 'Ville non renseignée'}
                   </Text>
+                  {mapUrl ? (
+                    <Image source={{ uri: mapUrl }} style={styles.map} />
+                  ) : (
+                    <Text style={styles.hiddenLocation}>Position non partagée</Text>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -154,6 +181,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderRadius: borderRadius.md,
   },
   segmentActive: {
@@ -163,6 +191,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     fontWeight: '600',
+    textAlign: 'center',
   },
   segmentTextActive: {
     color: colors.brand.text,
@@ -179,7 +208,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -213,5 +242,17 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     marginTop: 2,
+  },
+  map: {
+    marginTop: spacing.sm,
+    width: '100%',
+    height: 88,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.brand.surfaceMuted,
+  },
+  hiddenLocation: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: spacing.xs,
   },
 });

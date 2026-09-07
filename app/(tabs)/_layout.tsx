@@ -13,6 +13,7 @@ import {
   Heart,
   Lightbulb,
   Bug,
+  Mail,
   Settings,
   LogOut,
   MapPinned,
@@ -565,6 +566,16 @@ export default function TabsLayout() {
                 }}
               />
             )}
+            {features.socialPeers && profile?.id ? (
+              <DrawerLink
+                icon={Users}
+                label="Ma communauté"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push(`/community/follows?userId=${profile.id}&tab=followers` as any);
+                }}
+              />
+            ) : null}
           </View>
 
           {/* Section: Compte */}
@@ -741,6 +752,14 @@ export default function TabsLayout() {
                 onPress={() => {
                   toggleDrawer(false);
                   router.push('/bug-report' as any);
+                }}
+              />
+              <DrawerLink
+                icon={Mail}
+                label="Contact"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/contact' as any);
                 }}
               />
             </View>

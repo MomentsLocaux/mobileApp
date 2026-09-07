@@ -403,7 +403,7 @@ function CreateEventPreviewInner() {
             <Text style={styles.descriptionLabel}>Description</Text>
             <Text style={styles.description}>{description || 'Aucune description pour le moment.'}</Text>
 
-            <View style={styles.mapBox}>
+            <View style={[styles.mapBox, { overflow: 'hidden' }]} collapsable={false}>
               <EventLocationPreviewMap location={location} />
             </View>
           </View>

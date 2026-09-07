@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
@@ -25,10 +25,20 @@ function hasValidCoordinates(location?: EventLocation): location is EventLocatio
 }
 
 export function EventLocationPreviewMap({ location }: { location?: EventLocation }) {
+  const cameraRef = useRef<MapboxGL.Camera>(null);
   const pin = hasValidCoordinates(location) ? location : undefined;
+  const pinLat = pin?.latitude;
+  const pinLon = pin?.longitude;
+  const center = useMemo(
+    () =>
+      typeof pinLat === 'number' && typeof pinLon === 'number'
+        ? ([pinLon, pinLat] as [number, number])
+        : null,
+    [pinLat, pinLon],
+  );
   const pinShape = useMemo(
     () =>
-      pin
+      pin && center
         ? {
             type: 'FeatureCollection' as const,
             features: [
@@ -37,17 +47,26 @@ export function EventLocationPreviewMap({ location }: { location?: EventLocation
                 id: 'preview-pin',
                 geometry: {
                   type: 'Point' as const,
-                  coordinates: [pin.longitude, pin.latitude],
+                  coordinates: center,
                 },
                 properties: {},
               },
             ],
           }
         : null,
-    [pin],
+    [center, pin],
   );
 
-  if (!pin || !pinShape) {
+  const applyCamera = useCallback(() => {
+    if (!center) return;
+    cameraRef.current?.setCamera({
+      centerCoordinate: center,
+      zoomLevel: 13,
+      animationDuration: 0,
+    });
+  }, [center]);
+
+  if (!pin || !pinShape || !center) {
     return (
       <View style={[StyleSheet.absoluteFill, styles.mapPlaceholder]}>
         <Text style={styles.mapPlaceholderText}>Lieu non renseigné</Text>
@@ -57,14 +76,26 @@ export function EventLocationPreviewMap({ location }: { location?: EventLocation
 
   return (
     <MapboxGL.MapView
+      key={`${center[0].toFixed(5)}-${center[1].toFixed(5)}`}
+      collapsable={false}
       style={StyleSheet.absoluteFill}
       styleURL={MapboxGL.StyleURL.Street}
       scrollEnabled={false}
       zoomEnabled={false}
       pitchEnabled={false}
       rotateEnabled={false}
+      onDidFinishLoadingMap={applyCamera}
+      onDidFinishLoadingStyle={applyCamera}
+      onLayout={applyCamera}
     >
-      <MapboxGL.Camera zoomLevel={13} centerCoordinate={[pin.longitude, pin.latitude]} />
+      <MapboxGL.Camera
+        ref={cameraRef}
+        defaultSettings={{ centerCoordinate: center, zoomLevel: 13 }}
+        centerCoordinate={center}
+        zoomLevel={13}
+        animationMode="moveTo"
+        animationDuration={0}
+      />
       <MapboxGL.ShapeSource id="preview-pin-source" shape={pinShape}>
         <MapboxGL.CircleLayer
           id="preview-pin-halo"
@@ -106,7 +137,7 @@ export const EventPreviewMiniMap = ({ coverUrl, title, dateLabel, category, city
             <Text style={styles.meta}>{city || location?.addressLabel || 'Ville'}</Text>
           </View>
         </View>
-        <View style={styles.mapBox}>
+        <View style={styles.mapBox} collapsable={false}>
           <EventLocationPreviewMap location={location} />
         </View>
       </View>

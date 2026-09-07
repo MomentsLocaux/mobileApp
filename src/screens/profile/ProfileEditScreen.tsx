@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,20 @@ import {
   ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { Upload, User as UserIcon } from 'lucide-react-native';
+import { MapPin, Upload, User as UserIcon } from 'lucide-react-native';
 import { AppBackground, Button, Input, ScreenHeader } from '../../components/ui';
+import { LocationPickerModal } from '@/components/events/LocationPickerModal';
 import { useAuth } from '../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '../../hooks/useAutoScrollOnFocus';
 import { ProfileService } from '../../services/profile.service';
+import { setHomeLocationFromCoords } from '@/services/push.service';
+import { getVisibleHomeLocation } from '@/services/home-location.service';
+import { MapboxService } from '@/services/mapbox.service';
+import type { EventLocation } from '@/hooks/useCreateEventStore';
+import type { Profile } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 
 export default function ProfileEditScreen() {
@@ -29,10 +36,35 @@ export default function ProfileEditScreen() {
   const [bio, setBio] = useState(profile?.bio || '');
   const [avatarUri, setAvatarUri] = useState(profile?.avatar_url || '');
   const [coverUri, setCoverUri] = useState(profile?.cover_url || '');
+  const [homeLocation, setHomeLocation] = useState<EventLocation | null>(null);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const coords = await getVisibleHomeLocation(profile.id);
+      if (cancelled || !coords) return;
+      const geo = await MapboxService.reverse(coords.lat, coords.lon);
+      if (cancelled) return;
+      setHomeLocation({
+        latitude: coords.lat,
+        longitude: coords.lon,
+        addressLabel: geo?.label || profile.city || 'Position enregistrée',
+        city: geo?.city || profile.city || '',
+        postalCode: geo?.postalCode || '',
+        country: geo?.country || 'FR',
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.city, profile?.id]);
 
   const handleSave = async () => {
     if (!user || !profile) return;
@@ -43,7 +75,7 @@ export default function ProfileEditScreen() {
     }
 
     setLoading(true);
-    const updates: any = {
+    const updates: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>> = {
       display_name: displayName,
       bio: bio || null,
     };
@@ -54,8 +86,19 @@ export default function ProfileEditScreen() {
     if (coverUri && coverUri !== profile.cover_url) {
       updates.cover_url = coverUri;
     }
+    if (homeLocation?.city) {
+      updates.city = homeLocation.city;
+    }
 
     const updatedProfile = await ProfileService.updateProfile(user.id, updates);
+    if (homeLocation && Number.isFinite(homeLocation.latitude) && Number.isFinite(homeLocation.longitude)) {
+      const saved = await setHomeLocationFromCoords(homeLocation.latitude, homeLocation.longitude);
+      if (!saved) {
+        setLoading(false);
+        Alert.alert('Lieu de référence', 'Le profil a été enregistré, mais le lieu n’a pas pu être mis à jour.');
+        return;
+      }
+    }
     setLoading(false);
 
     if (updatedProfile) {
@@ -66,6 +109,35 @@ export default function ProfileEditScreen() {
       router.back();
     } else {
       Alert.alert('Erreur', 'Impossible de mettre à jour le profil');
+    }
+  };
+
+  const handleUseCurrentPosition = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      let status = (await Location.getForegroundPermissionsAsync()).status;
+      if (status !== 'granted') {
+        status = (await Location.requestForegroundPermissionsAsync()).status;
+      }
+      if (status !== 'granted') {
+        Alert.alert('Position', 'Autorisez la localisation pour utiliser votre position actuelle.');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const geo = await MapboxService.reverse(pos.coords.latitude, pos.coords.longitude);
+      setHomeLocation({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        addressLabel: geo?.label || 'Ma position actuelle',
+        city: geo?.city || '',
+        postalCode: geo?.postalCode || '',
+        country: geo?.country || 'FR',
+      });
+    } catch {
+      Alert.alert('Position', 'Impossible de récupérer votre position actuelle.');
+    } finally {
+      setLocating(false);
     }
   };
 
@@ -265,6 +337,33 @@ export default function ProfileEditScreen() {
           onFocus={() => handleInputFocus('bio')}
         />
 
+        <Text style={styles.locationLabel}>Lieu de référence</Text>
+        <TouchableOpacity
+          style={styles.locationField}
+          onPress={() => setLocationModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Modifier le lieu de référence"
+        >
+          <MapPin size={18} color={colors.brand.secondary} />
+          <Text
+            style={[styles.locationValue, !homeLocation && !profile.city && styles.locationPlaceholder]}
+            numberOfLines={2}
+          >
+            {homeLocation?.addressLabel || profile.city || 'Choisir un lieu'}
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.locationHint}>
+          Ville ou quartier pour les événements autour de vous et les alertes à proximité.
+        </Text>
+        <Button
+          title={locating ? 'Localisation…' : 'Utiliser ma position actuelle'}
+          variant="outline"
+          size="sm"
+          onPress={() => void handleUseCurrentPosition()}
+          loading={locating}
+          disabled={locating}
+        />
+
         <View style={styles.infoBox}>
           <Text style={styles.infoLabel}>Email</Text>
           <Text style={styles.infoValue}>{profile.email}</Text>
@@ -279,6 +378,15 @@ export default function ProfileEditScreen() {
         />
       </View>
       </ScrollView>
+      <LocationPickerModal
+        visible={locationModalVisible}
+        location={homeLocation}
+        onClose={() => setLocationModalVisible(false)}
+        onConfirmLocation={(location) => {
+          setHomeLocation(location);
+          setLocationModalVisible(false);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -363,6 +471,38 @@ const styles = StyleSheet.create({
   },
   form: {
     padding: spacing.lg,
+  },
+  locationLabel: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.brand.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  locationField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(26,51,41,0.12)',
+    backgroundColor: colors.brand.surface,
+  },
+  locationValue: {
+    ...typography.body,
+    color: colors.brand.text,
+    flex: 1,
+  },
+  locationPlaceholder: {
+    color: colors.brand.textSecondary,
+  },
+  locationHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   infoBox: {
     padding: spacing.md,

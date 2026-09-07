@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send, Sparkles, Lightbulb } from 'lucide-react-native';
 import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { CONTESTS_ENABLED } from '@/config/contests.flags';
@@ -31,6 +32,7 @@ import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { useDiffuseur } from '@/hooks/useDiffuseur';
 import { DIFFUSEUR_PLANS } from '@/constants/diffuseur';
 import { prefetchMySuggestionHistory } from '@/services/suggestion-history.service';
+import { CommunityService } from '@/services/community.service';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -49,11 +51,33 @@ export default function ProfileScreen() {
   const { showPosterSuggestDrawer, showMyEvents, showMySuggestions, routes } = useEventPublishSurfaces();
   const isProfessionnelAccount = accountKind === 'professionnel';
   const isGuest = !session;
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
 
   useEffect(() => {
     if (!profile?.id || isGuest) return;
     prefetchMySuggestionHistory(profile.id);
   }, [isGuest, profile?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!profile?.id || isGuest || !features.socialPeers) return;
+      let cancelled = false;
+      void CommunityService.getMember(profile.id)
+        .then((member) => {
+          if (cancelled || !member) return;
+          setFollowCounts({
+            followers: member.followers_count || 0,
+            following: member.following_count || 0,
+          });
+        })
+        .catch((error) => {
+          console.warn('load my follow counts', error);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [isGuest, profile?.id]),
+  );
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -193,6 +217,32 @@ export default function ProfileScreen() {
                 Modifier le profil
               </Text>
             </TouchableOpacity>
+            {features.socialPeers ? (
+              <View style={styles.followStats}>
+                <TouchableOpacity
+                  style={styles.followStat}
+                  onPress={() =>
+                    router.push(`/community/follows?userId=${profile.id}&tab=followers` as any)
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abonnés : ${followCounts.followers}`}
+                >
+                  <Text style={styles.followStatValue}>{followCounts.followers}</Text>
+                  <Text style={styles.followStatLabel}>Abonnés</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.followStat}
+                  onPress={() =>
+                    router.push(`/community/follows?userId=${profile.id}&tab=following` as any)
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abonnements : ${followCounts.following}`}
+                >
+                  <Text style={styles.followStatValue}>{followCounts.following}</Text>
+                  <Text style={styles.followStatLabel}>Abonnements</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -463,6 +513,26 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.secondary,
     fontWeight: '600',
+  },
+  followStats: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  followStat: {
+    alignItems: 'center',
+    minWidth: 88,
+  },
+  followStatValue: {
+    ...typography.h4,
+    color: colors.brand.text,
+    fontWeight: '800',
+  },
+  followStatLabel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+    marginTop: 2,
   },
   content: {
     padding: spacing.lg,

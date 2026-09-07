@@ -1,4 +1,5 @@
 import { Linking } from 'react-native';
+import type { ContactIntent } from '@/constants/contact';
 import { DIFFUSEUR_CONTACT_PATH, DIFFUSEUR_OFFER_URL } from '@/constants/website';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,4 +43,27 @@ export async function openDiffuseurContact(prefill?: DiffuseurContactPrefill): P
 
 export async function openDiffuseurOffer(): Promise<void> {
   await Linking.openURL(DIFFUSEUR_OFFER_URL);
+}
+
+export type ContactFormPrefill = {
+  intent: ContactIntent;
+  name?: string | null;
+  email?: string | null;
+  message?: string | null;
+};
+
+export function buildContactFormUrl(prefill: ContactFormPrefill): string {
+  const params = new URLSearchParams();
+  params.set('intent', prefill.intent);
+  const name = prefill.name?.trim();
+  if (name) params.set('name', name.slice(0, 120));
+  const email = prefill.email?.trim();
+  if (email && EMAIL_PATTERN.test(email)) params.set('email', email.slice(0, 254));
+  const message = prefill.message?.trim();
+  if (message) params.set('message', message.slice(0, 5000));
+  return `${DIFFUSEUR_CONTACT_PATH}?${params.toString()}#contact-form`;
+}
+
+export async function openContactForm(prefill: ContactFormPrefill): Promise<void> {
+  await Linking.openURL(buildContactFormUrl(prefill));
 }

@@ -11,12 +11,45 @@ import {
   type SocialProvider,
 } from '@/services/oauth.service';
 
+export type AuthErrorCode = 'email_already_registered';
+
 export interface AuthResponse {
   success: boolean;
   error?: string;
+  errorCode?: AuthErrorCode;
   session?: Session | null;
   user?: User | null;
   profile?: Profile | null;
+}
+
+export const EMAIL_ALREADY_REGISTERED_MESSAGE =
+  'Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.';
+
+const alreadyRegisteredResponse = (): AuthResponse => ({
+  success: false,
+  error: EMAIL_ALREADY_REGISTERED_MESSAGE,
+  errorCode: 'email_already_registered',
+});
+
+/** Confirm-email projects return a fake user with an empty identities list. */
+function isObfuscatedExistingUser(user: User | null | undefined): boolean {
+  const identities = user?.identities;
+  return Array.isArray(identities) && identities.length === 0;
+}
+
+function isAlreadyRegisteredError(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error && 'code' in error
+      ? String((error as { code?: unknown }).code || '')
+      : '';
+  const message = (error instanceof Error ? error.message : String(error ?? '')).toLowerCase();
+  return (
+    code === 'user_already_exists' ||
+    message.includes('already registered') ||
+    message.includes('already been registered') ||
+    message.includes('user already exists') ||
+    message.includes('email address is already')
+  );
 }
 
 const LOGOUT_BLOCK_KEY = 'auth_logout_blocked';
@@ -213,8 +246,13 @@ export class AuthService {
   }
 
   static async signUp(email: string, password: string): Promise<AuthResponse> {
+    const normalizedEmail = email.trim().toLowerCase();
     try {
-      const { session, user } = await dataProvider.signUp(email, password);
+      const { session, user } = await dataProvider.signUp(normalizedEmail, password);
+      if (isObfuscatedExistingUser(user)) {
+        await this.clearSavedSession();
+        return alreadyRegisteredResponse();
+      }
       if (!user) return { success: false, error: 'No user returned' };
 
       // Si confirmation email activée, session peut être nulle => on attendra le prochain sign-in pour créer le profil
@@ -223,11 +261,14 @@ export class AuthService {
         return { success: true, session, user, profile: null };
       }
 
-      const profile = await this.ensureProfile(user.id, email);
+      const profile = await this.ensureProfile(user.id, normalizedEmail);
       await this.clearAutoRestoreBlock();
       await this.saveSession(session);
       return { success: true, session, user, profile };
     } catch (error) {
+      if (isAlreadyRegisteredError(error)) {
+        return alreadyRegisteredResponse();
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

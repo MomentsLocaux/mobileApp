@@ -13,6 +13,7 @@ import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
 import { EventCard } from '../events/EventCard';
 import type { EventCardVariant } from '@/constants/event-card-variants';
+import type { EventCardLikerPreview } from '@/services/event-card-stats.service';
 
 /** Estimated sheet row height for getItemLayout (cards size to content; do not force this as minHeight). */
 export const EVENT_RESULT_LIST_CARD_HEIGHT = 360;
@@ -28,6 +29,8 @@ interface Props {
   distanceKm?: number;
   viewsCount?: number;
   friendsGoingCount?: number;
+  likesCount?: number;
+  likers?: EventCardLikerPreview[];
   active?: boolean;
   showCarousel?: boolean;
   /** When set, forces a minHeight (map sheet snap). Omit on feed lists for intrinsic height. */
@@ -62,6 +65,8 @@ const EventResultCardComponent: React.FC<Props> = ({
   distanceKm,
   viewsCount,
   friendsGoingCount,
+  likesCount,
+  likers,
   active = false,
   showCarousel = true,
   cardHeight,
@@ -170,6 +175,8 @@ const EventResultCardComponent: React.FC<Props> = ({
         distanceLabel={distanceLabel}
         viewsCount={viewsCount}
         friendsGoingCount={friendsGoingCount}
+        likesCount={likesCount}
+        likers={likers}
         style={cardHeight != null ? styles.cardFill : undefined}
       />
     </Animated.View>

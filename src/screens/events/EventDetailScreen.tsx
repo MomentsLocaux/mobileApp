@@ -11,6 +11,7 @@ import {
   Dimensions,
   Linking,
   Share,
+  Platform,
   StatusBar,
   Modal,
 } from 'react-native';
@@ -46,7 +47,7 @@ import {
   EventDetailSkeleton,
 } from '../../components/ui';
 import { features } from '@/config/features';
-import { getEventShareMessage } from '@/utils/event-share';
+import { getEventAppLink, getEventShareMessage } from '@/utils/event-share';
 import {
   EVENT_CALENDAR_LABEL,
   presentAddToDeviceCalendar,
@@ -719,7 +720,12 @@ export default function EventDetailScreen() {
     }
     if (!event) return;
     try {
-      await Share.share({ message: getEventShareMessage(event.title, event.id, event.external_url) });
+      const message = getEventShareMessage(event.title, event.id, event.external_url);
+      if (Platform.OS === 'ios') {
+        await Share.share({ message, url: getEventAppLink(event.id) });
+      } else {
+        await Share.share({ message });
+      }
     } catch (err) {
       console.warn('share error', err);
     }

@@ -219,6 +219,33 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       };
     }, [eventIds, eventIdsKey, currentUserId]);
 
+    const handleToggleHeart = useCallback(
+      async (event: EventWithCreator) => {
+        const beforeLiked = Boolean(isHearted?.(event.id));
+        await onToggleHeart?.(event);
+        const self = currentUserId
+          ? {
+              id: currentUserId,
+              display_name: 'Moi',
+              avatar_url: null as string | null,
+              is_followed: false,
+            }
+          : null;
+        setStatsByEventId((prev) => ({
+          ...prev,
+          [event.id]: EventCardStatsService.applyLikeToggle(
+            event.id,
+            beforeLiked,
+            !beforeLiked,
+            self,
+            currentUserId,
+            prev[event.id],
+          ),
+        }));
+      },
+      [currentUserId, isHearted, onToggleHeart],
+    );
+
     React.useEffect(() => {
       expandProgress.value = reduceMotion
         ? isExpanded
@@ -409,6 +436,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           listEntranceDelay={isExpanded && index < 4 ? index * Motion.stagger.listItem : 0}
           viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
           friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
+          likesCount={statsByEventId[item.id]?.likesCount ?? item.likes_count ?? 0}
+          likers={statsByEventId[item.id]?.likers ?? []}
           active={item.id === activeEventId}
           onPress={() => onOpenDetails(item)}
           onSelect={() => {
@@ -416,7 +445,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           }}
           onNavigate={() => onNavigate(item)}
           onOpenCreator={onOpenCreator}
-          onToggleHeart={onToggleHeart}
+          onToggleHeart={handleToggleHeart}
           isHearted={isHearted ? isHearted(item.id) : undefined}
         />
       ),
@@ -428,7 +457,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         onNavigate,
         onOpenCreator,
         onOpenDetails,
-        onToggleHeart,
+        handleToggleHeart,
         statsByEventId,
       ]
     );
@@ -492,12 +521,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               event={events[0]}
               viewsCount={statsByEventId[events[0].id]?.viewsCount ?? 0}
               friendsGoingCount={statsByEventId[events[0].id]?.friendsGoingCount ?? 0}
+              likesCount={statsByEventId[events[0].id]?.likesCount ?? events[0].likes_count ?? 0}
+              likers={statsByEventId[events[0].id]?.likers ?? []}
               active
               onPress={() => onOpenDetails(events[0])}
               onSelect={() => onSelectEvent(events[0])}
               onNavigate={() => onNavigate(events[0])}
               onOpenCreator={onOpenCreator}
-              onToggleHeart={onToggleHeart}
+              onToggleHeart={handleToggleHeart}
               isHearted={isHearted ? isHearted(events[0].id) : undefined}
             />
           </View>
