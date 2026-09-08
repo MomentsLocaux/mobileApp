@@ -113,6 +113,10 @@ Product decision during store stabilization:
 
 See `MVP_SCOPE.md` for the live matrix and env keys.
 
+## Amendment 2026-09-08 — Alpha cleanup
+
+The visible mobile product is frozen as **Alpha**. Parked V1/V2 clusters were removed from the Alpha tree onto feature branches from tag `archive/pre-alpha-cleanup`. Shared suggestion stepper, proximity Always location, and community corrections stay. Canal Alpha = EAS production **and** preview with `FEATURE_LUMIA_CHAT` and `FEATURE_EVENT_SUGGEST` ON. SQL migrations remain append-only.
+
 ## Related Audits
 
 - `audits/wave-1-publishable-mvp/01_MVP_SCOPE_NAVIGATION_AUDIT.md`

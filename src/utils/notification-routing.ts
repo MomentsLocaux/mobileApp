@@ -4,14 +4,9 @@ import { features } from '@/config/features';
 type RouteTarget =
   | { href: `/events/${string}` }
   | { href: '/notifications' }
-  | { href: '/missions' }
-  | { href: '/discovery' }
-  | { href: `/creator/${string}` }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
-  | { href: '/profile/my-suggestions' }
-  | { href: `/contests/${string}` }
-  | { href: '/contests' };
+  | { href: '/profile/my-suggestions' };
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -59,7 +54,7 @@ export function resolveNotificationRoute(
   }
 
   if (type === 'mission_completed') {
-    return features.gamification ? { href: '/missions' } : inbox();
+    return inbox();
   }
 
   if (type === 'followed_creator_published') {
@@ -68,7 +63,7 @@ export function resolveNotificationRoute(
   }
 
   if (typeof type === 'string' && type.startsWith('discovery_')) {
-    return features.discovery ? { href: '/discovery' } : inbox();
+    return inbox();
   }
 
   if (pickString(d, 'kind') === 'notification_digest') {
@@ -88,12 +83,7 @@ export function resolveNotificationRoute(
     || type === 'contest_ending_soon'
     || type === 'contest_results'
   ) {
-    if (!features.contests) return inbox();
-    const contestId = pickString(d, 'contestId', 'contest_id');
-    if (contestId) {
-      return { href: `/contests/${contestId}` };
-    }
-    return { href: '/contests' };
+    return inbox();
   }
 
   return inbox();

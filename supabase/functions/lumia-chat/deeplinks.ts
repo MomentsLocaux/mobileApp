@@ -21,13 +21,14 @@ export const LUMIA_DEEPLINKS: LumiaDeeplink[] = [
   { href: '/settings/privacy/delete', label: 'Supprimer mon compte', hint: 'suppression de compte' },
   { href: '/settings/privacy/export', label: 'Exporter mes données', hint: 'export RGPD / portabilité' },
   { href: '/settings/privacy/location', label: 'Visibilité de ma position', hint: 'qui voit ma position' },
-  { href: '/settings/diffuseur', label: 'Moments Diffuseur', hint: 'même parcours que le site : /fr/contact?intent=diffuseur' },
   { href: '/settings/notifications', label: 'Notifications', hint: 'préférences notifs' },
   { href: '/settings/permissions', label: 'Autorisations', hint: 'localisation, etc.' },
   { href: '/notifications', label: 'Boîte notifications', hint: 'inbox notifications' },
   { href: '/bug-report', label: 'Signaler un bug', hint: 'support / bug' },
   { href: '/profile/edit', label: 'Modifier le profil', hint: 'édition profil' },
   { href: '/profile/invite', label: 'Inviter des amis', hint: 'partage invitation' },
+  { href: '/profile/my-suggestions', label: 'Mes suggestions', hint: 'historique des propositions d’événements' },
+  { href: '/events/suggest-from-poster', label: 'Proposer depuis une affiche', hint: 'photo d’affiche → suggestion' },
   { href: '/(tabs)/community', label: 'Membres', hint: 'communauté pairs (si flag)' },
 ];
 

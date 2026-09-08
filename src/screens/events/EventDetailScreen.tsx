@@ -13,12 +13,8 @@ import {
   Share,
   Platform,
   StatusBar,
-  Modal,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystemLegacy from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,7 +28,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
-  QrCode,
   Eye,
   PenLine,
   Trash2,
@@ -61,7 +56,6 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSequence,
   withSpring,
   withTiming,
@@ -70,8 +64,7 @@ import { Motion, createEnterTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { haptics } from '@/utils/haptics';
 import { EventsService } from '../../services/events.service';
-import { useAccountIdentity, useAuth } from '../../hooks';
-import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
+import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import {
   getCategoryColor,
@@ -81,7 +74,6 @@ import {
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
-import { CheckinService } from '@/services/checkin.service';
 import { PlaceMediaGallery, type MediaImage } from '@/components/events/PlaceMediaGallery';
 import { supabase } from '@/lib/supabase/client';
 import { useFavoritesStore } from '@/store/favoritesStore';
@@ -91,10 +83,6 @@ import { EventPhotoContributionModal } from '@/components/events/EventPhotoContr
 import { EventLikersSheet } from '@/components/events/EventLikersSheet';
 import { EventMediaSubmissionsService } from '@/services/event-media-submissions.service';
 import { CommunityService } from '@/services/community.service';
-import { ShopService } from '@/services/shop.service';
-import { CreatorBoostService } from '@/services/creator-boost.service';
-import { EarlyAccessService, type EarlyAccessTeaser } from '@/services/early-access.service';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { EventCorrectionSheet } from '@/components/events/EventCorrectionSheet';
 import { EventPlatformOrganizerSheet } from '@/components/events/EventPlatformOrganizerSheet';
@@ -102,40 +90,15 @@ import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
-import { getEventLiveWindow } from '@/utils/event-status';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
-import { openDiffuseurContact } from '@/utils/open-website';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
 
 const { width } = Dimensions.get('window');
-const BOTTOM_BAR_HEIGHT = 104;
-// QR code de l'événement : lien web HTTPS (Universal Links/App Links côté site).
-// Pour l'instant on peut laisser la variable vide : un placeholder est utilisé en local.
-const EVENT_QR_APP_BASE_URL =
-  typeof process.env.EXPO_PUBLIC_EVENT_QR_APP_BASE_URL === 'string'
-    ? process.env.EXPO_PUBLIC_EVENT_QR_APP_BASE_URL.trim()
-    : 'moments-locaux://events';
-
-const SHOULD_USE_APP_SCHEME = process.env.EXPO_PUBLIC_EVENT_QR_USE_APP_SCHEME === 'true';
-
-const EVENT_QR_WEB_BASE_URL =
-  (typeof process.env.EXPO_PUBLIC_EVENT_QR_WEB_BASE_URL === 'string'
-    ? process.env.EXPO_PUBLIC_EVENT_QR_WEB_BASE_URL.trim()
-    : '') ||
-  (typeof process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL === 'string' ? process.env.EXPO_PUBLIC_EVENT_QR_BASE_URL.trim() : '') ||
-  'https://example.com/events';
-
-const EVENT_QR_BASE_URL = SHOULD_USE_APP_SCHEME ? EVENT_QR_APP_BASE_URL : EVENT_QR_WEB_BASE_URL;
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
-
-type AttendeePreview = {
-  user_id: string;
-  avatar_url: string | null;
-};
 
 const normalizeImageUrl = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
@@ -146,29 +109,10 @@ const normalizeImageUrl = (value: unknown): string | null => {
   return trimmed;
 };
 
-const extractQrPayload = (raw: string): { eventId: string | null; qrToken: string | null } => {
-  const value = (raw || '').trim();
-  if (!value) return { eventId: null, qrToken: null };
-
-  try {
-    const url = new URL(value);
-    const qrToken = url.searchParams.get('qr');
-    const parts = url.pathname.split('/').filter(Boolean);
-    const eventsIndex = parts.findIndex((part) => part === 'events');
-    const eventId = eventsIndex >= 0 ? (parts[eventsIndex + 1] || null) : null;
-    return { eventId, qrToken };
-  } catch {
-    // Fallback: allow scanning a raw token only.
-    return { eventId: null, qrToken: value };
-  }
-};
-
 export default function EventDetailScreen() {
-  const { id, qr } = useLocalSearchParams<{ id: string; qr?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { profile, session, isLoading: authLoading } = useAuth();
-  const { accountKind } = useAccountIdentity();
-  const { hasHabitue } = useOfferEntitlements();
   const { currentLocation } = useLocationStore();
   const insets = useSafeAreaInsets();
   const { comments } = useComments(id || '');
@@ -179,7 +123,6 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const reduceMotion = useReduceMotion();
   const screenProgress = useSharedValue(0);
-  const bottomBarProgress = useSharedValue(0);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [navSheetVisible, setNavSheetVisible] = useState(false);
   const [platformOrganizerSheetVisible, setPlatformOrganizerSheetVisible] = useState(false);
@@ -190,35 +133,20 @@ export default function EventDetailScreen() {
   const [peersEngaged, setPeersEngaged] = useState<
     Array<{ id: string; display_name: string; avatar_url: string | null }>
   >([]);
-  const [attendees, setAttendees] = useState<AttendeePreview[]>([]);
-  const [totalAttendees, setTotalAttendees] = useState(0);
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [eventStats, setEventStats] = useState({
     likes: 0,
     interests: 0,
     checkins: 0,
     views: 0,
   });
-  const [qrScannerVisible, setQrScannerVisible] = useState(false);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [descriptionCanExpand, setDescriptionCanExpand] = useState(false);
-  const [qrCardVisible, setQrCardVisible] = useState(false);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [now, setNow] = useState(() => new Date());
   const [eventReportVisible, setEventReportVisible] = useState(false);
   const [eventReported, setEventReported] = useState(false);
   const [eventCorrectionVisible, setEventCorrectionVisible] = useState(false);
-  const [boostBusy, setBoostBusy] = useState(false);
-  const [earnedBoosts, setEarnedBoosts] = useState(0);
-  const [earlyTeaser, setEarlyTeaser] = useState<EarlyAccessTeaser | null>(null);
-  const [earlyBusy, setEarlyBusy] = useState(false);
-  const autoQrAttemptedRef = useRef(new Set<string>());
-  const autoQrGuestPromptedRef = useRef(new Set<string>());
-  const autoQrLocationPromptedRef = useRef(new Set<string>());
-  const qrScanBusyRef = useRef(false);
 
   const isGuest = !session;
   const isOwner = !!profile?.id && profile.id === event?.creator_id;
@@ -268,34 +196,6 @@ export default function EventDetailScreen() {
     ]);
   }, [event?.id]);
 
-  const purchaseBoost = useCallback(
-    async (itemKey: 'event_boost_24h' | 'event_boost_72h') => {
-      if (!event?.id || boostBusy) return;
-      setBoostBusy(true);
-      try {
-        const res = await ShopService.purchaseEventBoost(event.id, itemKey);
-        setEvent((prev) =>
-          prev ? { ...prev, boosted_until: res.expires_at || prev.boosted_until } : prev,
-        );
-        Toast.show({
-          type: 'success',
-          text1: `Boost ${res.duration_hours || (itemKey === 'event_boost_72h' ? 72 : 24)}h activé`,
-          text2: res.price ? `−${res.price} Lumo` : undefined,
-        });
-      } catch (e: any) {
-        const msg = String(e?.message || '');
-        if (msg.includes('BOOST_CAP_REACHED')) {
-          Alert.alert('Boost', 'Tu as déjà 2 boosts actifs. Attends l’expiration.');
-        } else {
-          Alert.alert('Boost', msg || 'Achat impossible');
-        }
-      } finally {
-        setBoostBusy(false);
-      }
-    },
-    [event?.id, boostBusy],
-  );
-
   const trackEventView = useCallback(
     async (eventId: string) => {
       try {
@@ -337,10 +237,6 @@ export default function EventDetailScreen() {
         } else {
           setEventStats((prev) => ({ ...prev, views: prev.views + 1 }));
         }
-
-        // Habitué daily mission step (no-op when gamification flag off)
-        const { MissionsService } = await import('@/services/missions.service');
-        await MissionsService.recordStep('open_event_detail');
       } catch (err) {
         console.warn('trackEventView error', err);
       }
@@ -377,48 +273,6 @@ export default function EventDetailScreen() {
     }
   }, []);
 
-  const loadAttendeesAndCheckin = useCallback(
-    async (eventId: string) => {
-      if (!features.checkin) {
-        setAttendees([]);
-        setTotalAttendees(0);
-        setHasCheckedIn(false);
-        return;
-      }
-      try {
-        const [previewResp, mineResp] = await Promise.all([
-          supabase.rpc('get_event_checkin_preview', { p_event_id: eventId, p_limit: 12 }),
-          profile?.id
-            ? supabase
-                .from('event_checkins')
-                .select('id', { head: true, count: 'exact' })
-                .eq('event_id', eventId)
-                .eq('user_id', profile.id)
-            : Promise.resolve({ count: 0, error: null } as any),
-        ]);
-
-        if (!previewResp.error && previewResp.data) {
-          const formatted = previewResp.data
-            .filter((row: any) => row.attendee_key)
-            .map((row: any) => ({
-              user_id: row.attendee_key,
-              avatar_url: row.avatar_url ?? null,
-            }));
-          setAttendees(formatted);
-          setTotalAttendees(Number(previewResp.data[0]?.total_count || 0));
-        } else {
-          setAttendees([]);
-          setTotalAttendees(0);
-        }
-
-        setHasCheckedIn((mineResp?.count || 0) > 0);
-      } catch (err) {
-        console.warn('load attendees/checkin', err);
-      }
-    },
-    [profile?.id],
-  );
-
   const loadEventDetails = useCallback(async () => {
     if (!id) return;
     try {
@@ -427,32 +281,19 @@ export default function EventDetailScreen() {
       setEvent(enriched);
       setDescriptionExpanded(false);
       setDescriptionCanExpand(false);
-      setQrCardVisible(false);
       if (enriched) {
-        setEarlyTeaser(null);
         await Promise.all([
           loadEventStats(enriched.id),
           loadCommunityPhotos(enriched.id),
-          loadAttendeesAndCheckin(enriched.id),
         ]);
-        if (GAMIFICATION_ENABLED && EarlyAccessService.isWindowActive(enriched.early_access_until)) {
-          await EarlyAccessService.claim(enriched.id);
-        }
-      } else if (GAMIFICATION_ENABLED) {
-        const teaser = await EarlyAccessService.getTeaser(id);
-        setEarlyTeaser(teaser?.ok && teaser.locked ? teaser : null);
       }
     } catch (error) {
       console.warn('loadEventDetails error', error);
       setEvent(null);
-      if (GAMIFICATION_ENABLED && id) {
-        const teaser = await EarlyAccessService.getTeaser(id);
-        setEarlyTeaser(teaser?.ok && teaser.locked ? teaser : null);
-      }
     } finally {
       setLoading(false);
     }
-  }, [id, isFavorite, isLiked, loadAttendeesAndCheckin, loadCommunityPhotos, loadEventStats]);
+  }, [id, isFavorite, isLiked, loadCommunityPhotos, loadEventStats]);
 
   useFocusEffect(
     useCallback(() => {
@@ -464,11 +305,6 @@ export default function EventDetailScreen() {
     if (!id || authLoading) return;
     void trackEventView(id);
   }, [id, authLoading, trackEventView]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -490,26 +326,6 @@ export default function EventDetailScreen() {
       mounted = false;
     };
   }, [event?.id, profile?.id, isGuest, isLiked, isFavorite]);
-
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      if (!GAMIFICATION_ENABLED || !isOwner) {
-        if (mounted) setEarnedBoosts(0);
-        return;
-      }
-      try {
-        const summary = await CreatorBoostService.getMine();
-        if (mounted) setEarnedBoosts(summary.unused);
-      } catch {
-        if (mounted) setEarnedBoosts(0);
-      }
-    };
-    void run();
-    return () => {
-      mounted = false;
-    };
-  }, [isOwner, event?.id]);
 
   const handleBack = () => {
     if (router.canGoBack?.()) {
@@ -565,152 +381,6 @@ export default function EventDetailScreen() {
       return;
     }
     setLikersSheetVisible(true);
-  };
-
-  const executeCheckIn = useCallback(async (options?: { qrToken?: string; source?: 'mobile' | 'qr_scan'; successTitle?: string }) => {
-    if (!features.checkin) return;
-    if (isGuest) {
-      openGuestGate('Faire un check-in');
-      return;
-    }
-    if (!hasHabitue) {
-      if (features.offers) {
-        Alert.alert(
-          'Montrez que vous y étiez',
-          'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
-          [
-            { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
-            { text: 'Plus tard', style: 'cancel' },
-          ],
-        );
-      } else {
-        Alert.alert(
-          'Check-in bientôt disponible',
-          'La validation de présence n’est pas encore ouverte dans cette version.',
-        );
-      }
-      return;
-    }
-    if (!profile || !event || !session?.access_token) return;
-    if (!currentLocation) {
-      Alert.alert('Localisation requise', 'Activez la localisation pour valider le check-in.');
-      return;
-    }
-    try {
-      const res = await CheckinService.checkIn(
-        event.id,
-        currentLocation.coords.latitude,
-        currentLocation.coords.longitude,
-        session.access_token,
-        {
-          qrToken: options?.qrToken,
-          source: options?.source || 'mobile',
-        },
-      );
-      if (res.success) {
-        setHasCheckedIn(true);
-        haptics.success();
-        await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
-        const lumo = Number(res.rewards?.lumo || 0);
-        const body =
-          GAMIFICATION_ENABLED && lumo > 0
-            ? `Présence validée.\n+${lumo} Lumo`
-            : 'Présence validée.';
-        Alert.alert(options?.successTitle || 'Check-in réussi', body);
-      } else {
-        Alert.alert(options?.successTitle || 'Check-in', res.message || 'Check-in non valide');
-      }
-    } catch (err) {
-      Alert.alert(options?.successTitle || 'Check-in', err instanceof Error ? err.message : 'Erreur check-in');
-    }
-  }, [
-    currentLocation,
-    event,
-    hasHabitue,
-    isGuest,
-    loadAttendeesAndCheckin,
-    loadEventStats,
-    profile,
-    router,
-    session?.access_token,
-  ]);
-
-  const handleDistanceCheckIn = useCallback(async () => {
-    await executeCheckIn({ source: 'mobile', successTitle: 'Check-in réussi' });
-  }, [executeCheckIn]);
-
-  const openQrScanner = useCallback(async () => {
-    if (isGuest) {
-      openGuestGate('Faire un check-in par QR');
-      return;
-    }
-    if (!profile || !event || !session?.access_token) return;
-    if (!currentLocation) {
-      Alert.alert(
-        'Localisation requise',
-        'Activez la géolocalisation: elle est utilisée pour vérifier votre distance au lieu de l’événement.',
-      );
-      return;
-    }
-
-    const status = cameraPermission?.status;
-    if (status !== 'granted') {
-      const permission = await requestCameraPermission();
-      if (permission.status !== 'granted') {
-        Alert.alert('Caméra requise', 'Autorisez la caméra pour scanner le QR code.');
-        return;
-      }
-    }
-
-    qrScanBusyRef.current = false;
-    setQrScannerVisible(true);
-  }, [
-    cameraPermission?.status,
-    currentLocation,
-    event,
-    isGuest,
-    profile,
-    requestCameraPermission,
-    session?.access_token,
-  ]);
-
-  const handleCheckIn = () => {
-    if (!features.checkin) return;
-    if (isOwner) {
-      Alert.alert('Check-in', 'L’organisateur ne peut pas valider sa présence sur son propre événement.');
-      return;
-    }
-    if (hasCheckedIn) {
-      Alert.alert('Check-in', 'Votre présence est déjà validée pour cet événement.');
-      return;
-    }
-    if (!hasHabitue) {
-      if (features.offers) {
-        Alert.alert(
-          'Montrez que vous y étiez',
-          'En devenant Habitué, vous validez votre présence, gagnez des Lumo et débloquez la boutique et le Pass du quartier. Éclaireur inclut Habitué.',
-          [
-            { text: 'Découvrir Habitué', onPress: () => router.push('/profile/offers' as any) },
-            { text: 'Plus tard', style: 'cancel' },
-          ],
-        );
-      } else {
-        Alert.alert(
-          'Check-in bientôt disponible',
-          'La validation de présence n’est pas encore ouverte dans cette version.',
-        );
-      }
-      return;
-    }
-    Alert.alert(
-      'Choisir un mode de check-in',
-      'Vous pouvez faire un check-in via QR code ou sans QR via vérification de distance (géolocalisation utilisée).',
-      [
-        { text: 'Check-in par QR', onPress: () => void openQrScanner() },
-        { text: "Je n'ai pas de QR code", onPress: () => void handleDistanceCheckIn() },
-        { text: 'Annuler', style: 'cancel' },
-      ],
-    );
   };
 
   const handleShare = async () => {
@@ -787,52 +457,13 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handleShareQr = async () => {
-    if (isGuest) {
-      openGuestGate('Partager le QR code');
-      return;
-    }
-    if (!isOwner && !isAdmin) {
-      Alert.alert('Accès restreint', 'Seuls l’organisateur et les modérateurs/admin peuvent partager ce QR code.');
-      return;
-    }
-    if (!eventQrPayload || !eventQrImageUrl) {
-      Alert.alert('QR indisponible', 'Le QR code sera généré lors de la publication de l’événement.');
-      return;
-    }
-    const eventTitle = event?.title || 'Événement';
-    try {
-      const fileName = `event-qr-${event?.id || 'share'}.png`;
-      const localUri = `${FileSystemLegacy.cacheDirectory}${fileName}`;
-      const downloaded = await FileSystemLegacy.downloadAsync(eventQrImageUrl, localUri);
-      const canShareFile = await Sharing.isAvailableAsync();
-
-      if (canShareFile) {
-        await Sharing.shareAsync(downloaded.uri, {
-          mimeType: 'image/png',
-          dialogTitle: `QR code - ${eventTitle}`,
-          UTI: 'public.png',
-        });
-        return;
-      }
-
-      await Share.share({
-        message: `QR code de ${eventTitle}`,
-        url: downloaded.uri,
-      });
-    } catch (err) {
-      console.warn('share qr error', err);
-      Alert.alert('Partage indisponible', 'Impossible de partager le QR code pour le moment.');
-    }
-  };
-
   const handleAddPhoto = () => {
     const eligibility = getCommunityPhotoEligibility({
       authenticated: !isGuest,
-      checkinEnabled: features.checkin,
+      checkinEnabled: false,
       isOwner,
       isAdmin,
-      hasCheckedIn,
+      hasCheckedIn: false,
     });
 
     if (eligibility.reason === 'sign_in') {
@@ -1090,87 +721,6 @@ export default function EventDetailScreen() {
     setNavSheetVisible(true);
   }, [event]);
 
-  const eventQrPayload = useMemo(() => {
-    if (!event?.qr_token) return null;
-    return `${EVENT_QR_BASE_URL}/${event.id}?qr=${event.qr_token}`;
-  }, [event?.id, event?.qr_token]);
-  const qrTokenFromLink = useMemo(() => {
-    if (typeof qr !== 'string') return '';
-    return qr.trim();
-  }, [qr]);
-
-  const eventQrImageUrl = useMemo(() => {
-    if (!eventQrPayload) return null;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(eventQrPayload)}`;
-  }, [eventQrPayload]);
-
-  useEffect(() => {
-    if (!event || !qrTokenFromLink) return;
-
-    const key = `${event.id}:${qrTokenFromLink}`;
-    if (hasCheckedIn) {
-      autoQrAttemptedRef.current.add(key);
-      return;
-    }
-
-    if (isGuest || !session?.access_token) {
-      if (!autoQrGuestPromptedRef.current.has(key)) {
-        autoQrGuestPromptedRef.current.add(key);
-        openGuestGate('Se connecter pour valider le check-in QR');
-      }
-      return;
-    }
-
-    if (!currentLocation) {
-      if (!autoQrLocationPromptedRef.current.has(key)) {
-        autoQrLocationPromptedRef.current.add(key);
-        Alert.alert('Localisation requise', 'Activez la localisation pour valider le check-in QR.');
-      }
-      return;
-    }
-
-    if (autoQrAttemptedRef.current.has(key)) return;
-    autoQrAttemptedRef.current.add(key);
-
-    (async () => {
-      try {
-        const res = await CheckinService.checkIn(
-          event.id,
-          currentLocation.coords.latitude,
-          currentLocation.coords.longitude,
-          session.access_token,
-          {
-            qrToken: qrTokenFromLink,
-            source: 'qr_scan',
-          },
-        );
-        if (res.success) {
-          setHasCheckedIn(true);
-          await Promise.all([loadEventStats(event.id), loadAttendeesAndCheckin(event.id)]);
-          const lumo = Number(res.rewards?.lumo || 0);
-          const body =
-            GAMIFICATION_ENABLED && lumo > 0
-              ? `Présence validée.\n+${lumo} Lumo`
-              : 'Présence validée.';
-          Alert.alert('Check-in QR réussi', body);
-        } else {
-          Alert.alert('Check-in QR', res.message || 'Check-in non valide');
-        }
-      } catch (err) {
-        Alert.alert('Check-in QR', err instanceof Error ? err.message : 'Erreur check-in');
-      }
-    })();
-  }, [
-    currentLocation,
-    event,
-    hasCheckedIn,
-    isGuest,
-    loadAttendeesAndCheckin,
-    loadEventStats,
-    qrTokenFromLink,
-    session?.access_token,
-  ]);
-
   const mediaImages = useMemo<MediaImage[]>(() => {
     if (!event) return [];
     const media = (event.media || []).reduce<MediaImage[]>((acc, m, index) => {
@@ -1235,13 +785,6 @@ export default function EventDetailScreen() {
     };
   }, [comments, event]);
 
-  const isLiveNow = useMemo(
-    () =>
-      getEventLiveWindow(event, now).isLive,
-    [event?.starts_at, event?.ends_at, event?.operating_hours, now],
-  );
-
-
   const practicalInfoRows = useMemo(() => {
     if (!event) return [] as Array<{ label: string; value: string; action?: () => void }>;
     const rows: Array<{ label: string; value: string; action?: () => void }> = [];
@@ -1291,27 +834,15 @@ export default function EventDetailScreen() {
   useEffect(() => {
     if (loading || !event) {
       screenProgress.value = 0;
-      bottomBarProgress.value = 0;
       return;
     }
     screenProgress.value = reduceMotion
       ? 1
       : withTiming(1, createEnterTiming(Motion.duration.normal));
-    bottomBarProgress.value = reduceMotion
-      ? 1
-      : withDelay(
-          Motion.duration.fast,
-          withTiming(1, createEnterTiming(Motion.duration.normal))
-        );
-  }, [bottomBarProgress, event, loading, reduceMotion, screenProgress]);
+  }, [event, loading, reduceMotion, screenProgress]);
 
   const screenStyle = useAnimatedStyle(() => ({
     opacity: screenProgress.value,
-  }));
-
-  const bottomBarStyle = useAnimatedStyle(() => ({
-    opacity: bottomBarProgress.value,
-    transform: [{ translateY: (1 - bottomBarProgress.value) * Motion.distance.ctaEnterY }],
   }));
 
   if (loading) {
@@ -1324,42 +855,6 @@ export default function EventDetailScreen() {
   }
 
   if (!event) {
-    if (earlyTeaser?.locked) {
-      return (
-        <View style={styles.centered}>
-          <AppBackground />
-          <Text style={styles.errorTitle}>Accès anticipé</Text>
-          <Text style={[styles.errorTitle, { ...typography.body, marginTop: spacing.sm, textAlign: 'center', paddingHorizontal: spacing.lg }]}>
-            {earlyTeaser.title || 'Événement'} — réservé aux Ambassadeurs ou déblocage Lumo jusqu’à la sortie publique.
-          </Text>
-          <Button
-            title={
-              earlyBusy
-                ? 'Déblocage…'
-                : `Débloquer (${earlyTeaser.unlock_price ?? 40} Lumo)`
-            }
-            onPress={async () => {
-              if (!id || earlyBusy) return;
-              if (isGuest) {
-                openGuestGate('Connexion requise');
-                return;
-              }
-              setEarlyBusy(true);
-              try {
-                await EarlyAccessService.purchase(id);
-                await loadEventDetails();
-              } catch (e: any) {
-                Alert.alert('Accès anticipé', e?.message || 'Achat impossible');
-              } finally {
-                setEarlyBusy(false);
-              }
-            }}
-            style={{ marginTop: spacing.md }}
-          />
-          <Button title="Retour" variant="outline" onPress={() => router.back()} style={{ marginTop: spacing.sm }} />
-        </View>
-      );
-    }
     return (
       <View style={styles.centered}>
         <AppBackground />
@@ -1374,7 +869,7 @@ export default function EventDetailScreen() {
       <Animated.View style={[{ flex: 1 }, screenStyle]}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: BOTTOM_BAR_HEIGHT + insets.bottom + spacing.lg }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
         showsVerticalScrollIndicator={false}
       >
         <AppBackground />
@@ -1455,12 +950,6 @@ export default function EventDetailScreen() {
                   {getCategoryLabel(event.category || '')}
                 </Text>
               </View>
-              {GAMIFICATION_ENABLED &&
-              EarlyAccessService.isWindowActive(event.early_access_until) ? (
-                <View style={[styles.heroBadge, styles.heroBadgeEarly]}>
-                  <Text style={styles.heroBadgeText}>ACCÈS ANTICIPÉ</Text>
-                </View>
-              ) : null}
             </View>
           </PlaceMediaGallery>
         </View>
@@ -1516,95 +1005,6 @@ export default function EventDetailScreen() {
                 ) : null}
               </Card>
             </MotionReveal>
-          ) : null}
-
-          {GAMIFICATION_ENABLED && isOwner && event.status === 'published' ? (
-            <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
-              {earnedBoosts > 0 ? (
-                <Button
-                  title={boostBusy ? 'Boost…' : `Utiliser boost gagné (${earnedBoosts})`}
-                  variant="primary"
-                  disabled={
-                    boostBusy ||
-                    !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
-                  }
-                  onPress={async () => {
-                    if (boostBusy) return;
-                    setBoostBusy(true);
-                    try {
-                      const res = await CreatorBoostService.applyToEvent(event.id);
-                      setEvent((prev) =>
-                        prev
-                          ? { ...prev, boosted_until: res.expires_at || prev.boosted_until }
-                          : prev,
-                      );
-                      setEarnedBoosts((n) => Math.max(0, n - 1));
-                      Toast.show({ type: 'success', text1: 'Boost gagné activé' });
-                    } catch (e: any) {
-                      Alert.alert('Boost gagné', e?.message || 'Action impossible');
-                    } finally {
-                      setBoostBusy(false);
-                    }
-                  }}
-                />
-              ) : null}
-              <Button
-                title={
-                  event.boosted_until && new Date(event.boosted_until).getTime() > Date.now()
-                    ? 'Boost actif'
-                    : boostBusy
-                      ? 'Boost…'
-                      : 'Booster (Lumo)'
-                }
-                variant="outline"
-                disabled={
-                  boostBusy ||
-                  !!(event.boosted_until && new Date(event.boosted_until).getTime() > Date.now())
-                }
-                onPress={() => {
-                  if (boostBusy) return;
-                  Alert.alert('Boost événement', 'Choisis la durée (cap 2 boosts actifs).', [
-                    { text: 'Annuler', style: 'cancel' },
-                    {
-                      text: '24h · 100 Lumo',
-                      onPress: () => void purchaseBoost('event_boost_24h'),
-                    },
-                    {
-                      text: '72h · 240 Lumo',
-                      onPress: () => void purchaseBoost('event_boost_72h'),
-                    },
-                  ]);
-                }}
-              />
-              {event.visibility === 'public' ? (
-                <Button
-                  title={
-                    EarlyAccessService.isWindowActive(event.early_access_until)
-                      ? 'Early access actif'
-                      : 'Ouvrir early access 48h'
-                  }
-                  variant="outline"
-                  disabled={earlyBusy || EarlyAccessService.isWindowActive(event.early_access_until)}
-                  onPress={async () => {
-                    if (earlyBusy) return;
-                    setEarlyBusy(true);
-                    try {
-                      const res = await EarlyAccessService.enable(event.id, 48);
-                      setEvent((prev) =>
-                        prev
-                          ? { ...prev, early_access_until: res.early_access_until || prev.early_access_until }
-                          : prev,
-                      );
-                      Toast.show({ type: 'success', text1: 'Early access ouvert' });
-                    } catch (e: any) {
-                      Alert.alert('Early access', e?.message || 'Action impossible');
-                    } finally {
-                      setEarlyBusy(false);
-                    }
-                  }}
-                />
-              ) : null}
-            </View>
           ) : null}
 
           <MotionReveal delay={Motion.stagger.content * 2}>
@@ -1705,45 +1105,6 @@ export default function EventDetailScreen() {
           </Card>
           </MotionReveal>
 
-          {features.checkin && event.status === 'published' && (isOwner || isAdmin) ? (
-            <Card padding="md" style={[styles.qrCard, { marginTop: spacing.md }]}>
-              <View style={styles.qrHeader}>
-                <Text style={styles.qrTitle}>QR code de l’événement</Text>
-                <View style={styles.qrHeaderActions}>
-                  {qrCardVisible ? (
-                    <TouchableOpacity style={styles.qrShareButton} onPress={handleShareQr}>
-                      <Share2 size={16} color={colors.brand.secondary} />
-                      <Text style={styles.qrShareText}>Partager</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity
-                    style={styles.qrShareButton}
-                    onPress={() => setQrCardVisible((prev) => !prev)}
-                  >
-                    <QrCode size={16} color={colors.brand.secondary} />
-                    <Text style={styles.qrShareText}>{qrCardVisible ? 'Masquer' : 'Afficher'}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              {qrCardVisible ? (
-                <>
-                  {eventQrImageUrl ? (
-                    <Image source={{ uri: eventQrImageUrl }} style={styles.qrImage} />
-                  ) : (
-                    <Text style={styles.qrHint}>Le QR code est en cours de génération.</Text>
-                  )}
-                  {eventQrPayload ? (
-                    <Text numberOfLines={1} style={styles.qrLink}>{eventQrPayload}</Text>
-                  ) : null}
-                </>
-              ) : (
-                <Text style={styles.qrHint}>
-                  Affichez le QR code uniquement pour le présenter aux participants sur place.
-                </Text>
-              )}
-            </Card>
-          ) : null}
-
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Eye size={20} color={colors.brand.textSecondary} style={{ marginBottom: 4 }} />
@@ -1780,35 +1141,6 @@ export default function EventDetailScreen() {
               <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
             </TouchableOpacity>
           </View>
-
-          {features.checkin ? (
-          <View style={styles.facepileSection}>
-            <View style={styles.facepileRow}>
-              {attendees.slice(0, 3).map((attendee, i) => (
-                attendee.avatar_url ? (
-                  <Image key={`${attendee.user_id}-${i}`} source={{ uri: attendee.avatar_url }} style={[styles.facepileAvatar, { zIndex: 3 - i }]} />
-                ) : (
-                  <View key={`${attendee.user_id}-${i}`} style={[styles.facepileAvatar, { zIndex: 3 - i, backgroundColor: colors.neutral[600] }]} />
-                )
-              ))}
-              {attendees.length === 0 ? (
-                <>
-                  <View style={[styles.facepileAvatar, { backgroundColor: colors.neutral[700], zIndex: 3 }]} />
-                  <View style={[styles.facepileAvatar, { backgroundColor: colors.neutral[600], zIndex: 2 }]} />
-                  <View style={[styles.facepileAvatar, { backgroundColor: colors.neutral[500], zIndex: 1 }]} />
-                </>
-              ) : null}
-              <View style={[styles.facepileAvatar, styles.facepileCounter, { zIndex: 0 }]}>
-                <Text style={styles.facepileCountText}>+{Math.max(totalAttendees - 3, 0)}</Text>
-              </View>
-            </View>
-            <Text style={styles.facepileLabel}>
-              {isLiveNow
-                ? `${totalAttendees} participant${totalAttendees > 1 ? 's' : ''}`
-                : `${Math.max(event.interests_count || 0, totalAttendees)} ami${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''} intéressé${Math.max(event.interests_count || 0, totalAttendees) > 1 ? 's' : ''}`}
-            </Text>
-          </View>
-          ) : null}
 
           {practicalInfoRows.length > 0 ? (
             <Card padding="md" style={styles.practicalCard}>
@@ -1946,19 +1278,6 @@ export default function EventDetailScreen() {
       </ScrollView>
       </Animated.View>
 
-      {features.checkin ? (
-      <Animated.View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }, bottomBarStyle]}> 
-        <View style={styles.bottomBarContent}>
-          <TouchableOpacity style={[styles.bottomBarCta, styles.bottomSecondary, styles.bottomCheckInFull]} onPress={handleCheckIn}>
-            <View style={styles.checkinIconWrap}>
-              <QrCode size={16} color="#D4F6FF" />
-            </View>
-            <Text style={styles.checkinButtonText}>{hasCheckedIn ? 'Présence validée' : 'Valider ma présence'}</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-      ) : null}
-
       <NavigationOptionsSheet
         visible={navSheetVisible}
         event={event}
@@ -1971,68 +1290,10 @@ export default function EventDetailScreen() {
 
       <EventPlatformOrganizerSheet
         visible={platformOrganizerSheetVisible}
-        showClaimCta={accountKind !== 'professionnel'}
+        showClaimCta={false}
         onClose={() => setPlatformOrganizerSheetVisible(false)}
-        onClaim={() => {
-          setPlatformOrganizerSheetVisible(false);
-          void openDiffuseurContact({
-            name: profile?.display_name,
-            email: profile?.email ?? session?.user?.email,
-            eventTitle: event?.title,
-          }).catch(() => {
-            router.push('/settings/diffuseur' as any);
-          });
-        }}
+        onClaim={() => {}}
       />
-
-      <Modal
-        visible={qrScannerVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setQrScannerVisible(false)}
-      >
-        <View style={styles.qrScannerContainer}>
-          <CameraView
-            style={styles.qrScannerCamera}
-            facing="back"
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={async ({ data }) => {
-              if (qrScanBusyRef.current) return;
-              if (!event) return;
-              qrScanBusyRef.current = true;
-
-              const payload = extractQrPayload(data || '');
-              if (!payload.qrToken) {
-                qrScanBusyRef.current = false;
-                Alert.alert('QR invalide', 'Ce QR code ne contient pas de token de check-in.');
-                return;
-              }
-              if (payload.eventId && payload.eventId !== event.id) {
-                qrScanBusyRef.current = false;
-                Alert.alert('Mauvais événement', 'Ce QR code correspond à un autre événement.');
-                return;
-              }
-
-              setQrScannerVisible(false);
-              await executeCheckIn({
-                qrToken: payload.qrToken,
-                source: 'qr_scan',
-                successTitle: 'Check-in QR réussi',
-              });
-              qrScanBusyRef.current = false;
-            }}
-          />
-          <View style={styles.qrScannerOverlay}>
-            <Text style={styles.qrScannerTitle}>Scannez le QR code de l’événement</Text>
-            <Text style={styles.qrScannerHint}>
-              La validation utilise aussi votre géolocalisation pour vérifier votre présence sur place.
-            </Text>
-            <TouchableOpacity style={styles.qrScannerClose} onPress={() => setQrScannerVisible(false)}>
-              <Text style={styles.qrScannerCloseText}>Fermer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       <GuestGateModal
         visible={guestGate.visible}
@@ -2138,11 +1399,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: borderRadius.full,
     backgroundColor: colors.brand.secondary,
-  },
-  heroBadgeEarly: {
-    backgroundColor: 'rgba(234, 179, 8, 0.25)',
-    borderColor: 'rgba(234, 179, 8, 0.45)',
-    borderWidth: 1,
   },
   heroBadgeText: {
     color: '#FFF',
@@ -2325,60 +1581,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(15,23,25,0.9)',
   },
-  qrCard: {
-    marginBottom: 0,
-  },
-  qrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  qrHeaderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flexShrink: 1,
-  },
-  qrTitle: {
-    ...typography.body,
-    color: colors.brand.text,
-    fontWeight: '700',
-    flex: 1,
-  },
-  qrShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24,0.45)',
-    backgroundColor: 'rgba(124, 181, 24,0.1)',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  qrShareText: {
-    ...typography.caption,
-    color: colors.brand.secondary,
-    fontWeight: '700',
-  },
-  qrImage: {
-    width: Math.min(width - spacing.lg * 4, 220),
-    height: Math.min(width - spacing.lg * 4, 220),
-    alignSelf: 'center',
-    borderRadius: borderRadius.md,
-    backgroundColor: '#fff',
-  },
-  qrHint: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-  },
-  qrLink: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    marginTop: spacing.sm,
-  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2408,40 +1610,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     marginTop: 2,
-  },
-  facepileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    paddingVertical: 8,
-  },
-  facepileRow: {
-    flexDirection: 'row',
-    marginLeft: 10,
-  },
-  facepileAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginLeft: -12,
-    borderWidth: 2,
-    borderColor: colors.brand.primary,
-  },
-  facepileCounter: {
-    backgroundColor: colors.brand.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  facepileCountText: {
-    color: colors.brand.textSecondary,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  facepileLabel: {
-    color: colors.brand.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
   },
   descriptionCard: {
     marginTop: 0,
@@ -2612,110 +1780,5 @@ const styles = StyleSheet.create({
   commentContent: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
-  },
-  bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.brand.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    paddingTop: spacing.md,
-    minHeight: BOTTOM_BAR_HEIGHT,
-    justifyContent: 'center',
-  },
-  bottomBarContent: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-    gap: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bottomBarCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
-    height: 56,
-    gap: spacing.xs,
-  },
-  bottomPrimary: {
-    flex: 0.2,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  bottomSecondary: {
-    flex: 0.8,
-    backgroundColor: '#39BFE3',
-  },
-  bottomCheckInFull: {
-    flex: 1,
-  },
-  bottomBarText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '700',
-  },
-  checkinIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: 'rgba(10, 42, 56, 0.5)',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 246, 255, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkinButtonText: {
-    ...typography.body,
-    color: '#F0FBFF',
-    fontWeight: '800',
-  },
-  qrScannerContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  qrScannerCamera: {
-    flex: 1,
-  },
-  qrScannerOverlay: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: Math.max(spacing.lg, 24),
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.62)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    gap: spacing.xs,
-  },
-  qrScannerTitle: {
-    ...typography.body,
-    color: '#FFF',
-    fontWeight: '700',
-  },
-  qrScannerHint: {
-    ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.84)',
-  },
-  qrScannerClose: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.xs,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  qrScannerCloseText: {
-    ...typography.bodySmall,
-    color: '#FFF',
-    fontWeight: '700',
   },
 });

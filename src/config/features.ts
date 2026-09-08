@@ -60,14 +60,15 @@ export const features = {
    */
   roadtrip: process.env.EXPO_PUBLIC_FEATURE_ROADTRIP === 'true',
   /**
-   * Post-MVP — Lumia conversational chat.
-   * Default OFF. No entry point when unset/false.
+   * Alpha — Lumia conversational chat.
+   * EAS production/preview set EXPO_PUBLIC_FEATURE_LUMIA_CHAT=true.
+   * No entry point when unset/false.
    */
   lumiaChat: process.env.EXPO_PUBLIC_FEATURE_LUMIA_CHAT === 'true',
   /**
-   * V1 — suggest an event from a poster photo (AI prefill → existing create form).
+   * Alpha — suggest an event from a poster photo (AI prefill → existing create form).
    * Independent from `eventCreate`: discover users can suggest without full creation mode.
-   * Default OFF. No entry point when unset/false.
+   * EAS production/preview set EXPO_PUBLIC_FEATURE_EVENT_SUGGEST=true.
    */
   eventSuggest: process.env.EXPO_PUBLIC_FEATURE_EVENT_SUGGEST === 'true',
 } as const;

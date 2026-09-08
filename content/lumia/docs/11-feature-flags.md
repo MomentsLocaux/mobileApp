@@ -8,20 +8,20 @@ category: policy
 
 Le build mobile active ou cache des surfaces via des **flags** (variables d’environnement Expo). Lumia doit décrire l’**état réel** du build, pas la roadmap complète.
 
-## MVP store-ready (défauts)
+## Alpha (canal EAS production + preview)
 
-| Flag | Défaut | Visible si ON |
+| Flag | Défaut Alpha | Visible si ON |
 |---|---|---|
 | `FEATURE_SOCIAL_PEERS` | **ON** | Membres, follow, Aimé par vos suivis |
-| `FEATURE_EVENT_CREATE` | off | Bouton +, création, mes events, ModeSwitch |
+| `FEATURE_EVENT_SUGGEST` | **ON** | Ajouter depuis une affiche (IA → formulaire suggestion) |
+| `FEATURE_LUMIA_CHAT` | **ON** | Entrée chat Lumia + tour |
+| `FEATURE_EVENT_CREATE` | off | Chrome organisateur (ModeSwitch, mes events) — le stepper reste pour la suggestion |
 | `FEATURE_CHECKIN` | off | QR / geo check-in |
-| `FEATURE_OFFERS` | off | Écran d’achat in-app / paywalls. Les questions prix s’appuient sur les pages du **site** (`/offres`), pas sur un catalogue mobile. |
+| `FEATURE_OFFERS` | off | Écran d’achat in-app / paywalls. Les questions prix s’appuient sur les pages du **site** (`/offres`). |
 | `FEATURE_DIFFUSEUR` | off | Parcours pro / diffuseur |
 | `FEATURE_GAMIFICATION` | off | Lumo, shop, missions, pass |
 | `FEATURE_DISCOVERY` | off | Discovery Engine, reco avancées |
 | `FEATURE_CONTESTS` | off | Concours |
-| `FEATURE_LUMIA_CHAT` | off | Entrée chat Lumia |
-| `FEATURE_EVENT_SUGGEST` | off | Ajouter depuis une affiche (IA → formulaire suggestion) |
 
 Redémarrer Metro après changement de flag en dev.
 

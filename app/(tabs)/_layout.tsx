@@ -17,21 +17,10 @@ import {
   Settings,
   LogOut,
   MapPinned,
-  Compass,
-  Crown,
-  Trophy,
-  Target,
-  ShoppingBag,
-  Coins,
-  Ticket,
-  Sparkles,
-  Briefcase,
-  BarChart3,
-  Package,
   WandSparkles,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView } from 'react-native';
 import { BrandLogoSpinner } from '@/components/ui';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,9 +33,6 @@ import Animated, {
 import { colors } from '../../src/constants/theme';
 import { Motion } from '@/constants/motion';
 import { haptics } from '@/utils/haptics';
-import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
-import { CONTESTS_ENABLED } from '@/config/contests.flags';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { features } from '@/config/features';
 import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { EventContributeSheet } from '@/components/events/EventContributeSheet';
@@ -57,7 +43,6 @@ import {
 } from '@/utils/contribution-fab';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
-import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAuth } from '../../src/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -75,16 +60,10 @@ import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, signOut } = useAuth();
-  const { isPremium, hasHabitue, hasEclaireur } = useOfferEntitlements();
-  const showPaidOfferChrome = features.offers;
-  const isOfferPremium = showPaidOfferChrome && isPremium;
-  const { canCreateNow, accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
+  const { accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
   const publishSurfaces = useEventPublishSurfaces();
-  const canCreateEvents = canCreateNow;
   const isProfessionnelAccount = accountKind === 'professionnel';
-  /** B2C Habitué/Lumo surfaces — never on Professionnel accounts (ADR_007). */
-  const showB2cGamification = GAMIFICATION_ENABLED && !isProfessionnelAccount;
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -311,21 +290,17 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: isProfessionnelAccount ? 'Tableau de bord' : 'Accueil',
+            title: 'Accueil',
             tabBarIcon: ({ focused, size }) =>
               renderTabIconSlot(
                 focused,
-                isProfessionnelAccount ? (
-                  <Briefcase size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
-                ) : (
-                  <HouseHeart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
-                ),
+                <HouseHeart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />,
                 'home',
               ),
             tabBarButton: (props) =>
               renderProtectedTabButton(
                 props,
-                isProfessionnelAccount ? 'Accéder au tableau de bord' : "Accéder à l'accueil",
+                "Accéder à l'accueil",
               ),
           }}
         />
@@ -400,10 +375,10 @@ export default function TabsLayout() {
                 focused,
                 <View style={styles.profileTabIconWrap}>
                   {profile?.avatar_url ? (
-                    <PremiumAvatarFrame isPremium={isOfferPremium} size={26} showBadge={false}>
+                    <PremiumAvatarFrame isPremium={false} size={26} showBadge={false}>
                       <Image
                         source={{ uri: profile.avatar_url }}
-                        style={[styles.tabAvatar, focused && !isOfferPremium && styles.tabAvatarActive]}
+                        style={[styles.tabAvatar, focused && styles.tabAvatarActive]}
                       />
                     </PremiumAvatarFrame>
                   ) : (
@@ -424,9 +399,7 @@ export default function TabsLayout() {
           }}
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
-        <Tabs.Screen name="shop" options={{ href: null }} />
         <Tabs.Screen name="community" options={{ href: null }} />
-        <Tabs.Screen name="missions" options={{ href: null }} />
       </Tabs>
 
       {drawerOpen ? (
@@ -446,7 +419,7 @@ export default function TabsLayout() {
                 router.push('/(tabs)/profile' as any);
               }}
             >
-              <PremiumAvatarFrame isPremium={isOfferPremium} size={56}>
+              <PremiumAvatarFrame isPremium={false} size={56}>
                 {profile?.avatar_url ? (
                   <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
                 ) : (
@@ -458,22 +431,6 @@ export default function TabsLayout() {
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>
               <Text style={styles.drawerName}>{profile?.display_name || 'Profil'}</Text>
-              {showPaidOfferChrome && !isProfessionnelAccount && hasEclaireur ? (
-                <View style={styles.drawerPremiumPill}>
-                  <Crown size={12} color={colors.brand.primary} strokeWidth={2.5} />
-                  <Text style={styles.drawerPremiumText}>Éclaireur</Text>
-                </View>
-              ) : showPaidOfferChrome && !isProfessionnelAccount && hasHabitue ? (
-                <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
-                  <Sparkles size={12} color={colors.brand.primary} strokeWidth={2.5} />
-                  <Text style={styles.drawerPremiumText}>Habitué</Text>
-                </View>
-              ) : isProfessionnelAccount ? (
-                <View style={[styles.drawerPremiumPill, styles.drawerHabituePill]}>
-                  <Briefcase size={12} color={colors.brand.primary} strokeWidth={2.5} />
-                  <Text style={styles.drawerPremiumText}>Diffuseur</Text>
-                </View>
-              ) : null}
               <Text style={styles.drawerEmail}>{profile?.email || 'Compte connecté'}</Text>
             </View>
           </View>
@@ -495,38 +452,6 @@ export default function TabsLayout() {
           {/* Section: Découverte */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>DÉCOUVERTE</Text>
-            {DISCOVERY_ENABLED && (
-              <DrawerLink
-                icon={Compass}
-                label="Discovery"
-                iconColor={isOfferPremium ? colors.brand.premiumLight : undefined}
-                premium={isOfferPremium}
-                onPress={() => {
-                  toggleDrawer(false);
-                  router.push('/discovery' as any);
-                }}
-              />
-            )}
-            {CONTESTS_ENABLED && (
-              <DrawerLink
-                icon={Trophy}
-                label="Concours"
-                onPress={() => {
-                  toggleDrawer(false);
-                  router.push('/contests' as any);
-                }}
-              />
-            )}
-            {features.roadtrip ? (
-              <DrawerLink
-                icon={MapPinned}
-                label="Roadtrip"
-                onPress={() => {
-                  toggleDrawer(false);
-                  router.push('/roadtrip' as any);
-                }}
-              />
-            ) : null}
             {publishSurfaces.showCenterTabAction ? (
               <DrawerLink
                 icon={PlusCircle}
@@ -581,17 +506,6 @@ export default function TabsLayout() {
           {/* Section: Compte */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>COMPTE</Text>
-            {features.offers ? (
-              <DrawerLink
-                icon={Sparkles}
-                label="Nos offres"
-                iconColor={colors.brand.premiumLight}
-                onPress={() => {
-                  toggleDrawer(false);
-                  router.push('/profile/offers' as any);
-                }}
-              />
-            ) : null}
             <DrawerLink
               icon={Settings}
               label="Paramètres"
@@ -614,102 +528,6 @@ export default function TabsLayout() {
           {/* Section: Activité */}
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
-            {showB2cGamification && (
-              <>
-                <DrawerLink
-                  icon={Coins}
-                  label="Portefeuille Lumo"
-                  onPress={() => {
-                    toggleDrawer(false);
-                    if (!hasHabitue) {
-                      if (features.offers) {
-                        Alert.alert(
-                          'Gagnez des Lumo en sortant',
-                          'Avec Habitué, chaque présence validée vous rapporte des Lumo à dépenser dans la boutique. Éclaireur inclut Habitué.',
-                          [
-                            {
-                              text: 'Découvrir Habitué',
-                              onPress: () => router.push('/profile/offers' as any),
-                            },
-                            { text: 'Plus tard', style: 'cancel' as const },
-                          ],
-                        );
-                        return;
-                      }
-                      router.push('/(tabs)/map' as any);
-                      return;
-                    }
-                    router.push('/profile/wallet' as any);
-                  }}
-                />
-                <DrawerLink
-                  icon={ShoppingBag}
-                  label="Boutique Lumo"
-                  onPress={() => {
-                    toggleDrawer(false);
-                    if (!hasHabitue) {
-                      if (features.offers) {
-                        Alert.alert(
-                          'La boutique vous attend',
-                          'Boostez vos moments ou personnalisez votre profil avec vos Lumo. Passez Habitué pour y accéder — Éclaireur inclut Habitué.',
-                          [
-                            {
-                              text: 'Découvrir Habitué',
-                              onPress: () => router.push('/profile/offers' as any),
-                            },
-                            { text: 'Plus tard', style: 'cancel' as const },
-                          ],
-                        );
-                        return;
-                      }
-                      router.push('/(tabs)/map' as any);
-                      return;
-                    }
-                    router.push('/(tabs)/shop' as any);
-                  }}
-                />
-                {hasHabitue && (
-                  <>
-                    <DrawerLink
-                      icon={Target}
-                      label="Missions"
-                      onPress={() => {
-                        toggleDrawer(false);
-                        router.push('/(tabs)/missions' as any);
-                      }}
-                    />
-                    <DrawerLink
-                      icon={Ticket}
-                      label="Pass quartier"
-                      onPress={() => {
-                        toggleDrawer(false);
-                        router.push('/profile/pass' as any);
-                      }}
-                    />
-                  </>
-                )}
-              </>
-            )}
-            {features.diffuseur && isProfessionnelAccount ? (
-              <>
-                <DrawerLink
-                  icon={Package}
-                  label="Packs Diffuseur"
-                  onPress={() => {
-                    toggleDrawer(false);
-                    router.push('/profile/diffuseur' as any);
-                  }}
-                />
-                <DrawerLink
-                  icon={BarChart3}
-                  label="Analytics Pro"
-                  onPress={() => {
-                    toggleDrawer(false);
-                    router.push('/profile/diffuseur-analytics' as any);
-                  }}
-                />
-              </>
-            ) : null}
             {!isProfessionnelAccount ? (
               <DrawerLink
                 icon={Heart}
