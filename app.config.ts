@@ -113,14 +113,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-notifications',
     'expo-apple-authentication',
     [
-      'expo-camera',
-      {
-        cameraPermission: CAMERA_USAGE_FR,
-        microphonePermission: false,
-        recordAudioAndroid: false,
-      },
-    ],
-    [
       'expo-calendar',
       {
         calendarPermission: CALENDAR_USAGE_FR,

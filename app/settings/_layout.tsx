@@ -6,12 +6,10 @@ export default function SettingsStackLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="permissions" />
-      <Stack.Screen name="discovery" />
       <Stack.Screen name="privacy/policy" />
       <Stack.Screen name="privacy/delete" />
       <Stack.Screen name="privacy/export" />
       <Stack.Screen name="privacy/location" />
-      <Stack.Screen name="diffuseur" />
       <Stack.Screen name="legal/cgu" />
       <Stack.Screen name="legal/mentions" />
       <Stack.Screen name="legal/cookies" />

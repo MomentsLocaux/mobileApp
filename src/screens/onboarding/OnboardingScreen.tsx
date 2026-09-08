@@ -40,7 +40,6 @@ import {
   type ConnectorDraft,
 } from '@/components/onboarding/OnboardingConnectorStep';
 import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
-import { DiffuseurService } from '@/services/diffuseur.service';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import {
   ACCOUNT_KIND_OPTIONS,
@@ -423,20 +422,6 @@ export default function OnboardingScreen() {
           });
         } catch {
           await ProfileService.updateProfile(activeProfile.id, basePayload);
-        }
-      }
-
-      if (isProfessionnel) {
-        try {
-          const org = await DiffuseurService.ensureMyOrganization({
-            displayName: displayName.trim(),
-            proSubtype,
-          });
-          if (org && connectorDraft.status !== 'none') {
-            await DiffuseurService.updateConnector(org.id, connectorDraft);
-          }
-        } catch (orgErr) {
-          console.warn('Diffuseur org/connector not saved during onboarding', orgErr);
         }
       }
 

@@ -11,18 +11,12 @@ import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
-import { DISCOVERY_CAPTURE_ENABLED } from '@/config/discovery.flags';
-import { useDiscoveryCapture } from '../src/hooks/useDiscoveryCapture';
 import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
-import { ensureDiscoveryLocationTaskRegistered } from '@/tasks/discovery-location';
 import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
 import { useProposalsStore } from '@/store/proposalsStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-if (DISCOVERY_CAPTURE_ENABLED) {
-  ensureDiscoveryLocationTaskRegistered();
-}
 ensureProximityLocationTaskRegistered();
 
 export default function RootLayout() {
@@ -33,7 +27,6 @@ export default function RootLayout() {
   const userId = useAuthStore((state) => state.user?.id);
 
   usePushNotifications(userId);
-  useDiscoveryCapture(userId);
   useProximityAlerts(userId);
 
   useEffect(() => {
@@ -135,8 +128,6 @@ export default function RootLayout() {
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="contact" />
         <Stack.Screen name="settings" />
-        <Stack.Screen name="discovery" />
-        <Stack.Screen name="contests" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />

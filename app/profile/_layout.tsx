@@ -18,34 +18,6 @@ export default function ProfileLayout() {
       }}
     >
       <Stack.Screen
-        name="subscription"
-        options={{
-          title: 'Éclaireur',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="diffuseur"
-        options={{
-          title: 'Moments Diffuseur',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="diffuseur-analytics"
-        options={{
-          title: 'Analytics Diffuseur',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="offers"
-        options={{
-          title: 'Offres & abonnements',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
         name="edit"
         options={{
           title: 'Modifier le profil',
@@ -71,27 +43,6 @@ export default function ProfileLayout() {
         name="invite"
         options={{
           title: 'Inviter des amis',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="pass"
-        options={{
-          title: 'Pass quartier',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="wallet"
-        options={{
-          title: 'Portefeuille Lumo',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="journey"
-        options={{
-          title: 'Mon parcours',
           headerShown: false,
         }}
       />

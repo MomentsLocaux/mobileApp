@@ -11,15 +11,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Settings, User as UserIcon, Calendar, Award, Compass, Crown, Trophy, Coins, Target, ShoppingBag, Ticket, Send, Sparkles, Lightbulb } from 'lucide-react-native';
-import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
-import { CONTESTS_ENABLED } from '@/config/contests.flags';
-import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { Settings, User as UserIcon, Calendar, Award, Send, Sparkles, Lightbulb } from 'lucide-react-native';
 import { features } from '@/config/features';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { PremiumCard } from '@/components/premium/PremiumCard';
-import { PremiumMemberBadge } from '@/components/premium/PremiumMemberBadge';
-import { usePremiumEntitlement } from '@/hooks/usePremiumEntitlement';
 import { Button, ScreenHeader } from '../../src/components/ui';
 import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { useAuth } from '../../src/hooks';
@@ -29,16 +24,12 @@ import { GuestGateModal } from '../../src/components/auth/GuestGateModal';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
-import { useDiffuseur } from '@/hooks/useDiffuseur';
-import { DIFFUSEUR_PLANS } from '@/constants/diffuseur';
 import { prefetchMySuggestionHistory } from '@/services/suggestion-history.service';
 import { CommunityService } from '@/services/community.service';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut, fullSignOut, session } = useAuth();
-  const { isPremium } = usePremiumEntitlement();
-  const isOfferPremium = features.offers && isPremium;
   const {
     showModeSwitch,
     activeMode,
@@ -47,7 +38,6 @@ export default function ProfileScreen() {
     accent,
     accountKind,
   } = useAccountIdentity();
-  const { organization, entitlements, plan, memberCount, loading: diffuseurLoading } = useDiffuseur();
   const { showPosterSuggestDrawer, showMyEvents, showMySuggestions, routes } = useEventPublishSurfaces();
   const isProfessionnelAccount = accountKind === 'professionnel';
   const isGuest = !session;
@@ -170,7 +160,7 @@ export default function ProfileScreen() {
             <View style={[styles.cover, { backgroundColor: colors.neutral[200] }]} />
           )}
           <View style={styles.headerOverlay}>
-            <PremiumAvatarFrame isPremium={isOfferPremium} size={100}>
+            <PremiumAvatarFrame isPremium={false} size={100}>
               {profile.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
               ) : (
@@ -179,7 +169,6 @@ export default function ProfileScreen() {
                 </View>
               )}
             </PremiumAvatarFrame>
-            {isOfferPremium && <PremiumMemberBadge />}
             <Text style={styles.displayName}>{profile.display_name}</Text>
             <Text style={styles.email}>{profile.email}</Text>
             {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
@@ -247,7 +236,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.content}>
-          <PremiumCard isPremium={isOfferPremium}>
+          <PremiumCard isPremium={false}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Profil</Text>
@@ -261,64 +250,7 @@ export default function ProfileScreen() {
             ) : null}
           </PremiumCard>
 
-          {isProfessionnelAccount ? (
-            <PremiumCard isPremium={false} style={styles.actionCard}>
-              <Text style={styles.sectionTitle}>Moments Diffuseur</Text>
-              {diffuseurLoading ? (
-                <ActivityIndicator color={accent.accent} />
-              ) : (
-                <>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Offre</Text>
-                    <Text style={styles.infoValue}>{DIFFUSEUR_PLANS[plan].label}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Organisation</Text>
-                    <Text style={styles.infoValue}>
-                      {organization?.name || 'Création automatique…'}
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Sièges</Text>
-                    <Text style={styles.infoValue}>
-                      {organization
-                        ? `${memberCount} / ${organization.seat_limit}`
-                        : `1 / ${entitlements.seatLimit} (Free)`}
-                    </Text>
-                  </View>
-                  {organization ? (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Crédits boost</Text>
-                      <Text style={styles.infoValue}>
-                        {organization.boost_credits_balance ?? 0}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {organization?.verified_at ? (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Badge</Text>
-                      <Text style={styles.infoValue}>Vérifié</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.diffuseurHint}>
-                      Pro (29 € HT/mois) : 5 sièges, crédits boost, analytics, badge Vérifié.
-                      Facturation web — pas d’achat in-app.
-                    </Text>
-                  )}
-                  <TouchableOpacity
-                    style={[styles.linkButton, { marginTop: spacing.sm }]}
-                    onPress={() => router.push('/profile/diffuseur' as any)}
-                  >
-                    <Text style={[styles.linkText, { color: accent.accent }]}>
-                      Gérer l’offre & packs
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </PremiumCard>
-          ) : null}
-
-          <PremiumCard isPremium={isOfferPremium} style={styles.actionCard}>
+          <PremiumCard isPremium={false} style={styles.actionCard}>
             <Text style={styles.sectionTitle}>Actions</Text>
             {features.socialPeers ? (
               <TouchableOpacity
@@ -329,26 +261,6 @@ export default function ProfileScreen() {
                 <Text style={[styles.linkText, { color: accent.accent }]}>Inviter des amis</Text>
               </TouchableOpacity>
             ) : null}
-            {!isProfessionnelAccount && DISCOVERY_ENABLED && (
-              <TouchableOpacity
-                style={[styles.linkButton, isOfferPremium && styles.linkButtonPremium]}
-                onPress={() => router.push('/discovery' as any)}
-              >
-                <Compass size={18} color={isOfferPremium ? colors.brand.premiumLight : colors.brand.secondary} />
-                <Text style={[styles.linkText, isOfferPremium && styles.linkTextPremium]}>Discovery</Text>
-              </TouchableOpacity>
-            )}
-            {!isProfessionnelAccount && DISCOVERY_ENABLED && features.offers && (
-              <TouchableOpacity
-                style={[styles.linkButton, isOfferPremium && styles.linkButtonPremium]}
-                onPress={() => router.push('/profile/subscription' as any)}
-              >
-                <Crown size={18} color={isOfferPremium ? colors.brand.premiumLight : colors.brand.secondary} />
-                <Text style={[styles.linkText, isOfferPremium && styles.linkTextPremium]}>
-                  {isOfferPremium ? 'Moments Locaux+ actif' : 'Moments Locaux+'}
-                </Text>
-              </TouchableOpacity>
-            )}
             {showPosterSuggestDrawer && !isProfessionnelAccount ? (
               <TouchableOpacity
                 style={styles.linkButton}
@@ -374,47 +286,6 @@ export default function ProfileScreen() {
                 <Text style={[styles.linkText, { color: accent.accent }]}>Mes événements</Text>
               </TouchableOpacity>
             ) : null}
-            {GAMIFICATION_ENABLED && !isProfessionnelAccount && (
-              <>
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => router.push('/profile/wallet' as any)}
-                >
-                  <Coins size={18} color={colors.brand.secondary} />
-                  <Text style={styles.linkText}>Portefeuille Lumo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => router.push('/(tabs)/missions' as any)}
-                >
-                  <Target size={18} color={colors.brand.secondary} />
-                  <Text style={styles.linkText}>Missions</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => router.push('/(tabs)/shop' as any)}
-                >
-                  <ShoppingBag size={18} color={colors.brand.secondary} />
-                  <Text style={styles.linkText}>Boutique</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => router.push('/profile/pass' as any)}
-                >
-                  <Ticket size={18} color={colors.brand.secondary} />
-                  <Text style={styles.linkText}>Pass quartier</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {CONTESTS_ENABLED && (
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => router.push('/contests' as any)}
-              >
-                <Trophy size={18} color={colors.brand.secondary} />
-                <Text style={styles.linkText}>Concours</Text>
-              </TouchableOpacity>
-            )}
           </PremiumCard>
 
           <Button

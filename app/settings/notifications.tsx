@@ -16,9 +16,7 @@ import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsRow, SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { CATEGORY_VISUAL_SLUGS, type CategoryVisualSlug } from '@/constants/category-visuals';
-import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { features } from '@/config/features';
-import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { requestProximityLocationPermissions } from '@/hooks/useProximityAlerts';
 import {
   DEFAULT_PREFERENCES,
@@ -34,11 +32,9 @@ import {
   stopProximityBackgroundAlerts,
 } from '@/tasks/proximity-location';
 import { useAuthStore } from '@/state/auth';
-import { router } from 'expo-router';
 
 const RADIUS_CHOICES = [10, 25, 50, 100];
 const DAILY_BUDGET_CHOICES = [1, 2, 3, 5];
-const DISCOVERY_MAX_PUSH_CHOICES = [1, 3, 5, 7, 10];
 const FREQUENCY_CHOICES: { value: NotifyFrequency; label: string }[] = [
   { value: 'instant', label: 'Instantané' },
   { value: 'daily', label: 'Quotidien' },
@@ -54,7 +50,6 @@ const QUIET_PRESETS: { label: string; start: string | null; end: string | null }
 
 export default function NotificationsSettingsScreen() {
   const userId = useAuthStore((state) => state.user?.id);
-  const { hasEclaireur, loading: entitlementLoading } = useOfferEntitlements();
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -383,98 +378,6 @@ export default function NotificationsSettingsScreen() {
           ))}
         </ChoiceGroup>
       </SettingsSectionCard>
-
-      {/* Discovery — V2 / offers gated */}
-      {DISCOVERY_ENABLED && features.offers && !entitlementLoading && hasEclaireur && (
-        <SettingsSectionCard
-          title="Suggestions Discovery"
-          description="Idées personnalisées selon vos habitudes (Éclaireur)."
-          icon={Sparkles}
-        >
-          <SettingsRow
-            label="Suggestions personnalisées"
-            icon={Sparkles}
-            noBorder={!prefs.discovery_push_enabled}
-            right={
-              <Switch
-                value={prefs.discovery_push_enabled}
-                onValueChange={(value) =>
-                  persist({
-                    discovery_push_enabled: value,
-                    ...(value
-                      ? {}
-                      : {
-                          right_now_push_enabled: false,
-                          break_loop_push_enabled: false,
-                          life_insight_push_enabled: false,
-                        }),
-                  })
-                }
-              />
-            }
-          />
-
-          {prefs.discovery_push_enabled && (
-            <>
-              <SettingsRow
-                label="Idées pour maintenant"
-                icon={MapPin}
-                right={
-                  <Switch
-                    value={prefs.right_now_push_enabled}
-                    onValueChange={(value) => persist({ right_now_push_enabled: value })}
-                  />
-                }
-              />
-              <SettingsRow
-                label="Sortir de la routine"
-                icon={Heart}
-                right={
-                  <Switch
-                    value={prefs.break_loop_push_enabled}
-                    onValueChange={(value) => persist({ break_loop_push_enabled: value })}
-                  />
-                }
-              />
-              <SettingsRow
-                label="Tendances de vos sorties"
-                icon={Info}
-                right={
-                  <Switch
-                    value={prefs.life_insight_push_enabled}
-                    onValueChange={(value) => persist({ life_insight_push_enabled: value })}
-                  />
-                }
-              />
-              <ChoiceGroup label="Suggestions max par semaine">
-                {DISCOVERY_MAX_PUSH_CHOICES.map((count) => (
-                  <Chip
-                    key={count}
-                    label={`${count}`}
-                    active={prefs.discovery_max_push_per_week === count}
-                    onPress={() => persist({ discovery_max_push_per_week: count })}
-                  />
-                ))}
-              </ChoiceGroup>
-            </>
-          )}
-        </SettingsSectionCard>
-      )}
-
-      {DISCOVERY_ENABLED && features.offers && !entitlementLoading && !hasEclaireur && (
-        <SettingsSectionCard
-          title="Suggestions Discovery"
-          description="Réservé aux Éclaireurs — idées selon vos habitudes de sortie."
-          icon={Sparkles}
-        >
-          <SettingsRow
-            label="Découvrir Éclaireur"
-            icon={Sparkles}
-            onPress={() => router.push('/profile/offers' as any)}
-            noBorder
-          />
-        </SettingsSectionCard>
-      )}
     </SettingsLayout>
   );
 }

@@ -12,4 +12,3 @@ export { useSearchResultsStore } from './searchResultsStore';
 export { useMapResultsUIStore } from './mapResultsUIStore';
 export { useMapTransferStore } from './mapTransferStore';
 export { useEventsStore } from './eventsStore';
-export { useCreatorDashboardStore } from './creatorDashboard.store';

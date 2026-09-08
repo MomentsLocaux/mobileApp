@@ -19,9 +19,7 @@ import {
   MapPin,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { DISCOVERY_ENABLED } from '@/config/discovery.flags';
 import { features } from '@/config/features';
-import { useOfferEntitlements } from '@/hooks/useOfferEntitlements';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
@@ -29,7 +27,6 @@ import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { hasEclaireur } = useOfferEntitlements();
   const { enableCreation, savingMode, showModeSwitch, canOptInToCreation } =
     useAccountIdentity();
 
@@ -162,17 +159,6 @@ export default function SettingsScreen() {
           noBorder
         />
       </SettingsSectionCard>
-
-      {DISCOVERY_ENABLED && features.offers && hasEclaireur && (
-        <SettingsSectionCard title="Discovery" icon={Compass}>
-          <SettingsRow
-            label="Personnalisation Discovery"
-            icon={Compass}
-            onPress={() => router.push('/settings/discovery' as any)}
-            noBorder
-          />
-        </SettingsSectionCard>
-      )}
 
       <SettingsSectionCard title="Confidentialité & données" icon={Lock} accent>
         <SettingsRow
