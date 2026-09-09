@@ -198,7 +198,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/settings/legal/mentions' as any)}
         />
         <SettingsRow
-          label="Politique des cookies"
+          label="Cookies et traceurs"
           icon={Cookie}
           onPress={() => router.push('/settings/legal/cookies' as any)}
         />

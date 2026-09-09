@@ -18,7 +18,7 @@ export const LUMIA_DEEPLINKS: LumiaDeeplink[] = [
   { href: '/settings', label: 'Paramètres', hint: 'écran paramètres' },
   { href: '/settings/legal/cgu', label: 'CGU', hint: 'conditions générales' },
   { href: '/settings/legal/mentions', label: 'Mentions légales', hint: 'mentions légales' },
-  { href: '/settings/legal/cookies', label: 'Cookies', hint: 'politique cookies' },
+  { href: '/settings/legal/cookies', label: 'Cookies', hint: 'cookies et traceurs (pas de pub)' },
   { href: '/settings/privacy/policy', label: 'Confidentialité', hint: 'politique de confidentialité' },
   { href: '/settings/privacy/delete', label: 'Supprimer mon compte', hint: 'suppression de compte' },
   { href: '/settings/privacy/export', label: 'Exporter mes données', hint: 'export RGPD / portabilité' },

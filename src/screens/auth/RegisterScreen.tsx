@@ -56,7 +56,7 @@ export default function RegisterScreen() {
     }
 
     if (!legalAccepted) {
-      newErrors.legalAccepted = 'Vous devez accepter les CGU et la politique de confidentialité';
+      newErrors.legalAccepted = 'Vous devez avoir 16 ans et accepter les CGU et la politique de confidentialité';
     }
 
     setErrors(newErrors);
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
     if (!legalAccepted) {
       Alert.alert(
         'Consentement requis',
-        'Veuillez accepter les CGU et la politique de confidentialité avant de continuer.',
+        'Vous devez avoir 16 ans et accepter les CGU et la politique de confidentialité avant de continuer.',
       );
       return;
     }
@@ -188,7 +188,7 @@ export default function RegisterScreen() {
               {legalAccepted ? <Ionicons name="checkmark" size={14} color={colors.brand.primary} /> : null}
             </View>
             <Text style={styles.consentText}>
-              J’accepte les{' '}
+              J’ai au moins 16 ans et j’accepte les{' '}
               <Text style={styles.inlineLink} onPress={() => router.push('/settings/legal/cgu' as any)}>
                 CGU
               </Text>{' '}
