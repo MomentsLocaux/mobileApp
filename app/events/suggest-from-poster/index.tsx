@@ -28,6 +28,7 @@ import {
   isEventSubmissionSource,
   type EventSubmissionSource,
 } from '@/types/event-submission';
+import { confirmAiProcessingNotice } from '@/utils/ai-processing-notice';
 
 function SuggestFromPosterContent() {
   const router = useRouter();
@@ -216,11 +217,15 @@ function SuggestFromPosterContent() {
   );
 
   const onPickGallery = async () => {
+    const accepted = await confirmAiProcessingNotice('poster', user?.id);
+    if (!accepted) return;
     const asset = await pickImage({ allowsEditing: false });
     if (asset?.uri) await runAnalysis(asset.uri, asset.mimeType);
   };
 
   const onTakePhoto = async () => {
+    const accepted = await confirmAiProcessingNotice('poster', user?.id);
+    if (!accepted) return;
     const asset = await takePhoto({ allowsEditing: false });
     if (asset?.uri) await runAnalysis(asset.uri, asset.mimeType);
   };
@@ -242,6 +247,11 @@ function SuggestFromPosterContent() {
           <Text style={styles.subtitle}>
             Photographie ou importe une affiche, un flyer ou une capture d’écran. L’IA préremplit le
             formulaire — tu vérifies avant de publier.
+          </Text>
+          <Text style={styles.legalHint}>
+            La photo est envoyée à un sous-traitant d’IA (OpenAI) uniquement pour préremplir les
+            champs. Elle peut contenir des visages ou des lieux. Tu peux aussi saisir manuellement
+            sans IA.
           </Text>
         </View>
 
@@ -297,6 +307,11 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.neutral[600],
+  },
+  legalHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    lineHeight: 18,
   },
   actions: {
     gap: spacing.md,

@@ -19,13 +19,10 @@ import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { isAllowedLumiaHref } from '@/constants/lumia-deeplinks';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
-import {
-  askLumia,
-  type LumiaAction,
-  type LumiaChatReply,
-} from '@/services/lumia-chat.service';
+import { askLumia, type LumiaAction, type LumiaChatReply } from '@/services/lumia-chat.service';
 import { useLumiaChatStore } from '@/store/lumiaChatStore';
 import type { LumiaHistoryTurn } from '@/utils/lumia-conversation';
+import { confirmAiProcessingNotice } from '@/utils/ai-processing-notice';
 import type { EventWithCreator } from '@/types/database';
 
 type ChatMessage = {
@@ -66,6 +63,8 @@ export default function LumiaChatScreen() {
   const send = useCallback(async () => {
     const text = draft.trim();
     if (!text || busy) return;
+    const accepted = await confirmAiProcessingNotice('lumia', user?.id);
+    if (!accepted) return;
     setDraft('');
     const history: LumiaHistoryTurn[] = messages
       .filter((item) => item.id !== 'welcome' && item.text.trim().length > 0)
@@ -101,7 +100,7 @@ export default function LumiaChatScreen() {
     } finally {
       setBusy(false);
     }
-  }, [appendMessage, busy, draft, messages, profile?.city]);
+  }, [appendMessage, busy, draft, messages, profile?.city, user?.id]);
 
   const quotaLabel =
     quota && typeof quota.remaining === 'number'
@@ -184,6 +183,9 @@ export default function LumiaChatScreen() {
         />
         <View style={styles.composerWrap}>
           {quotaLabel ? <Text style={styles.quotaHint}>{quotaLabel}</Text> : null}
+          <Text style={styles.legalHint}>
+            Messages transmis temporairement à OpenAI. Pas d’historique sur nos serveurs.
+          </Text>
           <View style={styles.composer}>
             <TextInput
               style={styles.input}
@@ -290,6 +292,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   quotaHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+  },
+  legalHint: {
     ...typography.caption,
     color: colors.brand.textSecondary,
     textAlign: 'center',
