@@ -4,6 +4,8 @@ import { dataProvider } from '@/data-provider';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { supabase } from '@/lib/supabase/client';
+import { LEGAL_POLICY_VERSION } from '@/constants/legal';
+import { shouldWriteLegalAcceptance } from '@/utils/legal-acceptance';
 import {
   getAuthRedirectUri,
   signInWithApple,
@@ -236,7 +238,12 @@ export class AuthService {
       const rawProfile =
         (await dataProvider.getProfile(user.id)) ||
         (await this.ensureProfile(user.id, user.email || ''));
-      return this.attachEmail(rawProfile, user.email);
+      const profile = this.attachEmail(rawProfile, user.email);
+      await this.persistLegalAcceptanceFromMetadata(user, profile);
+      return this.attachEmail(
+        (await dataProvider.getProfile(user.id)) || profile,
+        user.email,
+      );
     })().finally(() => {
       this.profileRequests.delete(user.id);
     });
@@ -245,10 +252,48 @@ export class AuthService {
     return request;
   }
 
+  static async recordLegalAcceptance(userId: string): Promise<void> {
+    try {
+      const profile = await dataProvider.getProfile(userId);
+      if (!shouldWriteLegalAcceptance(profile, LEGAL_POLICY_VERSION)) return;
+      await dataProvider.updateProfile(userId, {
+        legal_accepted_at: new Date().toISOString(),
+        legal_policy_version: LEGAL_POLICY_VERSION,
+      });
+    } catch (error) {
+      console.warn('[legal] persist acceptance skipped (migration pending?)', error);
+    }
+  }
+
+  private static async persistLegalAcceptanceFromMetadata(
+    user: User,
+    profile: Profile | null,
+  ): Promise<void> {
+    const meta = user.user_metadata ?? {};
+    const acceptedAt = typeof meta.legal_accepted_at === 'string' ? meta.legal_accepted_at : null;
+    const version = typeof meta.legal_policy_version === 'string' ? meta.legal_policy_version : null;
+    if (!acceptedAt || !version) return;
+    if (!shouldWriteLegalAcceptance(profile, version)) return;
+    try {
+      await dataProvider.updateProfile(user.id, {
+        legal_accepted_at: acceptedAt,
+        legal_policy_version: version,
+      });
+    } catch (error) {
+      console.warn('[legal] persist acceptance from metadata skipped', error);
+    }
+  }
+
   static async signUp(email: string, password: string): Promise<AuthResponse> {
     const normalizedEmail = email.trim().toLowerCase();
+    const acceptedAt = new Date().toISOString();
     try {
-      const { session, user } = await dataProvider.signUp(normalizedEmail, password);
+      const { session, user } = await dataProvider.signUp(normalizedEmail, password, {
+        data: {
+          legal_accepted_at: acceptedAt,
+          legal_policy_version: LEGAL_POLICY_VERSION,
+        },
+      });
       if (isObfuscatedExistingUser(user)) {
         await this.clearSavedSession();
         return alreadyRegisteredResponse();
@@ -262,6 +307,7 @@ export class AuthService {
       }
 
       const profile = await this.ensureProfile(user.id, normalizedEmail);
+      await this.recordLegalAcceptance(user.id);
       await this.clearAutoRestoreBlock();
       await this.saveSession(session);
       return { success: true, session, user, profile };

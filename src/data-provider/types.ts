@@ -113,7 +113,11 @@ export interface IDataProvider {
 
 export interface IAuthProvider {
   signIn(email: string, password: string): Promise<{ session: any; user: any }>;
-  signUp(email: string, password: string): Promise<{ session: any; user: any }>;
+  signUp(
+    email: string,
+    password: string,
+    options?: { data?: Record<string, string> },
+  ): Promise<{ session: any; user: any }>;
   signOut(): Promise<void>;
   getSession(): Promise<any>;
   getUser(): Promise<any>;
