@@ -134,6 +134,7 @@ export function resolveMapClientFilters(
     categories: filters.categories,
     subcategory: filters.subcategory,
     subcategories: filters.subcategories,
+    tags: filters.tags,
     includePast: true,
   };
   if (!shouldApplyWhenFilters(searchActive, filters)) {

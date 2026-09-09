@@ -39,6 +39,7 @@
     "src/utils/date-range-selection.test.ts",
     "src/utils/event-calendar.test.ts",
     "src/utils/event-card-meta.test.ts",
+    "src/utils/event-card-display.test.ts",
     "src/store/discoveryFiltersStore.test.ts",
     "src/store/mapResultsUIStore.test.ts",
     "src/store/mapTransferStore.test.ts",

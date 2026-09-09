@@ -11,13 +11,14 @@ import {
   useDiscoveryFiltersStore,
 } from '@/store/discoveryFiltersStore';
 import { buildSearchSummary } from '@/utils/search-summary';
-import type { Category, Subcategory } from '@/store/taxonomyStore';
+import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
 import type { DiscoveryFilters, DiscoverySurface } from '@/utils/discovery-filters';
 import { DEFAULT_SORT_OPTION } from '@/constants/filters';
 
 type TaxonomyLabels = {
   categories: Category[];
   subcategories: Subcategory[];
+  tags?: Tag[];
 };
 
 type SavedSearchesStore = SavedSearchesState & {
@@ -74,7 +75,7 @@ const toLegacySearchState = (
     what: {
       categories: [...filters.content.categories],
       subcategories: [...filters.content.subcategories],
-      tags: [],
+      tags: [...filters.content.tags],
       query: filters.content.query || '',
     },
     sortBy: filters.sort[surface].sortBy,
@@ -103,7 +104,8 @@ const summaryForCurrent = (
     filters ?? currentDiscoveryFilters(),
     taxonomy.categories,
     taxonomy.subcategories,
-    surface
+    surface,
+    taxonomy.tags
   );
 
 export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
@@ -185,8 +187,7 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
           radiusKm: item.where.radiusKm,
         },
         when: { ...item.when },
-        // Legacy snapshots may contain tags that are no longer exposed in the UI.
-        content: { ...item.what, tags: [] },
+        content: { ...item.what, tags: [...(item.what.tags || [])] },
       },
       {
         status:
