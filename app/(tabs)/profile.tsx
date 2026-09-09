@@ -26,6 +26,8 @@ import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { prefetchMySuggestionHistory } from '@/services/suggestion-history.service';
 import { CommunityService } from '@/services/community.service';
+import { SIGN_OUT_CHOICE, signOutModeForChoice } from '@/constants/sign-out-choice';
+import { promptSignOutChoice } from '@/utils/prompt-sign-out-choice';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -69,40 +71,30 @@ export default function ProfileScreen() {
     }, [isGuest, profile?.id]),
   );
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Se déconnecter',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/auth/login');
-          },
-        },
-      ]
-    );
+  const handleSignOut = () => {
+    promptSignOutChoice((choice) => {
+      void (async () => {
+        const ok =
+          signOutModeForChoice(choice) === 'full' ? await fullSignOut() : await signOut();
+        if (!ok) return;
+        router.replace('/auth/login');
+      })();
+    });
   };
 
-  const handleForgetDevice = async () => {
-    Alert.alert(
-      'Oublier cet appareil',
-      'La session sauvegardée sera supprimée et la connexion biométrique ne sera plus proposée sur cet appareil.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Oublier',
-          style: 'destructive',
-          onPress: async () => {
-            await fullSignOut();
-            router.replace('/auth/login');
-          },
+  const handleForgetDevice = () => {
+    Alert.alert(SIGN_OUT_CHOICE.forgetDevice, SIGN_OUT_CHOICE.message, [
+      { text: SIGN_OUT_CHOICE.cancel, style: 'cancel' },
+      {
+        text: SIGN_OUT_CHOICE.forgetDevice,
+        style: 'destructive',
+        onPress: async () => {
+          const ok = await fullSignOut();
+          if (!ok) return;
+          router.replace('/auth/login');
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleViewMySuggestions = () => {

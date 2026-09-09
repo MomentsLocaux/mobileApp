@@ -32,6 +32,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Poster / cover analysis timeline | `PosterAnalysisProgress`, `app/events/suggest-from-poster/index.tsx` | Light `surface` card, leaf track + checks, ink percent; no dark skeleton or `#0f1719` |
 | Bug report form | `app/bug-report.tsx` | Form panel / chips contrast |
 | Contribution FAB | `src/components/events/ContributionFab.tsx`, `app/(tabs)/_layout.tsx` | Leaf fill, `onAccent` plus, mint border; draggable chat-head with throw inertia, then snap or peek on the left/right edge above the tab bar |
+| Drawer logout | `app/(tabs)/_layout.tsx`, `app/(tabs)/profile.tsx` | Choice « Garder / Oublier cet appareil » before sign-out; not account deletion (SCRUM-71) |
 | Mes suggestions | `src/screens/profile/MySuggestionsScreen.tsx` | Light cards + status chips; not dark ink sheets |
 | Contribute sheet | `src/components/events/EventContributeSheet.tsx` | Light sheet + assistance row (bug reporter) |
 | Photo communauté sheet | `src/components/events/EventPhotoContributionModal.tsx` | Same sheet tokens as “Y aller”: header `spacing.lg`, option rows 14/72 (SCRUM-80) |

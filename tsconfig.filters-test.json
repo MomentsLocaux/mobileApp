@@ -33,6 +33,7 @@
     "src/utils/map-marker-request.test.ts",
     "src/utils/map-viewport-request.test.ts",
     "src/utils/poster-analysis-progress.test.ts",
+    "src/utils/sign-out-choice.test.ts",
     "src/utils/query-timeout.test.ts",
     "src/utils/search-temporal-choice.test.ts",
     "src/utils/date-range-selection.test.ts",
