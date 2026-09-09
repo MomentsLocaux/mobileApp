@@ -55,7 +55,7 @@ export const dataProvider: DataProvider = {
   submitBug: (payload) => supabaseProvider.submitBug(payload),
 
   signIn: (email, password) => authProvider.signIn(email, password),
-  signUp: (email, password) => authProvider.signUp(email, password),
+  signUp: (email, password, options) => authProvider.signUp(email, password, options),
   signOut: () => authProvider.signOut(),
   getSession: () => authProvider.getSession(),
   getUser: () => authProvider.getUser(),

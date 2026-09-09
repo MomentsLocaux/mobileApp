@@ -10,8 +10,12 @@ export const authProvider: IAuthProvider = {
     return { session: data.session, user: data.user };
   },
 
-  async signUp(email, password) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+  async signUp(email, password, options) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: options?.data ? { data: options.data } : undefined,
+    });
     if (error) throw error;
     return { session: data.session, user: data.user };
   },

@@ -272,6 +272,8 @@ export interface Profile {
   tiktok_url?: string | null;
   status?: ProfileStatus | null;
   ban_until?: string | null;
+  legal_accepted_at?: string | null;
+  legal_policy_version?: string | null;
 }
 
 export interface Event {
