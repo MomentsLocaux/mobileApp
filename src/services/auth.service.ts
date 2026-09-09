@@ -333,8 +333,9 @@ export class AuthService {
 
   static async signOut(): Promise<AuthResponse> {
     try {
-      // Soft sign-out: on ne révoque pas la session côté Supabase pour conserver
-      // le refresh token et permettre une reconnexion biométrique.
+      // Soft sign-out (SCRUM-71 « Garder cet appareil ») : on ne révoque pas
+      // la session côté Supabase pour conserver le refresh token et permettre
+      // une reconnexion biométrique. Ne pas appeler sans choix utilisateur.
       await this.blockAutoRestore();
       return { success: true };
     } catch (error) {
@@ -347,6 +348,7 @@ export class AuthService {
 
   static async fullSignOut(): Promise<AuthResponse> {
     try {
+      // SCRUM-71 « Oublier cet appareil » : purge locale + révocation session.
       await Promise.all([
         this.clearSavedSession(),
         this.blockAutoRestore(),

@@ -44,6 +44,8 @@ import {
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { useAuth } from '../../src/hooks';
+import { signOutModeForChoice } from '@/constants/sign-out-choice';
+import { promptSignOutChoice } from '@/utils/prompt-sign-out-choice';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { NotificationsService } from '@/services/notifications.service';
@@ -59,7 +61,7 @@ import {
 import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function TabsLayout() {
-  const { isLoading, isAuthenticated, profile, signOut } = useAuth();
+  const { isLoading, isAuthenticated, profile, signOut, fullSignOut } = useAuth();
   const { accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
   const publishSurfaces = useEventPublishSurfaces();
@@ -586,17 +588,30 @@ export default function TabsLayout() {
 
         {/* Footer / Logout */}
         <View style={styles.drawerFooter}>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={async () => {
-              await signOut();
-              toggleDrawer(false);
-              router.replace('/auth/login' as any);
-            }}
-          >
-            <LogOut size={20} color={colors.neutral[400]} />
-            <Text style={styles.logoutText}>Déconnexion</Text>
-          </TouchableOpacity>
+          {!isGuest ? (
+            <TouchableOpacity
+              style={styles.logoutButton}
+              accessibilityRole="button"
+              accessibilityLabel="Déconnexion"
+              accessibilityHint="Choisir de garder ou d’oublier cet appareil. Le compte n’est pas supprimé."
+              onPress={() => {
+                promptSignOutChoice((choice) => {
+                  void (async () => {
+                    const ok =
+                      signOutModeForChoice(choice) === 'full'
+                        ? await fullSignOut()
+                        : await signOut();
+                    if (!ok) return;
+                    toggleDrawer(false);
+                    router.replace('/auth/login' as any);
+                  })();
+                });
+              }}
+            >
+              <LogOut size={20} color={colors.neutral[400]} />
+              <Text style={styles.logoutText}>Déconnexion</Text>
+            </TouchableOpacity>
+          ) : null}
           <Text style={styles.versionText}>Version {appVersion} • Moments Locaux</Text>
         </View>
       </Animated.View>
