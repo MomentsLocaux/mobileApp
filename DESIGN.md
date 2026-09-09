@@ -1,98 +1,191 @@
-# Moments Locaux - Design System
+# Moments Locaux — Design System
 
-Based on "Super Fan Insights" Stitch Project & `mobileApp-Bolt` standards.
+Ticket de rattachement : **MVP-P1-007** (tranche documentation **PD-05**).
+Mise à jour : 9 septembre 2026.
 
-## 1. Core Identity
+Ce fichier est le contrat **lisible par les humains et les agents** (Cursor, Stitch, Figma).
+Il n’est **pas** la source d’exécution. En cas de conflit, l’ordre est :
 
-- **Name**: Moments Locaux
-- **Theme**: Lifestyle / Modern / Socials
-- **Mode**: Dark Mode First (as seen in Stitch screens)
-- **Primary Font**: Plus Jakarta Sans
-- **Rounding**: Token-based (8 / 16 / 24 / pill)
+1. `src/constants/theme.ts` + `src/constants/fonts.ts` + `src/constants/motion.ts`
+2. `docs/CHARTER_UI_SURFACES.md` pour les surfaces déjà migrées
+3. les sections 1–7 de ce fichier
+4. les specs UX des sections 8+ (historiques — voir avertissement)
 
-## 2. Color Palette
+## Statut
 
-### Primary Colors
-- **Brand Primary**: `#0f1719`
-- **Brand Secondary**: `#2bbfe3`
+| Couche | État | Commentaire |
+|---|---|---|
+| Identité exécutée (Mist / Ink / Leaf) | **migré** | Aligné sur `theme.ts`. L’ancienne identité Stitch sombre + cyan `#2bbfe3` / ink `#0f1719` est **retirée**. |
+| Grammaire « Les affiches du coin » | **cible** | Direction proposée par la revue du 8 septembre 2026. Pas encore une spec approuvée. Ne pas l’imposer dans le code sans décision D1. |
+| Dark mode | **différé** | PD-24. Ne pas le réintroduire via Stitch, Figma ou un agent. |
+| Specs UX sections 8+ | **historiques** | Comportement parfois encore utile ; couleurs, chrome et surfaces V1/V2 décrits plus bas ne font pas foi. |
 
-### Backgrounds (Dark Mode)
-- **Background Dark**: `#0f1719`
-- **Surface Dark**: `#1a2426`
+## Outils de design — rôles
 
-### Text Colors
-- **Text Primary**: `#ffffff`
-- **Text Secondary**: `#94a3b8`
+| Outil | Rôle ici | Ne pas faire |
+|---|---|---|
+| **Code (`theme.ts`, composants `src/components/ui`)** | Source de vérité visuelle et d’implémentation | Inventer des hex hors tokens |
+| **Ce `DESIGN.md`** | Contrat pour agents et maquettes | Copier une identité générée par Stitch par-dessus |
+| **Stitch** | Labo rapide : variantes de card, empty states, proto cliquable de nav (PD-01, D1, D3) | Régénérer l’app, exporter un DESIGN.md concurrent, coller du HTML/RN |
+| **Figma** | Figer, commenter, bibliothèque de composants, handoff pixel, recette avant/après | Reconstruire les 50 routes, devenir une 2ᵉ palette |
 
-### Functional Colors
-- **Success**: `#10b981`
-- **Error**: `#ef4444`
-- **Warning**: `#f59e0b`
+Contraintes produit (ADR 001 / 002, `MVP_SCOPE.md`) : pas de dashboard admin mobile, pas de file de modération, pas de Lumo / shop / missions / chrome organisateur dans les maquettes Alpha.
 
-## 3. Typography
+## 1. Identité exécutée
 
-**Family**: `Plus Jakarta Sans`
+- **Produit** : Moments Locaux — découverte d’événements locaux (Alpha).
+- **Territoire actuel** : UI claire, mint de page, encre forestière, accent feuille. Chaleureux, adulte, énergétique — pas « lifestyle sombre / cyan ».
+- **Territoire cible (non approuvé)** : « Les affiches du coin » — photo documentaire, hiérarchie titre / quand / où, signatures dérivées du logo. Voir `audits/standalone-audits/GLOBAL_PRODUCT_DESIGN_REVIEW_2026-09-08.md`.
+- **Fonte** : Plus Jakarta Sans (`src/constants/fonts.ts`) — Regular 400, Medium 500, SemiBold 600, Bold 700.
+- **Cible tactile** : `minimumTouchTarget` = 48.
 
-| Style | Size | Weight | Line Height | Usage |
-| :--- | :--- | :--- | :--- | :--- |
-| **Display** | 32px | 700 (Bold) | 38px | Hero titles |
-| **H1** | 24px | 700 (Bold) | 30px | Main section titles |
-| **Body** | 16px | 400 (Regular) | 24px | Standard text |
-| **Caption** | 12px | 400 (Regular) | 16px | Secondary info |
+### Interdits (régressions fréquentes)
 
-Weight scale:
-- **Bold**: `700`
-- **Medium**: `500`
-- **Regular**: `400`
+Ne pas réintroduire :
 
-## 4. Components
+- fonds ink `#0f1719`, `#121a1c`, `rgba(26,36,38,…)`
+- accent cyan `#2bbfe3`
+- texte blanc sur Leaf pour du petit texte (contraste ~2,48:1)
+- Leaf comme couleur de petit texte sur Mist (contraste ~2,36:1)
+- sheets / loaders « glass dark »
+- Lumo, XP, classements, boutique, missions, modération mobile
 
-### Buttons
-- **Primary**: Full width, 56px height, radius `999`, text `#ffffff`, background `#2bbfe3`.
-- **Secondary**: Transparent background with border `1px` in `#94a3b8`.
-- **Ghost**: Text only, usually for "Skip" or "Cancel".
+Checklist opérationnelle : `docs/CHARTER_UI_SURFACES.md`.
 
-### Cards
-- **Background**: Surface Dark (`#1a2426`).
-- **Border Radius**: `16px` (default), `24px` (highlighted cards).
-- **Shadow (Elevation 1)**: `x: 0, y: 4, blur: 20, opacity: 0.05, color: #000`.
+## 2. Couleurs
 
-### Inputs
-- **Background**: Surface Dark (`#1a2426`).
-- **Border**: Thin, `#94a3b8`.
-- **Text**: `#ffffff`.
-- **Placeholder**: `#94a3b8`.
+Canon = `colors.brand.*` dans `theme.ts`. Alias `primary` / `neutral` / `designTokens` existent pour le code legacy ; **ne pas les étendre**.
 
-## 5. Spacing System
+| Rôle sémantique | Token | Hex | Usage |
+|---|---|---|---|
+| Page / chrome | `colors.brand.page` | `#F4FBF6` | Fond d’écran (Mist) |
+| Surface card | `colors.brand.surface` | `#FFFFFF` | Cards, champs, sheets clairs |
+| Surface muted | `colors.brand.surfaceMuted` | `#E8F5E9` | Wash derrière cards, encarts |
+| Texte | `colors.brand.text` / `ink` | `#1A3329` | Titres et corps |
+| Texte secondaire | `colors.brand.textSecondary` | `#5B7A6A` | Meta, labels — limite WCAG sur Mist (~4,5:1) |
+| Accent / CTA | `colors.brand.secondary` | `#7CB518` | Remplissage boutons, spinners, chips d’action |
+| Sur accent | `colors.brand.onAccent` | `#1A3329` | Label / icône / spinner sur Leaf (pas le blanc) |
+| Forest | `colors.brand.forest` | `#243F34` | Chrome inversé rare |
+| Erreur | `colors.brand.error` | `#E63946` | Berry — petit texte : préférer `colors.error[700]` |
+| Warning | `colors.brand.warning` | `#f59e0b` | Attention, jamais comme texte courant |
+| Success | `colors.brand.success` | `#7CB518` | Aligné Leaf |
 
-Base unit: `8px`
+Noms informels de la revue : **Mist** = page, **Soft** = surfaceMuted, **Leaf / Lime** = secondary, **Ink** = text, **Berry** = error.
 
-- **xs**: 8px
-- **sm**: 16px
-- **md**: 24px (Standard section spacing)
-- **lg**: 32px
-- **xl**: 48px
-- **xxl**: 64px
+### Contrastes à respecter (audit 2026-09-08)
 
-## 6. Radius & Shadows
+| Paire | Ratio approx. | Règle |
+|---|---|---|
+| Ink / Mist | ~12,9:1 | Texte courant et titres |
+| Leaf / Mist | ~2,36:1 | Interdit pour texte et signes essentiels |
+| Blanc / Leaf | ~2,48:1 | Interdit pour label de bouton ; utiliser Ink (`onAccent`) |
+| Secondaire `#5B7A6A` / Mist | ~4,50:1 | Juste AA — ne pas l’éclaircir |
+| Secondaire / Soft | ~4,21:1 | Insuffisant pour du corps ; Ink à la place |
+| Berry / Mist | ~3,96:1 | Insuffisant en petit ; `error[700]` (`#c92d36`) |
 
-### Border Radius Tokens
-- **small**: `8`
-- **medium**: `16`
-- **large**: `24`
-- **pill**: `999`
+Candidats PD-05 (pas encore normatifs) : texte secondaire plus sombre `#4A6556` (`neutral[600]`) sur Soft. Les tester avant de les promouvoir.
 
-### Shadow Tokens
-- **elevation1**:
-1. offset x: `0`
-2. offset y: `4`
-3. blur: `20`
-4. opacity: `0.05`
-5. color: `#000`
+## 3. Typographie
 
-## 7. Icons
-- **Library**: Ionicons (via `@expo/vector-icons`).
-- **Style**: Filled for active states, Outline for inactive.
+Famille : `brandFonts` → Plus Jakarta Sans. Préférer `typography.*` plutôt qu’un `fontSize` local.
+
+| Style | Token | Size | Weight | Line height | Usage |
+|---|---|---|---|---|---|
+| Display | `typography.h1` | 32 | 700 | 38 | Titres d’écran rares |
+| H2 | `typography.h2` | 28 | 700 | 34 | Titres forts |
+| H3 | `typography.h3` | 24 | 600 | 30 | Sections |
+| H4 | `typography.h4` | 20 | 600 | 26 | Sous-sections |
+| H5 | `typography.h5` | 18 | 600 | 24 | Titres de card |
+| H6 | `typography.h6` | 16 | 600 | 22 | Labels emphase |
+| Body | `typography.body` | 16 | 400 | 24 | Corps |
+| Body bold | `typography.bodyBold` | 16 | 700 | 24 | Emphase corps |
+| Body large | `typography.bodyLarge` | 18 | 400 | 26 | Introductions |
+| Body small | `typography.bodySmall` | 14 | 400 | 20 | Meta |
+| Label | `typography.label` | 14 | 600 | 18 | Labels de champ / chips |
+| Subtitle | `typography.subtitle` | 15 | 500 | 22 | Sous-titres |
+| Caption | `typography.caption` | 12 | 400 | 16 | Légendes, timestamps |
+
+Éviter le réflexe « très grand titre extra-gras + meta gris-vert » sur chaque surface. Ne pas poser de `lineHeight` sur un `TextInput` (clipping des descendantes).
+
+## 4. Composants partagés (exécutés)
+
+Implémentation : `src/components/ui/`. Toute nouvelle UI réutilise ces primitives avant d’inventer un style local.
+
+### Button (`Button.tsx`)
+
+- Cible min. 48, `borderRadius.md` (16), press scale via `MOTION_DESIGN.md`.
+- Spinner = couleur du label (`onAccent` sur primary, etc.).
+- **primary** : fill Leaf, texte/icône Ink (`onAccent`).
+- **secondary** : fill surface, bordure ink 12 %, texte Ink.
+- **outline** : transparent, bordure Leaf, texte Leaf (grandes surfaces seulement).
+- **ghost** : texte Leaf, pas de fill.
+- **danger** : fill Berry.
+
+### Card (`Card.tsx`)
+
+- Fond `brand.surface`, rayon `lg` (24), ombre `shadows.sm|md|lg` (ink, pas noir pur).
+- Ne pas empiler border + shadow + halo décoratif sans besoin.
+- Cards événement : `EventCard` / `EventResultCard` — ne pas les redessiner depuis une export Stitch.
+
+### Input (`Input.tsx`)
+
+- Fond `brand.surface`, texte Ink, placeholder `neutral[400]`, label `textSecondary`.
+- Erreur : bordure + caption `error[500]`.
+- Pas de champ « ghost blanc sur mint ».
+
+### Autres
+
+- `ScreenHeader`, `EmptyState`, `BrandLogoSpinner`, `DiscoveryLoadingState`, `AppToast`, `AppBackground`.
+- Loaders : Leaf / logo, pas Lucide overlay, pas panneau ink.
+- Motion : `MOTION_DESIGN.md` + `src/constants/motion.ts` ; respecter reduce motion.
+
+## 5. Espacements
+
+Source : `spacing` dans `theme.ts`. Base perceptive 8, avec un `xs` à 4.
+
+| Token | px |
+|---|---|
+| `xs` | 4 |
+| `sm` | 8 |
+| `md` | 16 |
+| `l` | 20 |
+| `lg` | 24 |
+| `xl` | 32 |
+| `xxl` | 48 |
+| `xxxl` | 64 |
+
+## 6. Rayons et ombres
+
+Tokens **exécutés** (ne pas « corriger » globalement sans inventaire — `sm` et `md` valent tous deux 16 ; `lg` et `xl` valent 24) :
+
+| Token | px |
+|---|---|
+| `borderRadius.sm` | 16 |
+| `borderRadius.md` | 16 |
+| `borderRadius.lg` | 24 |
+| `borderRadius.xl` | 24 |
+| `borderRadius.full` | 9999 |
+
+Ombres (`shadows`) : color Ink `#1A3329`, opacités 0.06 / 0.08 / 0.10.
+
+**Cible PD-05 / revue** : moins de capsules et de gros rectangles arrondis ; faire porter la hiérarchie par la photo, la typo et l’espace. Changer les tokens de rayon n’est pas un ticket de polish isolé.
+
+## 7. Iconographie
+
+- Bibliothèque actuelle : Ionicons (`@expo/vector-icons`) — filled = actif, outline = inactif.
+- Cible PD-19 : set dérivé du logo (trait, points, petit rayonnement) — pas encore le set de production.
+- Un même pictogramme ne doit pas signifier à la fois aimer un événement, l’enregistrer et suivre une personne (décision D2, toujours ouverte).
+
+---
+
+## Avertissement — sections 8+ (specs UX historiques)
+
+Les sections suivantes ont été rédigées avec l’ancienne identité et un périmètre plus large que l’Alpha. **Les couleurs, images hero sombres, shop, missions, espace créateur et moderation mobile qui y figurent sont obsolètes.**
+
+- Pour l’identité visuelle, suivre uniquement les sections 1–7.
+- Pour le périmètre, suivre `MVP_SCOPE.md`, ADR 001 et ADR 002.
+- Surfaces **hors Alpha** décrites plus bas : ne pas les réactiver depuis ce fichier (`shop`, `missions`, `creator/*`, `moderation/*`, chrome création organisateur). La suggestion depuis une affiche réutilise le stepper, sans chrome organisateur.
+- Un flux encore valide (login, settings, signalement, détail événement) peut servir de check-list comportementale, pas de spec de couleurs.
 
 ## 8. UX/UI Spec - Acces et cycle d'entree
 
