@@ -42,6 +42,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Navigation (“Y aller”) sheet | `src/components/search/NavigationOptionsSheet.tsx` | Sheet bg + close + option rows |
 | Proposal wizard | `src/screens/proposals/ProposalWizard.tsx` | Category colors (not all leaf); geocode / radius chips |
 | Proposal deck distance chip | `src/screens/proposals/ProposalSwipeDeck.tsx` | Contrast on photo overlay |
+| Create / suggest location picker | `src/components/events/LocationPickerModal.tsx` | Light outline « Localiser » next to the address field + surface map FAB; GPS fills address and flies the camera (SCRUM-45) |
 | Suggestion / create location preview | `EventPreviewMiniMap`, `app/events/create/preview.tsx` | Pin as Mapbox CircleLayer; Camera `defaultSettings` + `onDidFinishLoadingMap` so Nyons is not Africa; map sits above the submit footer |
 | Follows list location maps | `app/community/follows.tsx` | Static Mapbox image only when RPC allows; otherwise “Position non partagée” |
 | Contact assistance | `app/contact.tsx` | Light settings form, leaf CTA, closed subjects matching website |
