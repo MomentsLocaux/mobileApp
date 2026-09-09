@@ -29,7 +29,7 @@ Pour exercer un droit (accès, rectification, suppression) au-delà des écrans 
 
 ## Données collectées (résumé produit)
 
-Email (Auth), profil, favoris, likes, follows, commentaires, signalements, bug reports, notifications, vues, check-ins (si activés), médias (avatars, couvertures), géolocalisation selon autorisations.
+Email (Auth), profil, favoris, likes, follows, commentaires, signalements, bug reports, notifications, vues, suggestions d’événements, médias (avatars, affiches), géolocalisation selon autorisations. Pas de check-in en Alpha.
 
 ## Assistant Lumia (si activé dans le build)
 
