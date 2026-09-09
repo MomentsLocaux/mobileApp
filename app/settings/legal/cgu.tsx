@@ -13,7 +13,7 @@ const CGU_TEXT = [
   'Date de mise à jour : 22 juillet 2026',
   '',
   '1. ÉDITEUR',
-  'L’application Moments Locaux est éditée par l’équipe Moments Locaux.',
+L’application Moments Locaux est éditée par Romain Rauyer, personne physique.
   'Contact support et privacy : hello@moments-locaux.com',
   '',
   '2. OBJET',
