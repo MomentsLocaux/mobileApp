@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Modal,
   View,
   Text,
@@ -12,8 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapboxGL from '@rnmapbox/maps';
-import { MapPin, SearchX, X } from 'lucide-react-native';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import * as Location from 'expo-location';
+import { LocateFixed, MapPin, SearchX, X } from 'lucide-react-native';
+import { colors, spacing, borderRadius, typography, minimumTouchTarget } from '@/constants/theme';
 import { MapboxService, type GeocodeResult } from '@/services/mapbox.service';
 import { useCreateEventStore, type EventLocation } from '@/hooks/useCreateEventStore';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -59,7 +61,9 @@ export const LocationPickerModal = ({
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<GeocodeResult | null>(null);
   const [reverseLoading, setReverseLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
 
+  const cameraRef = useRef<MapboxGL.Camera>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
   const markerColor = category?.color || colors.brand.secondary;
@@ -158,29 +162,87 @@ export const LocationPickerModal = ({
     onClose();
   };
 
-  const applyCoordinates = useCallback(async (coords: number[]) => {
-    const [lon, lat] = coords;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    setReverseLoading(true);
-    try {
-      const rev = await MapboxService.reverse(lat, lon);
-      if (rev) {
+  const applyCoordinates = useCallback(
+    async (
+      coords: number[],
+      options?: { keepExactCoords?: boolean; fallbackLabel?: string },
+    ) => {
+      const [lon, lat] = coords;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      setReverseLoading(true);
+      try {
+        const rev = await MapboxService.reverse(lat, lon);
+        const next: GeocodeResult | null = rev
+          ? options?.keepExactCoords
+            ? { ...rev, latitude: lat, longitude: lon }
+            : rev
+          : options?.fallbackLabel
+            ? {
+                latitude: lat,
+                longitude: lon,
+                label: options.fallbackLabel,
+                city: '',
+                region: '',
+                postalCode: '',
+                country: 'FR',
+              }
+            : null;
+        if (!next) return;
         haptics.selection();
-        setSelected(rev);
-        setQuery(rev.label);
+        setSelected(next);
+        setQuery(next.label);
         setResults([]);
+      } finally {
+        setReverseLoading(false);
       }
+    },
+    [],
+  );
+
+  const handleLocateMe = useCallback(async () => {
+    if (locating) return;
+    Keyboard.dismiss();
+    setLocating(true);
+    try {
+      let { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        ({ status } = await Location.requestForegroundPermissionsAsync());
+      }
+      if (status !== 'granted') {
+        Alert.alert(
+          'Position',
+          'Autorisez la localisation pour centrer la carte sur vous et remplir l’adresse.',
+        );
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+      await applyCoordinates(coords, {
+        keepExactCoords: true,
+        fallbackLabel: 'Ma position actuelle',
+      });
+      cameraRef.current?.setCamera({
+        centerCoordinate: coords,
+        zoomLevel: 15,
+        animationDuration: 650,
+      });
+    } catch {
+      Alert.alert('Position', 'Impossible de récupérer votre position actuelle.');
     } finally {
-      setReverseLoading(false);
+      setLocating(false);
     }
-  }, []);
+  }, [applyCoordinates, locating]);
 
   const content = (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Choisir un emplacement</Text>
-          <Text style={styles.helper}>Recherchez une adresse, ou posez le pin sur la carte pour remplir l’adresse.</Text>
+          <Text style={styles.helper}>
+            Recherchez une adresse, utilisez Localiser, ou posez le pin sur la carte.
+          </Text>
         </View>
         <TouchableOpacity
           onPress={onClose}
@@ -214,6 +276,16 @@ export const LocationPickerModal = ({
               accessibilityLabel="Rechercher une adresse"
             />
           </View>
+          <Button
+            title="Localiser"
+            variant="outline"
+            size="sm"
+            onPress={() => void handleLocateMe()}
+            loading={locating}
+            disabled={locating || reverseLoading}
+            accessibilityLabel="Localiser et centrer sur ma position"
+            accessibilityHint="Utilise votre GPS pour remplir l’adresse et centrer la carte"
+          />
         </View>
 
         {loading && !selected ? (
@@ -262,11 +334,17 @@ export const LocationPickerModal = ({
             style={StyleSheet.absoluteFill}
             styleURL={MapboxGL.StyleURL.Dark}
             onPress={(e) => {
+              if (locating) return;
               const coords = (e?.geometry as { coordinates?: number[] } | undefined)?.coordinates;
               if (coords) void applyCoordinates(coords);
             }}
           >
-            <MapboxGL.Camera centerCoordinate={center} zoomLevel={selected ? 14 : 5} animationMode="flyTo" />
+            <MapboxGL.Camera
+              ref={cameraRef}
+              centerCoordinate={center}
+              zoomLevel={selected ? 14 : 5}
+              animationMode="flyTo"
+            />
             <MapboxGL.PointAnnotation
               id="selected-point"
               coordinate={selected ? [selected.longitude, selected.latitude] : center}
@@ -276,11 +354,26 @@ export const LocationPickerModal = ({
               <View style={[styles.markerDot, { backgroundColor: markerColor }]} />
             </MapboxGL.PointAnnotation>
           </MapboxGL.MapView>
-          {reverseLoading ? (
-            <View style={styles.mapOverlay}>
+          {reverseLoading || locating ? (
+            <View style={styles.mapOverlay} pointerEvents="none">
               <ActivityIndicator color={colors.brand.secondary} />
             </View>
           ) : null}
+          <TouchableOpacity
+            style={styles.locateMapBtn}
+            onPress={() => void handleLocateMe()}
+            disabled={locating || reverseLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Centrer sur ma position"
+            accessibilityState={{ disabled: locating || reverseLoading }}
+            hitSlop={8}
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color={colors.brand.secondary} />
+            ) : (
+              <LocateFixed size={18} color={colors.brand.secondary} />
+            )}
+          </TouchableOpacity>
         </View>
         {selected ? (
           <Text style={styles.mapHint}>Touchez la carte ou déplacez le pin pour affiner l’adresse exacte.</Text>
@@ -293,7 +386,7 @@ export const LocationPickerModal = ({
         <Button
           title="Confirmer l'emplacement"
           onPress={handleConfirm}
-          disabled={!selected || reverseLoading}
+          disabled={!selected || reverseLoading || locating}
           size="sm"
           style={styles.confirmBtn}
           accessibilityLabel="Confirmer l'emplacement"
@@ -448,6 +541,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15,23,25,0.35)',
+  },
+  locateMapBtn: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    zIndex: 2,
+    elevation: 3,
+    width: minimumTouchTarget,
+    height: minimumTouchTarget,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 51, 41, 0.12)',
   },
   mapHint: {
     ...typography.caption,
