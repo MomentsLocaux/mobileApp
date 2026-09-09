@@ -141,8 +141,7 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set, get)
           ...criteria.content,
           categories: [...criteria.content.categories],
           subcategories: [...criteria.content.subcategories],
-          // Legacy tags are intentionally excluded from mobile discovery.
-          tags: [],
+          tags: [...(criteria.content.tags || [])],
         },
         sort,
         mapMode: state.mapMode,

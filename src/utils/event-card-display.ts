@@ -1,4 +1,5 @@
 import type { EventWithCreator } from '@/types/database';
+import { isOperationalEventTag } from '../constants/discovery-tags';
 import { formatEventCardRangeLine, getEventCardSchedule, getEventCardCity } from './event-card-meta';
 
 export type EventTemporalState = 'upcoming' | 'live' | 'past' | 'cancelled';
@@ -172,23 +173,28 @@ export function getEventDescriptionPreview(description?: string | null, maxLengt
 }
 
 const CARD_HIDDEN_TAG_RE =
-  /^(#?)(datatourisme(_api)?|data_tourisme(_api)?|openagenda(_api)?(_\d+)?|vide_greniers(_org)?|\d+)$/i;
+  /^(#?)(datatourisme(_api)?|data_tourisme(_api)?|openagenda(_api|_ods)?(_\d+)?|vide_greniers(_org)?|mosl_offices_tourisme|fetes_foraines_festimap|festimap_festivals|tourism_system_[a-z0-9_]+|regional_[a-z0-9_]+|iris_etourisme_[a-z0-9_]+|\d+)$/i;
 
 export function isIngestProvenanceTag(tag: string): boolean {
   return CARD_HIDDEN_TAG_RE.test(tag.trim());
 }
 
+export function isHiddenDiscoveryTag(tag: string): boolean {
+  const trimmed = tag.trim();
+  return !trimmed || isOperationalEventTag(trimmed) || isIngestProvenanceTag(trimmed);
+}
+
 export function getEventContextTags(event: Pick<EventWithCreator, 'tags' | 'ambiance'>): string[] {
   const tags = (Array.isArray(event.tags) ? event.tags : [])
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
-    .filter((tag) => !isIngestProvenanceTag(tag))
+    .filter((tag) => !isHiddenDiscoveryTag(tag))
     .map((tag) => tag.replace(/^#+/, '').trim())
     .filter(Boolean)
     .slice(0, 2);
 
   if (!tags.length && event.ambiance?.trim()) {
     const ambiance = event.ambiance.replace(/^#+/, '').trim();
-    if (ambiance && !isIngestProvenanceTag(ambiance)) {
+    if (ambiance && !isHiddenDiscoveryTag(ambiance)) {
       tags.push(ambiance);
     }
   }
@@ -201,7 +207,7 @@ export function getVisibleEventTags(tags?: string[] | null): string[] {
   if (!Array.isArray(tags) || tags.length === 0) return [];
   return tags
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
-    .filter((tag) => !isIngestProvenanceTag(tag))
+    .filter((tag) => !isHiddenDiscoveryTag(tag))
     .map((tag) => tag.replace(/^#/, '').trim())
     .filter(Boolean);
 }

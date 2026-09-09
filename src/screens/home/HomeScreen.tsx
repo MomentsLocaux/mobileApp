@@ -161,6 +161,7 @@ export default function HomeScreen() {
   const clearHomeMapTransfer = useMapTransferStore((s) => s.clearHomeTransfer);
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const taxonomyTags = useTaxonomyStore((s) => s.tags);
   const [refreshing, setRefreshing] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -589,7 +590,8 @@ export default function HomeScreen() {
         discoveryFilters,
         categories,
         subcategories,
-        'home'
+        'home',
+        taxonomyTags
       );
       chips.push({
         key: 'search',
@@ -626,6 +628,7 @@ export default function HomeScreen() {
     showSearchResults,
     status,
     subcategories,
+    taxonomyTags,
     when,
   ]);
 

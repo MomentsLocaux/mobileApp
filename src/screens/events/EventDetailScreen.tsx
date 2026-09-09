@@ -71,6 +71,8 @@ import {
   getCategoryLabel,
   getCategoryTextColor,
 } from '../../constants/categories';
+import { formatEventTagLabel } from '../../constants/discovery-tags';
+import { getVisibleEventTags } from '../../utils/event-card-display';
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
@@ -631,6 +633,11 @@ export default function EventDetailScreen() {
     return `${day} - ${formatTime(event.starts_at)}`;
   }, [event]);
 
+  const visibleTags = useMemo(
+    () => (event ? getVisibleEventTags(event.tags).slice(0, 6) : []),
+    [event],
+  );
+
   const endDateTimeLabel = useMemo(() => {
     if (!event?.ends_at) return 'Se termine selon les informations de l’organisateur.';
     const endDate = new Date(event.ends_at);
@@ -950,6 +957,11 @@ export default function EventDetailScreen() {
                   {getCategoryLabel(event.category || '')}
                 </Text>
               </View>
+              {visibleTags.map((tag) => (
+                <View key={tag} style={styles.heroTagBadge}>
+                  <Text style={styles.heroTagText}>{formatEventTagLabel(tag)}</Text>
+                </View>
+              ))}
             </View>
           </PlaceMediaGallery>
         </View>
@@ -1406,6 +1418,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  heroTagBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(244,251,246,0.92)',
+  },
+  heroTagText: {
+    color: colors.brand.text,
+    fontSize: 12,
+    fontWeight: '700',
   },
   content: {
     padding: spacing.lg,

@@ -116,7 +116,7 @@ describe('discovery filter store', () => {
         content: {
           categories: ['music'],
           subcategories: ['concert'],
-          tags: ['legacy-hidden-filter'],
+          tags: ['jazz'],
           query: 'jazz',
         },
       },
@@ -134,7 +134,7 @@ describe('discovery filter store', () => {
     assert.equal(current.searchRevision, beforeRevision + 1);
     assert.equal(current.searchApplied, true);
     assert.equal(current.status, 'all');
-    assert.deepEqual(current.content.tags, []);
+    assert.deepEqual(current.content.tags, ['jazz']);
     assert.deepEqual(current.sort.map, { sortBy: 'date', sortOrder: 'asc' });
     assert.deepEqual(committed.content, current.content);
   });

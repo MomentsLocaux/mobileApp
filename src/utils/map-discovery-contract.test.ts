@@ -161,6 +161,7 @@ describe('map discovery contract', () => {
       subcategories: ['concert'],
       time: 'today' as const,
       name: 'jazz',
+      tags: ['jazz'],
       includePast: false,
     };
     assert.deepEqual(resolveMapClientFilters(filters, false), {
@@ -168,6 +169,7 @@ describe('map discovery contract', () => {
       categories: ['arts-culture'],
       subcategory: undefined,
       subcategories: ['concert'],
+      tags: ['jazz'],
       includePast: false,
       time: 'today',
       startDate: undefined,

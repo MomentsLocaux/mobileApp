@@ -67,6 +67,8 @@ import {
   SEARCH_TEMPORAL_CHOICES,
   type SearchTemporalChoice,
 } from '@/utils/search-temporal-choice';
+import { resolveDiscoveryTagChips } from '@/constants/discovery-tags';
+import { isHiddenDiscoveryTag } from '@/utils/event-card-display';
 
 type SectionKey = 'where' | 'when' | 'what';
 const BOTTOM_BAR_GUTTER = 120;
@@ -130,6 +132,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const taxonomyTags = useTaxonomyStore((s) => s.tags);
   const { currentLocation } = useLocationStore();
 
   const appliedStatus = useDiscoveryFiltersStore((s) => s.status);
@@ -139,7 +142,6 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const appliedSort = useDiscoveryFiltersStore((s) => s.sort);
   const mapMode = useDiscoveryFiltersStore((s) => s.mapMode);
   const placeHistory = useDiscoveryFiltersStore((s) => s.placeHistory);
-  const clearLegacyTags = useDiscoveryFiltersStore((s) => s.setContent);
   const applySearchCriteria = useDiscoveryFiltersStore((s) => s.applySearchCriteria);
   const addHistory = useDiscoveryFiltersStore((s) => s.addPlaceHistory);
   const removePlaceHistory = useDiscoveryFiltersStore((s) => s.removePlaceHistory);
@@ -206,7 +208,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const setWhat = (next: Partial<typeof what>) => {
     setDraftFilters((current) => ({
       ...current,
-      content: { ...current.content, ...next, tags: [] },
+      content: { ...current.content, ...next },
     }));
   };
 
@@ -229,14 +231,6 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const isCurrentSaved = useSavedSearchesStore((s) => s.isCurrentSaved);
 
   useEffect(() => {
-    // Tags are no longer exposed as a discovery criterion. Clear any value
-    // kept in memory during a hot reload so it cannot act as a hidden filter.
-    if (appliedContent.tags.length > 0) {
-      clearLegacyTags({ tags: [] });
-    }
-  }, [appliedContent.tags, clearLegacyTags]);
-
-  useEffect(() => {
     if (!overlayVisible) {
       setDraftFilters(appliedFilters);
     }
@@ -247,8 +241,13 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   }, [hydrateSavedSearches]);
 
   const taxonomyLabels = useMemo(
-    () => ({ categories, subcategories }),
-    [categories, subcategories],
+    () => ({ categories, subcategories, tags: taxonomyTags }),
+    [categories, subcategories, taxonomyTags],
+  );
+
+  const tagChips = useMemo(
+    () => resolveDiscoveryTagChips(taxonomyTags, isHiddenDiscoveryTag),
+    [taxonomyTags],
   );
 
   const progress = useSharedValue(0);
@@ -320,8 +319,8 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const displayedRadiusKm = where.radiusKm ?? effectiveRadiusKm ?? PROXIMITY_RADIUS_KM;
 
   const summaryText = useMemo(
-    () => buildSearchSummary(appliedFilters, categories, subcategories, surface),
-    [appliedFilters, categories, subcategories, surface],
+    () => buildSearchSummary(appliedFilters, categories, subcategories, surface, taxonomyTags),
+    [appliedFilters, categories, subcategories, surface, taxonomyTags],
   );
 
   const combinationError = useMemo(() => explainEmptyCombination(filters), [filters]);
@@ -347,10 +346,18 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
     const extras: string[] = [];
     if (what.categories.length > 1) extras.push(`+${what.categories.length - 1} cat.`);
     if (what.subcategories.length) extras.push(`${what.subcategories.length} sous-cat.`);
-    const baseWhatLabel = categoryLabel || subcategoryLabel || 'Toutes catégories';
+    const selectedTags = what.tags || [];
+    const tagLabel =
+      selectedTags.length === 1
+        ? tagChips.find((chip) => chip.slug === selectedTags[0])?.label ?? '1 tag'
+        : selectedTags.length > 1
+          ? `${selectedTags.length} tags`
+          : null;
+    if (tagLabel && (categoryLabel || subcategoryLabel)) extras.push(tagLabel);
+    const baseWhatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Toutes catégories';
     const whatLabel = extras.length ? `${baseWhatLabel} · ${extras.join(', ')}` : baseWhatLabel;
     return { whereLabel, whenLabel, whatLabel };
-  }, [categories, status, subcategories, what, when, where]);
+  }, [categories, status, subcategories, tagChips, what, when, where]);
 
   const rangeValue: DateRangeValue = {
     startDate: when.startDate || null,
@@ -520,7 +527,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
 
   const handleSaveCurrent = () => {
     if (!hasActiveDiscoverySearch) return;
-    const defaultTitle = buildSearchSummary(filters, categories, subcategories, surface);
+    const defaultTitle = buildSearchSummary(filters, categories, subcategories, surface, taxonomyTags);
 
     const doSave = async (title?: string) => {
       await saveCurrent(taxonomyLabels, surface, title || defaultTitle, filters);
@@ -1070,6 +1077,26 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                           </View>
                         </>
                       )}
+                      <Text style={styles.sectionLabel}>Tags</Text>
+                      <View style={styles.rowWrap}>
+                        {tagChips.map((chip) => {
+                          const active = (what.tags || []).includes(chip.slug);
+                          return (
+                            <Chip
+                              key={chip.slug}
+                              label={chip.label}
+                              active={active}
+                              onPress={() => {
+                                const selected = what.tags || [];
+                                const next = active
+                                  ? selected.filter((tag) => tag !== chip.slug)
+                                  : [...selected, chip.slug];
+                                setWhat({ tags: next });
+                              }}
+                            />
+                          );
+                        })}
+                      </View>
                     </SectionCard>
                   </Animated.View>
                 </>

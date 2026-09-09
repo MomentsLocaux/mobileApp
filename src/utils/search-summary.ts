@@ -1,4 +1,4 @@
-import type { Category, Subcategory } from '@/store/taxonomyStore';
+import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
 import {
   summarize,
   type DiscoveryFilters,
@@ -9,7 +9,8 @@ export const buildSearchSummary = (
   filters: DiscoveryFilters,
   categories: Category[],
   subcategories: Subcategory[],
-  surface?: DiscoverySurface
+  surface?: DiscoverySurface,
+  tags: Tag[] = []
 ) => {
   const labels: Record<string, string> = {};
   categories.forEach((category) => {
@@ -17,6 +18,9 @@ export const buildSearchSummary = (
   });
   subcategories.forEach((subcategory) => {
     labels[subcategory.id] = subcategory.label;
+  });
+  tags.forEach((tag) => {
+    if (tag.slug) labels[tag.slug] = tag.label;
   });
   return summarize(filters, { surface, categoryLabels: labels, emptyLabel: 'Recherche' });
 };
