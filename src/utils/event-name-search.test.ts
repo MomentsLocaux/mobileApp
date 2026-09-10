@@ -12,6 +12,10 @@ describe('event name search', () => {
     assert.equal(sanitizeIlikeFragment('marché, %concert_ (expo)'), 'marché concert expo');
   });
 
+  it('strips null bytes', () => {
+    assert.equal(sanitizeIlikeFragment('foo\u0000bar'), 'foobar');
+  });
+
   it('drops French stop words and keeps significant tokens', () => {
     assert.deepEqual(tokenizeNameQuery('le marché de Noël'), ['marché', 'noël']);
   });

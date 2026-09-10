@@ -29,6 +29,7 @@ const MAX_NAME_TOKENS = 6;
 
 export function sanitizeIlikeFragment(raw: string): string {
   return raw
+    .replace(/\u0000/g, '')
     .replace(/[%_,.()\\*]/g, ' ')
     .replace(/['’]/g, "'")
     .replace(/\s+/g, ' ')

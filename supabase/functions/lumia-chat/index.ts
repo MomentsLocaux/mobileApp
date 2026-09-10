@@ -33,6 +33,7 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_LUMIA_MODEL') ?? 'gpt-4o-mini';
 const EMBED_MODEL = Deno.env.get('OPENAI_EMBEDDING_MODEL') ?? 'text-embedding-3-small';
 const MONTHLY_QUOTA = Number(Deno.env.get('LUMIA_MONTHLY_QUOTA') ?? '20');
+const BURST_PER_MINUTE = Number(Deno.env.get('LUMIA_BURST_PER_MINUTE') ?? '8');
 
 const RAG_PACK = ragChunksJson as RagPack;
 
@@ -52,6 +53,40 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+async function hashSubject(kind: string, value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${kind}:${value}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+  return `${kind}:${hex}`;
+}
+
+function requestIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? '';
+  return forwarded.split(',')[0]?.trim() ?? '';
+}
+
+/** Fail-open if the burst RPC is not migrated yet — never block Lumia on a missing table. */
+async function consumeBurst(
+  supabase: ReturnType<typeof createClient>,
+  subjects: string[],
+  action: string,
+  limit: number,
+): Promise<boolean> {
+  for (const subject of subjects) {
+    const { data, error } = await supabase.rpc('consume_write_rate_limit', {
+      p_subject: subject,
+      p_action: action,
+      p_limit: limit,
+    });
+    if (error) {
+      logOps('burst_rpc_error', error.message ?? String(error.code ?? ''));
+      continue;
+    }
+    if (data === false) return false;
+  }
+  return true;
 }
 
 function periodYm(now = new Date()): string {
@@ -135,6 +170,26 @@ serve(async (req) => {
     return jsonResponse({ ok: false, message: 'Utilisateur invalide.' }, 401);
   }
   const userId = userData.user.id;
+
+  const burstOk = await consumeBurst(
+    supabase,
+    [
+      `uid:${userId}`,
+      await hashSubject('ip', requestIp(req) || userId),
+    ],
+    'lumia',
+    BURST_PER_MINUTE,
+  );
+  if (!burstOk) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: 'rate_limited',
+        message: 'Trop de messages d’un coup. Réessaie dans une minute.',
+      },
+      429,
+    );
+  }
 
   let payload: { message?: string; city?: string | null; history?: unknown };
   try {
