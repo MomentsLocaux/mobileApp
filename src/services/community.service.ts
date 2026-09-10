@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { sanitizeIlikeFragment } from '@/utils/event-name-search';
 import type { CommunityMember, LeaderboardEntry } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
 
@@ -90,12 +91,14 @@ export const CommunityService = {
       .order('display_name', { ascending: true })
       .limit(limit);
 
-    if (query && query.trim()) {
-      db = db.ilike('display_name', `%${query.trim()}%`);
+    const nameFragment = query ? sanitizeIlikeFragment(query) : '';
+    const cityFragment = city ? sanitizeIlikeFragment(city) : '';
+    if (nameFragment) {
+      db = db.ilike('display_name', `%${nameFragment}%`);
     }
 
-    if (city && city.trim()) {
-      db = db.ilike('city', `%${city.trim()}%`);
+    if (cityFragment) {
+      db = db.ilike('city', `%${cityFragment}%`);
     }
 
     const { data, error } = await db;

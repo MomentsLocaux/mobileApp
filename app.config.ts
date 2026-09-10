@@ -1,9 +1,20 @@
 import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-const forbiddenPublicSecretKeys = Object.keys(process.env).filter(
-  (key) => key.startsWith('EXPO_PUBLIC_') && /(SERVICE|SECRET|PRIVATE)/i.test(key),
+const forbiddenPublicKeys = Object.keys(process.env).filter(
+  (key) => key.startsWith('EXPO_PUBLIC_') && /(SERVICE|SECRET|PRIVATE|OPENAI|WEBHOOK|DOWNLOAD)/i.test(key),
 );
+
+const forbiddenPublicValues = Object.entries(process.env).flatMap(([key, raw]) => {
+  if (!key.startsWith('EXPO_PUBLIC_') || typeof raw !== 'string' || !raw) return [];
+  const value = raw.trim();
+  if (/^sk-[A-Za-z0-9_-]{10,}$/.test(value)) return [key];
+  if (/^sk\.[A-Za-z0-9._-]{10,}$/.test(value)) return [key];
+  if (value.startsWith('eyJ') && /service_role/.test(Buffer.from(value.split('.')[1] ?? '', 'base64').toString('utf8'))) {
+    return [key];
+  }
+  return [];
+});
 
 const APP_VERSION = '1.0.0';
 const IOS_BUILD_NUMBER = '1';
@@ -21,9 +32,9 @@ const CALENDAR_USAGE_FR =
 const REMINDERS_USAGE_FR =
   'Moments Locaux n’accède pas à vos rappels. Cette mention est exigée par le module calendrier iOS au démarrage.';
 
-if (forbiddenPublicSecretKeys.length > 0) {
+if (forbiddenPublicKeys.length > 0 || forbiddenPublicValues.length > 0) {
   throw new Error(
-    `Refusing to build with public secret-like env keys: ${forbiddenPublicSecretKeys.join(', ')}`,
+    `Refusing to build with public secrets: keys=${forbiddenPublicKeys.join(',') || 'none'} values=${forbiddenPublicValues.join(',') || 'none'}`,
   );
 }
 

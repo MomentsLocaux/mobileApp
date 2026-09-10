@@ -13,9 +13,12 @@ import { nameQueryOrFilters } from '@/utils/event-name-search';
 const formatSupabaseError = (error: any, context: string) => {
   const rawMessage =
     (typeof error?.message === 'string' && error.message) || (typeof error === 'string' && error) || 'Erreur Supabase';
-  const message = rawMessage.trim().startsWith('<!DOCTYPE') || rawMessage.includes('Cloudflare')
-    ? 'Supabase ne répond pas (timeout). Réessayez dans quelques instants.'
-    : rawMessage;
+  const message =
+    typeof rawMessage === 'string' && rawMessage.includes('RATE_LIMIT_EXCEEDED')
+      ? 'Trop de requêtes. Réessaie dans une minute.'
+      : rawMessage.trim().startsWith('<!DOCTYPE') || rawMessage.includes('Cloudflare')
+        ? 'Supabase ne répond pas (timeout). Réessayez dans quelques instants.'
+        : rawMessage;
   const details = [error?.code, error?.details, error?.hint].filter(Boolean).join(' | ');
   return new Error(`[${context}] ${message}${details ? ` (${details})` : ''}`);
 };

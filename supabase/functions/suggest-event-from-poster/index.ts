@@ -25,6 +25,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_EVENT_SUGGEST_MODEL') ?? 'gpt-4o-mini';
 const MONTHLY_QUOTA = Number(Deno.env.get('EVENT_SUGGEST_MONTHLY_QUOTA') ?? '20');
+const BURST_PER_MINUTE = Number(Deno.env.get('EVENT_SUGGEST_BURST_PER_MINUTE') ?? '5');
 const MAX_BASE64_CHARS = 6_000_000; // ~4.5 MB binary
 
 const corsHeaders = {
@@ -37,6 +38,31 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+async function consumeBurst(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+  limit: number,
+): Promise<boolean> {
+  const forwarded = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? '';
+  const ip = forwarded.split(',')[0]?.trim() || userId;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ip:${ip}`));
+  const ipSubject = `ip:${[...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16)}`;
+  for (const subject of [`uid:${userId}`, ipSubject]) {
+    const { data, error } = await supabase.rpc('consume_write_rate_limit', {
+      p_subject: subject,
+      p_action: 'event_suggest',
+      p_limit: limit,
+    });
+    if (error) {
+      console.log('[suggest-event-from-poster] burst rpc error', error.message);
+      continue;
+    }
+    if (data === false) return false;
+  }
+  return true;
 }
 
 function periodYm(now = new Date()): string {
@@ -155,6 +181,18 @@ serve(async (req) => {
     return jsonResponse({ ok: false, code: 'service_error', message: 'Utilisateur invalide.' }, 401);
   }
   const userId = userData.user.id;
+
+  const burstOk = await consumeBurst(supabase, userId, req, BURST_PER_MINUTE);
+  if (!burstOk) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: 'rate_limited',
+        message: "Trop d'analyses d'un coup. Réessaie dans une minute.",
+      },
+      429,
+    );
+  }
 
   let payload: Record<string, unknown>;
   try {
