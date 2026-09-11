@@ -61,7 +61,8 @@ import {
 import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function TabsLayout() {
-  const { isLoading, isAuthenticated, profile, signOut, fullSignOut } = useAuth();
+  const { isLoading, isAuthenticated, profile, user, session, signOut, fullSignOut } = useAuth();
+  const authUserId = profile?.id || user?.id || session?.user?.id || null;
   const { accent, showModeSwitch, activeMode, setActiveMode, savingMode, accountKind } =
     useAccountIdentity();
   const publishSurfaces = useEventPublishSurfaces();
@@ -149,28 +150,30 @@ export default function TabsLayout() {
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
 
   const loadUnreadNotifications = useCallback(async () => {
-    if (!profile?.id) {
+    if (!authUserId) {
       setUnreadNotifications(0);
       return;
     }
     try {
       const count = await NotificationsService.getUnreadCount();
       setUnreadNotifications(count);
+      void NotificationsService.prefetchInboxIfStale(authUserId);
     } catch {
       setUnreadNotifications(0);
     }
-  }, [profile?.id]);
+  }, [authUserId]);
 
   useEffect(() => {
     loadUnreadNotifications();
   }, [loadUnreadNotifications]);
 
   useEffect(() => {
-    if (!profile?.id) return;
-    return NotificationsService.subscribeToMyNotifications(profile.id, () => {
+    if (!authUserId) return;
+    return NotificationsService.subscribeToMyNotifications(authUserId, () => {
+      NotificationsService.invalidateInboxCache();
       loadUnreadNotifications();
     });
-  }, [profile?.id, loadUnreadNotifications]);
+  }, [authUserId, loadUnreadNotifications]);
 
   useEffect(() => {
     return NotificationsService.subscribeToLocalChanges(() => {
@@ -402,6 +405,7 @@ export default function TabsLayout() {
         />
         {/* Routes masquées du tab bar mais toujours accessibles */}
         <Tabs.Screen name="community" options={{ href: null }} />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
       </Tabs>
 
       {drawerOpen ? (

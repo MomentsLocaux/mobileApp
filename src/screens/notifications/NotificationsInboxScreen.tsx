@@ -4,9 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   RefreshControl,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,15 +20,52 @@ import {
   MessageSquareWarning,
   ShieldAlert,
   Trophy,
+  UserPlus,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
-import { NotificationsService, type AppNotification, type AppNotificationType } from '@/services/notifications.service';
-import { EventsService } from '@/services/events.service';
+import { useAuthStore } from '@/state/auth';
+import { NotificationsService, type AppNotification, type AppNotificationType, type NotificationVisual, hasFreshInboxCache, peekInboxCache } from '@/services/notifications.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
 import { EmptyState, ScreenHeader, SkeletonBlock } from '@/components/ui';
+import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
+import { getCategoryColor, getCategoryLucideIcon, getCategoryTextColor } from '@/constants/categories';
+import {
+  MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
+  MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
+} from '@/constants/branding';
 
 type FilterMode = 'all' | 'unread';
+
+type InboxSection = {
+  title: string | null;
+  data: AppNotification[];
+};
+
+const AVATAR_SIZE = 56;
+const BADGE_SIZE = 22;
+const UNREAD_FILL = 'rgba(124, 181, 24, 0.16)';
+
+const GENERIC_TITLES = new Set([
+  'Événement à venir',
+  'Nouvel événement près de chez vous',
+  'Invitation privée',
+]);
+
+const SUPPORTING_COPY: Partial<Record<AppNotificationType, string>> = {
+  event_soon: 'commence bientôt',
+  event_nearby_new: 'près de chez vous',
+  event_nearby_live: 'a lieu près de vous',
+  event_published: 'vient d’être publié',
+  followed_creator_published: 'a publié un événement',
+  social_follow: 'vous suit désormais',
+  social_like: 'a aimé un moment',
+  event_refused: 'n’a pas été retenu',
+  event_request_changes: 'demande des modifications',
+  media_approved: 'média accepté',
+  media_rejected: 'média refusé',
+};
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value) return {};
@@ -90,43 +128,16 @@ const formatRelative = (value: string) => {
   const delta = Date.now() - t;
   const mins = Math.floor(delta / 60000);
   if (mins < 1) return 'à l’instant';
-  if (mins < 60) return `il y a ${mins} min`;
+  if (mins < 60) return `${mins} min`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${hours} h`;
+  if (hours < 24) return `${hours} h`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `il y a ${days} j`;
+  if (days < 7) return `${days} j`;
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(value));
 };
 
-const typeLabel: Record<AppNotificationType, string> = {
-  event_published: 'Événement',
-  event_soon: 'Rappel',
-  event_nearby_new: 'Proximité',
-  event_nearby_live: 'À proximité',
-  followed_creator_published: 'Abonnement',
-  lumo_reward: 'Notification',
-  mission_completed: 'Notification',
-  boost_expired: 'Notification',
-  social_follow: 'Communauté',
-  social_like: 'Communauté',
-  system: 'Système',
-  event_refused: 'Statut événement',
-  event_request_changes: 'Statut événement',
-  warning_received: 'Compte',
-  user_banned: 'Compte',
-  media_approved: 'Média',
-  media_rejected: 'Média',
-  contest_entry_refused: 'Statut',
-  contest_results: 'Concours',
-  moderation_escalation: 'Signalement',
-  discovery_right_now: 'Discovery',
-  discovery_break_loop: 'Discovery',
-  discovery_new_area: 'Discovery',
-  discovery_personal_match: 'Discovery',
-  discovery_life_insight: 'Discovery',
-};
-
-const typeIcon = (type: AppNotificationType) => {
+const typeIcon = (type: AppNotificationType): LucideIcon => {
+  if (type === 'social_follow' || type === 'social_like') return UserPlus;
   if (type === 'event_published' || type === 'event_refused' || type === 'event_request_changes') {
     return CalendarCheck2;
   }
@@ -148,60 +159,160 @@ const typeIcon = (type: AppNotificationType) => {
   return Bell;
 };
 
+const buildVisualCopy = (item: AppNotification, visual?: NotificationVisual) => {
+  const formatted = formatNotificationText(item);
+  const followerName = visual?.actorName || getFollowerNameFromNotification(item);
+  const headline =
+    visual?.eventTitle ||
+    (item.type === 'social_follow' ? followerName || formatted.title : null) ||
+    (formatted.body && GENERIC_TITLES.has(formatted.title) ? formatted.body : formatted.title);
+
+  const supporting =
+    SUPPORTING_COPY[item.type] ||
+    (formatted.body && formatted.body !== headline ? formatted.body : null) ||
+    (formatted.title !== headline && !GENERIC_TITLES.has(formatted.title) ? formatted.title : null);
+
+  return { headline, supporting };
+};
+
+function NotificationAvatar({
+  uri,
+  categorySlug,
+  type,
+}: {
+  uri: string | null;
+  categorySlug: string | null;
+  type: AppNotificationType;
+}) {
+  const [failed, setFailed] = useState(false);
+  const source = !uri || failed ? MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL : { uri };
+  const BadgeIcon = categorySlug ? getCategoryLucideIcon(categorySlug) : typeIcon(type);
+  const badgeColor = categorySlug ? getCategoryColor(categorySlug) : colors.brand.secondary;
+  const badgeIconColor = categorySlug ? getCategoryTextColor(categorySlug) : colors.brand.onAccent;
+
+  return (
+    <View style={styles.avatarWrap}>
+      <Image
+        source={source}
+        defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
+        onError={() => setFailed(true)}
+        style={styles.avatar}
+        accessibilityIgnoresInvertColors
+      />
+      <View style={[styles.typeBadge, { backgroundColor: badgeColor }]}>
+        <BadgeIcon size={12} color={badgeIconColor} strokeWidth={2.4} />
+      </View>
+    </View>
+  );
+}
+
 export default function NotificationsInboxScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const { profile, user, session, isLoading: authLoading } = useAuth();
+  const authInitialized = useAuthStore((state) => state.initialized);
+  const userId = profile?.id || user?.id || session?.user?.id || null;
+  const isGuest = authInitialized && !authLoading && !userId;
   const [mode, setMode] = useState<FilterMode>('all');
+  const cached = userId ? peekInboxCache(userId, mode === 'unread') : null;
+  const [loading, setLoading] = useState(!cached);
+  const [refreshing, setRefreshing] = useState(false);
+  const [items, setItems] = useState<AppNotification[]>(cached?.items ?? []);
+  const [visuals, setVisuals] = useState<Record<string, NotificationVisual>>(cached?.visuals ?? {});
   const [error, setError] = useState<string | null>(null);
 
   const unreadCount = useMemo(() => items.filter((item) => !item.read).length, [items]);
 
-  const loadNotifications = useCallback(async () => {
-    if (!profile?.id) {
+  const applyInbox = useCallback((next: { items: AppNotification[]; visuals: Record<string, NotificationVisual> }) => {
+    setItems(next.items);
+    setVisuals(next.visuals);
+  }, []);
+
+  const loadInbox = useCallback(async (options?: { force?: boolean; silent?: boolean }) => {
+    if (!userId) {
+      if (!isGuest) {
+        setError(null);
+        setLoading(true);
+        return;
+      }
       setItems([]);
+      setVisuals({});
       setError('Connectez-vous pour consulter vos notifications.');
+      setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
+    const unreadOnly = mode === 'unread';
+    const existing = peekInboxCache(userId, unreadOnly);
+    if (existing) applyInbox(existing);
+    if (!existing?.items.length && !options?.silent) {
+      setItems([]);
+      setVisuals({});
+      setLoading(true);
+    }
+
     try {
-      const data = await NotificationsService.listMyNotifications({
-        limit: 100,
-        unreadOnly: mode === 'unread',
+      const entry = await NotificationsService.loadInbox({
+        userId,
+        unreadOnly,
+        force: options?.force,
       });
-      setItems(data);
+      applyInbox(entry);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      if (!existing?.items.length) {
+        setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      }
     } finally {
       setLoading(false);
     }
-  }, [mode, profile?.id]);
+  }, [applyInbox, isGuest, mode, userId]);
 
   useFocusEffect(
     useCallback(() => {
-      loadNotifications();
-    }, [loadNotifications])
+      if (!userId) {
+        if (!isGuest) {
+          setError(null);
+          setLoading(true);
+          return;
+        }
+        void loadInbox();
+        return;
+      }
+      const unreadOnly = mode === 'unread';
+      if (hasFreshInboxCache(userId, unreadOnly)) {
+        const fresh = peekInboxCache(userId, unreadOnly);
+        if (fresh) applyInbox(fresh);
+        setLoading(false);
+        return;
+      }
+      const stale = peekInboxCache(userId, unreadOnly);
+      void loadInbox({ silent: Boolean(stale?.items.length) });
+    }, [applyInbox, isGuest, loadInbox, mode, userId])
   );
 
   useEffect(() => {
-    if (!profile?.id) return;
-    return NotificationsService.subscribeToMyNotifications(profile.id, () => {
-      loadNotifications();
+    if (!userId) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stop = NotificationsService.subscribeToMyNotifications(userId, () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void loadInbox({ force: true, silent: true });
+      }, 400);
     });
-  }, [profile?.id, loadNotifications]);
+    return () => {
+      if (timer) clearTimeout(timer);
+      stop();
+    };
+  }, [loadInbox, userId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadNotifications();
+    await loadInbox({ force: true, silent: true });
     setRefreshing(false);
   };
 
   const handleMarkAllRead = async () => {
     await NotificationsService.markAllAsRead();
-    await loadNotifications();
+    await loadInbox({ force: true, silent: true });
   };
 
   const handleOpen = async (item: AppNotification) => {
@@ -217,56 +328,68 @@ export default function NotificationsInboxScreen() {
     }
 
     const { href } = resolveNotificationRoute(item.type, item.data);
-
-    if (href.startsWith('/events/')) {
-      const eventId = href.replace('/events/', '');
-      try {
-        const event = await EventsService.getEventById(eventId);
-        if (!event) {
-          Alert.alert('Événement indisponible', 'Cet événement n’est plus accessible depuis votre compte.');
-          return;
-        }
-      } catch {
-        Alert.alert('Navigation impossible', 'Impossible d’ouvrir cet événement pour le moment.');
-        return;
-      }
-    }
-
     router.push(href as any);
   };
 
+  const sections = useMemo<InboxSection[]>(() => {
+    if (mode === 'unread') return [{ title: null, data: items }];
+    const unread = items.filter((item) => !item.read);
+    const read = items.filter((item) => item.read);
+    const next: InboxSection[] = [];
+    if (unread.length) next.push({ title: 'Nouveau', data: unread });
+    if (read.length) next.push({ title: 'Plus tôt', data: read });
+    return next;
+  }, [items, mode]);
+
   const renderItem = ({ item }: { item: AppNotification }) => {
-    const IconCmp = typeIcon(item.type);
-    const formatted = formatNotificationText(item);
+    const visual = visuals[item.id];
+    const copy = buildVisualCopy(item, visual);
+    const relative = formatRelative(item.created_at);
+    const accessibilityLabel = [
+      copy.headline,
+      copy.supporting,
+      relative,
+      item.read ? undefined : 'non lu',
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     return (
       <TouchableOpacity
-        style={[styles.itemCard, !item.read && styles.itemUnread]}
+        style={[styles.itemRow, item.read ? styles.itemRead : styles.itemUnread]}
         onPress={() => handleOpen(item)}
-        activeOpacity={0.8}
+        activeOpacity={0.72}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
       >
-        <View style={styles.itemHeader}>
-          <View style={styles.itemTitleRow}>
-            <View style={styles.itemIcon}>
-              <IconCmp size={16} color={colors.brand.secondary} />
-            </View>
-            <Text style={styles.itemTitle}>{formatted.title}</Text>
-          </View>
-          {!item.read ? <View style={styles.unreadDot} /> : null}
+        <NotificationAvatar
+          uri={visual?.avatarUrl ?? MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL}
+          categorySlug={visual?.categorySlug ?? null}
+          type={item.type}
+        />
+        <View style={styles.itemCopy}>
+          <Text style={styles.itemText}>
+            <Text style={styles.itemHeadline}>{copy.headline}</Text>
+            {copy.supporting ? <Text style={styles.itemSupporting}>{` ${copy.supporting}`}</Text> : null}
+            {relative ? <Text style={styles.itemDate}>{` · ${relative}`}</Text> : null}
+          </Text>
         </View>
-        {formatted.body ? <Text style={styles.itemBody}>{formatted.body}</Text> : null}
-        <View style={styles.itemFooter}>
-          <Text style={styles.itemType}>{typeLabel[item.type]}</Text>
-          <Text style={styles.itemDate}>{formatRelative(item.created_at)}</Text>
-        </View>
+        {!item.read ? <View style={styles.unreadDot} /> : <View style={styles.unreadDotSpacer} />}
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safe}>
+    <SafeAreaView edges={['left', 'right']} style={styles.safe}>
       <ScreenHeader
         title="Notifications"
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+            return;
+          }
+          router.navigate('/(tabs)');
+        }}
         right={
           <TouchableOpacity
             style={[styles.readAllButton, unreadCount === 0 && styles.readAllButtonDisabled]}
@@ -293,30 +416,58 @@ export default function NotificationsInboxScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.listContent}>
-          {Array.from({ length: 5 }).map((_, index) => (
-            <View key={index} style={styles.itemCard}>
-              <View style={styles.itemTitleRow}>
-                <SkeletonBlock height={26} width={26} radius={borderRadius.full} />
-                <SkeletonBlock height={14} width="55%" />
+      {(loading && items.length === 0) || (!userId && !isGuest) ? (
+        <View style={styles.listContent} accessibilityLabel="Chargement des notifications" accessibilityRole="progressbar">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <View key={index} style={[styles.itemRow, index < 3 ? styles.itemUnread : styles.itemRead]}>
+              <SkeletonBlock height={AVATAR_SIZE} width={AVATAR_SIZE} radius={borderRadius.full} />
+              <View style={styles.itemCopy}>
+                <SkeletonBlock height={14} width="86%" />
+                <SkeletonBlock height={12} width="48%" />
               </View>
-              <SkeletonBlock height={12} width="85%" />
+              <SkeletonBlock height={10} width={10} radius={borderRadius.full} />
             </View>
           ))}
         </View>
       ) : (
-        <FlatList
-          data={items}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
           renderItem={renderItem}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          renderSectionHeader={({ section }) =>
+            section.title ? (
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+            ) : null
+          }
+          contentContainerStyle={styles.listContent}
+          stickySectionHeadersEnabled={false}
+          initialNumToRender={12}
+          windowSize={8}
+          maxToRenderPerBatch={12}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.brand.secondary}
+            />
+          }
           ListEmptyComponent={
             <EmptyState
               icon={Bell}
-              title={error ? 'Une erreur est survenue' : mode === 'unread' ? 'Aucune notification non lue' : 'Aucune notification'}
-              subtitle={error || 'Vous serez notifié ici des nouveautés et de vos activités.'}
+              title={
+                isGuest
+                  ? 'Connexion requise'
+                  : error
+                    ? 'Une erreur est survenue'
+                    : mode === 'unread'
+                      ? 'Aucune notification non lue'
+                      : 'Aucune notification'
+              }
+              subtitle={
+                isGuest
+                  ? 'Connectez-vous pour consulter vos notifications.'
+                  : error || 'Vous serez notifié ici des nouveautés et de vos activités.'
+              }
             />
           }
         />
@@ -334,7 +485,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
   readAllButtonDisabled: {
     backgroundColor: 'transparent',
@@ -356,7 +507,7 @@ const styles = StyleSheet.create({
   },
   filterPill: {
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surfaceMuted,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
   },
@@ -369,84 +520,87 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterTextActive: {
-    color: '#0f1719',
+    color: colors.brand.onAccent,
   },
   listContent: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xxl + CONTRIBUTION_FAB_STACK_SPACE,
+    flexGrow: 1,
   },
-  itemCard: {
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  itemUnread: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(124, 181, 24, 0.05)',
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  itemTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  itemIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  itemTitle: {
+  sectionTitle: {
     ...typography.bodySmall,
     color: colors.brand.text,
     fontWeight: '700',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    backgroundColor: 'transparent',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+  },
+  itemUnread: {
+    backgroundColor: UNREAD_FILL,
+  },
+  itemRead: {
+    backgroundColor: 'transparent',
+  },
+  avatarWrap: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+  },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: colors.brand.surfaceMuted,
+  },
+  typeBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: BADGE_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.brand.page,
+  },
+  itemCopy: {
     flex: 1,
+    gap: 6,
+  },
+  itemText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+  },
+  itemHeadline: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  itemSupporting: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '400',
+  },
+  itemDate: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    fontWeight: '400',
   },
   unreadDot: {
-    width: 9,
-    height: 9,
+    width: 10,
+    height: 10,
     borderRadius: borderRadius.full,
     backgroundColor: colors.brand.secondary,
   },
-  itemBody: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-  },
-  itemFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  itemType: {
-    ...typography.caption,
-    color: colors.brand.secondary,
-    fontWeight: '700',
-  },
-  itemDate: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-  },
-  centerState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  stateText: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-    textAlign: 'center',
+  unreadDotSpacer: {
+    width: 10,
+    height: 10,
   },
 });
