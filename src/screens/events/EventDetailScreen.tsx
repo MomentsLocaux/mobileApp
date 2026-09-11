@@ -77,8 +77,7 @@ import {
   getCategoryLabel,
   getCategoryTextColor,
 } from '../../constants/categories';
-import { formatEventTagLabel } from '../../constants/discovery-tags';
-import { getVisibleEventTags } from '../../utils/event-card-display';
+import { formatResolvedEventTagLabel, getVisibleEventTags } from '../../utils/event-card-display';
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
@@ -98,6 +97,8 @@ import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
@@ -126,6 +127,8 @@ export default function EventDetailScreen() {
   const { comments } = useComments(id || '');
   const { toggleFavorite: toggleFavoriteStore, isFavorite } = useFavoritesStore();
   const { toggleLike: toggleLikeStore, isLiked } = useLikesStore();
+  useTaxonomy();
+  const tagsMap = useTaxonomyStore((s) => s.tagsMap);
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
   const [loading, setLoading] = useState(true);
@@ -643,8 +646,8 @@ export default function EventDetailScreen() {
   }, [event]);
 
   const visibleTags = useMemo(
-    () => (event ? getVisibleEventTags(event.tags).slice(0, 6) : []),
-    [event],
+    () => (event ? getVisibleEventTags(event.tags, tagsMap).slice(0, 6) : []),
+    [event, tagsMap],
   );
 
   const endDateTimeLabel = useMemo(() => {
@@ -968,7 +971,7 @@ export default function EventDetailScreen() {
               </View>
               {visibleTags.map((tag) => (
                 <View key={tag} style={styles.heroTagBadge}>
-                  <Text style={styles.heroTagText}>{formatEventTagLabel(tag)}</Text>
+                  <Text style={styles.heroTagText}>{formatResolvedEventTagLabel(tag, tagsMap)}</Text>
                 </View>
               ))}
             </View>
