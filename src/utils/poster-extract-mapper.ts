@@ -76,8 +76,8 @@ function resolveCategoryIds(
   };
 }
 
-function resolveTagIds(
-  fields: PosterExtractionFields,
+export function resolvePosterTagSlugs(
+  fields: Pick<PosterExtractionFields, 'tag_slugs'>,
   summary: PosterPrefillSummary,
   tags: Tag[],
 ): string[] {
@@ -85,12 +85,12 @@ function resolveTagIds(
   const slugs = fields.tag_slugs.value ?? [];
   if (!slugs.length) return [];
 
-  const ids = slugs
-    .map((slug) => tags.find((t) => t.slug === slug)?.id)
-    .filter((id): id is string => Boolean(id));
+  const resolved = slugs
+    .map((slug) => tags.find((t) => t.slug === slug)?.slug)
+    .filter((slug): slug is string => Boolean(slug));
 
-  if (ids.length) summary.appliedFields.push('tag_slugs');
-  return ids;
+  if (resolved.length) summary.appliedFields.push('tag_slugs');
+  return resolved;
 }
 
 async function resolveLocation(
@@ -204,7 +204,7 @@ export async function mapPosterExtractionToStoreDraft(
     location,
     category,
     subcategory,
-    tags: resolveTagIds(fields, summary, taxonomy.tags),
+    tags: resolvePosterTagSlugs(fields, summary, taxonomy.tags),
     price: resolvePrice(fields, summary),
     contact: resolveContact(fields, summary),
     externalLink: pickString(fields.external_url, 'external_url', summary),

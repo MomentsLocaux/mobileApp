@@ -45,9 +45,11 @@ import {
   getHumanizedDate,
   isMeaningfulAccessLabel,
   MIN_VIEWS_BADGE_THRESHOLD,
+  formatResolvedEventTagLabel,
 } from '@/utils/event-card-display';
-import { formatEventTagLabel } from '@/constants/discovery-tags';
 import { useAuth } from '@/hooks';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 import {
   mergeLikerPreviews,
   type EventCardLikerPreview,
@@ -116,6 +118,8 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   mediaHeight: mediaHeightOverride,
 }) => {
   const { profile } = useAuth();
+  useTaxonomy();
+  const tagsMap = useTaxonomyStore((s) => s.tagsMap);
   const [isSwiping, setIsSwiping] = useState(false);
 
   const images = useMemo(() => getEventImageUrls(event), [event.cover_url, event.media]);
@@ -124,7 +128,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
   const categoryColor = getCategoryColor(event.category || '');
   const categoryTextColor = getCategoryTextColor(event.category || '');
-  const visibleTags = getEventContextTags(event);
+  const visibleTags = getEventContextTags(event, tagsMap);
   const description = getEventDescriptionPreview(event.description, variant === 'compact' ? 0 : 140);
   const locationLabel = getEventLocationLabel(event);
   const distance = formatDistanceLabel(distanceKm, distanceLabel);
@@ -269,7 +273,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
               </View>
               {visibleTags.map((tag) => (
                 <View key={tag} style={styles.tagBadge}>
-                  <Text style={styles.tagText}>{formatEventTagLabel(tag)}</Text>
+                  <Text style={styles.tagText}>{formatResolvedEventTagLabel(tag, tagsMap)}</Text>
                 </View>
               ))}
             </View>

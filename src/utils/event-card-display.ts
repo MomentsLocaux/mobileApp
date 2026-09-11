@@ -1,5 +1,5 @@
 import type { EventWithCreator } from '@/types/database';
-import { isOperationalEventTag } from '../constants/discovery-tags';
+import { formatEventTagLabel, isOperationalEventTag } from '../constants/discovery-tags';
 import { formatEventCardRangeLine, getEventCardSchedule, getEventCardCity } from './event-card-meta';
 
 export type EventTemporalState = 'upcoming' | 'live' | 'past' | 'cancelled';
@@ -175,25 +175,51 @@ export function getEventDescriptionPreview(description?: string | null, maxLengt
 const CARD_HIDDEN_TAG_RE =
   /^(#?)(datatourisme(_api)?|data_tourisme(_api)?|openagenda(_api|_ods)?(_\d+)?|vide_greniers(_org)?|mosl_offices_tourisme|fetes_foraines_festimap|festimap_festivals|tourism_system_[a-z0-9_]+|regional_[a-z0-9_]+|iris_etourisme_[a-z0-9_]+|\d+)$/i;
 
+const TAG_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type EventTagTaxonomyLookup = Record<
+  string,
+  { slug?: string | null; label?: string | null }
+>;
+
 export function isIngestProvenanceTag(tag: string): boolean {
   return CARD_HIDDEN_TAG_RE.test(tag.trim());
 }
 
-export function isHiddenDiscoveryTag(tag: string): boolean {
-  const trimmed = tag.trim();
-  return !trimmed || isOperationalEventTag(trimmed) || isIngestProvenanceTag(trimmed);
+export function isInternalTagId(tag: string): boolean {
+  return TAG_UUID_RE.test(tag.trim());
 }
 
-export function getEventContextTags(event: Pick<EventWithCreator, 'tags' | 'ambiance'>): string[] {
+export function isHiddenDiscoveryTag(tag: string): boolean {
+  const trimmed = tag.trim();
+  return (
+    !trimmed ||
+    isOperationalEventTag(trimmed) ||
+    isIngestProvenanceTag(trimmed) ||
+    isInternalTagId(trimmed)
+  );
+}
+
+function canonicalizeEventTag(tag: string, taxonomy?: EventTagTaxonomyLookup): string {
+  const trimmed = tag.replace(/^#+/, '').trim();
+  if (!trimmed) return '';
+  const slug = taxonomy?.[trimmed]?.slug?.trim();
+  return slug || trimmed;
+}
+
+export function getEventContextTags(
+  event: Pick<EventWithCreator, 'tags' | 'ambiance'>,
+  taxonomy?: EventTagTaxonomyLookup,
+): string[] {
   const tags = (Array.isArray(event.tags) ? event.tags : [])
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
-    .filter((tag) => !isHiddenDiscoveryTag(tag))
-    .map((tag) => tag.replace(/^#+/, '').trim())
-    .filter(Boolean)
+    .map((tag) => canonicalizeEventTag(tag, taxonomy))
+    .filter((tag) => Boolean(tag) && !isHiddenDiscoveryTag(tag))
     .slice(0, 2);
 
   if (!tags.length && event.ambiance?.trim()) {
-    const ambiance = event.ambiance.replace(/^#+/, '').trim();
+    const ambiance = canonicalizeEventTag(event.ambiance, taxonomy);
     if (ambiance && !isHiddenDiscoveryTag(ambiance)) {
       tags.push(ambiance);
     }
@@ -202,14 +228,24 @@ export function getEventContextTags(event: Pick<EventWithCreator, 'tags' | 'ambi
   return tags;
 }
 
-/** User-facing tags for detail / cards — strips scraper provenance slugs. */
-export function getVisibleEventTags(tags?: string[] | null): string[] {
+/** User-facing tags for detail / cards — strips scraper provenance slugs and unresolved ids. */
+export function getVisibleEventTags(
+  tags?: string[] | null,
+  taxonomy?: EventTagTaxonomyLookup,
+): string[] {
   if (!Array.isArray(tags) || tags.length === 0) return [];
   return tags
     .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
-    .filter((tag) => !isHiddenDiscoveryTag(tag))
-    .map((tag) => tag.replace(/^#/, '').trim())
-    .filter(Boolean);
+    .map((tag) => canonicalizeEventTag(tag, taxonomy))
+    .filter((tag) => Boolean(tag) && !isHiddenDiscoveryTag(tag));
+}
+
+export function formatResolvedEventTagLabel(
+  tag: string,
+  taxonomy?: EventTagTaxonomyLookup,
+): string {
+  const mapped = taxonomy?.[tag]?.label?.trim();
+  return formatEventTagLabel(tag, mapped ? { [tag]: mapped } : undefined);
 }
 
 export function formatDistanceLabel(distanceKm?: number | null, distanceLabel?: string | null): string | null {
