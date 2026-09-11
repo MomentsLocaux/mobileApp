@@ -100,9 +100,9 @@ export async function extractEventFromPosterImage(
 export async function uploadAndExtractEventFromPoster(
   userId: string,
   localUri: string,
+  draftId: string,
   mimeType?: string,
   onProgress?: PosterAnalysisProgressHandler,
-  draftId: string,
 ): Promise<
   | { ok: true; upload: UploadPosterImageResult; extraction: PosterExtractSuccess }
   | { ok: false; upload?: UploadPosterImageResult; result: PosterExtractFailure }
