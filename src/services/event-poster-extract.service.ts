@@ -52,10 +52,13 @@ async function parseEdgeError(error: unknown): Promise<PosterExtractFailure | nu
 }
 
 /** Call vision edge function with a public image URL. */
-export async function extractEventFromPosterImage(imageUrl: string): Promise<PosterExtractResult> {
+export async function extractEventFromPosterImage(
+  imageUrl: string,
+  draftId: string,
+): Promise<PosterExtractResult> {
   const { data, error } = await supabase.functions.invoke<PosterExtractSuccess | PosterExtractFailure>(
     EDGE_FUNCTION,
-    { body: { image_url: imageUrl } },
+    { body: { image_url: imageUrl, draft_id: draftId } },
   );
 
   if (error) {
@@ -99,6 +102,7 @@ export async function uploadAndExtractEventFromPoster(
   localUri: string,
   mimeType?: string,
   onProgress?: PosterAnalysisProgressHandler,
+  draftId: string,
 ): Promise<
   | { ok: true; upload: UploadPosterImageResult; extraction: PosterExtractSuccess }
   | { ok: false; upload?: UploadPosterImageResult; result: PosterExtractFailure }
@@ -118,7 +122,7 @@ export async function uploadAndExtractEventFromPoster(
   }
 
   onProgress?.('vision');
-  const extraction = await extractEventFromPosterImage(upload.publicUrl);
+  const extraction = await extractEventFromPosterImage(upload.publicUrl, draftId);
   if (extraction.ok) {
     return { ok: true, upload, extraction };
   }

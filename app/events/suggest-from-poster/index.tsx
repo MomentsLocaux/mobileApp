@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -8,8 +8,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Camera, ImageIcon, Sparkles } from 'lucide-react-native';
+import { useNavigation, useRouter, useLocalSearchParams } from 'expo-router';
+import { Camera, ImageIcon, Sparkles, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { RequireEventSuggestAccess } from '@/components/identity/RequireEventSuggestAccess';
 import { PosterAnalysisProgress } from '@/components/events/PosterAnalysisProgress';
@@ -29,9 +29,16 @@ import {
   type EventSubmissionSource,
 } from '@/types/event-submission';
 import { confirmAiProcessingNotice } from '@/utils/ai-processing-notice';
+import { confirmDiscardEventDraft } from '@/utils/discard-event-draft';
+import {
+  canAnalyzePoster,
+  EVENT_POSTER_ANALYZE_MAX_TRIES,
+  posterAnalyzeQuotaHint,
+} from '@/constants/poster-analyze-quota';
 
 function SuggestFromPosterContent() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { source: sourceParam } = useLocalSearchParams<{ source?: string }>();
   const resolvedSource: EventSubmissionSource = isEventSubmissionSource(sourceParam)
     ? sourceParam
@@ -41,6 +48,11 @@ function SuggestFromPosterContent() {
   const loadTaxonomy = useTaxonomyStore((s) => s.load);
 
   const resetStore = useCreateEventStore((s) => s.reset);
+  const coverDraftId = useCreateEventStore((s) => s.coverDraftId);
+  const posterAnalyzeAttempts = useCreateEventStore((s) => s.posterAnalyzeAttempts);
+  const incrementPosterAnalyzeAttempts = useCreateEventStore((s) => s.incrementPosterAnalyzeAttempts);
+  const decrementPosterAnalyzeAttempts = useCreateEventStore((s) => s.decrementPosterAnalyzeAttempts);
+  const markPosterAnalyzeQuotaReached = useCreateEventStore((s) => s.markPosterAnalyzeQuotaReached);
   const setSubmissionSource = useCreateEventStore((s) => s.setSubmissionSource);
   const setTitle = useCreateEventStore((s) => s.setTitle);
   const setDescription = useCreateEventStore((s) => s.setDescription);
@@ -62,11 +74,84 @@ function SuggestFromPosterContent() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<PosterAnalysisStepId>('prepare');
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const analyzingRef = useRef(false);
+  const allowExitRef = useRef(false);
+  analyzingRef.current = analyzing;
+
+  const leaveScreen = useCallback(() => {
+    allowExitRef.current = true;
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    router.replace('/(tabs)');
+  }, [navigation, router]);
+
+  const goToCreateForm = useCallback(() => {
+    allowExitRef.current = true;
+    router.replace('/events/create');
+  }, [router]);
+
+  const requestClose = useCallback(() => {
+    if (analyzingRef.current) {
+      confirmDiscardEventDraft(() => {
+        setAnalyzing(false);
+        leaveScreen();
+      });
+      return;
+    }
+    leaveScreen();
+  }, [leaveScreen]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={requestClose}
+          accessibilityRole="button"
+          accessibilityLabel="Fermer"
+          hitSlop={12}
+        >
+          <X size={22} color={colors.brand.text} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, requestClose]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowExitRef.current) return;
+      if (!analyzingRef.current) return;
+      event.preventDefault();
+      confirmDiscardEventDraft(() => {
+        setAnalyzing(false);
+        allowExitRef.current = true;
+        navigation.dispatch(event.data.action);
+      });
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const runAnalysis = useCallback(
     async (uri: string, mimeType?: string) => {
       if (!user?.id) return;
+      if (!canAnalyzePoster(useCreateEventStore.getState().posterAnalyzeAttempts)) {
+        markPosterAnalyzeQuotaReached();
+        Alert.alert('Limite atteinte', posterAnalyzeQuotaHint(EVENT_POSTER_ANALYZE_MAX_TRIES), [
+          {
+            text: 'Saisie manuelle',
+            onPress: () => {
+              resetStore();
+              setSubmissionSource(resolvedSource);
+              goToCreateForm();
+            },
+          },
+          { text: 'OK', style: 'cancel' },
+        ]);
+        return;
+      }
 
+      incrementPosterAnalyzeAttempts();
       setAnalysisStep('prepare');
       setAnalysisComplete(false);
       setAnalyzing(true);
@@ -79,17 +164,20 @@ function SuggestFromPosterContent() {
           uri,
           mimeType,
           setAnalysisStep,
+          coverDraftId,
         );
         if (!pipeline.ok) {
+          if (!pipeline.upload) decrementPosterAnalyzeAttempts();
           const { result } = pipeline;
           if (result.code === 'quota_exceeded') {
+            markPosterAnalyzeQuotaReached();
             Alert.alert('Limite atteinte', result.message, [
               {
                 text: 'Saisie manuelle',
                 onPress: () => {
                   resetStore();
                   setSubmissionSource(resolvedSource);
-                  router.replace('/events/create');
+                  goToCreateForm();
                 },
               },
               { text: 'OK', style: 'cancel' },
@@ -110,7 +198,7 @@ function SuggestFromPosterContent() {
                     publicUrl: pipeline.upload.publicUrl,
                   });
                 }
-                router.replace('/events/create');
+                goToCreateForm();
               },
             },
           ]);
@@ -168,7 +256,7 @@ function SuggestFromPosterContent() {
 
         setAnalysisComplete(true);
         await new Promise((resolve) => setTimeout(resolve, 280));
-        router.replace('/events/create');
+        goToCreateForm();
       } catch (err) {
         console.warn('[suggest-from-poster]', err);
         Alert.alert(
@@ -181,7 +269,7 @@ function SuggestFromPosterContent() {
               onPress: () => {
                 resetStore();
                 setSubmissionSource(resolvedSource);
-                router.replace('/events/create');
+                goToCreateForm();
               },
             },
           ],
@@ -212,11 +300,22 @@ function SuggestFromPosterContent() {
       setScheduleVariableDays,
       setSubmissionSource,
       resolvedSource,
-      router,
+      goToCreateForm,
+      coverDraftId,
+      incrementPosterAnalyzeAttempts,
+      decrementPosterAnalyzeAttempts,
+      markPosterAnalyzeQuotaReached,
     ],
   );
 
+  const analysisQuotaReached = !canAnalyzePoster(posterAnalyzeAttempts);
+  const quotaHint = posterAnalyzeQuotaHint(posterAnalyzeAttempts);
+
   const onPickGallery = async () => {
+    if (analysisQuotaReached) {
+      Alert.alert('Limite atteinte', quotaHint);
+      return;
+    }
     const accepted = await confirmAiProcessingNotice('poster', user?.id);
     if (!accepted) return;
     const asset = await pickImage({ allowsEditing: false });
@@ -224,6 +323,10 @@ function SuggestFromPosterContent() {
   };
 
   const onTakePhoto = async () => {
+    if (analysisQuotaReached) {
+      Alert.alert('Limite atteinte', quotaHint);
+      return;
+    }
     const accepted = await confirmAiProcessingNotice('poster', user?.id);
     if (!accepted) return;
     const asset = await takePhoto({ allowsEditing: false });
@@ -233,7 +336,7 @@ function SuggestFromPosterContent() {
   const onManual = () => {
     resetStore();
     setSubmissionSource(resolvedSource);
-    router.replace('/events/create');
+    goToCreateForm();
   };
 
   return (
@@ -250,21 +353,32 @@ function SuggestFromPosterContent() {
           </Text>
           <Text style={styles.legalHint}>
             La photo est envoyée à un sous-traitant d’IA (OpenAI) uniquement pour préremplir les
-            champs. Elle peut contenir des visages ou des lieux. Tu peux aussi saisir manuellement
+            champs. Elle peut contenir des visages ou des lieux. Vous pouvez aussi saisir manuellement
             sans IA.
           </Text>
+          <Text style={styles.quotaHint}>{quotaHint}</Text>
         </View>
 
         {analyzing ? (
           <PosterAnalysisProgress stepId={analysisStep} complete={analysisComplete} />
         ) : (
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryBtn} onPress={onTakePhoto} accessibilityRole="button">
-              <Camera size={20} color={colors.neutral[0]} />
+            <TouchableOpacity
+              style={[styles.primaryBtn, analysisQuotaReached && styles.primaryBtnDisabled]}
+              onPress={onTakePhoto}
+              disabled={analysisQuotaReached}
+              accessibilityRole="button"
+            >
+              <Camera size={20} color={colors.brand.onAccent} />
               <Text style={styles.primaryBtnText}>Prendre une photo</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryBtn} onPress={onPickGallery} accessibilityRole="button">
+            <TouchableOpacity
+              style={[styles.secondaryBtn, analysisQuotaReached && styles.secondaryBtnDisabled]}
+              onPress={onPickGallery}
+              disabled={analysisQuotaReached}
+              accessibilityRole="button"
+            >
               <ImageIcon size={20} color={colors.brand.secondary} />
               <Text style={styles.secondaryBtnText}>Choisir dans la galerie</Text>
             </TouchableOpacity>
@@ -313,6 +427,12 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     lineHeight: 18,
   },
+  quotaHint: {
+    ...typography.caption,
+    color: colors.brand.text,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+  },
   actions: {
     gap: spacing.md,
   },
@@ -327,7 +447,10 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     ...typography.h6,
-    color: colors.neutral[0],
+    color: colors.brand.onAccent,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.45,
   },
   secondaryBtn: {
     flexDirection: 'row',
@@ -342,6 +465,9 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     ...typography.h6,
     color: colors.brand.secondary,
+  },
+  secondaryBtnDisabled: {
+    opacity: 0.45,
   },
   linkBtn: {
     alignItems: 'center',
