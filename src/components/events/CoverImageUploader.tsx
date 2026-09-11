@@ -1,29 +1,24 @@
 import React, { useState } from 'react';
 import { Alert, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { Image as ImageIcon, Sparkles } from 'lucide-react-native';
+import { Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { supabase } from '@/lib/supabase/client';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
-import { generateEventCover } from '@/services/event-cover-generate.service';
-import { getCategoryLabel } from '@/constants/categories';
 
 const PRIMARY_BUCKET = 'event-media';
 
-export const CoverImageUploader = () => {
+type Props = {
+  hint?: string;
+};
+
+export const CoverImageUploader = ({ hint }: Props) => {
   const { user } = useAuth();
   const { selectedImage, pickImage, clearImage } = useImagePicker();
   const coverImage = useCreateEventStore((s) => s.coverImage);
   const setCoverImage = useCreateEventStore((s) => s.setCoverImage);
-  const title = useCreateEventStore((s) => s.title);
-  const description = useCreateEventStore((s) => s.description);
-  const category = useCreateEventStore((s) => s.category);
-  const location = useCreateEventStore((s) => s.location);
   const [uploading, setUploading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-
-  const busy = uploading || generating;
 
   const onPick = async () => {
     const asset = await pickImage({ allowsEditing: true, aspect: [16, 9] });
@@ -32,36 +27,9 @@ export const CoverImageUploader = () => {
     }
   };
 
-  const onGenerate = async () => {
-    if (!user?.id) {
-      Alert.alert('Connexion requise', 'Vous devez être connecté pour générer une cover.');
-      return;
-    }
-    if (!title.trim()) {
-      Alert.alert('Titre requis', 'Ajoute un titre avant de générer une cover.');
-      return;
-    }
-    setGenerating(true);
-    try {
-      const result = await generateEventCover({
-        title: title.trim(),
-        description,
-        categoryLabel: category ? getCategoryLabel(category as any) : null,
-        city: location?.city || location?.addressLabel || null,
-      });
-      if (!result.ok) {
-        Alert.alert('Génération impossible', result.message);
-        return;
-      }
-      setCoverImage({ storagePath: result.storage_path, publicUrl: result.cover_url });
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const upload = async (uri: string) => {
     if (!user?.id) {
-      Alert.alert('Connexion requise', 'Vous devez être connecté pour ajouter une image.');
+      Alert.alert('Connexion requise', 'Tu dois être connecté pour ajouter une image.');
       return;
     }
 
@@ -83,7 +51,7 @@ export const CoverImageUploader = () => {
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from(PRIMARY_BUCKET).getPublicUrl(filePath);
-      setCoverImage({ storagePath: filePath, publicUrl: data.publicUrl });
+      setCoverImage({ storagePath: filePath, publicUrl: data.publicUrl }, 'user');
     } catch (e) {
       console.warn('upload cover', e);
       clearImage();
@@ -95,6 +63,7 @@ export const CoverImageUploader = () => {
   };
 
   const uri = coverImage?.publicUrl || selectedImage?.uri;
+  const overlayLabel = uri ? 'Remplacer la photo' : 'Ajouter une photo de couverture';
 
   return (
     <View style={styles.container}>
@@ -106,33 +75,24 @@ export const CoverImageUploader = () => {
             <ImageIcon size={40} color={colors.brand.textSecondary} />
           </View>
         )}
-        <TouchableOpacity style={styles.overlayBtn} onPress={onPick} disabled={busy}>
+        <TouchableOpacity
+          style={styles.overlayBtn}
+          onPress={() => void onPick()}
+          disabled={uploading}
+          accessibilityRole="button"
+          accessibilityLabel={overlayLabel}
+        >
           {uploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
               <ImageIcon size={18} color="#fff" />
-              <Text style={styles.overlayText}>Ajouter une photo de couverture</Text>
+              <Text style={styles.overlayText}>{overlayLabel}</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.generateBtn}
-        onPress={() => void onGenerate()}
-        disabled={busy}
-        accessibilityRole="button"
-        accessibilityLabel="Générer une cover"
-      >
-        {generating ? (
-          <ActivityIndicator color={colors.brand.onAccent} />
-        ) : (
-          <>
-            <Sparkles size={16} color={colors.brand.onAccent} />
-            <Text style={styles.generateText}>Générer une cover</Text>
-          </>
-        )}
-      </TouchableOpacity>
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
 };
@@ -178,21 +138,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flexShrink: 1,
   },
-  generateBtn: {
-    marginTop: spacing.md,
-    alignSelf: 'center',
-    backgroundColor: colors.brand.secondary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 40,
-  },
-  generateText: {
+  hint: {
     ...typography.bodySmall,
-    color: colors.brand.onAccent,
-    fontWeight: '700',
+    color: colors.brand.textSecondary,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
 });

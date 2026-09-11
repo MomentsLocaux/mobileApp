@@ -50,9 +50,15 @@ import {
 import {
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
-  MOMENTS_LOCAUX_ORGANIZER_NAME,
-  isMomentsLocauxOrganizerFallback,
 } from '@/constants/branding';
+import {
+  isEventOrganizerOwner,
+  isPlatformOrganizerEvent,
+  publicOrganizerMeta,
+  publicOrganizerName,
+  shouldUseCreatorOrganizerAvatar,
+} from '@/utils/event-organizer';
+import { isCommunitySuggestedEvent } from '@/utils/suggestion-history';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -151,8 +157,11 @@ export default function EventDetailScreen() {
   const [eventCorrectionVisible, setEventCorrectionVisible] = useState(false);
 
   const isGuest = !session;
-  const isOwner = !!profile?.id && profile.id === event?.creator_id;
-  const isPlatformOrganizer = isMomentsLocauxOrganizerFallback(event?.creator);
+  const isOwner = isEventOrganizerOwner(profile?.id, event);
+  const isPlatformOrganizer = isPlatformOrganizerEvent(event);
+  const organizerName = publicOrganizerName(event);
+  const organizerMeta = publicOrganizerMeta(event);
+  const organizerUsesCreatorAvatar = shouldUseCreatorOrganizerAvatar(event);
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
   const canEditEvent =
     features.eventCreate &&
@@ -1186,9 +1195,9 @@ export default function EventDetailScreen() {
                 onPress={() => setPlatformOrganizerSheetVisible(true)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Organisateur Moments Locaux. En savoir plus."
+                accessibilityLabel={`Organisateur ${organizerName}. En savoir plus.`}
               >
-                {event.creator?.avatar_url ? (
+                {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
                   <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
                 ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
                   <Image
@@ -1200,16 +1209,14 @@ export default function EventDetailScreen() {
                   <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 )}
                 <View style={styles.creatorCardInfo}>
-                  <Text style={styles.creatorCardName}>
-                    {event.creator?.display_name || MOMENTS_LOCAUX_ORGANIZER_NAME}
-                  </Text>
-                  <Text style={styles.creatorCardMeta}>Agenda public</Text>
+                  <Text style={styles.creatorCardName}>{organizerName}</Text>
+                  {organizerMeta ? <Text style={styles.creatorCardMeta}>{organizerMeta}</Text> : null}
                 </View>
                 <ChevronRight size={18} color={colors.brand.textSecondary} />
               </TouchableOpacity>
             ) : (
               <View style={styles.creatorMain}>
-                {event.creator?.avatar_url ? (
+                {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
                   <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
                 ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
                   <Image
@@ -1221,9 +1228,7 @@ export default function EventDetailScreen() {
                   <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 )}
                 <View style={styles.creatorCardInfo}>
-                  <Text style={styles.creatorCardName}>
-                    {event.creator?.display_name || MOMENTS_LOCAUX_ORGANIZER_NAME}
-                  </Text>
+                  <Text style={styles.creatorCardName}>{organizerName}</Text>
                 </View>
               </View>
             )}
@@ -1302,6 +1307,7 @@ export default function EventDetailScreen() {
 
       <EventPlatformOrganizerSheet
         visible={platformOrganizerSheetVisible}
+        variant={isCommunitySuggestedEvent(event?.submission_source) ? 'community_suggest' : 'agenda'}
         showClaimCta={false}
         onClose={() => setPlatformOrganizerSheetVisible(false)}
         onClaim={() => {}}

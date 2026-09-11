@@ -102,13 +102,13 @@ function CreateEventStep2Inner() {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Détails de l'événement</Text>
-            <Text style={styles.headerSubtitle}>Étape 2 sur 3</Text>
+            <Text style={styles.headerSubtitle}>Étape 2 sur 4</Text>
           </View>
           <View style={styles.headerBtn} />
         </View>
 
         <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: '66%' }]} />
+          <View style={[styles.progressBar, { width: '50%' }]} />
         </View>
 
         <ScrollView
@@ -171,7 +171,7 @@ function CreateEventStep2Inner() {
             disabled={!canPublish}
             onPress={() =>
               router.push({
-                pathname: '/events/create/preview',
+                pathname: '/events/create/cover',
                 params: edit ? { edit } : {},
               } as any)
             }

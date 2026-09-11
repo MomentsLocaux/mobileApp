@@ -142,7 +142,11 @@ function CreateEventStep1Inner() {
         setScheduleOpenDays(scheduleState.openDays);
         setScheduleFixedSlots(scheduleState.fixedSlots);
         setScheduleVariableDays(scheduleState.variableSchedules);
-        setCoverImage(evt.cover_url ? { publicUrl: evt.cover_url, storagePath: '' } : undefined);
+        setCoverImage(
+          evt.cover_url
+            ? { publicUrl: evt.cover_url, storagePath: extractStoragePath(evt.cover_url) }
+            : undefined,
+        );
         setGallery(
           (evt.media || [])
             .filter((m) => !!m.url && m.url !== evt.cover_url)
@@ -196,8 +200,8 @@ function CreateEventStep1Inner() {
   ]);
 
   const canProceed = useMemo(() => {
-    return !!coverImage && formValid && !!title.trim() && !!startDate && !!location;
-  }, [coverImage, formValid, title, startDate, location]);
+    return formValid && !!title.trim() && !!startDate && !!location;
+  }, [formValid, title, startDate, location]);
 
   const canSaveDraft = !!title.trim() && !!location;
   const scheduleMode = useCreateEventStore((s) => s.scheduleMode);
@@ -386,13 +390,13 @@ function CreateEventStep1Inner() {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Créer un événement</Text>
-            <Text style={styles.headerSubtitle}>Étape 1 sur 3</Text>
+            <Text style={styles.headerSubtitle}>Étape 1 sur 4</Text>
           </View>
           <View style={styles.headerBtn} />
         </View>
 
         <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: '33%' }]} />
+          <View style={[styles.progressBar, { width: '25%' }]} />
         </View>
 
         <ScrollView
@@ -405,7 +409,7 @@ function CreateEventStep1Inner() {
         >
           <Text style={styles.sectionTitle}>Informations de base</Text>
           <EventSuggestEntryButton />
-          <CoverImageUploader />
+          <CoverImageUploader hint="Tu pourras générer une couverture à la fin du parcours, une fois les infos renseignées." />
           <AdditionalImagesUploader />
           <CreateEventForm
             onOpenLocation={() => setLocationModalVisible(true)}

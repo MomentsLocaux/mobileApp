@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { EVENT_COVER_GENERATE_MAX_TRIES } from '@/constants/cover-generate-quota';
 import type { EventSubmissionSource } from '@/types/event-submission';
 import type {
   EventScheduleModeMobile,
@@ -6,10 +7,26 @@ import type {
   VariableSchedules,
 } from '@/utils/event-schedule';
 
-type CoverImage = {
+function newCoverDraftId(): string {
+  try {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    if (typeof uuid === 'string' && uuid.length > 0) return uuid;
+  } catch {
+    // fallback below
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const rand = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? rand : (rand & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
+export type CoverImage = {
   storagePath: string;
   publicUrl: string;
 };
+
+export type CoverOrigin = 'none' | 'user' | 'ai';
 
 export type GalleryImage = {
   id?: string;
@@ -29,6 +46,13 @@ export type EventLocation = {
 
 interface CreateEventState {
   coverImage?: CoverImage;
+  /** Original user/poster photo kept as AI reference even after a generated cover. */
+  userReferenceCover?: CoverImage;
+  coverOrigin: CoverOrigin;
+  /** Stable id sent to generate-event-cover so the 2-try quota is per draft, not per app session. */
+  coverDraftId: string;
+  /** AI results for this draft (max 2). User picks one as cover. */
+  aiCoverCandidates: CoverImage[];
   title: string;
   startDate?: string;
   endDate?: string;
@@ -52,7 +76,10 @@ interface CreateEventState {
   /** Intent at publish time → events.submission_source */
   submissionSource: EventSubmissionSource;
   setSubmissionSource: (source: EventSubmissionSource) => void;
-  setCoverImage: (img: CoverImage | undefined) => void;
+  setCoverImage: (img: CoverImage | undefined, origin?: Exclude<CoverOrigin, 'none'>) => void;
+  setCoverDraftId: (id: string) => void;
+  addAiCoverCandidate: (img: CoverImage) => void;
+  selectAiCoverCandidate: (img: CoverImage) => void;
   setTitle: (title: string) => void;
   setStartDate: (date?: string) => void;
   setEndDate: (date?: string) => void;
@@ -78,7 +105,7 @@ interface CreateEventState {
   reset: () => void;
 }
 
-const initialState = {
+const createInitialState = () => ({
   title: '',
   startDate: undefined,
   endDate: undefined,
@@ -86,6 +113,10 @@ const initialState = {
   videoLink: undefined,
   description: '',
   coverImage: undefined,
+  userReferenceCover: undefined,
+  coverOrigin: 'none' as CoverOrigin,
+  coverDraftId: newCoverDraftId(),
+  aiCoverCandidates: [] as CoverImage[],
   category: undefined,
   subcategory: undefined,
   tags: [],
@@ -101,12 +132,37 @@ const initialState = {
   scheduleVariableDays: {} as VariableSchedules,
   privateAudienceIds: [] as string[],
   submissionSource: 'organizer_create' as EventSubmissionSource,
-};
+});
 
 export const useCreateEventStore = create<CreateEventState>((set) => ({
-  ...initialState,
+  ...createInitialState(),
   setSubmissionSource: (submissionSource) => set({ submissionSource }),
-  setCoverImage: (coverImage) => set({ coverImage }),
+  setCoverImage: (coverImage, origin = 'user') => {
+    if (!coverImage) {
+      set({ coverImage: undefined, userReferenceCover: undefined, coverOrigin: 'none' });
+      return;
+    }
+    if (origin === 'ai') {
+      set({ coverImage, coverOrigin: 'ai' });
+      return;
+    }
+    set({ coverImage, userReferenceCover: coverImage, coverOrigin: 'user' });
+  },
+  setCoverDraftId: (coverDraftId) => set({ coverDraftId }),
+  addAiCoverCandidate: (img) =>
+    set((state) => {
+      if (state.aiCoverCandidates.length >= EVENT_COVER_GENERATE_MAX_TRIES) return state;
+      if (state.aiCoverCandidates.some((candidate) => candidate.storagePath === img.storagePath)) {
+        return state;
+      }
+      const next = [...state.aiCoverCandidates, img];
+      const selectNew = state.aiCoverCandidates.length === 0 || !state.coverImage;
+      return {
+        aiCoverCandidates: next,
+        ...(selectNew ? { coverImage: img, coverOrigin: 'ai' as const } : {}),
+      };
+    }),
+  selectAiCoverCandidate: (img) => set({ coverImage: img, coverOrigin: 'ai' }),
   setTitle: (title) => set({ title }),
   setStartDate: (startDate) => set({ startDate }),
   setEndDate: (endDate) => set({ endDate }),
@@ -152,5 +208,5 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setScheduleFixedSlots: (scheduleFixedSlots) => set({ scheduleFixedSlots }),
   setScheduleVariableDays: (scheduleVariableDays) => set({ scheduleVariableDays }),
   setPrivateAudienceIds: (privateAudienceIds) => set({ privateAudienceIds }),
-  reset: () => set(initialState),
+  reset: () => set(createInitialState()),
 }));

@@ -204,6 +204,7 @@ export const CommunityService = {
       `
       )
       .eq('creator_id', creatorId)
+      .neq('submission_source', 'community_suggest')
       .order('starts_at', { ascending: false });
 
     const nowIso = new Date().toISOString();

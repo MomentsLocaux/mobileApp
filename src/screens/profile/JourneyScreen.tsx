@@ -34,7 +34,8 @@ export default function JourneyScreen() {
         supabase
           .from('events')
           .select('id', { count: 'exact', head: true })
-          .eq('creator_id', profile.id),
+          .eq('creator_id', profile.id)
+          .neq('submission_source', 'community_suggest'),
         supabase
           .from('favorites')
           .select('id', { count: 'exact', head: true })

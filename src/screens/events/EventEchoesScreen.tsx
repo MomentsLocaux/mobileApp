@@ -17,6 +17,7 @@ import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import { features } from '@/config/features';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
+import { isEventOrganizerOwner } from '@/utils/event-organizer';
 
 export default function EventEchoesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,7 +43,7 @@ export default function EventEchoesScreen() {
   const [reportedCommentIds, setReportedCommentIds] = useState<Set<string>>(new Set());
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
 
-  const isOwner = !!profile?.id && profile.id === event?.creator_id;
+  const isOwner = isEventOrganizerOwner(profile?.id, event);
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderateur';
   const communityPhotoEligibility = getCommunityPhotoEligibility({
     authenticated: !isGuest,
