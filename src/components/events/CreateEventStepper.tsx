@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,13 +8,15 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    BackHandler,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import PagerView from 'react-native-pager-view';
-import { ChevronLeft, Rocket, Pencil } from 'lucide-react-native';
+import { ChevronLeft, Rocket, Pencil, X } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius } from '@/constants/theme';
 import { Motion, createStandardTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -23,7 +25,8 @@ import { Step1Content } from '@/components/events/steps/Step1Content';
 import { Step2Content } from '@/components/events/steps/Step2Content';
 import { Step3Content } from '@/components/events/steps/Step3Content';
 import { CoverGenerateStep } from '@/components/events/CoverGenerateStep';
-import { useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { hasCreateEventDraft, useCreateEventStore } from '@/hooks/useCreateEventStore';
+import { confirmDiscardEventDraft } from '@/utils/discard-event-draft';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import { EventDedupService } from '@/services/event-dedup.service';
@@ -37,9 +40,11 @@ const isRemoteUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url);
 
 export const CreateEventStepper = () => {
     const router = useRouter();
+    const navigation = useNavigation();
     const { user } = useAuth();
     const { edit } = useLocalSearchParams<{ edit?: string }>();
     const insets = useSafeAreaInsets();
+    const allowExitRef = useRef(false);
 
     const pagerRef = useRef<PagerView>(null);
     const [currentStep, setCurrentStep] = useState(0);
@@ -70,6 +75,9 @@ export const CreateEventStepper = () => {
     const scheduleVariableDays = useCreateEventStore((s) => s.scheduleVariableDays);
     const resetStore = useCreateEventStore((s) => s.reset);
     const [editPrefill, setEditPrefill] = useState<'idle' | 'loading' | 'ready' | 'blocked'>('idle');
+    const isSuggest = submissionSource === 'community_suggest';
+    const currentStepRef = useRef(currentStep);
+    currentStepRef.current = currentStep;
 
     const canProceedStep1 = useMemo(
         () => formValid && !!title.trim() && !!startDate && !!location,
@@ -139,12 +147,20 @@ export const CreateEventStepper = () => {
         goToPage(currentStep - 1);
     };
 
+    const handleClose = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+            return;
+        }
+        router.replace('/(tabs)');
+    };
+
     const handleBack = () => {
         if (currentStep > 0) {
             goToPage(currentStep - 1);
-        } else {
-            router.back();
+            return;
         }
+        handleClose();
     };
 
     const marker = '/storage/v1/object/public/event-media/';
@@ -214,7 +230,6 @@ export const CreateEventStepper = () => {
 
         try {
             setSubmitting(true);
-            const isSuggest = submissionSource === 'community_suggest';
             const contact_email = !isSuggest && contact && contact.includes('@') ? contact : null;
             const contact_phone = !isSuggest && contact && !contact.includes('@') ? contact : null;
             let priceValue: number | null = null;
@@ -283,6 +298,7 @@ export const CreateEventStepper = () => {
                 }
             }
 
+            allowExitRef.current = true;
             resetStore();
             haptics.success();
             if (isSuggest && user?.id) {
@@ -307,7 +323,6 @@ export const CreateEventStepper = () => {
     };
 
     const getTitle = () => {
-        const isSuggest = submissionSource === 'community_suggest';
         switch (currentStep) {
             case 0:
                 return isSuggest ? 'Proposer un événement' : 'Créer un événement';
@@ -364,52 +379,66 @@ export const CreateEventStepper = () => {
         width: `${progressAnim.value}%`,
     }));
 
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+            if (allowExitRef.current) return;
+            const inProgress =
+                hasCreateEventDraft(useCreateEventStore.getState()) || currentStepRef.current > 0;
+            if (!inProgress) {
+                resetStore();
+                return;
+            }
+            event.preventDefault();
+            confirmDiscardEventDraft(() => {
+                allowExitRef.current = true;
+                resetStore();
+                navigation.dispatch(event.data.action);
+            });
+        });
+        return unsubscribe;
+    }, [navigation, resetStore]);
+
+    useEffect(() => {
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (currentStepRef.current > 0) {
+                pagerRef.current?.setPage(currentStepRef.current - 1);
+                return true;
+            }
+            return false;
+        });
+        return () => subscription.remove();
+    }, []);
+
+    const canContinue =
+        currentStep === 0 ? canProceedStep1 : currentStep === 1 ? canProceedStep2 : Boolean(coverImage);
+
+    const renderContinueFooter = () => (
+        <View style={styles.footer}>
+            {currentStep === 0 ? (
+                <View style={styles.prevBtnSpacer} />
+            ) : (
+                <TouchableOpacity style={styles.prevBtn} onPress={handlePrevious} accessibilityRole="button">
+                    <Text style={styles.prevText}>Précédent</Text>
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity
+                style={[styles.nextBtn, !canContinue && styles.nextBtnDisabled]}
+                disabled={!canContinue}
+                onPress={handleNext}
+                accessibilityRole="button"
+                accessibilityLabel="Continuer"
+            >
+                <Text style={[styles.nextText, !canContinue && styles.nextTextDisabled]}>Continuer</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     const renderFooter = () => {
         switch (currentStep) {
             case 0:
-                return (
-                    <View style={styles.footer}>
-                        <TouchableOpacity
-                            style={[styles.nextBtn, !canProceedStep1 && styles.nextBtnDisabled]}
-                            disabled={!canProceedStep1}
-                            onPress={handleNext}
-                        >
-                            <Text style={styles.nextText}>Suivant</Text>
-                        </TouchableOpacity>
-                    </View>
-                );
-
             case 1:
-                return (
-                    <View style={styles.footer}>
-                        <TouchableOpacity style={styles.prevBtn} onPress={handlePrevious}>
-                            <Text style={styles.prevText}>Précédent</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.nextBtn, !canProceedStep2 && styles.nextBtnDisabled]}
-                            disabled={!canProceedStep2}
-                            onPress={handleNext}
-                        >
-                            <Text style={styles.nextText}>Continuer</Text>
-                        </TouchableOpacity>
-                    </View>
-                );
-
             case 2:
-                return (
-                    <View style={styles.footer}>
-                        <TouchableOpacity style={styles.prevBtn} onPress={handlePrevious}>
-                            <Text style={styles.prevText}>Précédent</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.nextBtn, !coverImage && styles.nextBtnDisabled]}
-                            disabled={!coverImage}
-                            onPress={handleNext}
-                        >
-                            <Text style={styles.nextText}>Continuer</Text>
-                        </TouchableOpacity>
-                    </View>
-                );
+                return renderContinueFooter();
 
             case 3:
                 return (
@@ -434,11 +463,13 @@ export const CreateEventStepper = () => {
                             <Text style={styles.missingHint}>{missingFieldsHint}</Text>
                         ) : (
                             <Text style={styles.missingHint}>
-                                Votre événement sera vérifié avant d'être publié.
+                                {isSuggest
+                                    ? 'Votre proposition sera vérifiée avant d’être publiée.'
+                                    : 'Votre événement sera vérifié avant d’être publié.'}
                             </Text>
                         )}
                         <TouchableOpacity style={styles.editBtn} disabled={submitting} onPress={() => goToPage(0)}>
-                            <Pencil size={18} color="#fff" />
+                            <Pencil size={18} color={colors.brand.text} />
                             <Text style={styles.editText}>Modifier les informations</Text>
                         </TouchableOpacity>
                     </View>
@@ -458,14 +489,26 @@ export const CreateEventStepper = () => {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerBtn} onPress={handleBack}>
+                    <TouchableOpacity
+                        style={styles.headerBtn}
+                        onPress={handleBack}
+                        accessibilityRole="button"
+                        accessibilityLabel={currentStep > 0 ? 'Étape précédente' : 'Retour'}
+                    >
                         <ChevronLeft size={20} color={colors.brand.text} />
                     </TouchableOpacity>
                     <View style={styles.headerTitleContainer}>
                         <Text style={styles.headerTitle}>{getTitle()}</Text>
                         <Text style={styles.headerSubtitle}>{getSubtitle()}</Text>
                     </View>
-                    <View style={styles.headerBtn} />
+                    <TouchableOpacity
+                        style={styles.headerBtn}
+                        onPress={handleClose}
+                        accessibilityRole="button"
+                        accessibilityLabel="Fermer"
+                    >
+                        <X size={20} color={colors.brand.text} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Progress Bar */}
@@ -544,7 +587,7 @@ const styles = StyleSheet.create({
     },
     progressBarContainer: {
         height: 4,
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.brand.surfaceMuted,
         width: '100%',
     },
     progressBar: {
@@ -555,7 +598,7 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         backgroundColor: colors.brand.page,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.05)',
+        borderTopColor: colors.brand.surfaceMuted,
         flexDirection: 'row',
         gap: spacing.md,
     },
@@ -563,7 +606,7 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         backgroundColor: colors.brand.page,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.05)',
+        borderTopColor: colors.brand.surfaceMuted,
         gap: spacing.sm,
     },
     missingHint: {
@@ -578,11 +621,15 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: colors.brand.surfaceMuted,
+        backgroundColor: colors.brand.surface,
+    },
+    prevBtnSpacer: {
+        flex: 1,
     },
     prevText: {
         ...typography.body,
-        color: '#fff',
+        color: colors.brand.text,
         fontWeight: '600',
     },
     nextBtn: {
@@ -593,12 +640,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     nextBtnDisabled: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: colors.brand.surfaceMuted,
     },
     nextText: {
         ...typography.body,
         color: colors.brand.onAccent,
         fontWeight: '700',
+    },
+    nextTextDisabled: {
+        color: colors.brand.textSecondary,
     },
     publishBtn: {
         backgroundColor: colors.brand.secondary,
@@ -610,7 +660,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     publishDisabled: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: colors.brand.surfaceMuted,
     },
     publishText: {
         ...typography.body,
@@ -618,7 +668,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     editBtn: {
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: colors.brand.surfaceMuted,
         paddingVertical: spacing.md,
         borderRadius: borderRadius.full,
         alignItems: 'center',
@@ -628,7 +678,7 @@ const styles = StyleSheet.create({
     },
     editText: {
         ...typography.body,
-        color: '#fff',
+        color: colors.brand.text,
         fontWeight: '600',
     },
     prefillOverlay: {

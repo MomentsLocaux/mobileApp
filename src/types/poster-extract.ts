@@ -32,6 +32,7 @@ export type PosterExtractQuota = {
   limit: number;
   remaining: number | null;
   period: string;
+  draft_remaining?: number | null;
 };
 
 export type PosterExtractSuccess = {
@@ -47,6 +48,7 @@ export type PosterExtractErrorCode =
   | 'no_event_detected'
   | 'image_unreadable'
   | 'quota_exceeded'
+  | 'rate_limited'
   | 'service_error';
 
 export type PosterExtractFailure = {

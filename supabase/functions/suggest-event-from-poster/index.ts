@@ -15,7 +15,7 @@ import {
 /**
  * SCRUM-107 — Poster / flyer / screenshot → structured event fields (vision).
  *
- * Auth: JWT required. Quota: event_suggest_usage (monthly, UTC).
+ * Auth: JWT required. Quota: 2 analyses / draft_id + monthly event_suggest_usage (UTC).
  * Model: gpt-4o-mini + Structured Outputs.
  * Mobile maps fields → useCreateEventStore (SCRUM-108).
  */
@@ -25,8 +25,20 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_EVENT_SUGGEST_MODEL') ?? 'gpt-4o-mini';
 const MONTHLY_QUOTA = Number(Deno.env.get('EVENT_SUGGEST_MONTHLY_QUOTA') ?? '20');
+const DRAFT_ANALYZE_LIMIT = Number(Deno.env.get('EVENT_POSTER_ANALYZE_LIMIT') ?? '2');
 const BURST_PER_MINUTE = Number(Deno.env.get('EVENT_SUGGEST_BURST_PER_MINUTE') ?? '5');
 const MAX_BASE64_CHARS = 6_000_000; // ~4.5 MB binary
+const DRAFT_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseDraftId(value: unknown): string | null {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  return DRAFT_ID_RE.test(raw) ? raw : null;
+}
+
+function isMissingQuotaInfra(message: string): boolean {
+  return /could not find the function|schema cache|does not exist|42P01|42883/i.test(message);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,6 +81,172 @@ function periodYm(now = new Date()): string {
   const y = now.getUTCFullYear();
   const m = String(now.getUTCMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
+}
+
+type QuotaConsumption = {
+  monthly: boolean;
+  draft: boolean;
+};
+
+async function consumePosterQuotas(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  draftId: string,
+): Promise<{ ok: true; consumed: QuotaConsumption } | { ok: false; response: Response }> {
+  const period = periodYm();
+  const consumed: QuotaConsumption = { monthly: false, draft: false };
+
+  const { data: monthlyOk, error: monthlyError } = await supabase.rpc('consume_event_suggest_monthly_quota', {
+    p_user_id: userId,
+    p_limit: MONTHLY_QUOTA,
+  });
+
+  if (monthlyError && !isMissingQuotaInfra(monthlyError.message || '')) {
+    return {
+      ok: false,
+      response: jsonResponse(
+        { ok: false, code: 'service_error', message: 'Quota indisponible. Réessaie plus tard.' },
+        503,
+      ),
+    };
+  }
+
+  if (!monthlyError && monthlyOk === false) {
+    return {
+      ok: false,
+      response: jsonResponse(
+        {
+          ok: false,
+          code: 'quota_exceeded',
+          message: `Vous avez atteint la limite d’analyses d’affiches pour ce mois (${MONTHLY_QUOTA}). Saisissez l’événement manuellement.`,
+          quota: { limit: MONTHLY_QUOTA, remaining: 0, period, draft_remaining: 0 },
+        },
+        429,
+      ),
+    };
+  }
+
+  if (!monthlyError && monthlyOk === true) {
+    consumed.monthly = true;
+  } else {
+    const { data: usageRow, error: usageError } = await supabase
+      .from('event_suggest_usage')
+      .select('request_count')
+      .eq('user_id', userId)
+      .eq('period_ym', period)
+      .maybeSingle();
+
+    if (usageError) {
+      return {
+        ok: false,
+        response: jsonResponse(
+          { ok: false, code: 'service_error', message: 'Quota indisponible. Réessaie plus tard.' },
+          503,
+        ),
+      };
+    }
+
+    const count = usageRow?.request_count ?? 0;
+    if (count >= MONTHLY_QUOTA) {
+      return {
+        ok: false,
+        response: jsonResponse(
+          {
+            ok: false,
+            code: 'quota_exceeded',
+            message: `Vous avez atteint la limite d’analyses d’affiches pour ce mois (${MONTHLY_QUOTA}). Saisissez l’événement manuellement.`,
+            quota: { limit: MONTHLY_QUOTA, remaining: 0, period, draft_remaining: 0 },
+          },
+          429,
+        ),
+      };
+    }
+
+    const { error: upsertError } = await supabase.from('event_suggest_usage').upsert(
+      {
+        user_id: userId,
+        period_ym: period,
+        request_count: count + 1,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,period_ym' },
+    );
+
+    if (upsertError) {
+      return {
+        ok: false,
+        response: jsonResponse(
+          { ok: false, code: 'service_error', message: 'Quota indisponible. Réessaie plus tard.' },
+          503,
+        ),
+      };
+    }
+    consumed.monthly = true;
+  }
+
+  const { data: draftOk, error: draftError } = await supabase.rpc('consume_event_poster_analyze_quota', {
+    p_user_id: userId,
+    p_draft_id: draftId,
+    p_limit: DRAFT_ANALYZE_LIMIT,
+  });
+
+  if (draftError && !isMissingQuotaInfra(draftError.message || '')) {
+    if (consumed.monthly) {
+      await supabase.rpc('release_event_suggest_monthly_quota', { p_user_id: userId });
+    }
+    return {
+      ok: false,
+      response: jsonResponse(
+        { ok: false, code: 'service_error', message: 'Quota indisponible. Réessaie plus tard.' },
+        503,
+      ),
+    };
+  }
+
+  if (!draftError && draftOk === false) {
+    if (consumed.monthly) {
+      await supabase.rpc('release_event_suggest_monthly_quota', { p_user_id: userId });
+    }
+    return {
+      ok: false,
+      response: jsonResponse(
+        {
+          ok: false,
+          code: 'quota_exceeded',
+          message: `Vous avez utilisé les ${DRAFT_ANALYZE_LIMIT} analyses pour cette suggestion. Saisissez manuellement, ou quittez pour en commencer une autre.`,
+          quota: { limit: MONTHLY_QUOTA, remaining: null, period, draft_remaining: 0 },
+        },
+        429,
+      ),
+    };
+  }
+
+  if (!draftError && draftOk === true) {
+    consumed.draft = true;
+  }
+
+  return { ok: true, consumed };
+}
+
+async function releasePosterQuotas(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  draftId: string,
+  consumed: QuotaConsumption,
+) {
+  if (consumed.draft) {
+    const { error } = await supabase.rpc('release_event_poster_analyze_quota', {
+      p_user_id: userId,
+      p_draft_id: draftId,
+    });
+    if (error) console.log('[suggest-event-from-poster] draft quota release error', error.message);
+  }
+  if (consumed.monthly) {
+    const { error } = await supabase.rpc('release_event_suggest_monthly_quota', { p_user_id: userId });
+    if (error && !isMissingQuotaInfra(error.message || '')) {
+      console.log('[suggest-event-from-poster] monthly quota release error', error.message);
+    }
+  }
 }
 
 function buildSystemPrompt(): string {
@@ -206,59 +384,27 @@ serve(async (req) => {
     return jsonResponse({ ok: false, code: 'service_error', message: imageResult.error }, 400);
   }
 
-  const period = periodYm();
-  let quotaRemaining: number | null = null;
-
-  try {
-    const { data: usageRow, error: usageError } = await supabase
-      .from('event_suggest_usage')
-      .select('request_count')
-      .eq('user_id', userId)
-      .eq('period_ym', period)
-      .maybeSingle();
-
-    if (usageError) {
-      console.log('[suggest-event-from-poster] quota read error', usageError);
-      return jsonResponse(
-        { ok: false, code: 'service_error', message: 'Quota indisponible. Réessaie plus tard.' },
-        503,
-      );
-    }
-
-    const count = usageRow?.request_count ?? 0;
-    if (count >= MONTHLY_QUOTA) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: 'quota_exceeded',
-          message: `Tu as atteint ta limite d'analyses d'affiches pour ce mois (${MONTHLY_QUOTA}). Tu peux saisir l'événement manuellement.`,
-          quota: { limit: MONTHLY_QUOTA, remaining: 0, period },
-        },
-        429,
-      );
-    }
-
-    const { error: upsertError } = await supabase.from('event_suggest_usage').upsert(
-      {
-        user_id: userId,
-        period_ym: period,
-        request_count: count + 1,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,period_ym' },
-    );
-
-    if (upsertError) {
-      console.log('[suggest-event-from-poster] quota write error', upsertError);
-    } else {
-      quotaRemaining = Math.max(0, MONTHLY_QUOTA - (count + 1));
-    }
-  } catch (quotaErr) {
-    console.log('[suggest-event-from-poster] quota exception', quotaErr);
+  const draftId = parseDraftId(payload.draft_id);
+  if (!draftId) {
     return jsonResponse(
-      { ok: false, code: 'service_error', message: 'Quota indisponible. Réessaie plus tard.' },
-      503,
+      { ok: false, code: 'service_error', message: 'Brouillon invalide. Relancez le parcours.' },
+      400,
     );
+  }
+
+  const period = periodYm();
+  const quotaResult = await consumePosterQuotas(supabase, userId, draftId);
+  if (!quotaResult.ok) return quotaResult.response;
+  const consumed = quotaResult.consumed;
+  let quotaRemaining: number | null = null;
+  const { data: usageAfter } = await supabase
+    .from('event_suggest_usage')
+    .select('request_count')
+    .eq('user_id', userId)
+    .eq('period_ym', period)
+    .maybeSingle();
+  if (typeof usageAfter?.request_count === 'number') {
+    quotaRemaining = Math.max(0, MONTHLY_QUOTA - usageAfter.request_count);
   }
 
   const imageContent =
@@ -304,6 +450,7 @@ serve(async (req) => {
     if (!openaiRes.ok) {
       const errBody = await openaiRes.text();
       console.log('[suggest-event-from-poster] openai error', openaiRes.status, errBody.slice(0, 500));
+      await releasePosterQuotas(supabase, userId, draftId, consumed);
       const isUnsupportedFormat =
         openaiRes.status === 400 &&
         /invalid_image_format|unsupported image|image format/i.test(errBody);
@@ -324,6 +471,7 @@ serve(async (req) => {
     raw = JSON.parse(content) as RawExtraction;
   } catch (err) {
     console.log('[suggest-event-from-poster] openai fetch/parse failed', err);
+    await releasePosterQuotas(supabase, userId, draftId, consumed);
     return jsonResponse(
       {
         ok: false,

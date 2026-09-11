@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { EVENT_COVER_GENERATE_MAX_TRIES } from '@/constants/cover-generate-quota';
+import { EVENT_POSTER_ANALYZE_MAX_TRIES } from '@/constants/poster-analyze-quota';
 import type { EventSubmissionSource } from '@/types/event-submission';
 import type {
   EventScheduleModeMobile,
@@ -53,6 +54,8 @@ interface CreateEventState {
   coverDraftId: string;
   /** AI results for this draft (max 2). User picks one as cover. */
   aiCoverCandidates: CoverImage[];
+  /** AI poster analyses already used for this draft (max 2). */
+  posterAnalyzeAttempts: number;
   title: string;
   startDate?: string;
   endDate?: string;
@@ -80,6 +83,9 @@ interface CreateEventState {
   setCoverDraftId: (id: string) => void;
   addAiCoverCandidate: (img: CoverImage) => void;
   selectAiCoverCandidate: (img: CoverImage) => void;
+  incrementPosterAnalyzeAttempts: () => void;
+  decrementPosterAnalyzeAttempts: () => void;
+  markPosterAnalyzeQuotaReached: () => void;
   setTitle: (title: string) => void;
   setStartDate: (date?: string) => void;
   setEndDate: (date?: string) => void;
@@ -117,6 +123,7 @@ const createInitialState = () => ({
   coverOrigin: 'none' as CoverOrigin,
   coverDraftId: newCoverDraftId(),
   aiCoverCandidates: [] as CoverImage[],
+  posterAnalyzeAttempts: 0,
   category: undefined,
   subcategory: undefined,
   tags: [],
@@ -163,6 +170,18 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
       };
     }),
   selectAiCoverCandidate: (img) => set({ coverImage: img, coverOrigin: 'ai' }),
+  incrementPosterAnalyzeAttempts: () =>
+    set((state) => ({
+      posterAnalyzeAttempts: Math.min(
+        EVENT_POSTER_ANALYZE_MAX_TRIES,
+        state.posterAnalyzeAttempts + 1,
+      ),
+    })),
+  decrementPosterAnalyzeAttempts: () =>
+    set((state) => ({
+      posterAnalyzeAttempts: Math.max(0, state.posterAnalyzeAttempts - 1),
+    })),
+  markPosterAnalyzeQuotaReached: () => set({ posterAnalyzeAttempts: EVENT_POSTER_ANALYZE_MAX_TRIES }),
   setTitle: (title) => set({ title }),
   setStartDate: (startDate) => set({ startDate }),
   setEndDate: (endDate) => set({ endDate }),
@@ -210,3 +229,22 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setPrivateAudienceIds: (privateAudienceIds) => set({ privateAudienceIds }),
   reset: () => set(createInitialState()),
 }));
+
+export function hasCreateEventDraft(state: CreateEventState): boolean {
+  return Boolean(
+    state.title.trim() ||
+      state.description?.trim() ||
+      state.startDate ||
+      state.endDate ||
+      state.location ||
+      state.coverImage ||
+      state.category ||
+      state.subcategory ||
+      state.tags.length > 0 ||
+      state.gallery.some((image) => image.status !== 'removed') ||
+      state.contact?.trim() ||
+      state.price?.trim() ||
+      state.externalLink?.trim() ||
+      state.videoLink?.trim(),
+  );
+}
