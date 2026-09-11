@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { isCoverTone, type CoverTone } from '@/constants/cover-tone';
 
 const EDGE_FUNCTION = 'generate-event-cover';
 
@@ -18,7 +19,12 @@ export type GenerateEventCoverInput = {
   title: string;
   description?: string | null;
   categoryLabel?: string | null;
+  subcategoryLabel?: string | null;
   city?: string | null;
+  tags?: string[];
+  tone?: CoverTone | null;
+  referencePath?: string | null;
+  draftId: string;
 };
 
 export async function generateEventCover(
@@ -31,7 +37,12 @@ export async function generateEventCover(
         title: input.title,
         description: input.description || '',
         category: input.categoryLabel || '',
+        subcategory: input.subcategoryLabel || '',
         city: input.city || '',
+        tags: input.tags?.filter(Boolean) ?? [],
+        tone: isCoverTone(input.tone) ? input.tone : 'sobre',
+        reference_path: input.referencePath || '',
+        draft_id: input.draftId,
       },
     },
   );

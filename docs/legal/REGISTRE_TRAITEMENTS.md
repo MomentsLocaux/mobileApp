@@ -16,7 +16,7 @@ Les traitements parkés (check-in, Lumo / IAP, Discovery Engine, Diffuseur B2B, 
 | Supabase (Supabase Inc.) | Hébergement Auth, Postgres, Storage, Edge Functions | Compte, profil, UGC, logs techniques | Possible (États-Unis / hors UE) — clauses contractuelles types |
 | Expo / EAS | Build, updates, notifications push | Tokens push, identifiants techniques d’app | Possible |
 | Mapbox | Cartographie | Position approximative / requêtes de tuiles | Possible |
-| OpenAI | Sous-traitant IA (processor) | Texte du chat Lumia (historique court) ; image d’affiche pour suggestion | Possible (États-Unis) — durée de l’appel API |
+| OpenAI | Sous-traitant IA (processor) | Texte du chat Lumia (historique court) ; image d’affiche pour suggestion ; photo de cover pour génération / édition d’image | Possible (États-Unis) — durée de l’appel API |
 | Apple / Google | Stores, notifications, distribution | Compte développeur, métadonnées d’app, questionnaires privacy | Selon le store |
 
 Moments Locaux reste responsable de traitement pour les finalités produit. OpenAI n’entraîne pas de modèles à partir de ces contenus **si** le contrat et le paramétrage API l’excluent (à confirmer à chaque renouvellement de contrat).
@@ -72,6 +72,14 @@ Moments Locaux reste responsable de traitement pour les finalités produit. Open
 - **Base légale** : contrat ; consentement éclairé avant envoi (la photo peut contenir des visages, lieux, données identifiantes).
 - **Données** : image envoyée à l’Edge `suggest-event-from-poster` puis au sous-traitant IA ; champs extraits (titre, date, lieu) relus par l’utilisateur avant envoi à la modération.
 - **Conservation** : l’image peut rester comme visuel de la suggestion si l’utilisateur poursuit le flux ; pas d’entraînement déclaré.
+
+### 7bis. Génération de couverture (image)
+
+- **Finalité** : proposer une cover sobre à partir de la fiche (et, si fournie, de la photo utilisateur).
+- **Base légale** : contrat ; information avant envoi (alerte de confirmation).
+- **Données** : titre, lieu, catégorie, description, ton choisi ; photo de référence éventuelle envoyée à l’Edge `generate-event-cover` puis à OpenAI (`images/generations` ou `images/edits`).
+- **Quota** : 2 générations d’image par brouillon d’événement ; l’utilisateur choisit entre les deux résultats (ou une photo).
+- **Conservation** : image générée stockée dans `event-media` si l’utilisateur l’accepte comme cover ; pas d’entraînement déclaré.
 
 ### 8. Notifications
 

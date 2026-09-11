@@ -8,6 +8,7 @@ export default function EventCreateLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="step-1" />
         <Stack.Screen name="step-2" />
+        <Stack.Screen name="cover" />
         <Stack.Screen name="step-3" />
         <Stack.Screen name="preview" />
       </Stack>

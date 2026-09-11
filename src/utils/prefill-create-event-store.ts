@@ -25,6 +25,7 @@ export async function prefillCreateEventStore(
 
   const store = useCreateEventStore.getState();
   store.reset();
+  store.setCoverDraftId(eventId);
   store.setTitle(evt.title || '');
   store.setDescription(evt.description || '');
   store.setStartDate(evt.starts_at || undefined);
@@ -43,7 +44,11 @@ export async function prefillCreateEventStore(
   store.setScheduleOpenDays(scheduleState.openDays);
   store.setScheduleFixedSlots(scheduleState.fixedSlots);
   store.setScheduleVariableDays(scheduleState.variableSchedules);
-  store.setCoverImage(evt.cover_url ? { publicUrl: evt.cover_url, storagePath: '' } : undefined);
+  store.setCoverImage(
+    evt.cover_url
+      ? { publicUrl: evt.cover_url, storagePath: extractStoragePath(evt.cover_url) }
+      : undefined,
+  );
   store.setGallery(
     (evt.media || [])
       .filter((m) => !!m.url && m.url !== evt.cover_url)

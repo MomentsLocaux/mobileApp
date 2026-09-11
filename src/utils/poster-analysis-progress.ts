@@ -1,3 +1,11 @@
+import {
+  stagedProgressEase,
+  stagedProgressIndex,
+  stagedProgressPercent,
+  stagedProgressStepStatus,
+  type StagedProgressStepStatus,
+} from './staged-progress';
+
 export const POSTER_ANALYSIS_STEPS = [
   {
     id: 'prepare',
@@ -28,10 +36,10 @@ export const POSTER_ANALYSIS_STEPS = [
 
 export type PosterAnalysisStepId = (typeof POSTER_ANALYSIS_STEPS)[number]['id'];
 
-export type PosterAnalysisStepStatus = 'pending' | 'active' | 'done';
+export type PosterAnalysisStepStatus = StagedProgressStepStatus;
 
 export function posterAnalysisStepIndex(stepId: PosterAnalysisStepId): number {
-  return POSTER_ANALYSIS_STEPS.findIndex((step) => step.id === stepId);
+  return stagedProgressIndex(POSTER_ANALYSIS_STEPS, stepId);
 }
 
 /**
@@ -43,12 +51,7 @@ export function posterAnalysisPercent(
   stepProgress = 0,
   options?: { complete?: boolean },
 ): number {
-  if (options?.complete) return 100;
-  const index = posterAnalysisStepIndex(stepId);
-  if (index < 0) return 0;
-  const total = POSTER_ANALYSIS_STEPS.length;
-  const clamped = Math.min(1, Math.max(0, stepProgress));
-  return Math.min(99, Math.round(((index + clamped) / total) * 100));
+  return stagedProgressPercent(POSTER_ANALYSIS_STEPS, stepId, stepProgress, options);
 }
 
 export function posterAnalysisStepStatus(
@@ -56,16 +59,10 @@ export function posterAnalysisStepStatus(
   activeStepId: PosterAnalysisStepId,
   options?: { complete?: boolean },
 ): PosterAnalysisStepStatus {
-  if (options?.complete) return 'done';
-  const stepIndex = posterAnalysisStepIndex(stepId);
-  const activeIndex = posterAnalysisStepIndex(activeStepId);
-  if (stepIndex < activeIndex) return 'done';
-  if (stepIndex === activeIndex) return 'active';
-  return 'pending';
+  return stagedProgressStepStatus(POSTER_ANALYSIS_STEPS, stepId, activeStepId, options);
 }
 
 /** Asymptotic 0 → ~0.9 so a long vision call never looks stuck at 0% of its slice. */
 export function posterAnalysisEaseProgress(elapsedMs: number, tauMs = 8000): number {
-  if (elapsedMs <= 0) return 0;
-  return 0.9 * (1 - Math.exp(-elapsedMs / tauMs));
+  return stagedProgressEase(elapsedMs, tauMs);
 }
