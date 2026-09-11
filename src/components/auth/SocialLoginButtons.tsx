@@ -17,6 +17,9 @@ const PROVIDERS: { id: SocialProvider; label: string; icon: keyof typeof Ionicon
   { id: 'facebook', label: 'Facebook', icon: 'logo-facebook' },
 ];
 
+/** Facebook OAuth is not production-ready; keep the provider listed so it can be re-enabled later. */
+const HIDDEN_PROVIDERS = new Set<SocialProvider>(['facebook']);
+
 export function SocialLoginButtons({ onProviderPress, disabled, variant = 'light' }: Props) {
   const [loadingProvider, setLoadingProvider] = useState<SocialProvider | null>(null);
   const isLight = variant === 'light';
@@ -31,7 +34,11 @@ export function SocialLoginButtons({ onProviderPress, disabled, variant = 'light
     }
   };
 
-  const visibleProviders = PROVIDERS.filter((p) => p.id !== 'apple' || Platform.OS === 'ios');
+  const visibleProviders = PROVIDERS.filter((p) => {
+    if (HIDDEN_PROVIDERS.has(p.id)) return false;
+    if (p.id === 'apple') return Platform.OS === 'ios';
+    return true;
+  });
   const iconColor = isLight ? (colors.brand.ink as string) : '#fff';
 
   return (
