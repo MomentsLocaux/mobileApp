@@ -24,7 +24,7 @@ export const Step1Content = ({ onValidate, scrollViewRef, onInputFocus, onInputR
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
-                <CoverImageUploader />
+                <CoverImageUploader hint="Tu pourras générer une couverture à la fin du parcours, une fois les infos renseignées." />
                 <AdditionalImagesUploader />
                 <CreateEventForm
                     onOpenLocation={() => setLocationModalVisible(true)}

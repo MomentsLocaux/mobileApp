@@ -22,6 +22,7 @@ import { haptics } from '@/utils/haptics';
 import { Step1Content } from '@/components/events/steps/Step1Content';
 import { Step2Content } from '@/components/events/steps/Step2Content';
 import { Step3Content } from '@/components/events/steps/Step3Content';
+import { CoverGenerateStep } from '@/components/events/CoverGenerateStep';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
@@ -45,7 +46,7 @@ export const CreateEventStepper = () => {
     const [formValid, setFormValid] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const reduceMotion = useReduceMotion();
-    const progressAnim = useSharedValue((1 / 3) * 100);
+    const progressAnim = useSharedValue((1 / 4) * 100);
 
     const coverImage = useCreateEventStore((s) => s.coverImage);
     const title = useCreateEventStore((s) => s.title);
@@ -71,8 +72,8 @@ export const CreateEventStepper = () => {
     const [editPrefill, setEditPrefill] = useState<'idle' | 'loading' | 'ready' | 'blocked'>('idle');
 
     const canProceedStep1 = useMemo(
-        () => !!coverImage && formValid && !!title.trim() && !!startDate && !!location,
-        [coverImage, formValid, title, startDate, location]
+        () => formValid && !!title.trim() && !!startDate && !!location,
+        [formValid, title, startDate, location]
     );
 
     const canProceedStep2 = useMemo(
@@ -80,17 +81,22 @@ export const CreateEventStepper = () => {
         [category, title, startDate, location]
     );
 
-    const canPublish = canProceedStep2;
+    const canPublish = canProceedStep2 && !!coverImage;
 
-    const missingPublishFields = useMemo(() => {
+    const missingStep1Fields = useMemo(() => {
         const missing: string[] = [];
-        if (!coverImage) missing.push('une cover');
         if (!title.trim()) missing.push('un titre');
         if (!startDate) missing.push('une date');
         if (!location) missing.push('un lieu');
+        return missing;
+    }, [title, startDate, location]);
+
+    const missingPublishFields = useMemo(() => {
+        const missing: string[] = [...missingStep1Fields];
+        if (!coverImage) missing.push('une cover');
         if (!category) missing.push('une catégorie');
         return missing;
-    }, [coverImage, title, startDate, location, category]);
+    }, [missingStep1Fields, coverImage, category]);
 
     const missingFieldsHint =
         missingPublishFields.length > 0
@@ -109,7 +115,9 @@ export const CreateEventStepper = () => {
         if (currentStep === 0 && !canProceedStep1) {
             Alert.alert(
                 'Informations manquantes',
-                missingFieldsHint || 'Veuillez remplir tous les champs obligatoires.'
+                missingStep1Fields.length > 0
+                    ? `Il manque ${missingStep1Fields.join(', ')}.`
+                    : 'Veuillez remplir tous les champs obligatoires.'
             );
             return;
         }
@@ -118,6 +126,10 @@ export const CreateEventStepper = () => {
                 'Informations manquantes',
                 missingFieldsHint || 'Veuillez sélectionner une catégorie.'
             );
+            return;
+        }
+        if (currentStep === 2 && !coverImage) {
+            Alert.alert('Couverture requise', 'Ajoute une photo ou génère une couverture pour continuer.');
             return;
         }
         goToPage(currentStep + 1);
@@ -255,7 +267,7 @@ export const CreateEventStepper = () => {
                     scheduleVariableDays,
                 }),
                 status: 'pending',
-                creator_id: user?.id,
+                creator_id: user?.id, // suggester for RLS + Mes suggestions; public organizer is Moments Locaux when community_suggest
                 submission_source: submissionSource,
             };
 
@@ -302,6 +314,8 @@ export const CreateEventStepper = () => {
             case 1:
                 return isSuggest ? "Détails de l'événement repéré" : "Détails de l'événement";
             case 2:
+                return 'Couverture';
+            case 3:
                 return 'Prévisualisation';
             default:
                 return isSuggest ? 'Proposer un événement' : 'Créer un événement';
@@ -309,7 +323,7 @@ export const CreateEventStepper = () => {
     };
 
     const getSubtitle = () => {
-        return `Étape ${currentStep + 1} sur 3`;
+        return `Étape ${currentStep + 1} sur 4`;
     };
 
     useEffect(() => {
@@ -340,7 +354,7 @@ export const CreateEventStepper = () => {
     }, [edit, router]);
 
     useEffect(() => {
-        const target = ((currentStep + 1) / 3) * 100;
+        const target = ((currentStep + 1) / 4) * 100;
         progressAnim.value = reduceMotion
             ? target
             : withTiming(target, createStandardTiming(Motion.duration.normal));
@@ -382,6 +396,22 @@ export const CreateEventStepper = () => {
                 );
 
             case 2:
+                return (
+                    <View style={styles.footer}>
+                        <TouchableOpacity style={styles.prevBtn} onPress={handlePrevious}>
+                            <Text style={styles.prevText}>Précédent</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.nextBtn, !coverImage && styles.nextBtnDisabled]}
+                            disabled={!coverImage}
+                            onPress={handleNext}
+                        >
+                            <Text style={styles.nextText}>Continuer</Text>
+                        </TouchableOpacity>
+                    </View>
+                );
+
+            case 3:
                 return (
                     <View style={styles.publishFooter}>
                         <TouchableOpacity
@@ -461,6 +491,9 @@ export const CreateEventStepper = () => {
                         <Step2Content />
                     </View>
                     <View key="2" style={{ flex: 1 }}>
+                        <CoverGenerateStep />
+                    </View>
+                    <View key="3" style={{ flex: 1 }}>
                         <Step3Content />
                     </View>
                 </PagerView>

@@ -18,11 +18,18 @@ import { haptics } from '@/utils/haptics';
 type Props = {
   visible: boolean;
   showClaimCta: boolean;
+  variant?: 'agenda' | 'community_suggest';
   onClose: () => void;
   onClaim: () => void;
 };
 
-export function EventPlatformOrganizerSheet({ visible, showClaimCta, onClose, onClaim }: Props) {
+export function EventPlatformOrganizerSheet({
+  visible,
+  showClaimCta,
+  variant = 'agenda',
+  onClose,
+  onClaim,
+}: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(0);
@@ -84,8 +91,9 @@ export function EventPlatformOrganizerSheet({ visible, showClaimCta, onClose, on
 
           <Text style={styles.title}>Pourquoi Moments Locaux ?</Text>
           <Text style={styles.body}>
-            Cette fiche vient d’un agenda public. L’organisateur n’a pas encore de page sur Moments
-            Locaux.
+            {variant === 'community_suggest'
+              ? 'Cette fiche a été proposée par un membre. Après vérification, elle est publiée par Moments Locaux. Le contributeur n’en devient pas l’organisateur.'
+              : 'Cette fiche vient d’un agenda public. L’organisateur n’a pas encore de page sur Moments Locaux.'}
           </Text>
 
           <View style={styles.actions}>
