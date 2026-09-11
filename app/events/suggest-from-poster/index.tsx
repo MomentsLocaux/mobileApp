@@ -162,9 +162,9 @@ function SuggestFromPosterContent() {
         const pipeline = await uploadAndExtractEventFromPoster(
           user.id,
           uri,
+          coverDraftId,
           mimeType,
           setAnalysisStep,
-          coverDraftId,
         );
         if (!pipeline.ok) {
           if (!pipeline.upload) decrementPosterAnalyzeAttempts();
