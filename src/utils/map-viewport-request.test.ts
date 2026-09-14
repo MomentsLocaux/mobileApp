@@ -5,6 +5,7 @@ import {
   createViewportRequestTracker,
   isViewportRequestCurrent,
   nextViewportRequest,
+  resolveProgrammaticBoundsAction,
   shouldSkipDuplicateViewportFetch,
 } from './map-viewport-request';
 
@@ -35,5 +36,40 @@ describe('map viewport request tracker', () => {
     assert.equal(shouldSkipDuplicateViewportFetch(null, boundsKey), false);
     assert.equal(shouldSkipDuplicateViewportFetch(boundsKey, boundsKey), true);
     assert.equal(shouldSkipDuplicateViewportFetch(boundsKey, boundsKey, { force: true }), false);
+  });
+
+  it('waits through camera animation and oversized bboxes before a programmatic fetch', () => {
+    assert.equal(
+      resolveProgrammaticBoundsAction({
+        recalcSuppressed: true,
+        boundsTooLarge: false,
+        refreshAfter: true,
+      }),
+      'wait'
+    );
+    assert.equal(
+      resolveProgrammaticBoundsAction({
+        recalcSuppressed: false,
+        boundsTooLarge: true,
+        refreshAfter: true,
+      }),
+      'wait'
+    );
+    assert.equal(
+      resolveProgrammaticBoundsAction({
+        recalcSuppressed: false,
+        boundsTooLarge: false,
+        refreshAfter: true,
+      }),
+      'fetch'
+    );
+    assert.equal(
+      resolveProgrammaticBoundsAction({
+        recalcSuppressed: false,
+        boundsTooLarge: false,
+        refreshAfter: false,
+      }),
+      'ignore'
+    );
   });
 });

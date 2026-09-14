@@ -7,8 +7,10 @@ import {
   haveMapBoundsMeaningfullyChanged,
   insetMapBoundsForBottomOverlay,
   isMapBoundsTooLarge,
+  isMissingViewportRpc,
   MAP_BBOX_TIGHTEN_DIAMETER_KM,
   raceWithViewportTimeout,
+  shouldRetryViewportFetch,
   shrinkMapBoundsToMaxDiameter,
 } from './map-viewport-fetch-utils';
 
@@ -141,5 +143,25 @@ describe('map viewport fetch helpers', () => {
       insetMapBoundsForBottomOverlay(bounds, { mapHeightPx: 800, overlayBottomPx: 0 }),
       bounds
     );
+  });
+
+  it('does not treat a client timeout as a missing RPC', () => {
+    const timeout = Object.assign(new Error('list_map_viewport client timeout'), { code: '57014' });
+    assert.equal(isMissingViewportRpc(timeout), false);
+    assert.equal(shouldRetryViewportFetch(timeout, false), false);
+    assert.equal(shouldRetryViewportFetch(timeout, true), false);
+  });
+
+  it('detects a missing PostgREST function without matching timeout text', () => {
+    assert.equal(
+      isMissingViewportRpc({ code: 'PGRST202', message: 'Could not find the function public.list_map_viewport' }),
+      true
+    );
+    assert.equal(shouldRetryViewportFetch({ code: 'PGRST202' }, false), false);
+  });
+
+  it('retries a one-off network failure once', () => {
+    assert.equal(shouldRetryViewportFetch(new Error('Network request failed'), false), true);
+    assert.equal(shouldRetryViewportFetch(new Error('Network request failed'), true), false);
   });
 });

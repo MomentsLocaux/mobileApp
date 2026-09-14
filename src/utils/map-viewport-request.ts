@@ -27,3 +27,19 @@ export const shouldSkipDuplicateViewportFetch = (
   boundsKey: string,
   options?: { force?: boolean }
 ) => !options?.force && inFlightKey === boundsKey;
+
+export type ProgrammaticBoundsAction = 'wait' | 'fetch' | 'ignore';
+
+/**
+ * GPS recenter animates France → local. The first region event is still a
+ * country-sized bbox; fetching it scans tens of thousands of rows on DEV.
+ * Wait until the camera suppress window ends and the bbox is allowed.
+ */
+export const resolveProgrammaticBoundsAction = (input: {
+  recalcSuppressed: boolean;
+  boundsTooLarge: boolean;
+  refreshAfter: boolean;
+}): ProgrammaticBoundsAction => {
+  if (input.recalcSuppressed || input.boundsTooLarge) return 'wait';
+  return input.refreshAfter ? 'fetch' : 'ignore';
+};

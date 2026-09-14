@@ -1,5 +1,6 @@
 import type { EventTimeScope } from '@/utils/event-time-scope';
 import type { MapBounds } from '@/types/map-events';
+import { isQueryTimeoutError } from './query-timeout';
 
 type BboxParams = {
   ne: [number, number];
@@ -142,6 +143,40 @@ export const buildMapViewportCacheKey = (
     timeScope,
     options?.mergeUpcomingForDatePreset ? 1 : 0,
   ].join('|');
+
+/** PostgREST / Postgres "function does not exist" — not a timeout on an existing RPC. */
+export const isMissingViewportRpc = (error: unknown) => {
+  const code = String((error as { code?: string })?.code || '');
+  const message = String((error as { message?: string })?.message || '').toLowerCase();
+  return (
+    code === 'PGRST202' ||
+    code === '42883' ||
+    (message.includes('function') && message.includes('does not exist')) ||
+    message.includes('could not find the function')
+  );
+};
+
+export const isTransientViewportRpcFailure = (error: unknown) => {
+  const code = String((error as { code?: string })?.code || '');
+  const message = String((error as { message?: string })?.message || '').toLowerCase();
+  return (
+    code === '57014' ||
+    message.includes('statement timeout') ||
+    message.includes('canceling statement') ||
+    message.includes('timeout') ||
+    message.includes('upstream connect error') ||
+    message.includes('cloudflare')
+  );
+};
+
+/** Timeouts already mean the instance is busy — a retry would double the load. */
+export const shouldRetryViewportFetch = (error: unknown, alreadyRetried: boolean) => {
+  if (alreadyRetried) return false;
+  if (isQueryTimeoutError(error) || isMissingViewportRpc(error) || isTransientViewportRpcFailure(error)) {
+    return false;
+  }
+  return true;
+};
 
 /** Race against a client timeout and always clear the timer when the RPC settles first. */
 export async function raceWithViewportTimeout<T>(
