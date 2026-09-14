@@ -1,10 +1,8 @@
 # Questionnaires stores — Alpha (SCRUM-206)
 
-Brouillon produit à recopier dans App Store Connect (App Privacy) et Google Play Console (Data safety). Source : `docs/legal/REGISTRE_TRAITEMENTS.md`, `app.config.ts`, copy Alpha du 9 septembre 2026.
+Copy public figé le 14 septembre 2026 ([SCRUM-245](https://moments-locaux.atlassian.net/browse/SCRUM-245), version `2026-09-09`). À recopier dans App Store Connect (App Privacy) et Google Play Console (Data safety). Source : `docs/legal/REGISTRE_TRAITEMENTS.md`, `app.config.ts`.
 
 Store listing : **découverte locale, suggestion depuis une affiche, assistant Lumia**. Pas de création organisateur, pas de check-in, pas d’IAP.
-
-Ne pas appliquer tant que le copy public (SCRUM-201) n’est pas relis.
 
 ## SDK et destinataires
 
@@ -44,7 +42,13 @@ Pas de SDK pub, pas de contacts, pas d’IAP Alpha.
 
 **Data used to track :** Non.
 
-Mentionner dans les notes reviewer : photo d’affiche et chat Lumia sont traités par un **processor IA (OpenAI)** pour le compte de Moments Locaux, sans historique serveur du chat.
+## Notes reviewer (App Store Connect)
+
+Coller dans « Notes for Review » :
+
+- Photo d’affiche et chat Lumia : traités par un processor IA (OpenAI) pour le compte de Moments Locaux. Pas d’historique serveur du chat.
+- Localisation Always : uniquement pour les alertes de proximité (« un moment près de toi »), opt-in, désactivable dans Réglages → Notifications. Pas de tracking publicitaire, pas d’historique de trajet.
+- Permission Rappels iOS : exigée au démarrage par le module calendrier (`expo-calendar`) pour proposer « Je note la date » dans l’agenda. L’app **n’accède pas** aux rappels utilisateur et n’en crée pas. Le texte système le dit explicitement.
 
 ## Google — Data safety
 
@@ -76,8 +80,9 @@ Mentionner dans les notes reviewer : photo d’affiche et chat Lumia sont trait�
 
 Découvrez ce qui se passe près de chez vous. Suggérez un moment aperçu sur une affiche. Lumia vous aide dans l’app. Moments Locaux n’est pas une billetterie et n’ouvre pas encore la publication organisateur.
 
-## Après validation humaine
+## Après validation humaine (fait 2026-09-14)
 
-1. Appliquer la migration SCRUM-203 si ce n’est pas déjà fait.
-2. Remplir les consoles avec ce tableau.
+1. Appliquer la migration SCRUM-203 sur UAT/PRD quand ces envs existent ([SCRUM-256](https://moments-locaux.atlassian.net/browse/SCRUM-256)).
+2. Remplir les consoles avec ce tableau (privacy URL publique requise).
 3. Recoller l’âge 16+ et l’URL privacy dans les fiches store.
+4. Coller les notes reviewer ci-dessus.
