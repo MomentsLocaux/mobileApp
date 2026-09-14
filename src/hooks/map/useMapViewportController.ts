@@ -11,6 +11,7 @@ import type { MapBounds } from '@/types/map-events';
 import type { useMapProgrammaticMove } from './useMapProgrammaticMove';
 import type { ViewportFetchOptions } from './useViewportEventsFetch';
 import { haveMapBoundsMeaningfullyChanged, isMapBoundsTooLarge } from '@/utils/map-viewport-fetch-utils';
+import { resolveProgrammaticBoundsAction } from '@/utils/map-viewport-request';
 
 type ProgrammaticMove = ReturnType<typeof useMapProgrammaticMove>;
 
@@ -126,12 +127,20 @@ export function useMapViewportController({
       }
 
       if (isProgrammaticMoveRef.current) {
+        const action = resolveProgrammaticBoundsAction({
+          recalcSuppressed: isBoundsRecalcSuppressed(),
+          boundsTooLarge: isMapBoundsTooLarge(bounds),
+          refreshAfter: pendingProgrammaticRefreshRef.current,
+        });
+        if (action === 'wait') return;
         isProgrammaticMoveRef.current = false;
         mapRef.current?.clearBoundsCache?.();
-        if (pendingProgrammaticRefreshRef.current) {
+        if (action === 'fetch') {
           pendingProgrammaticRefreshRef.current = false;
           markViewportBootstrapped();
           queueViewportFetch(bounds, { immediate: true, force: true });
+        } else {
+          pendingProgrammaticRefreshRef.current = false;
         }
         return;
       }
@@ -175,6 +184,7 @@ export function useMapViewportController({
         mapRef.current?.clearBoundsCache?.();
         const bounds = await mapRef.current?.getVisibleBounds?.();
         if (!bounds) continue;
+        if (isMapBoundsTooLarge(bounds)) continue;
         markViewportBootstrapped();
         queueViewportFetch(bounds, { immediate: true, force: true });
         return;

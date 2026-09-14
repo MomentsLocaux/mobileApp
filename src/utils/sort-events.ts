@@ -100,7 +100,6 @@ export function sortEvents(
       break;
     case 'distance':
       if (!userLocation) {
-        console.warn('Cannot sort by distance without user location');
         return sorted;
       }
       sorted.sort((a, b) => {

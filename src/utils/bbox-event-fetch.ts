@@ -10,6 +10,7 @@ import {
   buildMapViewportCacheKey,
   getMapBoundsDiameterKm,
   isMapBoundsTooLarge,
+  isMissingViewportRpc,
   MAX_MAP_BBOX_DIAMETER_KM,
   raceWithViewportTimeout,
 } from '@/utils/map-viewport-fetch-utils';
@@ -51,36 +52,11 @@ export type MapViewportPayload = {
 
 /**
  * Prefer RPC 1-hop card-lite path. Falls back to legacy bbox + get_events_by_ids
- * on missing function / statement timeout / client race timeout.
+ * only when the RPC is missing — never on timeout (that second hop kneels DEV).
  */
 const USE_MAP_VIEWPORT_RPC = true;
 
 const viewportInflight = new Map<string, Promise<MapViewportPayload>>();
-
-const isMissingViewportRpc = (error: unknown) => {
-  const code = String((error as { code?: string })?.code || '');
-  const message = String((error as { message?: string })?.message || '').toLowerCase();
-  return (
-    code === 'PGRST202' ||
-    code === '42883' ||
-    (message.includes('function') && message.includes('does not exist')) ||
-    message.includes('could not find the function') ||
-    message.includes('list_map_viewport')
-  );
-};
-
-const isTransientViewportRpcFailure = (error: unknown) => {
-  const code = String((error as { code?: string })?.code || '');
-  const message = String((error as { message?: string })?.message || '').toLowerCase();
-  return (
-    code === '57014' ||
-    message.includes('statement timeout') ||
-    message.includes('canceling statement') ||
-    message.includes('timeout') ||
-    message.includes('upstream connect error') ||
-    message.includes('cloudflare')
-  );
-};
 
 type MapViewportRpcResult = {
   events?: EventWithCreator[];
@@ -88,7 +64,7 @@ type MapViewportRpcResult = {
 };
 
 /**
- * Map viewport fetch. When USE_MAP_VIEWPORT_RPC is true, falls back on missing RPC / timeout.
+ * Map viewport fetch. When USE_MAP_VIEWPORT_RPC is true, falls back only if the RPC is missing.
  */
 export async function listMapViewportForMap(
   bbox: BboxParams,
@@ -122,14 +98,14 @@ export async function listMapViewportForMap(
         }) as EventMapFeatureCollection,
       };
     } catch (error) {
-      if (!isMissingViewportRpc(error) && !isTransientViewportRpcFailure(error)) {
+      if (!isMissingViewportRpc(error)) {
         throw error;
       }
       traceMapViewportFetch('rpcFallback', {
-        outcome: isTransientViewportRpcFailure(error) ? 'timeout' : 'fallback',
+        outcome: 'fallback',
         cacheKey,
       });
-      console.warn('[listMapViewportForMap] RPC unavailable/slow — falling back to bbox + getByIds', error);
+      console.warn('[listMapViewportForMap] RPC missing — falling back to bbox + getByIds', error);
       return listMapViewportLegacyFallback(bbox, timeScope, options);
     } finally {
       viewportInflight.delete(cacheKey);

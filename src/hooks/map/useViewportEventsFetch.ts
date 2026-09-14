@@ -20,6 +20,7 @@ import {
   buildMapViewportCacheKey,
   getViewportCacheDisposition,
   isMapBoundsTooLarge,
+  shouldRetryViewportFetch,
 } from '@/utils/map-viewport-fetch-utils';
 import {
   buildViewportBoundsKey,
@@ -413,12 +414,11 @@ export function useViewportEventsFetch({
         }
         console.warn('bbox fetch error', error);
         traceMapViewportFetch('fetchComplete', {
-          outcome: options?.retried ? 'error' : 'retry',
+          outcome: options?.retried || !shouldRetryViewportFetch(error, false) ? 'error' : 'retry',
           durationMs: Date.now() - startedAt,
           boundsKey,
         });
-        // Cold-start / statement timeout: one silent retry before alarming the user.
-        if (!options?.retried) {
+        if (shouldRetryViewportFetch(error, Boolean(options?.retried))) {
           await new Promise((resolve) => setTimeout(resolve, 450));
           if (!isViewportRequestCurrent(requestId)) return;
           return runViewportFetch(bounds, requestId, { ...options, force: true, retried: true });
