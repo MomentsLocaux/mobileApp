@@ -67,13 +67,13 @@ function requestIp(req: Request): string {
   return forwarded.split(',')[0]?.trim() ?? '';
 }
 
-/** Fail-open if the burst RPC is not migrated yet — never block Lumia on a missing table. */
+/** Fail-closed: a burst RPC error must not let traffic through. */
 async function consumeBurst(
   supabase: ReturnType<typeof createClient>,
   subjects: string[],
   action: string,
   limit: number,
-): Promise<boolean> {
+): Promise<'ok' | 'limited' | 'unavailable'> {
   for (const subject of subjects) {
     const { data, error } = await supabase.rpc('consume_write_rate_limit', {
       p_subject: subject,
@@ -82,11 +82,11 @@ async function consumeBurst(
     });
     if (error) {
       logOps('burst_rpc_error', error.message ?? String(error.code ?? ''));
-      continue;
+      return 'unavailable';
     }
-    if (data === false) return false;
+    if (data === false) return 'limited';
   }
-  return true;
+  return 'ok';
 }
 
 function periodYm(now = new Date()): string {
@@ -171,7 +171,7 @@ serve(async (req) => {
   }
   const userId = userData.user.id;
 
-  const burstOk = await consumeBurst(
+  const burst = await consumeBurst(
     supabase,
     [
       `uid:${userId}`,
@@ -180,7 +180,10 @@ serve(async (req) => {
     'lumia',
     BURST_PER_MINUTE,
   );
-  if (!burstOk) {
+  if (burst === 'unavailable') {
+    return jsonResponse({ ok: false, message: 'Service momentanément indisponible. Réessaie.' }, 503);
+  }
+  if (burst === 'limited') {
     return jsonResponse(
       {
         ok: false,
