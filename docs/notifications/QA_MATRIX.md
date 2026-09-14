@@ -1,5 +1,7 @@
 # Push & inbox — QA matrix
 
+Who sends what, when: [PUSH_GENERATION_MATRIX.md](./PUSH_GENERATION_MATRIX.md) (SCRUM-242). Several scenarios below assume triggers that are **disabled** on DEV/UAT as of 2026-09-14.
+
 Run on **UAT** with a physical device (Expo dev client or preview build), user with token in `device_push_tokens`.
 
 Legend: **Push** = device banner; **Inbox** = app Notifications screen; **Route** = tap destination.

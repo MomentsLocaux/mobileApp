@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { syncAppIconBadge } from '@/services/push.service';
 
 export type AppNotificationType =
   | 'event_published'
@@ -177,7 +178,9 @@ export const NotificationsService = {
       .eq('read', false);
 
     if (error) throw new Error(error.message || 'Impossible de compter les notifications non lues');
-    return count || 0;
+    const unread = count || 0;
+    void syncAppIconBadge(unread);
+    return unread;
   },
 
   async markAsRead(notificationId: string) {

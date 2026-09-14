@@ -278,6 +278,18 @@ Deno.serve(async (req: Request) => {
         return json({ sent: 0, reason: "no_tokens" }, 200);
     }
 
+    const { count: unreadCount, error: unreadErr } = await admin
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", record.user_id)
+        .eq("read", false);
+    if (unreadErr) {
+        console.error("unread badge count error", unreadErr);
+    }
+    const badge = typeof unreadCount === "number" && unreadCount > 0
+        ? unreadCount
+        : 1;
+
     const pushData = {
         ...(record!.data ?? {}),
         notificationType: record!.type ?? null,
@@ -289,6 +301,7 @@ Deno.serve(async (req: Request) => {
         body: record!.body ?? "",
         data: pushData,
         sound: "default",
+        badge,
     }));
 
     const res = await fetch(EXPO_PUSH_URL, {

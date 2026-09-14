@@ -11,4 +11,5 @@ Per-type toggles: social, rewards, nearby, followed creator, reminders, discover
 
 **Manual push from Brevo:** not supported with current architecture. Use SQL INSERT into `notifications` or Expo API with a device token for tests.
 
-See [PUSH_NOTIFICATIONS runbook](../runbooks/PUSH_NOTIFICATIONS.md) for operations.
+See [PUSH_NOTIFICATIONS runbook](../../infra/runbooks/PUSH_NOTIFICATIONS.md) for operations.  
+Matrice origine × timing (SCRUM-242) : [PUSH_GENERATION_MATRIX.md](./PUSH_GENERATION_MATRIX.md).
