@@ -63,7 +63,7 @@ export function configureNotificationHandler() {
         shouldShowBanner: true,
         shouldShowList: true,
         shouldPlaySound: true,
-        shouldSetBadge: false,
+        shouldSetBadge: true,
       }),
     });
   })();
@@ -140,7 +140,11 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
 
     let status = (await Notifications.getPermissionsAsync()).status;
     if (status !== 'granted') {
-      status = (await Notifications.requestPermissionsAsync()).status;
+      status = (
+        await Notifications.requestPermissionsAsync({
+          ios: { allowAlert: true, allowBadge: true, allowSound: true },
+        })
+      ).status;
     }
     if (status !== 'granted') return null;
 
@@ -186,12 +190,26 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
   }
 }
 
+/** Home-screen icon badge (iOS; Android launchers that honor it). */
+export async function syncAppIconBadge(count: number): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
+    const next = Math.max(0, Math.floor(count));
+    await Notifications.setBadgeCountAsync(next);
+  } catch (e) {
+    console.warn('[push] syncAppIconBadge error:', e);
+  }
+}
+
 /** Best-effort removal of this device's token, e.g. on sign-out. */
 export async function unregisterCurrentDevice(): Promise<void> {
   if (Platform.OS === 'web') return;
   try {
     const Notifications = await getNotifications();
     if (!Notifications) return;
+    await Notifications.setBadgeCountAsync(0).catch(() => undefined);
 
     const projectId = getProjectId();
     if (!projectId) return;
