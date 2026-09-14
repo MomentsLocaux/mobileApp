@@ -6,10 +6,11 @@ Secrets live in Bitwarden / local `.env*` (gitignored). Templates: `.env.example
 | Env | Supabase project name | Project ref | Region | URL |
 | --- | --------------------- | ----------- | ------ | --- |
 | **DEV** | `moments-locaux-dev` | `prymkgkafaovhzopslea` | `eu-north-1` | `https://prymkgkafaovhzopslea.supabase.co` |
-| **UAT** | `moments-locaux-uat` | `ieehuzeotwagkkprohjr` | `eu-west-1` | `https://ieehuzeotwagkkprohjr.supabase.co` |
+| **INGEST** | `moments-locaux-ingest-dev` | `ieehuzeotwagkkprohjr` | `eu-west-1` | `https://ieehuzeotwagkkprohjr.supabase.co` |
+| **UAT** | _(parked until a real preprod / PROD exists)_ | — | — | — |
 | **PROD** | _(later)_ | — | — | — |
 
-> UAT schema cloned from live DEV (2026-07-20): tables/functions/triggers/RLS/buckets/cron/edge functions. No user data copied.
+> INGEST is the scrape warehouse only (staging / runs / occurrences). Mobile, console and site stay on DEV. The old UAT app clone was renamed; do not point the apps at it.
 
 ## Local files (per repo)
 
@@ -39,7 +40,7 @@ Optional public links inside the app (`EXPO_PUBLIC_APP_SHARE_URL`, QR web base) 
 | Profile | `APP_ENV` | Backend |
 | ------- | --------- | ------- |
 | `development` | `development` | DEV |
-| `preview` | `uat` | UAT |
+| `preview` | `development` | DEV (plus UAT) |
 | `production` | `production` | PROD (later) |
 
 ## Keys per env (Bitwarden)
