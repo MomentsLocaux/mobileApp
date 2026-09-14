@@ -19,6 +19,7 @@ const BUCKET = 'event-media';
 const GPT_IMAGE_FALLBACK = 'gpt-image-1';
 const PUBLIC_MARKER = '/storage/v1/object/public/event-media/';
 const COVER_GENERATE_LIMIT = Number(Deno.env.get('EVENT_COVER_GENERATE_LIMIT') ?? '2');
+const BURST_PER_MINUTE = Number(Deno.env.get('EVENT_COVER_BURST_PER_MINUTE') ?? '4');
 const DRAFT_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -29,6 +30,31 @@ function parseDraftId(value: unknown): string | null {
 
 function isMissingQuotaInfra(message: string): boolean {
   return /could not find the function|schema cache|does not exist|42P01|42883/i.test(message);
+}
+
+async function consumeBurst(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+  limit: number,
+): Promise<'ok' | 'limited' | 'unavailable'> {
+  const forwarded = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? '';
+  const ip = forwarded.split(',')[0]?.trim() || userId;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ip:${ip}`));
+  const ipSubject = `ip:${[...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16)}`;
+  for (const subject of [`uid:${userId}`, ipSubject]) {
+    const { data, error } = await supabase.rpc('consume_write_rate_limit', {
+      p_subject: subject,
+      p_action: 'event_cover',
+      p_limit: limit,
+    });
+    if (error) {
+      console.log('[generate-event-cover] burst rpc error', error.message);
+      return 'unavailable';
+    }
+    if (data === false) return 'limited';
+  }
+  return 'ok';
 }
 
 const TONES = ['sobre', 'festif', 'intimiste', 'nature'] as const;
@@ -189,6 +215,21 @@ serve(async (req) => {
     const user = userData?.user;
     if (userError || !user) {
       return jsonResponse({ ok: false, message: 'Utilisateur invalide.' }, 401);
+    }
+
+    const burst = await consumeBurst(supabase, user.id, req, BURST_PER_MINUTE);
+    if (burst === 'unavailable') {
+      return jsonResponse({ ok: false, message: 'Service momentanément indisponible. Réessaie.' }, 503);
+    }
+    if (burst === 'limited') {
+      return jsonResponse(
+        {
+          ok: false,
+          code: 'rate_limited',
+          message: 'Trop de générations d’un coup. Réessaie dans une minute.',
+        },
+        429,
+      );
     }
 
     let payload: Record<string, unknown>;

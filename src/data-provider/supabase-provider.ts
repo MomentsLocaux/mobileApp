@@ -9,6 +9,7 @@ import {
 } from '@/constants/bug-report-pages';
 import type { EventTimeScope } from '@/utils/event-time-scope';
 import { nameQueryOrFilters } from '@/utils/event-name-search';
+import { sanitizeUgcText, UGC_LIMITS } from '@/utils/ugc-sanitize';
 
 const formatSupabaseError = (error: any, context: string) => {
   const rawMessage =
@@ -16,6 +17,8 @@ const formatSupabaseError = (error: any, context: string) => {
   const message =
     typeof rawMessage === 'string' && rawMessage.includes('RATE_LIMIT_EXCEEDED')
       ? 'Trop de requêtes. Réessaie dans une minute.'
+      : typeof rawMessage === 'string' && rawMessage.includes('UGC_TOO_LONG')
+        ? 'Texte trop long. Raccourcis-le puis réessaie.'
       : rawMessage.trim().startsWith('<!DOCTYPE') || rawMessage.includes('Cloudflare')
         ? 'Supabase ne répond pas (timeout). Réessayez dans quelques instants.'
         : rawMessage;
@@ -802,7 +805,7 @@ export const supabaseProvider: (Pick<
     const insertPayload = {
       event_id: payload.eventId,
       author_id: payload.authorId,
-      message: payload.message,
+      message: sanitizeUgcText(payload.message, UGC_LIMITS.comment),
       rating: payload.rating ?? null,
       parent_comment_id: payload.parentCommentId ?? null,
     } as any;
@@ -864,7 +867,7 @@ export const supabaseProvider: (Pick<
 
   async updateComment(id: string, message: string) {
     const userId = await getAuthedUserId('updateComment');
-    const trimmed = message.trim();
+    const trimmed = sanitizeUgcText(message, UGC_LIMITS.comment);
     if (!trimmed) throw formatSupabaseError('Message vide', 'updateComment');
     const { data, error } = await supabase
       .from('event_comments')
@@ -898,7 +901,7 @@ export const supabaseProvider: (Pick<
       target_type: 'event',
       target_id: eventId,
       reporter_id: reporterId,
-      reason: payload.reason,
+      reason: sanitizeUgcText(payload.reason, UGC_LIMITS.reportReason),
       severity: payload.severity || 'minor',
     } as any);
     if (error) throw formatSupabaseError(error, 'reportEvent');
@@ -915,7 +918,7 @@ export const supabaseProvider: (Pick<
       target_type: 'comment',
       target_id: commentId,
       reporter_id: reporterId,
-      reason: payload.reason,
+      reason: sanitizeUgcText(payload.reason, UGC_LIMITS.reportReason),
       severity: payload.severity || 'minor',
     } as any);
     if (error) throw formatSupabaseError(error, 'reportComment');
@@ -930,7 +933,7 @@ export const supabaseProvider: (Pick<
       target_type: 'user',
       target_id: profileId,
       reporter_id: reporterId,
-      reason: payload.reason,
+      reason: sanitizeUgcText(payload.reason, UGC_LIMITS.reportReason),
       severity: payload.severity || 'minor',
     } as any);
     if (error) throw formatSupabaseError(error, 'reportProfile');
@@ -945,7 +948,7 @@ export const supabaseProvider: (Pick<
       target_type: 'media',
       target_id: mediaId,
       reporter_id: reporterId,
-      reason: payload.reason,
+      reason: sanitizeUgcText(payload.reason, UGC_LIMITS.reportReason),
       severity: payload.severity || 'minor',
     } as any);
     if (error) throw formatSupabaseError(error, 'reportMedia');
@@ -959,8 +962,15 @@ export const supabaseProvider: (Pick<
   },
 
   async updateProfile(userId: string, payload: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>) {
+    const sanitized = { ...payload } as Record<string, unknown>;
+    if (typeof sanitized.display_name === 'string') {
+      sanitized.display_name = sanitizeUgcText(sanitized.display_name, UGC_LIMITS.displayName);
+    }
+    if (typeof sanitized.bio === 'string') {
+      sanitized.bio = sanitizeUgcText(sanitized.bio, UGC_LIMITS.bio);
+    }
     const { data, error } = await (supabase.from('profiles') as any)
-      .update(payload as any)
+      .update(sanitized as any)
       .eq('id', userId)
       .select()
       .maybeSingle();
@@ -1022,7 +1032,7 @@ export const supabaseProvider: (Pick<
       page,
       category: payload.category,
       severity: payload.severity,
-      description: payload.description,
+      description: sanitizeUgcText(payload.description, UGC_LIMITS.bugReportUser),
       status: 'open',
       attachment_path: attachmentPath,
       attachment_mime_type: attachmentMimeType,

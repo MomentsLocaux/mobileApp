@@ -57,7 +57,7 @@ async function consumeBurst(
   userId: string,
   req: Request,
   limit: number,
-): Promise<boolean> {
+): Promise<'ok' | 'limited' | 'unavailable'> {
   const forwarded = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? '';
   const ip = forwarded.split(',')[0]?.trim() || userId;
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ip:${ip}`));
@@ -70,11 +70,11 @@ async function consumeBurst(
     });
     if (error) {
       console.log('[suggest-event-from-poster] burst rpc error', error.message);
-      continue;
+      return 'unavailable';
     }
-    if (data === false) return false;
+    if (data === false) return 'limited';
   }
-  return true;
+  return 'ok';
 }
 
 function periodYm(now = new Date()): string {
@@ -360,8 +360,14 @@ serve(async (req) => {
   }
   const userId = userData.user.id;
 
-  const burstOk = await consumeBurst(supabase, userId, req, BURST_PER_MINUTE);
-  if (!burstOk) {
+  const burst = await consumeBurst(supabase, userId, req, BURST_PER_MINUTE);
+  if (burst === 'unavailable') {
+    return jsonResponse(
+      { ok: false, code: 'service_error', message: 'Service momentanément indisponible. Réessaie.' },
+      503,
+    );
+  }
+  if (burst === 'limited') {
     return jsonResponse(
       {
         ok: false,

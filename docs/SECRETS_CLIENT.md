@@ -28,5 +28,6 @@ Public values may live in the Expo / Vite / Next **client** bundle. Everything e
 
 ## Guard
 
-- `app.config.ts` calls `assertNoPublicSecrets` (name **and** value shapes).
+- `app.config.ts` imports `assertNoPublicSecrets` from `scripts/check-client-secrets.mjs` (name **and** value shapes).
 - `npm run check:secrets` scans env + `app/` `src/` `app.config.ts` `eas.json`.
+- `npm run test:secrets` covers allowlist vs denylist shapes.

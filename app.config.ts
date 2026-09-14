@@ -1,24 +1,14 @@
 import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
-
-const forbiddenPublicKeys = Object.keys(process.env).filter(
-  (key) => key.startsWith('EXPO_PUBLIC_') && /(SERVICE|SECRET|PRIVATE|OPENAI|WEBHOOK|DOWNLOAD)/i.test(key),
-);
-
-const forbiddenPublicValues = Object.entries(process.env).flatMap(([key, raw]) => {
-  if (!key.startsWith('EXPO_PUBLIC_') || typeof raw !== 'string' || !raw) return [];
-  const value = raw.trim();
-  if (/^sk-[A-Za-z0-9_-]{10,}$/.test(value)) return [key];
-  if (/^sk\.[A-Za-z0-9._-]{10,}$/.test(value)) return [key];
-  if (value.startsWith('eyJ') && /service_role/.test(Buffer.from(value.split('.')[1] ?? '', 'base64').toString('utf8'))) {
-    return [key];
-  }
-  return [];
-});
+import { assertNoPublicSecrets } from './scripts/check-client-secrets.mjs';
 
 const APP_VERSION = '1.0.0';
 const IOS_BUILD_NUMBER = '1';
 const ANDROID_VERSION_CODE = 1;
+
+/** APNs entitlement is baked in at native build time, not Metro reload. */
+const IS_STORE_PRODUCTION = process.env.APP_ENV === 'production';
+const APS_ENVIRONMENT = IS_STORE_PRODUCTION ? 'production' : 'development';
 
 const CAMERA_USAGE_FR =
   'Moments Locaux utilise la caméra pour prendre des photos d’événements et illustrer vos contributions.';
@@ -32,11 +22,7 @@ const CALENDAR_USAGE_FR =
 const REMINDERS_USAGE_FR =
   'Moments Locaux n’accède pas à vos rappels. Cette mention est exigée par le module calendrier iOS au démarrage.';
 
-if (forbiddenPublicKeys.length > 0 || forbiddenPublicValues.length > 0) {
-  throw new Error(
-    `Refusing to build with public secrets: keys=${forbiddenPublicKeys.join(',') || 'none'} values=${forbiddenPublicValues.join(',') || 'none'}`,
-  );
-}
+assertNoPublicSecrets(process.env);
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -63,8 +49,63 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     buildNumber: IOS_BUILD_NUMBER,
     usesAppleSignIn: true,
     entitlements: {
-      'aps-environment': 'development',
+      // Local Metro / `eas build --profile development|preview*` stay `development`.
+      // Only `eas build --profile production` (`APP_ENV=production`) uses production APNs.
+      'aps-environment': APS_ENVIRONMENT,
       'com.apple.developer.applesignin': ['Default'],
+    },
+    privacyManifests: {
+      NSPrivacyTracking: false,
+      NSPrivacyCollectedDataTypes: [
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeEmailAddress',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeName',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypePhotosorVideos',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeOtherUserContent',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypePreciseLocation',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeUserID',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeDeviceID',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeOtherDataTypes',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+      ],
     },
     infoPlist: {
       NSPhotoLibraryUsageDescription:
