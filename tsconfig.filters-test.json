@@ -30,6 +30,7 @@
     "src/utils/lumia-conversation.test.ts",
     "src/utils/filter-events.test.ts",
     "src/utils/map-viewport-fetch-utils.test.ts",
+    "src/utils/map-sheet-layout.test.ts",
     "src/utils/map-filter-transaction.test.ts",
     "src/utils/map-discovery-contract.test.ts",
     "src/utils/map-camera-fallback.test.ts",

@@ -35,6 +35,18 @@ describe('map results UI store transitions', () => {
     assert.equal(state.visibleEventCount, 42);
   });
 
+  it('keeps stale viewport results visible while refreshing the zone', () => {
+    const events = [sampleEvent('a'), sampleEvent('b')];
+    useMapResultsUIStore.getState().displayViewportResults(events, { totalCount: 2 });
+
+    useMapResultsUIStore.getState().setStatus('loading');
+
+    const state = useMapResultsUIStore.getState();
+    assert.equal(state.sheetStatus, 'loading');
+    assert.deepEqual(state.sheetEvents, events);
+    assert.equal(state.visibleEventCount, 2);
+  });
+
   it('freezes viewport results then restores them when closing a single event sheet', () => {
     const events = [sampleEvent('a'), sampleEvent('b'), sampleEvent('c')];
     useMapResultsUIStore.getState().displayViewportResults(events, { totalCount: 3 });

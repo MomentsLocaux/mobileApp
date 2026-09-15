@@ -59,6 +59,10 @@ import {
   type LumiaTourTargetId,
 } from '@/constants/lumiaTour';
 import { useLumiaTourStore } from '@/store/lumiaTourStore';
+import {
+  MapAwareTabBar,
+  MapTabBarMotionProvider,
+} from '@/components/navigation/MapAwareTabBar';
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated, profile, user, session, signOut, fullSignOut } = useAuth();
@@ -277,9 +281,12 @@ export default function TabsLayout() {
   }
 
   return (
-    <>
+    <MapTabBarMotionProvider>
       <Tabs
         initialRouteName="index"
+        tabBar={(props) => (
+          <MapAwareTabBar {...props} containerHeight={tabBarHeight} />
+        )}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: accent.accent,
@@ -343,6 +350,7 @@ export default function TabsLayout() {
               ),
             tabBarStyle: {
               ...tabBarStyleBase,
+              position: 'absolute',
               borderTopWidth: 0,
               borderTopColor: 'transparent',
               elevation: 0,
@@ -668,7 +676,7 @@ export default function TabsLayout() {
         onDismiss={dismissLumiaTour}
         onStepChange={handleLumiaTourStep}
       />
-    </>
+    </MapTabBarMotionProvider>
   );
 }
 
