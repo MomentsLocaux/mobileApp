@@ -14,6 +14,7 @@ import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
 import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
 import { useProposalsStore } from '@/store/proposalsStore';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -113,7 +114,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <AppBackground />
       <Stack screenOptions={{
         headerShown: false,
@@ -124,6 +125,15 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="events" />
+        <Stack.Screen
+          name="map-event/[id]"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+            gestureEnabled: false,
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="contact" />
         <Stack.Screen name="settings" />
@@ -131,6 +141,6 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="dark" />
       <Toast config={toastConfig} />
-    </>
+    </GestureHandlerRootView>
   );
 }

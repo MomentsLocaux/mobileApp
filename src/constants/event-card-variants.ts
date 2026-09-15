@@ -14,7 +14,11 @@ export const EVENT_CARD_MEDIA_HEIGHT: Record<EventCardVariant, number> = {
   discovery: 200,
   favorite: 200,
   compact: 132,
-  'map-preview': 108,
+  'map-preview': 220,
 };
+
+export const MAP_PREVIEW_BODY_MIN_HEIGHT = 132;
+export const MAP_PREVIEW_CARD_ESTIMATED_HEIGHT =
+  EVENT_CARD_MEDIA_HEIGHT['map-preview'] + MAP_PREVIEW_BODY_MIN_HEIGHT + 2;
 
 export const EVENT_CARD_RADIUS = 24;

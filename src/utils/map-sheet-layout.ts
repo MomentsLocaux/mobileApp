@@ -14,6 +14,8 @@ export {
   MAP_TAB_BAR_REVEAL_START_PROGRESS,
   resolveMapTabBarProgress,
   resolveSheetSnapIndex,
+  resolveSheetSnapTarget,
+  sheetHeightToProgress,
   VIEWPORT_FULL_RATIO,
   VIEWPORT_FULL_SNAP_INDEX,
   VIEWPORT_HALF_RATIO,
@@ -106,17 +108,6 @@ export const clampSheetHeight = (height: number, layoutHeight: number, mode: Map
 export const getMaxSheetHeight = (layoutHeight: number, mode: MapSheetMode) => {
   const snaps = getSheetSnapHeights(layoutHeight, mode);
   return snaps[snaps.length - 1] ?? VIEWPORT_PEEK_HEIGHT;
-};
-
-export const sheetHeightToProgress = (
-  sheetHeight: number,
-  layoutHeight: number,
-  mode: MapSheetMode
-): number => {
-  const peek = getSheetSnapHeights(layoutHeight, mode)[0] ?? VIEWPORT_PEEK_HEIGHT;
-  const max = getMaxSheetHeight(layoutHeight, mode);
-  const range = Math.max(1, max - peek);
-  return Math.min(1, Math.max(0, (sheetHeight - peek) / range));
 };
 
 export const progressToSheetHeight = (

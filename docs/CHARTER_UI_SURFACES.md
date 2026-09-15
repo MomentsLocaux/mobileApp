@@ -25,7 +25,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 
 | Surface | Path(s) | Watch for |
 |---------|---------|-----------|
-| Loading spinners | `BrandLogoSpinner` on Home / Favoris / Membres / tab bootstrap; other `ActivityIndicator` keep `colors.brand.secondary` | No Lucide overlay on the discovery loader; legacy `primary[600]` / `#0f1719` |
+| Loading spinners | Shared `BrandLogoSpinner` on map bootstrap / discovery loading / staged progress / app bootstrap; compact inline actions keep `ActivityIndicator` | `BrandLogoSpinner` uses the transparent logo mark, counter-rotating leaf arcs and a soft halo; no legacy fill-mask disc or Lucide overlay |
 | Shared button spinner | `src/components/ui/Button.tsx` | Spinner takes the `${variant}Text` color, so it stays legible on the leaf fill; never white on `brand.secondary` (SCRUM-68) |
 | Create / preview publish CTA | `src/components/events/CreateEventStepper.tsx`, `app/events/create/preview.tsx`, `app/events/create/step-1.tsx`, `step-2.tsx`, `cover.tsx` | Leaf fill with `brand.onAccent` label, icon and spinner; not `#0f1719` (SCRUM-68) |
 | Create / suggest stepper chrome | `src/components/events/CreateEventStepper.tsx`, `app/events/suggest-from-poster/index.tsx` | Close **X** + discard alert; **Continuer** identical on steps 1–3; Précédent / disabled CTA use surface tokens, not white-on-mint |
@@ -38,7 +38,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Mes suggestions | `src/screens/profile/MySuggestionsScreen.tsx` | Light cards + status chips; not dark ink sheets |
 | Contribute sheet | `src/components/events/EventContributeSheet.tsx` | Light sheet + assistance row (bug reporter) |
 | Photo communauté sheet | `src/components/events/EventPhotoContributionModal.tsx` | Same sheet tokens as “Y aller”: header `spacing.lg`, option rows 14/72 (SCRUM-80) |
-| Event detail “Je note la date” | `src/screens/events/EventDetailScreen.tsx` | Leaf-tint chip (`brand.secondary`), distinct from the date-row expand tap (SCRUM-178) |
+| Event detail hero / actions / “Je note la date” | `src/screens/events/EventDetailScreen.tsx` | Entrée légère hero/header uniquement en translation GPU ; corps, stats et requêtes différés après l’animation. Pan UI simultané au ScrollView ; la card source assure le cadrage final |
 | Platform organizer sheet | `src/components/events/EventPlatformOrganizerSheet.tsx` | Light sheet; claim CTA only when organizer is Moments Locaux (SCRUM-36); copy agenda vs suggestion communautaire |
 | Correction / doublon sheet | `src/components/events/EventCorrectionSheet.tsx` | Sheet bg + inputs + CTA leaf + duplicate candidate rows (SCRUM-120 / SCRUM-156) |
 | Navigation (“Y aller”) sheet | `src/components/search/NavigationOptionsSheet.tsx` | Sheet bg + close + option rows |
@@ -48,7 +48,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Suggestion / create location preview | `EventPreviewMiniMap`, `app/events/create/preview.tsx` | Pin as Mapbox CircleLayer; Camera `defaultSettings` + `onDidFinishLoadingMap` so Nyons is not Africa; map sits above the submit footer |
 | Follows list location maps | `app/community/follows.tsx` | Static Mapbox image only when RPC allows; otherwise “Position non partagée” |
 | Contact assistance | `app/contact.tsx` | Light settings form, leaf CTA, closed subjects matching website |
-| Map unit overlay close / heart | `src/components/search/MapEventUnitOverlay.tsx` | Croix **haut-droit**, cœur **bas-droit** (pills light) — pas les deux en haut |
+| Map unit overlay close / heart | `EventHeartButton`, `MapEventUnitOverlay`, `EventCard`, `EventDetailScreen` | Cœur canonique 34 px / glyphe 19 px issu de la card individuelle, partagé par toutes les fiches ; petite croix **haut-droit** sur la card individuelle |
 | EventCard social proof | `src/components/events/EventCard.tsx` | Liker avatar stack (follows first) + leaf count; empty copy only when 0 likes |
 | Map markers | `src/components/map/CategoryEventMarker.tsx` | Harsh white stroke / disc halo behind the pin head (SVG), not a ground disc |
 | Map selected marker | `src/components/map/MapWrapper.tsx` | Selection = enlarged pin only; no Mapbox `CircleLayer` halo at the pin tip |
@@ -56,9 +56,9 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Map location/error banners | `app/(tabs)/map.tsx` | Light surface, readable status text and accessible retry/settings actions |
 | Map search-area CTA / wide-area warning | `app/(tabs)/map.tsx` | Leaf CTA + small cancellation hint; amber warning is a tappable button that tightens the camera |
 | Map viewport refine panel (status + categories) | `src/components/search/MapViewportRefinePanel.tsx` | FilterChip / StatusFilterRow tokens; surface under SearchBar, not dark ink |
-| Map sheet motion / tab bar / loading | `app/(tabs)/map.tsx`, `app/(tabs)/_layout.tsx`, `SearchResultsBottomSheet`, `MapResultsSkeleton`, `MapAwareTabBar` | One `sheetProgress` drives chrome and map-only tab bar; map stays full-bleed; stale results remain visible; first load uses light brand skeletons, not a bare spinner |
+| Map sheet motion / tab bar / loading | `app/(tabs)/map.tsx`, `MapWrapper`, `SearchResultsBottomSheet`, `MapAwareTabBar`, `MapEventUnitOverlay`, `EventDetailScreen` | Drag et snap 100 % UI thread ; recadrage sheet réversible (ancre peek snapshot + bounds brutes, jamais de bounds inset) ; overlay ne republie pas les bounds ; loader plafonné à 1,8 s après `mapReady` ; cycle pin→card sur une shared value avec chevauchement ; fiche map = page glissée (translateY + opacity, pas de morph) ; tab bar dès 15 % de progression sheet ; snap par projection d’inertie ; haptic au relâchement worklet |
 | SearchBar modal text fields (Où / Quoi) | `src/components/search/SearchBar.tsx` | Framed mint inputs (`inputFramed`); not ghost white-on-white placeholders |
-| Map style toggle (satellite) | `app/(tabs)/map.tsx` | Clustered with GPS recenter; surface chrome, not SearchBar sibling |
+| Map navigation / style controls | `app/(tabs)/map.tsx` | Back arrow left of SearchBar; satellite toggle reste derrière la sheet lorsqu’elle est levée et derrière la card individuelle |
 | Onboarding category cards | `src/components/onboarding/OnboardingThemesStep.tsx` | Borders `#334155`; select-all |
 | Onboarding text fields | `src/screens/onboarding/OnboardingScreen.tsx`, `OnboardingConnectorStep.tsx` | No `lineHeight` on `TextInput`; extra bottom padding so descenders (g/p/y) are not clipped |
 | Lumia chat | `src/screens/lumia/LumiaChatScreen.tsx` | Flag off = hidden; light bubbles, leaf send — no dark glass |

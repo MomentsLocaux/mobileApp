@@ -15,7 +15,11 @@ type Params = {
   isMarkerRequestCurrent: (requestId: number) => boolean;
   highlightViewportEvent: (event: EventWithCreator) => void;
   freezeViewportResults: () => void;
-  focusOnEvent: (event: EventWithCreator, options?: { bumpZoom?: boolean }) => void;
+  focusOnEvent: (
+    event: EventWithCreator,
+    options?: { bumpZoom?: boolean; paddingBottom?: number },
+  ) => void;
+  focusPaddingBottom?: number;
   setUnitCardEvent: (event: EventWithCreator | null) => void;
   collapseSheetToPeek?: () => void;
   onMarkerLoadError?: (message: string) => void;
@@ -32,6 +36,7 @@ export function useMapMarkerPress({
   highlightViewportEvent,
   freezeViewportResults,
   focusOnEvent,
+  focusPaddingBottom,
   setUnitCardEvent,
   collapseSheetToPeek,
   onMarkerLoadError,
@@ -66,7 +71,10 @@ export function useMapMarkerPress({
           freezeViewportResults();
         }
 
-        focusOnEvent(event, { bumpZoom: false });
+        focusOnEvent(event, {
+          bumpZoom: false,
+          paddingBottom: focusPaddingBottom,
+        });
       } catch (error) {
         if (!isMarkerRequestCurrent(requestId)) return;
         console.warn('getEventById error', error);
@@ -76,6 +84,7 @@ export function useMapMarkerPress({
     [
       cancelAllMapRequests,
       focusOnEvent,
+      focusPaddingBottom,
       freezeViewportResults,
       frozenViewportBoundsRef,
       highlightViewportEvent,

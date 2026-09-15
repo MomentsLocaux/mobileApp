@@ -1,5 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect } from 'react';
-import { runOnJS, useAnimatedReaction, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
+import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo } from 'react';
 import { Motion } from '@/constants/motion';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox, { type MapState } from '@rnmapbox/maps';
@@ -21,6 +20,7 @@ import { CategoryEventMarker } from './CategoryEventMarker';
 import { useTaxonomyStore } from '../../store/taxonomyStore';
 import { MAP_CAMERA_ANIMATION_MS } from '../../utils/map-sheet-layout';
 import { insetMapBoundsForBottomOverlay } from '../../utils/map-viewport-fetch-utils';
+import { consumeBooleanFlag } from '@/utils/map-interaction-token';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
@@ -104,8 +104,19 @@ interface MapWrapperProps {
   bottomOverlayPx?: number;
 }
 
+export type MapCameraSnapshot = {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+};
+
 export type MapWrapperHandle = {
   recenter: (options: { longitude: number; latitude: number; zoom?: number }) => void;
+  getCameraSnapshot: () => MapCameraSnapshot | null;
+  restoreCameraSnapshot: (
+    snapshot: MapCameraSnapshot,
+    options?: { animationDuration?: number },
+  ) => void;
   setShape: (fc: FeatureCollection) => void;
   fitToCoordinates: (coordinates: { longitude: number; latitude: number }[], padding?: number | number[]) => void;
   fitToBounds: (
@@ -114,6 +125,8 @@ export type MapWrapperHandle = {
     animationDuration?: number
   ) => void;
   getVisibleBounds: () => Promise<{ ne: [number, number]; sw: [number, number] } | null>;
+  getRawVisibleBounds: () => Promise<{ ne: [number, number]; sw: [number, number] } | null>;
+  getCachedRawVisibleBounds: () => { ne: [number, number]; sw: [number, number] } | null;
   focusOnCoordinate: (options: {
     longitude: number;
     latitude: number;
@@ -124,7 +137,7 @@ export type MapWrapperHandle = {
   resetCameraPadding: () => void;
 };
 
-export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
+const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
   (
     {
       initialRegion,
@@ -151,42 +164,25 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const cameraRef = useRef<Mapbox.Camera>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
   const lastRawBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const lastCameraSnapshotRef = useRef({
+    longitude: initialRegion.longitude,
+    latitude: initialRegion.latitude,
+    zoom: initialRegion.zoom,
+  });
   const mapHeightPxRef = useRef(0);
   const bottomOverlayPxRef = useRef(bottomOverlayPx);
   bottomOverlayPxRef.current = bottomOverlayPx;
   const pendingUserInteractionRef = useRef(false);
   const userTouchDragRef = useRef(false);
   const touchStartPosRef = useRef({ x: 0, y: 0 });
-  const lastMarkerPressAtRef = useRef(0);
+  const suppressNextBackgroundPressRef = useRef(false);
   const [eventsShape, setEventsShape] = useState<FeatureCollection>(EMPTY_FEATURE_COLLECTION);
-  const [selectedIconSize, setSelectedIconSize] = useState(1.45);
   const [styleReady, setStyleReady] = useState(false);
-  const selectedIconScale = useSharedValue(1.45);
 
   // Style reload (standard ↔ satellite) remounts native layers — wait before attaching ours.
   useEffect(() => {
     setStyleReady(false);
   }, [styleURL]);
-
-  useEffect(() => {
-    if (!activeEventId) {
-      selectedIconScale.value = 1.45;
-      setSelectedIconSize(1.45);
-      return;
-    }
-    selectedIconScale.value = withSequence(
-      withSpring(1.45 * Motion.transform.markerSelectedScale, Motion.spring.soft),
-      withSpring(1.45, Motion.spring.soft)
-    );
-  }, [activeEventId, selectedIconScale]);
-
-  useAnimatedReaction(
-    () => selectedIconScale.value,
-    (value) => {
-      runOnJS(setSelectedIconSize)(value);
-    },
-    [selectedIconScale]
-  );
 
   const TOUCH_DRAG_THRESHOLD_PX = 8;
 
@@ -262,16 +258,8 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     [insetVisibleBounds, onVisibleBoundsChange]
   );
 
-  useEffect(() => {
-    const raw = lastRawBoundsRef.current;
-    if (!raw) return;
-    const next = insetVisibleBounds(raw);
-    if (!hasBoundsChanged(next)) return;
-    lastBoundsRef.current = next;
-    onVisibleBoundsChange?.(next, { isUserInteraction: false });
-    // Overlay height is the only trigger; the callback is read from the latest render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bottomOverlayPx, insetVisibleBounds]);
+  // Overlay height is query inset only (getVisibleBounds). Do not re-emit bounds
+  // here: that overwrote the camera target with already-inset coordinates.
 
   const categoryMarkerVisuals = useMemo(() => {
     const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;
@@ -364,6 +352,24 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           animationDuration: MAP_CAMERA_ANIMATION_MS,
         });
       },
+      getCameraSnapshot: () => ({ ...lastCameraSnapshotRef.current }),
+      restoreCameraSnapshot: (
+        { longitude, latitude, zoom: zoomLevel },
+        options,
+      ) => {
+        lastCameraSnapshotRef.current = {
+          longitude,
+          latitude,
+          zoom: zoomLevel,
+        };
+        cameraRef.current?.setCamera({
+          centerCoordinate: [longitude, latitude],
+          zoomLevel,
+          padding: toCameraPadding(mapPadding),
+          animationDuration:
+            options?.animationDuration ?? MAP_CAMERA_ANIMATION_MS,
+        });
+      },
       setShape: (fc: FeatureCollection) => {
         const nextShape = fc?.type === 'FeatureCollection' ? fc : EMPTY_FEATURE_COLLECTION;
         setEventsShape(nextShape);
@@ -410,6 +416,38 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           }
         } catch (e) {
           console.warn('getVisibleBounds failed', e);
+        }
+        return null;
+      },
+      getCachedRawVisibleBounds: () => {
+        const raw = lastRawBoundsRef.current;
+        if (!raw) return null;
+        return {
+          sw: [raw.sw[0], raw.sw[1]],
+          ne: [raw.ne[0], raw.ne[1]],
+        };
+      },
+      getRawVisibleBounds: async () => {
+        const cached = lastRawBoundsRef.current;
+        if (cached) {
+          return {
+            sw: [cached.sw[0], cached.sw[1]],
+            ne: [cached.ne[0], cached.ne[1]],
+          };
+        }
+        if (!mapViewRef.current) return null;
+        try {
+          const bounds = await mapViewRef.current.getVisibleBounds();
+          if (Array.isArray(bounds) && bounds.length === 2) {
+            const raw = {
+              sw: bounds[0] as [number, number],
+              ne: bounds[1] as [number, number],
+            };
+            lastRawBoundsRef.current = raw;
+            return raw;
+          }
+        } catch (e) {
+          console.warn('getRawVisibleBounds failed', e);
         }
         return null;
       },
@@ -485,8 +523,13 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
 
     const eventId = feature.properties?.id;
     if (eventId) {
-      lastMarkerPressAtRef.current = Date.now();
+      suppressNextBackgroundPressRef.current = true;
       onFeaturePress(String(eventId));
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          suppressNextBackgroundPressRef.current = false;
+        });
+      });
     }
   };
 
@@ -539,7 +582,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           onMapReady?.();
         }}
         onPress={(feature) => {
-          if (Date.now() - lastMarkerPressAtRef.current < 500) {
+          if (consumeBooleanFlag(suppressNextBackgroundPressRef)) {
             return;
           }
           const properties = feature.properties as Record<string, unknown> | undefined;
@@ -551,6 +594,21 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
           }
         }}
         onCameraChanged={(state) => {
+          const center = state.properties?.center;
+          const zoomLevel = state.properties?.zoom;
+          if (
+            Array.isArray(center) &&
+            center.length >= 2 &&
+            typeof center[0] === 'number' &&
+            typeof center[1] === 'number' &&
+            typeof zoomLevel === 'number'
+          ) {
+            lastCameraSnapshotRef.current = {
+              longitude: center[0],
+              latitude: center[1],
+              zoom: zoomLevel,
+            };
+          }
           if (state.gestures?.isGestureActive) {
             markUserMapGesture();
           }
@@ -649,7 +707,7 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
             filter={['!', ['has', 'point_count']]}
             style={{
               iconImage: selectedMarkerIconKey,
-              iconSize: selectedIconSize,
+              iconSize: 1.45 * Motion.transform.markerSelectedScale,
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
               iconAnchor: 'bottom',
@@ -664,7 +722,9 @@ export const MapWrapper = forwardRef<MapWrapperHandle, MapWrapperProps>(
     </View>
   );
 });
-MapWrapper.displayName = 'MapWrapper';
+MapWrapperInner.displayName = 'MapWrapper';
+
+export const MapWrapper = memo(MapWrapperInner);
 
 const styles = StyleSheet.create({
   container: {

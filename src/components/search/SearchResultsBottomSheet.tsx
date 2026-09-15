@@ -5,7 +5,6 @@ import {
   StyleSheet,
   AppState,
   FlatList,
-  PanResponder,
   InteractionManager,
   TouchableOpacity,
 } from 'react-native';
@@ -16,6 +15,7 @@ import Animated, {
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Motion } from '@/constants/motion';
@@ -27,14 +27,19 @@ import { SortControl } from '@/components/filters';
 import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
 import { formatViewportPeekLabel } from '../../utils/map-peek-label';
 import {
+  SHEET_SPRING_CONFIG,
   VIEWPORT_HALF_SNAP_INDEX,
+  VIEWPORT_PEEK_HEIGHT,
   getSheetMaxSnapIndex,
+  resolveSheetSnapTarget,
+  type MapSheetMode,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
 import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT, EVENT_RESULT_SHEET_MEDIA_HEIGHT } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { MapResultsSkeleton } from './MapResultsSkeleton';
+import { haptics } from '@/utils/haptics';
 
 export {
   VIEWPORT_PEEK_SNAP,
@@ -60,11 +65,11 @@ interface Props {
   sheetVisibleHeight: SharedValue<number>;
   minSheetHeight: SharedValue<number>;
   maxSheetHeight: SharedValue<number>;
+  layoutHeight: SharedValue<number>;
   isSheetDragging?: boolean;
   onSheetDragStart: (snapIndex: number) => void;
-  onSheetDragMove: (dy: number) => void;
-  onSheetDragHeightChange: (height: number) => void;
-  onSheetDragEnd: (dy: number, velocityY: number) => void;
+  onSheetDragEnd: (targetIndex: number) => void;
+  onSheetSnapSettled: (targetIndex: number) => void;
   onSheetDragCancel: () => void;
   onSelectEvent: (event: EventWithCreator) => void;
   onHighlightEvent: (event: EventWithCreator, options?: { focusMap?: boolean }) => void;
@@ -95,7 +100,44 @@ const SCROLL_EDGE_THRESHOLD = 2;
 const LIST_COLLAPSE_PULL_THRESHOLD = 28;
 const LIST_EXPAND_PULL_THRESHOLD = 28;
 const LIST_ITEM_STRIDE = EVENT_RESULT_LIST_CARD_HEIGHT + spacing.md;
-const NATIVE_CAMERA_DISPATCH_THROTTLE_MS = 112;
+
+function snapSheetAfterRelease(
+  velocityY: number,
+  mode: MapSheetMode,
+  reduceMotion: boolean,
+  layoutHeight: SharedValue<number>,
+  sheetVisibleHeight: SharedValue<number>,
+  sheetProgress: SharedValue<number>,
+  onIndexCommitted: (index: number) => void,
+  onSettled: (index: number) => void,
+) {
+  'worklet';
+  const layout = layoutHeight.value;
+  if (layout <= 0) return;
+  const target = resolveSheetSnapTarget(
+    sheetVisibleHeight.value,
+    layout,
+    mode,
+    velocityY,
+  );
+  runOnJS(onIndexCommitted)(target.index);
+  runOnJS(haptics.selection)();
+  if (reduceMotion) {
+    sheetVisibleHeight.value = target.height;
+    sheetProgress.value = target.progress;
+    runOnJS(onSettled)(target.index);
+    return;
+  }
+  sheetVisibleHeight.value = withSpring(target.height, SHEET_SPRING_CONFIG);
+  sheetProgress.value = withSpring(
+    target.progress,
+    SHEET_SPRING_CONFIG,
+    (finished) => {
+      'worklet';
+      if (finished) runOnJS(onSettled)(target.index);
+    },
+  );
+}
 
 export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandle, Props>(
   (
@@ -108,11 +150,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       sheetVisibleHeight,
       minSheetHeight,
       maxSheetHeight,
+      layoutHeight,
       isSheetDragging = false,
       onSheetDragStart,
-      onSheetDragMove,
-      onSheetDragHeightChange,
       onSheetDragEnd,
+      onSheetSnapSettled,
       onSheetDragCancel,
       onSelectEvent,
       onHighlightEvent,
@@ -147,12 +189,15 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       null
     );
     const nativeDragOrigin = useSharedValue(0);
-    const lastCameraDispatchAt = useSharedValue(0);
+    const listScrollY = useSharedValue(0);
+    const listTouchStartY = useSharedValue(0);
+    const snapIndexShared = useSharedValue(0);
 
     const maxIndex = getSheetMaxSnapIndex(mode);
     const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
+    snapIndexShared.value = clampedIndex;
 
     const renderCountRef = useRef(0);
     renderCountRef.current += 1;
@@ -337,12 +382,19 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [onSheetDragStart]);
 
     const finishSheetDrag = useCallback(
-      (dy: number, velocityY: number) => {
+      (targetIndex: number) => {
         if (!dragActiveRef.current) return;
-        onSheetDragEnd(dy, velocityY);
         dragActiveRef.current = false;
+        onSheetDragEnd(targetIndex);
       },
       [onSheetDragEnd]
+    );
+
+    const settleSheetSnap = useCallback(
+      (targetIndex: number) => {
+        onSheetSnapSettled(targetIndex);
+      },
+      [onSheetSnapSettled]
     );
 
     const cancelSheetDrag = useCallback(() => {
@@ -361,34 +413,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const openFromPeekRef = useRef<() => void>(() => {});
     const isSheetExpandableRef = useRef(isSheetExpandable);
     isSheetExpandableRef.current = isSheetExpandable;
-
-    const isListAtScrollStart = useCallback(
-      () => scrollYRef.current <= SCROLL_EDGE_THRESHOLD,
-      []
-    );
-
-    const modeRef = useRef(mode);
-    modeRef.current = mode;
-
-    const shouldCollapseSheetFromList = useCallback(
-      (dy: number) => {
-        if (!isSheetExpandableRef.current || !isExpandedRef.current) return false;
-        if (dy <= 4) return false;
-        return isListAtScrollStart();
-      },
-      [isListAtScrollStart]
-    );
-
-    const shouldExpandSheetFromList = useCallback(
-      (dy: number) => {
-        if (!isSheetExpandableRef.current || !isExpandedRef.current) return false;
-        if (modeRef.current !== 'viewport') return false;
-        if (snapIndexRef.current !== VIEWPORT_HALF_SNAP_INDEX) return false;
-        if (dy >= -4) return false;
-        return isListAtScrollStart();
-      },
-      [isListAtScrollStart]
-    );
 
     const openFromPeek = useCallback(() => {
       if (!isSheetExpandableRef.current || snapIndexRef.current !== 0) return;
@@ -410,7 +434,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           .onStart(() => {
             'worklet';
             nativeDragOrigin.value = sheetVisibleHeight.value;
-            lastCameraDispatchAt.value = 0;
             runOnJS(beginSheetDrag)();
           })
           .onUpdate((gesture) => {
@@ -428,21 +451,18 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               1,
               Math.max(0, (nextHeight - minHeight) / range),
             );
-
-            const now = Date.now();
-            if (
-              now - lastCameraDispatchAt.value >=
-              NATIVE_CAMERA_DISPATCH_THROTTLE_MS
-            ) {
-              lastCameraDispatchAt.value = now;
-              runOnJS(onSheetDragHeightChange)(nextHeight);
-            }
           })
           .onEnd((gesture) => {
             'worklet';
-            runOnJS(finishSheetDrag)(
-              gesture.translationY,
+            snapSheetAfterRelease(
               gesture.velocityY / 1000,
+              mode,
+              reduceMotion,
+              layoutHeight,
+              sheetVisibleHeight,
+              sheetProgress,
+              finishSheetDrag,
+              settleSheetSnap,
             );
           })
           .onFinalize((_gesture, success) => {
@@ -454,63 +474,122 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         cancelSheetDrag,
         finishSheetDrag,
         isSheetExpandable,
-        lastCameraDispatchAt,
+        layoutHeight,
         maxSheetHeight,
         minSheetHeight,
+        mode,
         nativeDragOrigin,
-        onSheetDragHeightChange,
+        reduceMotion,
+        settleSheetSnap,
         sheetProgress,
         sheetVisibleHeight,
       ],
     );
 
-    const listPanResponder = useMemo(
+    const nativeListGesture = useMemo(() => Gesture.Native(), []);
+
+    const listSheetGesture = useMemo(
       () =>
-        PanResponder.create({
-          onMoveShouldSetPanResponderCapture: (_, gesture) =>
-            Math.abs(gesture.dy) > 4 &&
-            Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.1 &&
-            (shouldCollapseSheetFromList(gesture.dy) ||
-              shouldExpandSheetFromList(gesture.dy)),
-          onPanResponderGrant: () => {
-            beginSheetDrag();
-          },
-          onPanResponderMove: (_, gesture) => {
-            if (!dragActiveRef.current) return;
-            onSheetDragMove(gesture.dy);
-          },
-          onPanResponderRelease: (_, gesture) => {
-            if (!dragActiveRef.current) return;
-            const collapseFromTop =
-              isListAtScrollStart() &&
-              (gesture.dy > LIST_COLLAPSE_PULL_THRESHOLD || gesture.vy > 0.35);
-            const expandFromHalf =
-              modeRef.current === 'viewport' &&
-              snapIndexRef.current === VIEWPORT_HALF_SNAP_INDEX &&
-              isListAtScrollStart() &&
-              (gesture.dy < -LIST_EXPAND_PULL_THRESHOLD || gesture.vy < -0.35);
-
-            let releaseVelocity = gesture.vy;
-            if (collapseFromTop) {
-              releaseVelocity = Math.max(gesture.vy, 0.6);
-            } else if (expandFromHalf) {
-              releaseVelocity = Math.min(gesture.vy, -0.6);
+        Gesture.Pan()
+          .enabled(isSheetExpandable && isExpanded)
+          .manualActivation(true)
+          .failOffsetX([-24, 24])
+          .simultaneousWithExternalGesture(nativeListGesture)
+          .onTouchesDown((event) => {
+            'worklet';
+            listTouchStartY.value = event.allTouches[0]?.absoluteY ?? 0;
+          })
+          .onTouchesMove((event, manager) => {
+            'worklet';
+            const y = event.allTouches[0]?.absoluteY ?? listTouchStartY.value;
+            const dy = y - listTouchStartY.value;
+            const atTop = listScrollY.value <= SCROLL_EDGE_THRESHOLD;
+            const canCollapse = atTop && dy > 4;
+            const canExpand =
+              atTop &&
+              mode === 'viewport' &&
+              snapIndexShared.value === VIEWPORT_HALF_SNAP_INDEX &&
+              dy < -4;
+            if (canCollapse || canExpand) {
+              manager.activate();
+              return;
             }
-
-            finishSheetDrag(gesture.dy, releaseVelocity);
-          },
-          onPanResponderTerminate: cancelSheetDrag,
-          onPanResponderTerminationRequest: () => false,
-        }),
+            if (Math.abs(dy) > 10) {
+              manager.fail();
+            }
+          })
+          .onStart(() => {
+            'worklet';
+            nativeDragOrigin.value = sheetVisibleHeight.value;
+            runOnJS(beginSheetDrag)();
+          })
+          .onUpdate((gesture) => {
+            'worklet';
+            const minHeight = minSheetHeight.value;
+            const maxHeight = maxSheetHeight.value;
+            const nextHeight = Math.min(
+              maxHeight,
+              Math.max(minHeight, nativeDragOrigin.value - gesture.translationY),
+            );
+            const range = Math.max(1, maxHeight - minHeight);
+            sheetVisibleHeight.value = nextHeight;
+            sheetProgress.value = Math.min(
+              1,
+              Math.max(0, (nextHeight - minHeight) / range),
+            );
+          })
+          .onEnd((gesture) => {
+            'worklet';
+            const atTop = listScrollY.value <= SCROLL_EDGE_THRESHOLD;
+            let velocity = gesture.velocityY / 1000;
+            if (
+              atTop &&
+              (gesture.translationY > LIST_COLLAPSE_PULL_THRESHOLD || velocity > 0.35)
+            ) {
+              velocity = Math.max(velocity, 0.6);
+            } else if (
+              mode === 'viewport' &&
+              snapIndexShared.value === VIEWPORT_HALF_SNAP_INDEX &&
+              atTop &&
+              (gesture.translationY < -LIST_EXPAND_PULL_THRESHOLD || velocity < -0.35)
+            ) {
+              velocity = Math.min(velocity, -0.6);
+            }
+            snapSheetAfterRelease(
+              velocity,
+              mode,
+              reduceMotion,
+              layoutHeight,
+              sheetVisibleHeight,
+              sheetProgress,
+              finishSheetDrag,
+              settleSheetSnap,
+            );
+          })
+          .onFinalize((_gesture, success) => {
+            'worklet';
+            if (!success) runOnJS(cancelSheetDrag)();
+          }),
       [
         beginSheetDrag,
         cancelSheetDrag,
         finishSheetDrag,
-        isListAtScrollStart,
-        onSheetDragMove,
-        shouldCollapseSheetFromList,
-        shouldExpandSheetFromList,
-      ]
+        isExpanded,
+        isSheetExpandable,
+        layoutHeight,
+        listScrollY,
+        listTouchStartY,
+        maxSheetHeight,
+        minSheetHeight,
+        mode,
+        nativeDragOrigin,
+        nativeListGesture,
+        reduceMotion,
+        settleSheetSnap,
+        sheetProgress,
+        sheetVisibleHeight,
+        snapIndexShared,
+      ],
     );
 
     const renderListItem = useCallback(
@@ -546,9 +625,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         statsByEventId,
       ]
     );
-
-    const listPanHandlers =
-      isSheetExpandable && isExpanded ? listPanResponder.panHandlers : {};
 
     return (
       <View style={styles.container}>
@@ -653,7 +729,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         {showLoadingList ? <MapResultsSkeleton variant="list" /> : null}
 
         {showViewportList && (
-          <Animated.View style={[styles.listSlot, expandedChromeStyle]} {...listPanHandlers}>
+          <GestureDetector gesture={listSheetGesture}>
+            <Animated.View style={[styles.listSlot, expandedChromeStyle]}>
+              <GestureDetector gesture={nativeListGesture}>
             <FlatList
               ref={listRef}
               data={events}
@@ -669,7 +747,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               scrollEventThrottle={16}
               nestedScrollEnabled
               onScroll={(event) => {
-                scrollYRef.current = event.nativeEvent.contentOffset.y;
+                const offsetY = event.nativeEvent.contentOffset.y;
+                scrollYRef.current = offsetY;
+                listScrollY.value = offsetY;
               }}
               getItemLayout={(_, index) => ({
                 length: LIST_ITEM_STRIDE,
@@ -695,7 +775,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               removeClippedSubviews
               renderItem={renderListItem}
             />
-          </Animated.View>
+              </GestureDetector>
+            </Animated.View>
+          </GestureDetector>
         )}
       </View>
     );
@@ -710,8 +792,14 @@ const styles = StyleSheet.create({
   },
   sheetChrome: {
     flexGrow: 0,
+    minHeight: VIEWPORT_PEEK_HEIGHT,
   },
   handleArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 24,
@@ -731,7 +819,7 @@ const styles = StyleSheet.create({
   },
   chromeContent: {
     position: 'relative',
-    minHeight: 48,
+    minHeight: VIEWPORT_PEEK_HEIGHT,
   },
   chromeOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -740,7 +828,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: VIEWPORT_PEEK_HEIGHT,
   },
   peekTitle: {
     ...typography.body,
@@ -750,8 +838,9 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.lg,
+    paddingTop: 24,
     paddingBottom: spacing.sm,
-    minHeight: 48,
+    minHeight: VIEWPORT_PEEK_HEIGHT,
     justifyContent: 'center',
   },
   headerRow: {

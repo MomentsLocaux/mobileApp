@@ -13,7 +13,11 @@ import {
   Share,
   Platform,
   StatusBar,
+  useWindowDimensions,
+  AppState,
+  BackHandler,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -60,13 +64,17 @@ import {
 } from '@/utils/event-organizer';
 import { isCommunitySuggestedEvent } from '@/utils/suggestion-history';
 import Animated, {
+  cancelAnimation,
+  Extrapolation,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Motion, createEnterTiming } from '@/constants/motion';
+import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { haptics } from '@/utils/haptics';
 import { EventsService } from '../../services/events.service';
@@ -82,6 +90,7 @@ import type { EventMediaSubmission, EventWithCreator } from '../../types/databas
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { PlaceMediaGallery, type MediaImage } from '@/components/events/PlaceMediaGallery';
+import { EventHeartButton } from '@/components/events/EventHeartButton';
 import { supabase } from '@/lib/supabase/client';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -105,6 +114,11 @@ import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
+import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
+import {
+  getMapDetailSlideOffset,
+  shouldCompleteMapDetailDismiss,
+} from '@/utils/map-detail-transition';
 
 const { width } = Dimensions.get('window');
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
@@ -119,8 +133,9 @@ const normalizeImageUrl = (value: unknown): string | null => {
 };
 
 export default function EventDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
   const router = useRouter();
+  const windowDimensions = useWindowDimensions();
   const { profile, session, isLoading: authLoading } = useAuth();
   const { currentLocation } = useLocationStore();
   const insets = useSafeAreaInsets();
@@ -130,10 +145,29 @@ export default function EventDetailScreen() {
   useTaxonomy();
   const tagsMap = useTaxonomyStore((s) => s.tagsMap);
 
-  const [event, setEvent] = useState<EventWithCreator | null>(null);
-  const [loading, setLoading] = useState(true);
+  const transitionContext = useMapDetailTransitionStore((state) => state.context);
+  const isMapTransitionOrigin =
+    (origin === 'map-unit' || origin === 'map-sheet') &&
+    transitionContext?.origin === origin;
+  const seededMapEvent =
+    isMapTransitionOrigin && transitionContext?.eventId === id
+      ? transitionContext.event
+      : null;
+  const [event, setEvent] = useState<EventWithCreator | null>(seededMapEvent);
+  const [loading, setLoading] = useState(!seededMapEvent);
   const reduceMotion = useReduceMotion();
-  const screenProgress = useSharedValue(0);
+  const canAnimateMapSurface = !reduceMotion && Boolean(seededMapEvent);
+  const surfaceProgress = useSharedValue(canAnimateMapSurface ? 0 : 1);
+  const [scrollAtTop, setScrollAtTop] = useState(true);
+  const [entryMotionComplete, setEntryMotionComplete] = useState(
+    !canAnimateMapSurface,
+  );
+  const dismissingRef = useRef(false);
+  const finishEntryMotion = useCallback(() => {
+    requestAnimationFrame(() => {
+      setEntryMotionComplete(true);
+    });
+  }, []);
   const [guestGate, setGuestGate] = useState({ visible: false, title: '' });
   const [navSheetVisible, setNavSheetVisible] = useState(false);
   const [platformOrganizerSheetVisible, setPlatformOrganizerSheetVisible] = useState(false);
@@ -303,7 +337,7 @@ export default function EventDetailScreen() {
       }
     } catch (error) {
       console.warn('loadEventDetails error', error);
-      setEvent(null);
+      setEvent((current) => (current?.id === id ? current : null));
     } finally {
       setLoading(false);
     }
@@ -311,16 +345,18 @@ export default function EventDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!entryMotionComplete) return;
       loadEventDetails();
-    }, [loadEventDetails]),
+    }, [entryMotionComplete, loadEventDetails]),
   );
 
   useEffect(() => {
-    if (!id || authLoading) return;
+    if (!entryMotionComplete || !id || authLoading) return;
     void trackEventView(id);
-  }, [id, authLoading, trackEventView]);
+  }, [entryMotionComplete, id, authLoading, trackEventView]);
 
   useEffect(() => {
+    if (!entryMotionComplete) return;
     let mounted = true;
     const run = async () => {
       if (!features.socialPeers || !event?.id || !profile?.id || isGuest) {
@@ -339,14 +375,144 @@ export default function EventDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [event?.id, profile?.id, isGuest, isLiked, isFavorite]);
+  }, [
+    entryMotionComplete,
+    event?.id,
+    profile?.id,
+    isGuest,
+    isLiked,
+    isFavorite,
+  ]);
 
-  const handleBack = () => {
+  const finishMapDismiss = useCallback(() => {
+    if (isMapTransitionOrigin && id) {
+      useMapDetailTransitionStore.getState().markReturning(id);
+    }
     if (router.canGoBack?.()) {
       router.back();
     } else {
       router.replace('/(tabs)/map');
     }
+  }, [id, isMapTransitionOrigin, router]);
+
+  const cancelMapDismiss = useCallback(() => {
+    dismissingRef.current = false;
+    surfaceProgress.value = withSpring(1, Motion.spring.sheet);
+  }, [surfaceProgress]);
+
+  const animateMapDismiss = useCallback(() => {
+    if (dismissingRef.current) return;
+    dismissingRef.current = true;
+    surfaceProgress.value = withTiming(
+      0,
+      {
+        duration: reduceMotion ? 120 : 280,
+        easing: Motion.easing.emphasized,
+      },
+      (finished) => {
+        'worklet';
+        if (finished) runOnJS(finishMapDismiss)();
+      },
+    );
+  }, [finishMapDismiss, reduceMotion, surfaceProgress]);
+
+  const startMapDismiss = useCallback(() => {
+    if (!isMapTransitionOrigin || transitionContext?.eventId !== id) {
+      finishMapDismiss();
+      return;
+    }
+    useMapDetailTransitionStore.getState().markReturning(id);
+    animateMapDismiss();
+  }, [
+    animateMapDismiss,
+    finishMapDismiss,
+    id,
+    isMapTransitionOrigin,
+    transitionContext?.eventId,
+  ]);
+
+  const handleDismissGestureRelease = useCallback(
+    (translationY: number, velocityY: number) => {
+      if (
+        shouldCompleteMapDetailDismiss(
+          translationY,
+          velocityY,
+          windowDimensions.height,
+        )
+      ) {
+        startMapDismiss();
+        return;
+      }
+      cancelMapDismiss();
+    },
+    [cancelMapDismiss, startMapDismiss, windowDimensions.height],
+  );
+
+  useEffect(() => {
+    if (!isMapTransitionOrigin) return;
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        startMapDismiss();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [isMapTransitionOrigin, startMapDismiss]);
+
+  const detailScrollGesture = useMemo(() => Gesture.Native(), []);
+  const mapDismissGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(isMapTransitionOrigin && scrollAtTop)
+        .activeOffsetY(10)
+        .failOffsetX([-24, 24])
+        .simultaneousWithExternalGesture(detailScrollGesture)
+        .onUpdate((gesture) => {
+          const translationY = Math.max(0, gesture.translationY);
+          surfaceProgress.value = 1 - Math.min(
+            0.82,
+            translationY / Math.max(1, windowDimensions.height * 0.7),
+          );
+        })
+        .onEnd((gesture) => {
+          runOnJS(handleDismissGestureRelease)(
+            Math.max(0, gesture.translationY),
+            Math.max(0, gesture.velocityY),
+          );
+        })
+        .onFinalize((_gesture, success) => {
+          if (!success) {
+            surfaceProgress.value = withSpring(1, Motion.spring.sheet);
+          }
+        }),
+    [
+      detailScrollGesture,
+      handleDismissGestureRelease,
+      isMapTransitionOrigin,
+      scrollAtTop,
+      surfaceProgress,
+      windowDimensions.height,
+    ],
+  );
+
+  useEffect(() => {
+    if (!isMapTransitionOrigin) return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') return;
+      cancelAnimation(surfaceProgress);
+      dismissingRef.current = false;
+      surfaceProgress.value = 1;
+    });
+    return () => subscription.remove();
+  }, [isMapTransitionOrigin, surfaceProgress]);
+
+  const handleBack = () => {
+    if (isMapTransitionOrigin) {
+      startMapDismiss();
+      return;
+    }
+    finishMapDismiss();
   };
 
   const handleToggleHeart = async () => {
@@ -852,17 +1018,64 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     if (loading || !event) {
-      screenProgress.value = 0;
       return;
     }
-    screenProgress.value = reduceMotion
-      ? 1
-      : withTiming(1, createEnterTiming(Motion.duration.normal));
-  }, [event, loading, reduceMotion, screenProgress]);
+    if (entryMotionComplete) {
+      surfaceProgress.value = 1;
+      return;
+    }
+    if (reduceMotion || !canAnimateMapSurface) {
+      surfaceProgress.value = 1;
+      setEntryMotionComplete(true);
+      return;
+    }
+    surfaceProgress.value = withTiming(
+      1,
+      {
+        duration: 280,
+        easing: Motion.easing.emphasized,
+      },
+      (finished) => {
+        'worklet';
+        if (finished) runOnJS(finishEntryMotion)();
+      },
+    );
+  }, [
+    canAnimateMapSurface,
+    entryMotionComplete,
+    event,
+    finishEntryMotion,
+    loading,
+    reduceMotion,
+    surfaceProgress,
+  ]);
 
-  const screenStyle = useAnimatedStyle(() => ({
-    opacity: screenProgress.value,
-  }));
+  const slideOffset = getMapDetailSlideOffset(windowDimensions.height);
+  const screenStyle = useAnimatedStyle(() => {
+    const progress = surfaceProgress.value;
+    if (!canAnimateMapSurface) {
+      return { opacity: progress };
+    }
+
+    return {
+      opacity: interpolate(
+        progress,
+        [0, 0.18, 1],
+        [0, 1, 1],
+        Extrapolation.CLAMP,
+      ),
+      transform: [
+        {
+          translateY: interpolate(
+            progress,
+            [0, 1],
+            [slideOffset, 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  }, [canAnimateMapSurface, slideOffset]);
 
   if (loading) {
     return (
@@ -885,74 +1098,93 @@ export default function EventDetailScreen() {
 
   return (
     <>
-      <Animated.View style={[{ flex: 1 }, screenStyle]}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
-        showsVerticalScrollIndicator={false}
-      >
+      <GestureDetector gesture={mapDismissGesture}>
+        <Animated.View style={[styles.dismissableScreen, screenStyle]}>
+          <View
+            style={[
+              styles.detailSurfaceContent,
+              {
+                width: windowDimensions.width,
+                height: windowDimensions.height,
+              },
+            ]}
+          >
+          <GestureDetector gesture={detailScrollGesture}>
+            <ScrollView
+              style={styles.container}
+              contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              bounces={!isMapTransitionOrigin}
+              onScroll={(scrollEvent) => {
+                const nextAtTop = scrollEvent.nativeEvent.contentOffset.y <= 1;
+                setScrollAtTop((current) =>
+                  current === nextAtTop ? current : nextAtTop,
+                );
+              }}
+            >
         <AppBackground />
         <StatusBar barStyle="light-content" />
 
-        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-          <FloatingPressable style={styles.iconButton} onPress={handleBack} entranceDelay={0}>
-            <ChevronLeft size={22} color={colors.brand.text} />
-          </FloatingPressable>
-          <View style={styles.headerActions}>
-            <FloatingPressable style={styles.iconButton} onPress={handleShare} entranceDelay={40}>
-              <Share2 size={20} color={colors.brand.text} />
-            </FloatingPressable>
-            {event.status === 'published' ? (
-              <FloatingPressable
-                style={styles.iconButton}
-                onPress={handleOpenEventCorrection}
-                entranceDelay={80}
-                accessibilityLabel="Proposer une correction"
-              >
-                <PenLine size={20} color={colors.brand.text} />
-              </FloatingPressable>
-            ) : null}
-            <FloatingPressable style={styles.iconButton} onPress={handleOpenEventReport} entranceDelay={100}>
-              <Flag
-                size={20}
-                color={eventReported ? colors.error[500] : colors.brand.text}
-                fill={eventReported ? colors.error[500] : 'transparent'}
-              />
-            </FloatingPressable>
-            {canEditEvent ? (
-              <FloatingPressable
-                style={styles.iconButton}
-                onPress={() => router.push(`/events/create?edit=${event.id}` as any)}
-                entranceDelay={120}
-              >
-                <Edit size={20} color={colors.brand.secondary} />
-              </FloatingPressable>
-            ) : null}
-            {canDeleteEvent ? (
-              <FloatingPressable
-                style={styles.iconButton}
-                onPress={handleDeleteEvent}
-                entranceDelay={140}
-                accessibilityLabel="Supprimer l’événement"
-              >
-                <Trash2 size={20} color={colors.error[500]} />
-              </FloatingPressable>
-            ) : null}
-            <FloatingPressable style={styles.iconButton} onPress={handleToggleHeart} entranceDelay={160}>
-              <Animated.View style={heartAnimatedStyle}>
-                <Heart
-                  size={20}
-                  color={isEventHearted ? colors.brand.secondary : colors.brand.text}
-                  fill={isEventHearted ? colors.brand.secondary : 'transparent'}
-                />
-              </Animated.View>
-            </FloatingPressable>
-          </View>
-        </View>
-
-        <MotionReveal delay={0}>
+        <MotionReveal delay={0} enabled={!isMapTransitionOrigin}>
         <View style={styles.heroContainer}>
-          <PlaceMediaGallery images={mediaImages} communityImages={communityMediaImages} onAddPhoto={handleAddPhoto}>
+          <PlaceMediaGallery
+            images={mediaImages}
+            communityImages={communityMediaImages}
+            onAddPhoto={handleAddPhoto}
+          >
+            <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+              <FloatingPressable style={styles.iconButton} onPress={handleBack} entranceDelay={0}>
+                <ChevronLeft size={22} color={colors.brand.text} />
+              </FloatingPressable>
+              <View style={styles.headerActions}>
+                <FloatingPressable style={styles.iconButton} onPress={handleShare} entranceDelay={40}>
+                  <Share2 size={20} color={colors.brand.text} />
+                </FloatingPressable>
+                {event.status === 'published' ? (
+                  <FloatingPressable
+                    style={styles.iconButton}
+                    onPress={handleOpenEventCorrection}
+                    entranceDelay={80}
+                    accessibilityLabel="Proposer une correction"
+                  >
+                    <PenLine size={20} color={colors.brand.text} />
+                  </FloatingPressable>
+                ) : null}
+                <FloatingPressable style={styles.iconButton} onPress={handleOpenEventReport} entranceDelay={100}>
+                  <Flag
+                    size={20}
+                    color={eventReported ? colors.error[500] : colors.brand.text}
+                    fill={eventReported ? colors.error[500] : 'transparent'}
+                  />
+                </FloatingPressable>
+                {canEditEvent ? (
+                  <FloatingPressable
+                    style={styles.iconButton}
+                    onPress={() => router.push(`/events/create?edit=${event.id}` as any)}
+                    entranceDelay={120}
+                  >
+                    <Edit size={20} color={colors.brand.secondary} />
+                  </FloatingPressable>
+                ) : null}
+                {canDeleteEvent ? (
+                  <FloatingPressable
+                    style={styles.iconButton}
+                    onPress={handleDeleteEvent}
+                    entranceDelay={140}
+                    accessibilityLabel="Supprimer l’événement"
+                  >
+                    <Trash2 size={20} color={colors.error[500]} />
+                  </FloatingPressable>
+                ) : null}
+                <EventHeartButton
+                  active={isEventHearted}
+                  onPress={handleToggleHeart}
+                  hapticsEnabled={false}
+                />
+              </View>
+            </View>
+
             <View style={styles.heroBadges}>
               <View
                 style={[
@@ -979,6 +1211,7 @@ export default function EventDetailScreen() {
         </View>
         </MotionReveal>
 
+        {entryMotionComplete ? (
         <View style={styles.content}>
           <MotionReveal delay={Motion.stagger.content}>
           <View style={styles.titleRow}>
@@ -1295,8 +1528,12 @@ export default function EventDetailScreen() {
 
           {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
         </View>
-      </ScrollView>
-      </Animated.View>
+        ) : null}
+            </ScrollView>
+          </GestureDetector>
+          </View>
+        </Animated.View>
+      </GestureDetector>
 
       <NavigationOptionsSheet
         visible={navSheetVisible}
@@ -1370,6 +1607,17 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  dismissableScreen: {
+    flex: 1,
+    overflow: 'hidden',
+    backgroundColor: colors.brand.page,
+  },
+  detailSurfaceContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: colors.brand.page,
+  },
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -1387,15 +1635,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerActions: {
     marginLeft: 'auto',
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   iconButton: {
     ...screenHeaderStyles.iconButton,

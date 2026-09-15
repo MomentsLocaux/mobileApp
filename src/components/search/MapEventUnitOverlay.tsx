@@ -1,27 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { InteractionManager, View, StyleSheet } from 'react-native';
 import Animated, {
+  type SharedValue,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming,
 } from 'react-native-reanimated';
-import { Heart, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing } from '@/constants/theme';
-import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
-import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { VIEWPORT_PEEK_HEIGHT } from '@/utils/map-sheet-layout';
+import { Motion } from '@/constants/motion';
 import { EventCard } from '@/components/events/EventCard';
 import { EventCardStatsService } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
-import { haptics } from '@/utils/haptics';
-
-const VIEWPORT_PEEK_OFFSET = VIEWPORT_PEEK_HEIGHT + spacing.md;
+import { EventHeartButton } from '@/components/events/EventHeartButton';
+import { unitCycleCardReveal } from '@/utils/map-unit-cycle';
 
 interface Props {
   event: EventWithCreator;
-  visible: boolean;
+  progress: SharedValue<number>;
   currentUserId?: string | null;
   isHearted?: boolean;
   onToggleHeart?: (event: EventWithCreator) => void;
@@ -33,7 +30,7 @@ interface Props {
 
 export const MapEventUnitOverlay: React.FC<Props> = ({
   event,
-  visible,
+  progress,
   currentUserId,
   isHearted,
   onToggleHeart,
@@ -42,69 +39,67 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   onClose,
   bottomInset = spacing.md,
 }) => {
-  const reduceMotion = useReduceMotion();
-  const progress = useSharedValue(0);
-  const heartScale = useSharedValue(1);
   const [viewsCount, setViewsCount] = useState(0);
   const [friendsGoingCount, setFriendsGoingCount] = useState(0);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      progress.value = visible ? 1 : 0;
-      return;
-    }
-    progress.value = withTiming(
-      visible ? 1 : 0,
-      visible
-        ? createEnterTiming(Motion.duration.normal)
-        : createExitTiming(Motion.duration.fast)
-    );
-  }, [progress, reduceMotion, visible]);
+  const [interactive, setInteractive] = useState(false);
+  const statsRequestRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    EventCardStatsService.getStatsForEvents([event.id], currentUserId).then((stats) => {
-      if (cancelled) return;
-      const entry = stats[event.id];
-      setViewsCount(entry?.viewsCount ?? 0);
-      setFriendsGoingCount(entry?.friendsGoingCount ?? 0);
+    const requestId = statsRequestRef.current + 1;
+    statsRequestRef.current = requestId;
+    const task = InteractionManager.runAfterInteractions(() => {
+      EventCardStatsService.getStatsForEvents([event.id], currentUserId).then((stats) => {
+        if (cancelled || statsRequestRef.current !== requestId) return;
+        const entry = stats[event.id];
+        setViewsCount(entry?.viewsCount ?? 0);
+        setFriendsGoingCount(entry?.friendsGoingCount ?? 0);
+      });
     });
     return () => {
       cancelled = true;
+      task.cancel?.();
     };
   }, [currentUserId, event.id]);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * Motion.distance.listEnterY }],
-  }));
+  useAnimatedReaction(
+    () => unitCycleCardReveal(progress.value) > 0.05,
+    (next, previous) => {
+      if (next !== previous) {
+        runOnJS(setInteractive)(next);
+      }
+    },
+  );
 
-  const chromeEnterStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ scale: 0.85 + progress.value * 0.15 }],
-  }));
+  const cardStyle = useAnimatedStyle(() => {
+    const reveal = unitCycleCardReveal(progress.value);
+    return {
+      opacity: reveal,
+      transform: [{ translateY: (1 - reveal) * Motion.distance.listEnterY }],
+    };
+  });
 
-  const heartAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heartScale.value }],
-  }));
-
-  const handleHeartPress = () => {
-    if (!onToggleHeart) return;
-    haptics.light();
-    heartScale.value = withSequence(
-      withTiming(1.18, { duration: 90 }),
-      withTiming(1, { duration: 120 }),
-    );
-    onToggleHeart(event);
-  };
+  const chromeEnterStyle = useAnimatedStyle(() => {
+    const reveal = unitCycleCardReveal(progress.value);
+    return {
+      opacity: reveal,
+      transform: [{ scale: 0.85 + reveal * 0.15 }],
+    };
+  });
 
   return (
     <Animated.View
-      pointerEvents={visible ? 'auto' : 'none'}
-      style={[styles.wrapper, { bottom: bottomInset + VIEWPORT_PEEK_OFFSET }, cardStyle]}
+      pointerEvents={interactive ? 'box-none' : 'none'}
+      style={[styles.wrapper, { bottom: bottomInset }, cardStyle]}
     >
-      <View style={styles.cardShell}>
-        <Animated.View style={[styles.closeButton, chromeEnterStyle]}>
+      <View collapsable={false} style={styles.cardShell}>
+        <Animated.View style={[styles.topActions, chromeEnterStyle]}>
+          {onToggleHeart ? (
+            <EventHeartButton
+              active={Boolean(isHearted)}
+              onPress={() => onToggleHeart(event)}
+            />
+          ) : null}
           <FloatingPressable
             style={styles.chromePressable}
             onPress={onClose}
@@ -113,30 +108,9 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
             accessibilityLabel="Fermer"
             animateEntrance={false}
           >
-            <X size={20} color={colors.brand.text} />
+            <X size={17} color={colors.brand.text} />
           </FloatingPressable>
         </Animated.View>
-
-        {onToggleHeart ? (
-          <Animated.View style={[styles.heartButton, chromeEnterStyle]}>
-            <FloatingPressable
-              style={styles.chromePressable}
-              onPress={handleHeartPress}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={isHearted ? 'Retirer des favoris' : 'Aimer et enregistrer'}
-              animateEntrance={false}
-            >
-              <Animated.View style={heartAnimatedStyle}>
-                <Heart
-                  size={20}
-                  color={isHearted ? colors.brand.secondary : colors.brand.text}
-                  fill={isHearted ? colors.brand.secondary : 'transparent'}
-                />
-              </Animated.View>
-            </FloatingPressable>
-          </Animated.View>
-        ) : null}
 
         <EventCard
           event={event}
@@ -146,7 +120,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
           viewsCount={viewsCount}
           friendsGoingCount={friendsGoingCount}
           onPress={onPress}
-          onPrimaryAction={onPress}
           onNavigate={onNavigate}
           isLiked={isHearted}
           isFavorite={isHearted}
@@ -171,22 +144,19 @@ const styles = StyleSheet.create({
   cardShell: {
     position: 'relative',
   },
-  closeButton: {
+  topActions: {
     position: 'absolute',
     top: spacing.sm,
     right: spacing.sm,
     zIndex: 40,
-  },
-  heartButton: {
-    position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
-    zIndex: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   chromePressable: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.brand.surface,
     alignItems: 'center',
     justifyContent: 'center',

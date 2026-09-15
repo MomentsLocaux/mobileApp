@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,28 +9,20 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withSpring,
-} from 'react-native-reanimated';
 import {
   Calendar,
   Clock,
   Eye,
-  Heart,
   MapPin,
 } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
-import { Motion } from '@/constants/motion';
-import { haptics } from '@/utils/haptics';
 import { getCategoryColor, getCategoryLabel, getCategoryTextColor } from '@/constants/categories';
 import {
   EVENT_CARD_CTA,
   EVENT_CARD_MEDIA_HEIGHT,
   EVENT_CARD_RADIUS,
+  MAP_PREVIEW_BODY_MIN_HEIGHT,
   type EventCardVariant,
 } from '@/constants/event-card-variants';
 import {
@@ -55,6 +47,7 @@ import {
   type EventCardLikerPreview,
 } from '@/services/event-card-stats.service';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
+import { EventHeartButton } from './EventHeartButton';
 import { EventImageCarousel } from './EventImageCarousel';
 
 /** Tokens alignés DESIGN.md (§2 Couleurs, §4 Boutons/Cards). */
@@ -132,7 +125,9 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const description = getEventDescriptionPreview(event.description, variant === 'compact' ? 0 : 140);
   const locationLabel = getEventLocationLabel(event);
   const distance = formatDistanceLabel(distanceKm, distanceLabel);
-  const humanDate = getHumanizedDate(event);
+  const humanDate = getHumanizedDate(event, {
+    includeTime: variant !== 'map-preview',
+  });
   const accessLabel = getEventAccessLabel(event);
   const temporal = getEventTemporalState(event);
   const participating = isParticipating || Boolean(event.is_interested);
@@ -172,21 +167,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const canNavigate = Boolean(onNavigate);
   const heartActive = isLiked || isFavorite;
   const showHeart = Boolean(onHeartPress);
-
-  const heartScale = useSharedValue(1);
-  const wasHeartActiveRef = useRef(heartActive);
-  useEffect(() => {
-    if (heartActive && !wasHeartActiveRef.current) {
-      heartScale.value = withSequence(
-        withSpring(1.3, Motion.spring.snappy),
-        withSpring(1, Motion.spring.soft)
-      );
-    }
-    wasHeartActiveRef.current = heartActive;
-  }, [heartActive, heartScale]);
-  const heartAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heartScale.value }],
-  }));
 
   const primaryCta = useMemo(() => {
     if (variant === 'favorite') {
@@ -279,40 +259,54 @@ const EventCardComponent: React.FC<EventCardProps> = ({
             </View>
 
             {showHeart ? (
-              <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  haptics.light();
-                  onHeartPress?.();
-                }}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={heartActive ? 'Retirer des favoris' : 'Aimer et enregistrer'}
+              <EventHeartButton
+                active={heartActive}
+                onPress={() => onHeartPress?.()}
                 disabled={!onHeartPress}
-              >
-                <Animated.View style={heartAnimatedStyle}>
-                  <Heart
-                    size={22}
-                    color={heartActive ? CARD_THEME.accent : CARD_THEME.onAccent}
-                    fill={heartActive ? CARD_THEME.accent : 'rgba(0,0,0,0.25)'}
-                  />
-                </Animated.View>
-              </TouchableOpacity>
+              />
             ) : null}
           </View>
         </View>
 
-        <View style={[styles.body, variant === 'compact' && styles.bodyCompact]}>
+        <View
+          style={[
+            styles.body,
+            variant === 'compact' && styles.bodyCompact,
+            variant === 'map-preview' && styles.bodyMapPreview,
+          ]}
+        >
           <View style={styles.titleRow}>
             <View style={styles.mainCol}>
-              <Text style={[styles.title, variant === 'compact' && styles.titleCompact]} numberOfLines={2}>
+              <Text
+                style={[
+                  styles.title,
+                  variant === 'compact' && styles.titleCompact,
+                  variant === 'map-preview' && styles.titleMapPreview,
+                ]}
+                numberOfLines={2}
+              >
                 {event.title}
               </Text>
               {showDescription ? (
                 <Text style={styles.description} numberOfLines={2}>
                   {description}
                 </Text>
+              ) : null}
+
+              {variant === 'map-preview' ? (
+                <View style={styles.mapPreviewDateRow}>
+                  <Calendar size={14} color={CARD_THEME.accent} />
+                  <View style={styles.mapPreviewDateCopy}>
+                    {humanDate.headline ? (
+                      <Text style={styles.mapPreviewHeadline}>
+                        {humanDate.headline}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.mapPreviewDate} numberOfLines={2}>
+                      {humanDate.startLine}
+                    </Text>
+                  </View>
+                </View>
               ) : null}
 
               {canNavigate ? (
@@ -358,14 +352,14 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                   </View>
                 </View>
               </View>
-            ) : (
+            ) : variant !== 'map-preview' ? (
               <View style={styles.compactScheduleCol}>
                 {humanDate.headline ? <Text style={styles.headline}>{humanDate.headline}</Text> : null}
                 <Text style={styles.compactDateLine} numberOfLines={3}>
                   {humanDate.startLine}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           {showMetaBadges ? (
@@ -526,16 +520,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: CARD_THEME.text,
   },
-  favoriteButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(244,251,246,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(26,51,41,0.12)',
-  },
   body: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
@@ -545,6 +529,11 @@ const styles = StyleSheet.create({
   bodyCompact: {
     padding: spacing.sm,
     gap: 6,
+  },
+  bodyMapPreview: {
+    minHeight: MAP_PREVIEW_BODY_MIN_HEIGHT,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   titleRow: {
     flexDirection: 'row',
@@ -566,6 +555,11 @@ const styles = StyleSheet.create({
   titleCompact: {
     fontSize: 17,
     lineHeight: 21,
+  },
+  titleMapPreview: {
+    fontSize: 18,
+    lineHeight: 22,
+    letterSpacing: -0.15,
   },
   description: {
     ...typography.bodySmall,
@@ -593,6 +587,28 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     marginLeft: 4,
+  },
+  mapPreviewDateRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  mapPreviewDateCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mapPreviewHeadline: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: CARD_THEME.accent,
+  },
+  mapPreviewDate: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    color: colors.brand.textSecondary,
   },
   schedulePanel: {
     width: '38%',

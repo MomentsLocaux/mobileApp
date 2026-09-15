@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -156,30 +156,32 @@ const EventResultCardComponent: React.FC<Props> = ({
   );
 
   return (
-    <Animated.View
-      style={[styles.wrapper, cardHeight != null ? { minHeight: cardHeight } : null, cardAnimatedStyle]}
-    >
-      <EventCard
-        event={event}
-        variant={variant}
-        showCarousel={showCarousel}
-        noBottomMargin={noBottomMargin}
-        mediaHeight={mediaHeight}
-        onPress={handlePress}
-        onPrimaryAction={onPress}
-        onNavigate={onNavigate}
-        onHeartPress={handleHeartPress}
-        isFavorite={isHearted}
-        isLiked={isHearted}
-        distanceKm={resolvedDistanceKm}
-        distanceLabel={distanceLabel}
-        viewsCount={viewsCount}
-        friendsGoingCount={friendsGoingCount}
-        likesCount={likesCount}
-        likers={likers}
-        style={cardHeight != null ? styles.cardFill : undefined}
-      />
-    </Animated.View>
+    <View style={styles.wrapper}>
+      <Animated.View
+        style={[cardHeight != null ? { minHeight: cardHeight } : null, cardAnimatedStyle]}
+      >
+        <EventCard
+          event={event}
+          variant={variant}
+          showCarousel={showCarousel}
+          noBottomMargin={noBottomMargin}
+          mediaHeight={mediaHeight}
+          onPress={handlePress}
+          onPrimaryAction={handlePress}
+          onNavigate={onNavigate}
+          onHeartPress={handleHeartPress}
+          isFavorite={isHearted}
+          isLiked={isHearted}
+          distanceKm={resolvedDistanceKm}
+          distanceLabel={distanceLabel}
+          viewsCount={viewsCount}
+          friendsGoingCount={friendsGoingCount}
+          likesCount={likesCount}
+          likers={likers}
+          style={cardHeight != null ? styles.cardFill : undefined}
+        />
+      </Animated.View>
+    </View>
   );
 };
 

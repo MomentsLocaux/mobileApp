@@ -2,10 +2,12 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Linking, InteractionManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
-  Extrapolation,
-  interpolate,
+  cancelAnimation,
+  runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import {
   SHEET_JUNCTION_RADIUS,
@@ -17,10 +19,16 @@ import {
   getSheetSnapHeights,
   MAP_CAMERA_ANIMATION_MS,
   resolveMapTabBarProgress,
-  shouldFollowMapCameraForSheetHeight,
   shouldFollowMapCameraForSheetIndex,
 } from '../../src/utils/map-sheet-layout';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
+import {
+  cloneMapBounds,
+  cloneSheetCameraSnapshot,
+  resolveSheetCameraFitBounds,
+  shouldCaptureSheetCameraAnchor,
+  shouldRestoreSheetCameraAnchor,
+} from '@/utils/map-sheet-camera';
 import type { MapBounds } from '@/types/map-events';
 import { useMapSheetSplitLayout } from '@/hooks/useMapSheetSplitLayout';
 import {
@@ -34,11 +42,15 @@ import {
   useMapFilterActions,
 } from '@/hooks/map';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Layers, Navigation, SlidersHorizontal, ZoomIn } from 'lucide-react-native';
+import { ArrowLeft, Layers, Navigation, SlidersHorizontal, ZoomIn } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapWrapper, type MapWrapperHandle } from '../../src/components/map';
+import {
+  MapWrapper,
+  type MapCameraSnapshot,
+  type MapWrapperHandle,
+} from '../../src/components/map';
 import { useAuth, useLocation } from '@/hooks';
 import {
   useDiscoveryFiltersStore,
@@ -67,7 +79,7 @@ import { MapEventUnitOverlay } from '../../src/components/search/MapEventUnitOve
 import { FloatingPressable } from '../../src/components/ui/FloatingPressable';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
-import { AppBackground } from '../../src/components/ui';
+import { AppBackground, BrandLogoSpinner } from '../../src/components/ui';
 import { useMapTabBarProgress } from '@/components/navigation/MapAwareTabBar';
 import { haptics } from '@/utils/haptics';
 import {
@@ -91,14 +103,22 @@ import {
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
 import { isDefaultDiscoveryTemporal } from '@/utils/search-temporal-choice';
+import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { MAP_PREVIEW_CARD_ESTIMATED_HEIGHT } from '@/constants/event-card-variants';
+import { Motion } from '@/constants/motion';
+import {
+  UNIT_CARD_CYCLE_SHEET_END,
+  unitCycleSheetReveal,
+} from '@/utils/map-unit-cycle';
 
-const SHEET_CAMERA_FOLLOW_THROTTLE_MS = 112;
-const SHEET_CAMERA_FOLLOW_ANIMATION_MS = 96;
+const MAP_BOOTSTRAP_REVEAL_MAX_MS = 1800;
 
 export default function MapScreen() {
   const router = useRouter();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { requestPermission: requestLocationPermission } = useLocation();
+  const reduceMotion = useReduceMotion();
 
   const currentLocation = useLocationStore((s) => s.currentLocation);
   const locationLoading = useLocationStore((s) => s.isLoading);
@@ -143,17 +163,15 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
   const {
-    layoutHeightShared,
     minSheetHeightShared,
     maxSheetHeightShared,
+    layoutHeightShared,
     sheetVisibleHeight,
     sheetProgress,
     isSheetDraggingRef: sheetDraggingRef,
     handleColumnLayout,
     setSheetSnapIndex,
     beginSheetDrag,
-    updateSheetDrag,
-    finishSheetDrag,
   } = useMapSheetSplitLayout(sheetMode, bottomSheetIndex);
   const tabBarProgress = useMapTabBarProgress();
 
@@ -162,27 +180,36 @@ export default function MapScreen() {
   const isSheetDraggingRef = useRef(false);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const latestVisibleBoundsRef = useRef<MapBounds | null>(null);
-  const lastSheetCameraSyncAtRef = useRef(0);
-  const sheetCameraFollowActiveRef = useRef(false);
   const singleEventFocusIdRef = useRef<string | null>(null);
   const markerSelectionGuardRef = useRef(false);
-  const markerSelectionGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unitCameraSnapshotRef = useRef<MapCameraSnapshot | null>(null);
+  const sheetCameraSnapshotRef = useRef<MapCameraSnapshot | null>(null);
+  const sheetCameraBoundsRef = useRef<MapBounds | null>(null);
+  const restoreCameraOnUnitExitRef = useRef(true);
+  const dismissUnitCardRef = useRef<(restoreCamera?: boolean) => void>(() => {});
+  const unitCycleGenerationRef = useRef(0);
   const zoomRef = useRef(12);
   const mapReadyRef = useRef(false);
   const appliedHomeTransferIdRef = useRef<string | null>(null);
   const focusedSearchRevisionRef = useRef<number | null>(null);
   const sheetSnapBeforeRefineRef = useRef<number | null>(null);
+  const sheetSnapBeforeDetailRef = useRef<number | null>(null);
 
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
-  const [zoom, setZoom] = useState(12);
   const [unitCardEvent, setUnitCardEvent] = useState<EventWithCreator | null>(null);
+  const pendingSheetSideEffectsIndexRef = useRef<number | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [mapColumnHeight, setMapColumnHeight] = useState(0);
   const [pendingSearchAreaBounds, setPendingSearchAreaBounds] = useState<MapBounds | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [initialMapPresentationReady, setInitialMapPresentationReady] = useState(false);
+  const unitCardModeProgress = useSharedValue(0);
+  const returningEventId = useMapDetailTransitionStore((state) => state.returningEventId);
 
-  zoomRef.current = zoom;
+  const handleZoomChange = useCallback((nextZoom: number) => {
+    zoomRef.current = nextZoom;
+  }, []);
 
   useEffect(() => {
     isSheetDraggingRef.current = isSheetDragging;
@@ -195,15 +222,6 @@ export default function MapScreen() {
       tabBarProgress.value = progress;
     },
     [tabBarProgress],
-  );
-
-  useEffect(
-    () => () => {
-      if (markerSelectionGuardTimerRef.current) {
-        clearTimeout(markerSelectionGuardTimerRef.current);
-      }
-    },
-    []
   );
 
   const userLocation = useMemo(() => {
@@ -224,11 +242,14 @@ export default function MapScreen() {
       }),
     [place.center, userLocation]
   );
-  const mapCenter = {
-    latitude: mapCamera.latitude,
-    longitude: mapCamera.longitude,
-    zoom: mapCamera.zoom,
-  };
+  const mapCenter = useMemo(
+    () => ({
+      latitude: mapCamera.latitude,
+      longitude: mapCamera.longitude,
+      zoom: mapCamera.zoom,
+    }),
+    [mapCamera.latitude, mapCamera.longitude, mapCamera.zoom],
+  );
 
   const discoveryFilters = useMemo<DiscoveryFilters>(
     () => ({
@@ -277,7 +298,7 @@ export default function MapScreen() {
     zoomRef,
     clearFrozenViewport,
     freezeViewportResults,
-    onUnlockViewport: () => setUnitCardEvent(null),
+    onUnlockViewport: () => dismissUnitCardRef.current(false),
     metaFilter,
     searchApplied,
     hasSearchCriteria,
@@ -304,7 +325,6 @@ export default function MapScreen() {
     handleBoundsChange,
     ensureInitialViewportLoad,
     refreshBounds,
-    syncMapToFrozenViewport,
     lockViewportForSheet,
     unlockViewportForSheet,
     fitToRadius,
@@ -312,6 +332,40 @@ export default function MapScreen() {
     focusOnEvent,
     viewportBootstrappedRef,
   } = viewport;
+
+  useEffect(() => {
+    if (initialMapPresentationReady) return;
+    const initialViewportSettled =
+      viewportBootstrappedRef.current &&
+      sheetStatus !== 'loading';
+    if (
+      !mapReady ||
+      locationLoading ||
+      (!initialViewportSettled && !viewportFetchError)
+    ) {
+      return;
+    }
+
+    const revealTimer = setTimeout(() => {
+      setInitialMapPresentationReady(true);
+    }, 120);
+    return () => clearTimeout(revealTimer);
+  }, [
+    initialMapPresentationReady,
+    locationLoading,
+    mapReady,
+    sheetStatus,
+    viewportBootstrappedRef,
+    viewportFetchError,
+  ]);
+
+  useEffect(() => {
+    if (initialMapPresentationReady || !mapReady) return;
+    const revealTimer = setTimeout(() => {
+      setInitialMapPresentationReady(true);
+    }, MAP_BOOTSTRAP_REVEAL_MAX_MS);
+    return () => clearTimeout(revealTimer);
+  }, [initialMapPresentationReady, mapReady]);
 
   const { handleCategoriesChange, handleTemporalChoice, handleCustomDateChange, handleClearViewportFilters } =
     useMapFilterActions({
@@ -372,97 +426,83 @@ export default function MapScreen() {
     toggleFavorite,
   });
 
-  const syncCameraToSheetHeight = useCallback(
-    (visibleSheetHeight: number, reason: string, options?: { force?: boolean }) => {
-      if (!frozenViewportBoundsRef.current) return;
-      if (
-        !shouldFollowMapCameraForSheetHeight(
-          visibleSheetHeight,
-          layoutHeightShared.value,
-          sheetMode
-        )
-      ) {
-        return;
-      }
-
-      const now = Date.now();
-      if (!options?.force && now - lastSheetCameraSyncAtRef.current < SHEET_CAMERA_FOLLOW_THROTTLE_MS) {
-        return;
-      }
-
-      lastSheetCameraSyncAtRef.current = now;
-      sheetCameraFollowActiveRef.current = true;
-      const paddingBottom = Math.max(MAP_FIT_PADDING, Math.round(visibleSheetHeight + MAP_FIT_PADDING));
-      traceMapSheetPerf('syncMapToFrozenViewport', {
-        reason,
-        paddingBottom,
-        visibleSheetHeight,
-      });
-      syncMapToFrozenViewport({
-        paddingBottom,
-        animationDuration: SHEET_CAMERA_FOLLOW_ANIMATION_MS,
-      });
-    },
-    [frozenViewportBoundsRef, layoutHeightShared, sheetMode, syncMapToFrozenViewport]
-  );
-
   const applySheetSideEffectsAfterSnap = useCallback(
     (targetIdx: number) => {
       traceMapSheetPerf('applySheetSideEffects', { targetIdx });
-      applySheetSideEffects(targetIdx);
-      if (targetIdx === 0) {
-        traceMapSheetPerf('syncMapToFrozenViewport', {
+      if (shouldRestoreSheetCameraAnchor(targetIdx)) {
+        applySheetSideEffects(targetIdx);
+        traceMapSheetPerf('restoreCameraSnapshot', {
           reason: 'sheetClosing',
-          paddingBottom: MAP_FIT_PADDING,
         });
-        if (frozenViewportBoundsRef.current) {
-          syncMapToFrozenViewport({ paddingBottom: MAP_FIT_PADDING });
+        const snapshot = sheetCameraSnapshotRef.current;
+        sheetCameraSnapshotRef.current = null;
+        sheetCameraBoundsRef.current = null;
+        if (snapshot) {
+          mapRef.current?.restoreCameraSnapshot(
+            snapshot,
+            { animationDuration: 0 },
+          );
         } else {
           mapRef.current?.resetCameraPadding();
         }
         return;
       }
+
+      const hasAnchor = Boolean(sheetCameraSnapshotRef.current);
+      if (shouldCaptureSheetCameraAnchor(targetIdx, hasAnchor)) {
+        const snapshot = mapRef.current?.getCameraSnapshot() ?? null;
+        const rawBounds = mapRef.current?.getCachedRawVisibleBounds() ?? null;
+        if (snapshot) {
+          sheetCameraSnapshotRef.current = cloneSheetCameraSnapshot(snapshot);
+        }
+        if (rawBounds) {
+          sheetCameraBoundsRef.current = cloneMapBounds(rawBounds);
+        }
+      }
+
+      applySheetSideEffects(targetIdx);
+
       if (!shouldFollowMapCameraForSheetIndex(targetIdx, sheetMode)) {
         return;
       }
+      const fitBoundsTarget = resolveSheetCameraFitBounds(sheetCameraBoundsRef.current);
+      if (!fitBoundsTarget) return;
       const visibleSheetHeight = sheetVisibleHeight.value;
       const paddingBottom = visibleSheetHeight + MAP_FIT_PADDING;
-      traceMapSheetPerf('syncMapToFrozenViewport', {
+      traceMapSheetPerf('fitSheetCameraAnchor', {
         reason: 'sheetSnapSettled',
         paddingBottom,
         visibleSheetHeight,
       });
-      syncMapToFrozenViewport({ paddingBottom });
+      fitToBounds(fitBoundsTarget, {
+        paddingBottom,
+        animationDuration: SHEET_LAYOUT_TIMING.duration,
+        refreshAfter: false,
+      });
     },
     [
       applySheetSideEffects,
-      frozenViewportBoundsRef,
+      fitToBounds,
       sheetMode,
       sheetVisibleHeight,
-      syncMapToFrozenViewport,
     ]
   );
 
   const sheetOverlayStyle = useAnimatedStyle(() => {
     const maxHeight = maxSheetHeightShared.value;
     const visibleHeight = sheetVisibleHeight.value;
+    const sheetReveal = unitCycleSheetReveal(unitCardModeProgress.value);
+    const hiddenOffset = visibleHeight * (1 - sheetReveal);
     return {
       height: maxHeight,
-      transform: [{ translateY: Math.max(0, maxHeight - visibleHeight) }],
+      opacity: sheetReveal,
+      transform: [
+        {
+          translateY: Math.max(0, maxHeight - visibleHeight) + hiddenOffset,
+        },
+      ],
     };
   });
-
-  const unitOverlayFadeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(sheetProgress.value, [0, 0.35], [1, 0], Extrapolation.CLAMP),
-    transform: [
-      {
-        translateY: interpolate(sheetProgress.value, [0, 0.35], [0, 24], Extrapolation.CLAMP),
-      },
-      {
-        scale: interpolate(sheetProgress.value, [0, 0.35], [1, 0.98], Extrapolation.CLAMP),
-      },
-    ],
-  }));
 
   const handleBoundsChangeWithCache = useCallback(
     (bounds: MapBounds, meta?: { isUserInteraction?: boolean }) => {
@@ -489,56 +529,42 @@ export default function MapScreen() {
       suppressBoundsRecalc(MAP_CAMERA_ANIMATION_MS + 800);
       beginSheetDrag(snapIndex);
       setIsSheetDragging(true);
-      lastSheetCameraSyncAtRef.current = 0;
-      sheetCameraFollowActiveRef.current = false;
 
-      if (!frozenViewportBoundsRef.current && latestVisibleBoundsRef.current) {
+      if (
+        snapIndex !== 0 &&
+        !frozenViewportBoundsRef.current &&
+        latestVisibleBoundsRef.current
+      ) {
         frozenViewportBoundsRef.current = latestVisibleBoundsRef.current;
       }
-      syncCameraToSheetHeight(sheetVisibleHeight.value, 'sheetDragStart', { force: true });
     },
     [
       beginSheetDrag,
       cancelViewportFetch,
       frozenViewportBoundsRef,
-      sheetVisibleHeight,
       suppressBoundsRecalc,
-      syncCameraToSheetHeight,
     ]
-  );
-
-  const handleSheetDragMove = useCallback(
-    (dy: number) => {
-      const nextSheetHeight = updateSheetDrag(dy);
-      if (typeof nextSheetHeight === 'number') {
-        syncCameraToSheetHeight(nextSheetHeight, 'sheetDragMove');
-      }
-    },
-    [syncCameraToSheetHeight, updateSheetDrag]
-  );
-
-  const handleSheetDragHeightChange = useCallback(
-    (visibleSheetHeight: number) => {
-      syncCameraToSheetHeight(visibleSheetHeight, 'sheetNativeDragMove');
-    },
-    [syncCameraToSheetHeight],
   );
 
   const handleSheetDragCancel = useCallback(() => {
     traceMapSheetPerf('handleSheetDragCancel', { snapIndex: bottomSheetIndex });
-    sheetCameraFollowActiveRef.current = false;
-    lastSheetCameraSyncAtRef.current = 0;
+    pendingSheetSideEffectsIndexRef.current = null;
     setIsSheetDragging(false);
     setSheetSnapIndex(bottomSheetIndex, false);
   }, [bottomSheetIndex, setSheetSnapIndex]);
 
   const handleMapBackgroundPress = useCallback(() => {
     if (markerSelectionGuardRef.current) return;
+    if (unitCardEvent) {
+      dismissUnitCardRef.current(true);
+      return;
+    }
     setUnitCardEvent(null);
+    useMapDetailTransitionStore.getState().clear();
     unlockViewportForSheet();
     closeSheet();
     resultsSheetRef.current?.collapseToPeek();
-  }, [closeSheet, unlockViewportForSheet]);
+  }, [closeSheet, unitCardEvent, unlockViewportForSheet]);
 
   const handleSheetIndexChange = useCallback(
     (idx: number, options?: { animate?: boolean }) => {
@@ -573,12 +599,94 @@ export default function MapScreen() {
     ]
   );
 
-  const collapseSheetToPeek = useCallback(() => {
-    resultsSheetRef.current?.collapseToPeek();
-    if (bottomSheetIndex !== 0) {
-      handleSheetIndexChange(0);
+  const commitUnitSheetHidden = useCallback(() => {
+    if (useMapResultsUIStore.getState().bottomSheetIndex !== 0) {
+      setBottomSheetIndex(0);
+      setSheetSnapIndex(0, false);
     }
-  }, [bottomSheetIndex, handleSheetIndexChange]);
+    sheetCameraSnapshotRef.current = null;
+    sheetCameraBoundsRef.current = null;
+  }, [setBottomSheetIndex, setSheetSnapIndex]);
+
+  useAnimatedReaction(
+    () => unitCardModeProgress.value >= UNIT_CARD_CYCLE_SHEET_END,
+    (hidden, wasHidden) => {
+      if (hidden && wasHidden === false) {
+        runOnJS(commitUnitSheetHidden)();
+      }
+    },
+    [commitUnitSheetHidden],
+  );
+
+  const beginUnitCardPresentation = useCallback(
+    (event: EventWithCreator | null) => {
+      if (!event) return;
+      unitCycleGenerationRef.current += 1;
+      setUnitCardEvent(event);
+
+      if (reduceMotion) {
+        cancelAnimation(unitCardModeProgress);
+        unitCardModeProgress.value = 1;
+        commitUnitSheetHidden();
+        return;
+      }
+
+      cancelAnimation(unitCardModeProgress);
+      if (unitCardModeProgress.value >= 0.99) {
+        unitCardModeProgress.value = 1;
+        return;
+      }
+      unitCardModeProgress.value = withTiming(1, {
+        duration: Motion.duration.normal,
+        easing: Motion.easing.exit,
+      });
+    },
+    [commitUnitSheetHidden, reduceMotion, unitCardModeProgress],
+  );
+
+  const finishUnitCardExit = useCallback((generation: number) => {
+    if (generation !== unitCycleGenerationRef.current) return;
+    setUnitCardEvent(null);
+    useMapDetailTransitionStore.getState().clear();
+    closeSheet();
+    const cameraSnapshot = unitCameraSnapshotRef.current;
+    unitCameraSnapshotRef.current = null;
+    if (restoreCameraOnUnitExitRef.current && cameraSnapshot) {
+      mapRef.current?.restoreCameraSnapshot(cameraSnapshot);
+    } else {
+      mapRef.current?.resetCameraPadding();
+    }
+    unlockViewportForSheet();
+  }, [closeSheet, unlockViewportForSheet]);
+
+  const beginUnitCardDismissal = useCallback((restoreCamera = true) => {
+    if (!unitCardEvent) return;
+    restoreCameraOnUnitExitRef.current = restoreCamera;
+    const generation = unitCycleGenerationRef.current + 1;
+    unitCycleGenerationRef.current = generation;
+
+    if (reduceMotion) {
+      cancelAnimation(unitCardModeProgress);
+      unitCardModeProgress.value = 0;
+      finishUnitCardExit(generation);
+      return;
+    }
+
+    cancelAnimation(unitCardModeProgress);
+    unitCardModeProgress.value = withTiming(
+      0,
+      {
+        duration: Motion.duration.fast,
+        easing: Motion.easing.exit,
+      },
+      (finished) => {
+        'worklet';
+        if (finished) runOnJS(finishUnitCardExit)(generation);
+      },
+    );
+  }, [finishUnitCardExit, reduceMotion, unitCardEvent, unitCardModeProgress]);
+
+  dismissUnitCardRef.current = beginUnitCardDismissal;
 
   const { handleFeaturePress: handleMarkerFeaturePress } = useMapMarkerPress({
     mapRef,
@@ -591,67 +699,61 @@ export default function MapScreen() {
     highlightViewportEvent,
     freezeViewportResults,
     focusOnEvent,
-    setUnitCardEvent,
-    collapseSheetToPeek,
+    focusPaddingBottom:
+      MAP_PREVIEW_CARD_ESTIMATED_HEIGHT + insets.bottom + spacing.xl,
+    setUnitCardEvent: beginUnitCardPresentation,
     onMarkerLoadError: setViewportFetchError,
   });
 
   const handleFeaturePress = useCallback(
     (id: string) => {
-      markerSelectionGuardRef.current = true;
-      if (markerSelectionGuardTimerRef.current) {
-        clearTimeout(markerSelectionGuardTimerRef.current);
+      if (!unitCardEvent) {
+        const snapshot = mapRef.current?.getCameraSnapshot() ?? null;
+        unitCameraSnapshotRef.current = snapshot
+          ? cloneSheetCameraSnapshot(snapshot)
+          : null;
+        restoreCameraOnUnitExitRef.current = true;
       }
+      markerSelectionGuardRef.current = true;
       void handleMarkerFeaturePress(id).finally(() => {
-        markerSelectionGuardTimerRef.current = setTimeout(() => {
-          markerSelectionGuardRef.current = false;
-          markerSelectionGuardTimerRef.current = null;
-        }, 400);
+        markerSelectionGuardRef.current = false;
       });
     },
-    [handleMarkerFeaturePress]
+    [handleMarkerFeaturePress, unitCardEvent]
   );
 
   useMapDeepLinkFocus(focus, handleFeaturePress);
 
   const handleSheetDragEnd = useCallback(
-    (dy: number, velocityY: number) => {
-      traceMapSheetPerf('handleSheetDragEnd', { dy, velocityY });
-      const targetIdx = finishSheetDrag(dy, velocityY);
-      const didFollowCameraDuringDrag = sheetCameraFollowActiveRef.current;
-      sheetCameraFollowActiveRef.current = false;
-      lastSheetCameraSyncAtRef.current = 0;
+    (targetIdx: number) => {
+      traceMapSheetPerf('handleSheetDragEnd', { targetIdx });
       setIsSheetDragging(false);
 
       if (targetIdx === bottomSheetIndex) {
-        setSheetSnapIndex(
-          targetIdx,
-          true,
-          didFollowCameraDuringDrag
-            ? () =>
-                applySheetSideEffectsAfterSnap(targetIdx)
-            : undefined,
-        );
+        pendingSheetSideEffectsIndexRef.current = null;
         return;
       }
 
+      pendingSheetSideEffectsIndexRef.current = targetIdx;
       cancelViewportFetch();
       suppressBoundsRecalc(SHEET_LAYOUT_TIMING.duration + 400);
       setBottomSheetIndex(targetIdx);
-      haptics.selection();
-      setSheetSnapIndex(targetIdx, true, () =>
-        applySheetSideEffectsAfterSnap(targetIdx)
-      );
     },
     [
-      applySheetSideEffectsAfterSnap,
       bottomSheetIndex,
       cancelViewportFetch,
-      finishSheetDrag,
       setBottomSheetIndex,
-      setSheetSnapIndex,
       suppressBoundsRecalc,
     ]
+  );
+
+  const handleSheetSnapSettled = useCallback(
+    (targetIdx: number) => {
+      if (pendingSheetSideEffectsIndexRef.current !== targetIdx) return;
+      pendingSheetSideEffectsIndexRef.current = null;
+      applySheetSideEffectsAfterSnap(targetIdx);
+    },
+    [applySheetSideEffectsAfterSnap]
   );
 
   const refreshBoundsRef = useRef(refreshBounds);
@@ -665,6 +767,20 @@ export default function MapScreen() {
     if (!mapReadyRef.current) return;
 
     const uiState = useMapResultsUIStore.getState();
+    const savedDetailSnap = sheetSnapBeforeDetailRef.current;
+    if (savedDetailSnap != null) {
+      sheetSnapBeforeDetailRef.current = null;
+      const returnMode =
+        uiState.sheetStatus === 'singleEvent' ? 'single' : 'viewport';
+      const restoredSnap = Math.min(
+        savedDetailSnap,
+        getSheetMaxSnapIndex(returnMode),
+      );
+      setBottomSheetIndex(restoredSnap);
+      setSheetSnapIndex(restoredSnap, false);
+      return;
+    }
+
     if (uiState.sheetStatus === 'singleEvent' && uiState.frozenViewport) {
       restoreViewportFromFrozenRef.current({ keepHighlight: true });
     }
@@ -752,6 +868,13 @@ export default function MapScreen() {
     useCallback(() => {
       enterFocusedMapRef.current();
     }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!returningEventId) return;
+      useMapDetailTransitionStore.getState().clear();
+    }, [returningEventId]),
   );
 
   useEffect(() => {
@@ -959,6 +1082,31 @@ export default function MapScreen() {
 
   const displaySheetEvents = frozenViewport?.events ?? sheetEvents;
   const displayPeekCount = frozenViewport?.eventCount ?? visibleEventCount;
+  const openUnitEventDetails = useCallback(() => {
+    if (!unitCardEvent) return;
+    useMapDetailTransitionStore.getState().prepare({
+      origin: 'map-unit',
+      eventId: unitCardEvent.id,
+      event: unitCardEvent,
+      targetCardRect: null,
+    });
+    router.push(`/map-event/${unitCardEvent.id}?origin=map-unit` as any);
+  }, [router, unitCardEvent]);
+
+  const openSheetEventDetails = useCallback(
+    (event: EventWithCreator) => {
+      sheetSnapBeforeDetailRef.current =
+        useMapResultsUIStore.getState().bottomSheetIndex;
+      useMapDetailTransitionStore.getState().prepare({
+        origin: 'map-sheet',
+        eventId: event.id,
+        event,
+        targetCardRect: null,
+      });
+      router.push(`/map-event/${event.id}?origin=map-sheet` as any);
+    },
+    [router],
+  );
 
   const showLocationOverlay = locationLoading && !userLocation && !searchActive;
   const showLocationUnavailable =
@@ -977,6 +1125,16 @@ export default function MapScreen() {
       <View style={styles.screenRoot}>
         <View style={[styles.searchSlot, { paddingTop: insets.top + spacing.xs }]}>
           <View style={styles.searchHeaderRow}>
+            <FloatingPressable
+              style={styles.mapBackButton}
+              onPress={() => router.navigate('/(tabs)' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Revenir à l’accueil"
+              accessibilityHint="Affiche l’écran d’accueil"
+              animateEntrance={false}
+            >
+              <ArrowLeft size={24} color={colors.brand.text} />
+            </FloatingPressable>
             <View style={styles.searchBarWrap}>
               <SearchBar
                 onApply={handleApplyMapSearch}
@@ -1027,7 +1185,7 @@ export default function MapScreen() {
               initialRegion={mapCenter}
               userLocation={userLocation}
               onFeaturePress={handleFeaturePress}
-              onZoomChange={setZoom}
+              onZoomChange={handleZoomChange}
               styleURL={mapStyle}
               mapPadding={MAP_VIEW_PADDING}
               bottomOverlayPx={sheetCoverPx}
@@ -1148,7 +1306,7 @@ export default function MapScreen() {
               </View>
             ) : null}
 
-            {userLocation && !searchExpanded ? (
+            {userLocation && !searchExpanded && !unitCardEvent ? (
               <FloatingPressable
                 style={[styles.recenterTopButton, { bottom: VIEWPORT_PEEK_HEIGHT + spacing.sm }]}
                 onPress={recenterToUser}
@@ -1159,7 +1317,7 @@ export default function MapScreen() {
               </FloatingPressable>
             ) : null}
 
-            {!searchExpanded ? (
+            {!searchExpanded && !unitCardEvent ? (
               <FloatingPressable
                 style={[
                   styles.mapStyleButton,
@@ -1187,28 +1345,27 @@ export default function MapScreen() {
 
           {unitCardEvent ? (
             <Animated.View
-              style={[styles.unitOverlaySlot, unitOverlayFadeStyle]}
+              style={styles.unitOverlaySlot}
               pointerEvents="box-none"
             >
               <MapEventUnitOverlay
                 event={unitCardEvent}
-                visible={!!unitCardEvent}
+                progress={unitCardModeProgress}
                 currentUserId={profile?.id}
                 isHearted={likesSet.has(unitCardEvent.id) || favoritesSet.has(unitCardEvent.id)}
                 onToggleHeart={handleToggleHeart}
-                onPress={() => router.push(`/events/${unitCardEvent.id}` as any)}
+                onPress={openUnitEventDetails}
                 onNavigate={() => setNavEvent(unitCardEvent)}
-                onClose={() => {
-                  setUnitCardEvent(null);
-                  unlockViewportForSheet();
-                  closeSheet();
-                }}
-                bottomInset={spacing.sm}
+                onClose={() => beginUnitCardDismissal(true)}
+                bottomInset={insets.bottom + spacing.sm}
               />
             </Animated.View>
           ) : null}
 
-          <Animated.View style={[styles.sheetOverlay, sheetOverlayStyle]}>
+          <Animated.View
+            pointerEvents={unitCardEvent ? 'none' : 'auto'}
+            style={[styles.sheetOverlay, sheetOverlayStyle]}
+          >
             <SearchResultsBottomSheet
               ref={resultsSheetRef}
               events={displaySheetEvents}
@@ -1218,16 +1375,16 @@ export default function MapScreen() {
               sheetVisibleHeight={sheetVisibleHeight}
               minSheetHeight={minSheetHeightShared}
               maxSheetHeight={maxSheetHeightShared}
+              layoutHeight={layoutHeightShared}
               isSheetDragging={isSheetDragging}
               onSheetDragStart={handleSheetDragStart}
-              onSheetDragMove={handleSheetDragMove}
-              onSheetDragHeightChange={handleSheetDragHeightChange}
               onSheetDragEnd={handleSheetDragEnd}
+              onSheetSnapSettled={handleSheetSnapSettled}
               onSheetDragCancel={handleSheetDragCancel}
               onSelectEvent={(event) => selectSingleEvent(event, bottomSheetIndex)}
               onHighlightEvent={handleHighlightEvent}
               onNavigate={(event) => setNavEvent(event)}
-              onOpenDetails={(event) => router.push(`/events/${event.id}` as any)}
+              onOpenDetails={openSheetEventDetails}
               onOpenCreator={(creatorId) => router.push(`/community/${creatorId}` as any)}
               onToggleHeart={handleToggleHeart}
               isHearted={(id) => likesSet.has(id) || favoritesSet.has(id)}
@@ -1250,6 +1407,22 @@ export default function MapScreen() {
             />
           </Animated.View>
         </View>
+
+        {!initialMapPresentationReady ? (
+          <View
+            style={styles.mapBootstrapOverlay}
+            pointerEvents="auto"
+            accessibilityRole="progressbar"
+            accessibilityLabel="Préparation de la carte et des événements"
+            accessibilityLiveRegion="polite"
+          >
+            <BrandLogoSpinner
+              size={64}
+              accessibilityLabel="Préparation de la carte et des événements"
+            />
+            <Text style={styles.mapBootstrapText}>Préparation de la carte…</Text>
+          </View>
+        ) : null}
       </View>
 
       <NavigationOptionsSheet
@@ -1282,6 +1455,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  mapBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchBarWrap: {
     flex: 1,
@@ -1322,7 +1502,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.primary[200],
-    zIndex: 21,
+    zIndex: 9,
   },
   mapModeActiveDot: {
     position: 'absolute',
@@ -1408,7 +1588,21 @@ const styles = StyleSheet.create({
   },
   unitOverlaySlot: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 5,
+    zIndex: 30,
+    elevation: 30,
+  },
+  mapBootstrapOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.brand.page,
+  },
+  mapBootstrapText: {
+    color: colors.brand.textSecondary,
+    fontSize: 15,
+    fontWeight: '600',
   },
   mapErrorBanner: {
     position: 'absolute',

@@ -17,6 +17,7 @@ type Props = {
   images: MediaImage[];
   communityImages?: MediaImage[];
   onAddPhoto?: () => void;
+  onPrimaryImageReady?: () => void;
   children?: React.ReactNode;
 };
 
@@ -29,7 +30,13 @@ const normalizeImageUrl = (value: unknown): string | null => {
   return trimmed;
 };
 
-export function PlaceMediaGallery({ images, communityImages = [], onAddPhoto, children }: Props) {
+export function PlaceMediaGallery({
+  images,
+  communityImages = [],
+  onAddPhoto,
+  onPrimaryImageReady,
+  children,
+}: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerTab, setViewerTab] = useState<'organizer' | 'community'>('organizer');
@@ -91,9 +98,14 @@ export function PlaceMediaGallery({ images, communityImages = [], onAddPhoto, ch
               const index = Math.round(e.nativeEvent.contentOffset.x / width);
               setActiveIndex(index);
             }}
-            renderItem={({ item }) => (
+            initialNumToRender={1}
+            renderItem={({ item, index }) => (
               <Pressable onPress={() => openViewer('organizer', activeIndex)}>
-                <Image source={{ uri: item.uri }} style={styles.heroImage} />
+                <Image
+                  source={{ uri: item.uri }}
+                  style={styles.heroImage}
+                  onLoadEnd={index === 0 ? onPrimaryImageReady : undefined}
+                />
               </Pressable>
             )}
           />

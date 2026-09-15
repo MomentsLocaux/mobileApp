@@ -271,7 +271,7 @@ export function useMapViewportController({
     freezeViewportResults();
 
     if (!frozenViewportBoundsRef.current) {
-      const bounds = await mapRef.current?.getVisibleBounds?.();
+      const bounds = mapRef.current?.getCachedRawVisibleBounds?.() ?? null;
       if (bounds) {
         frozenViewportBoundsRef.current = bounds;
       }
@@ -310,11 +310,25 @@ export function useMapViewportController({
   const fitToBounds = useCallback(
     (
       bounds: MapBounds,
-      options?: { refreshAfter?: boolean; animationDuration?: number }
+      options?: {
+        refreshAfter?: boolean;
+        animationDuration?: number;
+        paddingBottom?: number;
+      }
     ) => {
       const animationDuration = options?.animationDuration ?? MAP_CAMERA_ANIMATION_MS;
+      const paddingBottom = options?.paddingBottom;
+      const padding =
+        typeof paddingBottom === 'number'
+          ? [
+              MAP_FIT_PADDING,
+              MAP_FIT_PADDING,
+              Math.max(MAP_FIT_PADDING, Math.round(paddingBottom)),
+              MAP_FIT_PADDING,
+            ]
+          : MAP_FIT_PADDING;
       withProgrammaticMove(
-        () => mapRef.current?.fitToBounds(bounds, MAP_FIT_PADDING, animationDuration),
+        () => mapRef.current?.fitToBounds(bounds, padding, animationDuration),
         {
           refreshAfter: options?.refreshAfter === true,
           durationMs: animationDuration,
@@ -325,7 +339,10 @@ export function useMapViewportController({
   );
 
   const focusOnEvent = useCallback(
-    (event: EventWithCreator, options?: { bumpZoom?: boolean }) => {
+    (
+      event: EventWithCreator,
+      options?: { bumpZoom?: boolean; paddingBottom?: number },
+    ) => {
       if (typeof event.longitude !== 'number' || typeof event.latitude !== 'number') return;
 
       const targetZoom =
@@ -337,7 +354,8 @@ export function useMapViewportController({
             longitude: event.longitude,
             latitude: event.latitude,
             zoom: targetZoom,
-            paddingBottom: MAP_FOCUS_PADDING_BOTTOM,
+            paddingBottom:
+              options?.paddingBottom ?? MAP_FOCUS_PADDING_BOTTOM,
           });
         },
         { refreshAfter: false }
