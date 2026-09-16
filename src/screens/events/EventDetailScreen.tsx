@@ -153,9 +153,11 @@ export default function EventDetailScreen() {
   const tagsMap = useTaxonomyStore((s) => s.tagsMap);
 
   const transitionContext = useMapDetailTransitionStore((state) => state.context);
+  const isListDetailOrigin = origin === 'home-list';
   const isMapTransitionOrigin =
     (origin === 'map-unit' || origin === 'map-sheet') &&
     transitionContext?.origin === origin;
+  const canSwipeDismiss = isMapTransitionOrigin || isListDetailOrigin;
   const seededEvent = resolveSeededEventDetail({
     eventId: id,
     origin,
@@ -168,10 +170,12 @@ export default function EventDetailScreen() {
   const reduceMotion = useReduceMotion();
   const canAnimateMapSurface =
     !reduceMotion && isMapTransitionOrigin && Boolean(seededEvent);
-  const surfaceProgress = useSharedValue(canAnimateMapSurface ? 0 : 1);
+  const canAnimateListSurface = !reduceMotion && isListDetailOrigin;
+  const canAnimateSurface = canAnimateMapSurface || canAnimateListSurface;
+  const surfaceProgress = useSharedValue(canAnimateSurface ? 0 : 1);
   const [scrollAtTop, setScrollAtTop] = useState(true);
   const [entryMotionComplete, setEntryMotionComplete] = useState(
-    !canAnimateMapSurface,
+    !canAnimateSurface,
   );
   const dismissingRef = useRef(false);
   const seededIdRef = useRef(id);
@@ -442,7 +446,7 @@ export default function EventDetailScreen() {
     if (router.canGoBack?.()) {
       router.back();
     } else {
-      router.replace('/(tabs)/map');
+      router.replace(isMapTransitionOrigin ? '/(tabs)/map' : '/(tabs)');
     }
   }, [id, isMapTransitionOrigin, router]);
 
@@ -468,11 +472,13 @@ export default function EventDetailScreen() {
   }, [finishMapDismiss, reduceMotion, surfaceProgress]);
 
   const startMapDismiss = useCallback(() => {
-    if (!isMapTransitionOrigin || transitionContext?.eventId !== id) {
+    if (isMapTransitionOrigin && transitionContext?.eventId !== id) {
       finishMapDismiss();
       return;
     }
-    useMapDetailTransitionStore.getState().markReturning(id);
+    if (isMapTransitionOrigin && id) {
+      useMapDetailTransitionStore.getState().markReturning(id);
+    }
     animateMapDismiss();
   }, [
     animateMapDismiss,
@@ -500,7 +506,7 @@ export default function EventDetailScreen() {
   );
 
   useEffect(() => {
-    if (!isMapTransitionOrigin) return;
+    if (!canSwipeDismiss) return;
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -509,13 +515,13 @@ export default function EventDetailScreen() {
       },
     );
     return () => subscription.remove();
-  }, [isMapTransitionOrigin, startMapDismiss]);
+  }, [canSwipeDismiss, startMapDismiss]);
 
   const detailScrollGesture = useMemo(() => Gesture.Native(), []);
   const mapDismissGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(isMapTransitionOrigin && scrollAtTop)
+        .enabled(canSwipeDismiss && scrollAtTop)
         .activeOffsetY(10)
         .failOffsetX([-24, 24])
         .simultaneousWithExternalGesture(detailScrollGesture)
@@ -538,9 +544,9 @@ export default function EventDetailScreen() {
           }
         }),
     [
+      canSwipeDismiss,
       detailScrollGesture,
       handleDismissGestureRelease,
-      isMapTransitionOrigin,
       scrollAtTop,
       surfaceProgress,
       windowDimensions.height,
@@ -548,7 +554,7 @@ export default function EventDetailScreen() {
   );
 
   useEffect(() => {
-    if (!isMapTransitionOrigin) return;
+    if (!canSwipeDismiss) return;
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') return;
       cancelAnimation(surfaceProgress);
@@ -556,10 +562,10 @@ export default function EventDetailScreen() {
       surfaceProgress.value = 1;
     });
     return () => subscription.remove();
-  }, [isMapTransitionOrigin, surfaceProgress]);
+  }, [canSwipeDismiss, surfaceProgress]);
 
   const handleBack = () => {
-    if (isMapTransitionOrigin) {
+    if (canSwipeDismiss) {
       startMapDismiss();
       return;
     }
@@ -1075,7 +1081,7 @@ export default function EventDetailScreen() {
       surfaceProgress.value = 1;
       return;
     }
-    if (reduceMotion || !canAnimateMapSurface) {
+    if (reduceMotion || !canAnimateSurface) {
       surfaceProgress.value = 1;
       setEntryMotionComplete(true);
       return;
@@ -1092,7 +1098,7 @@ export default function EventDetailScreen() {
       },
     );
   }, [
-    canAnimateMapSurface,
+    canAnimateSurface,
     entryMotionComplete,
     event,
     finishEntryMotion,
@@ -1101,11 +1107,28 @@ export default function EventDetailScreen() {
     surfaceProgress,
   ]);
 
-  const slideOffset = getMapDetailSlideOffset(windowDimensions.height);
+  const slideOffset = canAnimateMapSurface
+    ? getMapDetailSlideOffset(windowDimensions.height)
+    : windowDimensions.height;
   const screenStyle = useAnimatedStyle(() => {
     const progress = surfaceProgress.value;
-    if (!canAnimateMapSurface) {
+    if (!canAnimateSurface) {
       return { opacity: progress };
+    }
+
+    if (canAnimateListSurface) {
+      return {
+        transform: [
+          {
+            translateY: interpolate(
+              progress,
+              [0, 1],
+              [slideOffset, 0],
+              Extrapolation.CLAMP,
+            ),
+          },
+        ],
+      };
     }
 
     return {
@@ -1126,7 +1149,7 @@ export default function EventDetailScreen() {
         },
       ],
     };
-  }, [canAnimateMapSurface, slideOffset]);
+  }, [canAnimateListSurface, canAnimateSurface, slideOffset]);
 
   if (loading && !event) {
     return (
@@ -1166,7 +1189,7 @@ export default function EventDetailScreen() {
               contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
-              bounces={!isMapTransitionOrigin}
+              bounces={!canSwipeDismiss}
               onScroll={(scrollEvent) => {
                 const nextAtTop = scrollEvent.nativeEvent.contentOffset.y <= 1;
                 setScrollAtTop((current) =>
@@ -1177,7 +1200,7 @@ export default function EventDetailScreen() {
         <AppBackground />
         <StatusBar barStyle="light-content" />
 
-        <MotionReveal delay={0} enabled={!seededEvent && !isMapTransitionOrigin}>
+        <MotionReveal delay={0} enabled={!seededEvent && !canSwipeDismiss}>
         <View style={styles.heroContainer}>
           <PlaceMediaGallery
             images={mediaImages}

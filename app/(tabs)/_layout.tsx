@@ -1,4 +1,4 @@
-import { Tabs, Redirect, useRouter } from 'expo-router';
+import { Tabs, Redirect, usePathname, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
@@ -62,6 +62,7 @@ import { useLumiaTourStore } from '@/store/lumiaTourStore';
 import {
   MapAwareTabBar,
   MapTabBarMotionProvider,
+  TAB_BAR_ICONS_HEIGHT,
 } from '@/components/navigation/MapAwareTabBar';
 
 export default function TabsLayout() {
@@ -73,9 +74,11 @@ export default function TabsLayout() {
   const isProfessionnelAccount = accountKind === 'professionnel';
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const router = useRouter();
+  const pathname = usePathname();
+  const onSettings = pathname === '/settings' || pathname.startsWith('/settings/');
   const insets = useSafeAreaInsets();
   const tabBarBottomPad = Math.max(insets.bottom, 8);
-  const tabBarHeight = 60 + tabBarBottomPad;
+  const tabBarHeight = TAB_BAR_ICONS_HEIGHT + tabBarBottomPad;
   const tabBarStyleBase = {
     backgroundColor: colors.brand.page,
     borderTopColor: accent.accentBorder,
@@ -414,6 +417,16 @@ export default function TabsLayout() {
         {/* Routes masquées du tab bar mais toujours accessibles */}
         <Tabs.Screen name="community" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            href: null,
+            tabBarStyle: {
+              ...tabBarStyleBase,
+              position: 'absolute',
+            },
+          }}
+        />
       </Tabs>
 
       {drawerOpen ? (
@@ -469,11 +482,11 @@ export default function TabsLayout() {
             {publishSurfaces.showCenterTabAction ? (
               <DrawerLink
                 icon={PlusCircle}
-                label="Ajouter un événement"
+                label="Ajouter une suggestion"
                 onPress={() => {
                   toggleDrawer(false);
                   if (isGuest) {
-                    openGuestGate('Ajouter un événement');
+                    openGuestGate('Ajouter une suggestion');
                     return;
                   }
                   if (publishSurfaces.canOrganize && !publishSurfaces.eventSuggest) {
@@ -628,7 +641,7 @@ export default function TabsLayout() {
         </View>
       </Animated.View>
 
-      {showContributionFab ? (
+      {showContributionFab && !onSettings ? (
         <GestureHandlerRootView
           pointerEvents={drawerOpen || lumiaTourVisible ? 'none' : 'box-none'}
           style={styles.fabLayer}

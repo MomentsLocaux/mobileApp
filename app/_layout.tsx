@@ -138,7 +138,6 @@ export default function RootLayout() {
         />
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="contact" />
-        <Stack.Screen name="settings" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />

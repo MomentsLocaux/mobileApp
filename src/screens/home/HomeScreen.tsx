@@ -637,7 +637,7 @@ export default function HomeScreen() {
     (event: EventWithCreator) => {
       useEventPreviewStore.getState().prepareEventDetail(event);
       prefetchEventMedia(event);
-      router.push(`/events/${event.id}` as any);
+      router.push(`/map-event/${event.id}?origin=home-list` as any);
     },
     [router]
   );

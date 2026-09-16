@@ -17,6 +17,9 @@ import { useReduceMotion } from '@/hooks/useReduceMotion';
 
 const INTERACTIVE_PROGRESS_THRESHOLD = 0.05;
 
+/** Icon row above the home indicator — keep in sync with `app/(tabs)/_layout.tsx`. */
+export const TAB_BAR_ICONS_HEIGHT = 60;
+
 const MapTabBarProgressContext = createContext<SharedValue<number> | null>(null);
 
 export function MapTabBarMotionProvider({ children }: { children: React.ReactNode }) {
@@ -43,7 +46,9 @@ export function MapAwareTabBar({
 }: BottomTabBarProps & { containerHeight: number }) {
   const mapProgress = useMapTabBarProgress();
   const reduceMotion = useReduceMotion();
-  const isMapActive = props.state.routes[props.state.index]?.name === 'map';
+  const routeName = props.state.routes[props.state.index]?.name;
+  const isMapActive = routeName === 'map';
+  const pinToScreenBottom = isMapActive || routeName === 'settings';
   const [interactive, setInteractive] = useState(!isMapActive);
 
   useEffect(() => {
@@ -92,8 +97,8 @@ export function MapAwareTabBar({
       accessibilityElementsHidden={!interactive}
       importantForAccessibility={interactive ? 'auto' : 'no-hide-descendants'}
       style={[
-        isMapActive ? styles.overlay : null,
-        isMapActive ? { height: containerHeight } : null,
+        pinToScreenBottom ? styles.overlay : null,
+        pinToScreenBottom ? { height: containerHeight } : null,
         animatedStyle,
       ]}
     >
