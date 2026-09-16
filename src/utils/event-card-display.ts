@@ -147,22 +147,38 @@ export function isEventVerified(event: Pick<EventWithCreator, 'status'>): boolea
   return event.status === 'published';
 }
 
-export function getEventSocialProofLabel(
-  friendsGoingCount?: number,
-  likesCount?: number,
-  options?: { isLiked?: boolean },
-): string {
-  const likes = Number.isFinite(likesCount) ? Number(likesCount) : 0;
-  const effectiveLikes = options?.isLiked ? Math.max(likes, 1) : likes;
+export function socialProofFirstName(displayName?: string | null): string {
+  const trimmed = (displayName || '').trim();
+  if (!trimmed || /^membre$/i.test(trimmed)) return 'un suivi';
+  return trimmed.split(/\s+/)[0] || 'un suivi';
+}
 
-  if (effectiveLikes > 0) {
-    return `${effectiveLikes} personne${effectiveLikes > 1 ? 's' : ''} aime${effectiveLikes > 1 ? 'nt' : ''}`;
+export function getEventEchoesLabel(commentsCount?: number | null): string | null {
+  const count = Number.isFinite(commentsCount) ? Number(commentsCount) : 0;
+  if (count < 1) return null;
+  return `${count} écho${count > 1 ? 's' : ''}`;
+}
+
+/** Null when there is no like signal — cards stay empty rather than “soyez le premier”. */
+export function getEventSocialProofLabel(options: {
+  likesCount?: number | null;
+  isLiked?: boolean;
+  followedNames?: (string | null | undefined)[];
+}): string | null {
+  const likes = Number.isFinite(options.likesCount) ? Number(options.likesCount) : 0;
+  const effectiveLikes = options.isLiked ? Math.max(likes, 1) : likes;
+  if (effectiveLikes <= 0) return null;
+
+  const followedNames = (options.followedNames ?? [])
+    .map((name) => socialProofFirstName(name))
+    .filter(Boolean);
+  if (followedNames.length === 1) return `Aimé par ${followedNames[0]}`;
+  if (followedNames.length > 1) {
+    const others = followedNames.length - 1;
+    return `${followedNames[0]} et ${others} suivi${others > 1 ? 's' : ''}`;
   }
 
-  const friends = Number.isFinite(friendsGoingCount) ? Number(friendsGoingCount) : 0;
-  if (friends > 0) return `${friends} ami·e·s aiment`;
-
-  return 'Soyez le premier à aimer';
+  return `${effectiveLikes} personne${effectiveLikes > 1 ? 's' : ''} aime${effectiveLikes > 1 ? 'nt' : ''}`;
 }
 
 export function getEventDescriptionPreview(description?: string | null, maxLength = 140): string | null {

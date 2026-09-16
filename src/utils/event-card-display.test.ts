@@ -3,12 +3,15 @@ import { describe, it } from 'node:test';
 import {
   formatResolvedEventTagLabel,
   getEventCoverImageSource,
+  getEventEchoesLabel,
   getEventImageUrls,
   getEventPrefetchUrls,
+  getEventSocialProofLabel,
   EVENT_LIST_COVER_DECODE_PX,
   getVisibleEventTags,
   isHiddenDiscoveryTag,
   isInternalTagId,
+  socialProofFirstName,
 } from './event-card-display';
 
 describe('visible event tags', () => {
@@ -86,5 +89,51 @@ describe('event media prefetch urls', () => {
     assert.equal(list.cacheKey, uri);
     assert.equal(list.width, EVENT_LIST_COVER_DECODE_PX);
     assert.equal(detail.width, undefined);
+  });
+});
+
+describe('event card social proof', () => {
+  it('hides the row when nobody liked', () => {
+    assert.equal(getEventSocialProofLabel({ likesCount: 0 }), null);
+    assert.equal(getEventSocialProofLabel({ likesCount: 0, followedNames: ['Léa'] }), null);
+    assert.equal(getEventSocialProofLabel({}), null);
+  });
+
+  it('keeps a like you just added even if the count has not caught up', () => {
+    assert.equal(getEventSocialProofLabel({ likesCount: 0, isLiked: true }), '1 personne aime');
+  });
+
+  it('prefers followed peers over a raw like count', () => {
+    assert.equal(
+      getEventSocialProofLabel({ likesCount: 12, followedNames: ['Léa Martin'] }),
+      'Aimé par Léa',
+    );
+    assert.equal(
+      getEventSocialProofLabel({ likesCount: 12, followedNames: ['Léa Martin', 'Paul', 'Nina'] }),
+      'Léa et 2 suivis',
+    );
+    assert.equal(
+      getEventSocialProofLabel({ likesCount: 4, followedNames: ['Léa', 'Paul'] }),
+      'Léa et 1 suivi',
+    );
+  });
+
+  it('falls back to the public like count without empty-state copy', () => {
+    assert.equal(getEventSocialProofLabel({ likesCount: 1 }), '1 personne aime');
+    assert.equal(getEventSocialProofLabel({ likesCount: 12 }), '12 personnes aiment');
+  });
+
+  it('treats a generic member label as a followed peer', () => {
+    assert.equal(socialProofFirstName('Membre'), 'un suivi');
+    assert.equal(
+      getEventSocialProofLabel({ likesCount: 3, followedNames: ['Membre'] }),
+      'Aimé par un suivi',
+    );
+  });
+
+  it('shows echoes only when there is at least one comment', () => {
+    assert.equal(getEventEchoesLabel(0), null);
+    assert.equal(getEventEchoesLabel(1), '1 écho');
+    assert.equal(getEventEchoesLabel(3), '3 échos');
   });
 });

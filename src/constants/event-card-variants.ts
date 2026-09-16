@@ -18,7 +18,12 @@ export const EVENT_CARD_MEDIA_HEIGHT: Record<EventCardVariant, number> = {
 };
 
 export const MAP_PREVIEW_BODY_MIN_HEIGHT = 132;
+/** Slack for the likes / suivis / échos row when present. */
+export const MAP_PREVIEW_SOCIAL_ROW_HEIGHT = 24;
 export const MAP_PREVIEW_CARD_ESTIMATED_HEIGHT =
-  EVENT_CARD_MEDIA_HEIGHT['map-preview'] + MAP_PREVIEW_BODY_MIN_HEIGHT + 2;
+  EVENT_CARD_MEDIA_HEIGHT['map-preview'] +
+  MAP_PREVIEW_BODY_MIN_HEIGHT +
+  MAP_PREVIEW_SOCIAL_ROW_HEIGHT +
+  2;
 
 export const EVENT_CARD_RADIUS = 24;

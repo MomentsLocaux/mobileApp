@@ -30,6 +30,7 @@ import {
   getEventAccessLabel,
   getEventContextTags,
   getEventDescriptionPreview,
+  getEventEchoesLabel,
   getEventImageUrls,
   getEventLocationLabel,
   getEventSocialProofLabel,
@@ -39,6 +40,7 @@ import {
   MIN_VIEWS_BADGE_THRESHOLD,
   formatResolvedEventTagLabel,
 } from '@/utils/event-card-display';
+import { features } from '@/config/features';
 import { useAuth } from '@/hooks';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -52,6 +54,8 @@ import { EventHeartButton } from './EventHeartButton';
 import { EventImageCarousel } from './EventImageCarousel';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
+
+const CARD_SOCIAL_AVATAR_LIMIT = 3;
 
 /** Tokens alignés DESIGN.md (§2 Couleurs, §4 Boutons/Cards). */
 const CARD_THEME = {
@@ -105,7 +109,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   distanceKm,
   distanceLabel,
   viewsCount = 0,
-  friendsGoingCount = 0,
   likesCount,
   likers,
   showCarousel = true,
@@ -139,7 +142,6 @@ const EventCardComponent: React.FC<EventCardProps> = ({
     typeof likesCount === 'number' && Number.isFinite(likesCount)
       ? likesCount
       : event.likes_count || 0;
-  const socialLabel = getEventSocialProofLabel(friendsGoingCount, resolvedLikesCount, { isLiked });
   const stackedLikers = useMemo(
     () =>
       mergeLikerPreviews(likers ?? [], {
@@ -155,6 +157,17 @@ const EventCardComponent: React.FC<EventCardProps> = ({
       }),
     [isLiked, likers, profile?.avatar_url, profile?.display_name, profile?.id],
   );
+  const visibleLikers = stackedLikers.slice(0, CARD_SOCIAL_AVATAR_LIMIT);
+  const followedNames = features.socialPeers
+    ? stackedLikers.filter((row) => row.is_followed).map((row) => row.display_name)
+    : [];
+  const socialLabel = getEventSocialProofLabel({
+    likesCount: resolvedLikesCount,
+    isLiked,
+    followedNames,
+  });
+  const echoesLabel = getEventEchoesLabel(event.comments_count);
+  const showSocialAvatars = Boolean(features.socialPeers && socialLabel && visibleLikers.length > 0);
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
   const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
   const showAccessBadge = isMeaningfulAccessLabel(accessLabel);
@@ -164,7 +177,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const showSchedulePanel = false;
   const showCleanDateRow = usesCleanBody;
   const showMetaBadges = temporal === 'cancelled';
-  const showSocial = false;
+  const showEngagement = variant !== 'compact' && Boolean(socialLabel || echoesLabel);
   const showFooter = false;
   const canNavigate = Boolean(onNavigate);
   const heartActive = isLiked || isFavorite;
@@ -396,26 +409,26 @@ const EventCardComponent: React.FC<EventCardProps> = ({
             </View>
           ) : null}
 
-          {showSocial ? (
+          {showEngagement ? (
             <View
               style={styles.socialRow}
               accessibilityRole="text"
-              accessibilityLabel={socialLabel}
+              accessibilityLabel={[socialLabel, echoesLabel].filter(Boolean).join(', ')}
             >
-              {stackedLikers.length > 0 ? (
+              {showSocialAvatars ? (
                 <View style={styles.likerStack} accessible={false}>
-                  {stackedLikers.map((liker, index) => {
+                  {visibleLikers.map((liker, index) => {
                     const initial = (liker.display_name || '?').slice(0, 1).toUpperCase();
                     return liker.avatar_url ? (
                       <Image
                         key={liker.id}
                         source={{ uri: liker.avatar_url }}
-                        style={[styles.likerAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: stackedLikers.length - index }]}
+                        style={[styles.likerAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: visibleLikers.length - index }]}
                       />
                     ) : (
                       <View
                         key={liker.id}
-                        style={[styles.likerAvatar, styles.likerFallback, { marginLeft: index === 0 ? 0 : -8, zIndex: stackedLikers.length - index }]}
+                        style={[styles.likerAvatar, styles.likerFallback, { marginLeft: index === 0 ? 0 : -8, zIndex: visibleLikers.length - index }]}
                       >
                         <Text style={styles.likerFallbackText}>{initial}</Text>
                       </View>
@@ -423,7 +436,17 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                   })}
                 </View>
               ) : null}
-              <Text style={styles.socialText}>{socialLabel}</Text>
+              {socialLabel ? (
+                <Text style={styles.socialText} numberOfLines={1}>
+                  {socialLabel}
+                </Text>
+              ) : null}
+              {socialLabel && echoesLabel ? <Text style={styles.socialSeparator}>·</Text> : null}
+              {echoesLabel ? (
+                <Text style={styles.echoesText} numberOfLines={1}>
+                  {echoesLabel}
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -712,6 +735,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    marginTop: 2,
+    minHeight: 22,
   },
   likerStack: {
     flexDirection: 'row',
@@ -736,9 +761,21 @@ const styles = StyleSheet.create({
     color: CARD_THEME.text,
   },
   socialText: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: '600',
     color: CARD_THEME.accent,
+  },
+  socialSeparator: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.brand.textSecondary,
+  },
+  echoesText: {
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.brand.textSecondary,
   },
   footerRow: {
     flexDirection: 'row',

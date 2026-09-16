@@ -343,7 +343,6 @@ export default function EventDetailScreen() {
       if (enriched) {
         setEvent((current) => {
           const merged = mergeCachedEvent(current ?? undefined, enriched);
-          useEventPreviewStore.getState().rememberEvent(merged);
           if (
             current &&
             eventHeroIdentity(current) === eventHeroIdentity(merged) &&
@@ -355,6 +354,7 @@ export default function EventDetailScreen() {
           }
           return merged;
         });
+        useEventPreviewStore.getState().rememberEvent(enriched);
       } else {
         setEvent((current) => (current?.id === id ? current : null));
       }

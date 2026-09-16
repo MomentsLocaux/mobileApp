@@ -11,7 +11,7 @@ import type { EventWithCreator } from '@/types/database';
 import { colors, spacing } from '@/constants/theme';
 import { Motion } from '@/constants/motion';
 import { EventCard } from '@/components/events/EventCard';
-import { EventCardStatsService } from '@/services/event-card-stats.service';
+import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
 import { unitCycleCardReveal } from '@/utils/map-unit-cycle';
@@ -39,8 +39,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   onClose,
   bottomInset = spacing.md,
 }) => {
-  const [viewsCount, setViewsCount] = useState(0);
-  const [friendsGoingCount, setFriendsGoingCount] = useState(0);
+  const [cardStats, setCardStats] = useState<EventCardStats | null>(null);
   const [interactive, setInteractive] = useState(false);
   const statsRequestRef = useRef(0);
 
@@ -51,9 +50,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
     const task = InteractionManager.runAfterInteractions(() => {
       EventCardStatsService.getStatsForEvents([event.id], currentUserId).then((stats) => {
         if (cancelled || statsRequestRef.current !== requestId) return;
-        const entry = stats[event.id];
-        setViewsCount(entry?.viewsCount ?? 0);
-        setFriendsGoingCount(entry?.friendsGoingCount ?? 0);
+        setCardStats(stats[event.id] ?? null);
       });
     });
     return () => {
@@ -117,8 +114,10 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
           variant="map-preview"
           showCarousel={false}
           noBottomMargin
-          viewsCount={viewsCount}
-          friendsGoingCount={friendsGoingCount}
+          viewsCount={cardStats?.viewsCount ?? 0}
+          friendsGoingCount={cardStats?.friendsGoingCount ?? 0}
+          likesCount={cardStats?.likesCount ?? event.likes_count ?? 0}
+          likers={cardStats?.likers ?? []}
           onPress={onPress}
           onNavigate={onNavigate}
           isLiked={isHearted}
