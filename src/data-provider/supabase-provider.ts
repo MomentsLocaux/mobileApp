@@ -10,20 +10,15 @@ import {
 import type { EventTimeScope } from '@/utils/event-time-scope';
 import { nameQueryOrFilters } from '@/utils/event-name-search';
 import { sanitizeUgcText, UGC_LIMITS } from '@/utils/ugc-sanitize';
+import { mapSupabaseWriteError } from '@/utils/supabase-write-error';
 
 const formatSupabaseError = (error: any, context: string) => {
+  const mapped = mapSupabaseWriteError(error);
+  if (mapped) return new Error(mapped);
   const rawMessage =
     (typeof error?.message === 'string' && error.message) || (typeof error === 'string' && error) || 'Erreur Supabase';
-  const message =
-    typeof rawMessage === 'string' && rawMessage.includes('RATE_LIMIT_EXCEEDED')
-      ? 'Trop de requêtes. Réessaie dans une minute.'
-      : typeof rawMessage === 'string' && rawMessage.includes('UGC_TOO_LONG')
-        ? 'Texte trop long. Raccourcis-le puis réessaie.'
-      : rawMessage.trim().startsWith('<!DOCTYPE') || rawMessage.includes('Cloudflare')
-        ? 'Supabase ne répond pas (timeout). Réessayez dans quelques instants.'
-        : rawMessage;
   const details = [error?.code, error?.details, error?.hint].filter(Boolean).join(' | ');
-  return new Error(`[${context}] ${message}${details ? ` (${details})` : ''}`);
+  return new Error(`[${context}] ${rawMessage}${details ? ` (${details})` : ''}`);
 };
 
 const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatar';
@@ -802,10 +797,12 @@ export const supabaseProvider: (Pick<
     rating?: number | null;
     parentCommentId?: string | null;
   }) {
+    const message = sanitizeUgcText(String(payload.message ?? ''), UGC_LIMITS.comment);
+    if (!message) throw formatSupabaseError('Message vide', 'createComment');
     const insertPayload = {
       event_id: payload.eventId,
       author_id: payload.authorId,
-      message: sanitizeUgcText(payload.message, UGC_LIMITS.comment),
+      message,
       rating: payload.rating ?? null,
       parent_comment_id: payload.parentCommentId ?? null,
     } as any;
@@ -839,7 +836,7 @@ export const supabaseProvider: (Pick<
         event_id: payload.eventId,
         author_id: payload.authorId,
         parent_comment_id: payload.parentCommentId ?? null,
-        message: payload.message,
+        message,
         rating: payload.rating ?? null,
         created_at: nowIso,
         updated_at: nowIso,
@@ -854,7 +851,7 @@ export const supabaseProvider: (Pick<
         event_id: payload.eventId,
         author_id: payload.authorId,
         parent_comment_id: payload.parentCommentId ?? null,
-        message: payload.message,
+        message,
         rating: payload.rating ?? null,
         created_at: nowIso,
         updated_at: nowIso,

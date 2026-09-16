@@ -42,6 +42,8 @@ import { MapResultsSkeleton } from './MapResultsSkeleton';
 import { haptics } from '@/utils/haptics';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import { useDiscoveryListWindow } from '@/hooks/useDiscoveryListWindow';
+import { DiscoveryListWindowFooter } from '@/components/ui';
 
 const SHEET_VIEWABILITY_CONFIG = {
   itemVisiblePercentThreshold: 45,
@@ -189,8 +191,24 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     ref
   ) => {
     const listRef = useRef<FlatList<EventWithCreator>>(null);
+    const prefetchSheetPage = useCallback((pageItems: EventWithCreator[]) => {
+      pageItems.forEach((event) => prefetchEventMedia(event));
+    }, []);
+    const {
+      visibleItems,
+      totalCount,
+      loadingMore,
+      orderKey,
+      revealNextPage,
+      revealThroughIndex,
+      handleHighestViewedIndex,
+    } = useDiscoveryListWindow(events, { onPrefetchPage: prefetchSheetPage });
+    const handleHighestViewedIndexRef = useRef(handleHighestViewedIndex);
+    handleHighestViewedIndexRef.current = handleHighestViewedIndex;
+    const revealThroughIndexRef = useRef(revealThroughIndex);
+    revealThroughIndexRef.current = revealThroughIndex;
     const onViewableItemsChanged = useRef(
-      ({ viewableItems }: { viewableItems: { item?: EventWithCreator }[] }) => {
+      ({ viewableItems }: { viewableItems: { item?: EventWithCreator; index?: number | null }[] }) => {
         const visible = viewableItems
           .map((entry) => entry.item)
           .filter((event): event is EventWithCreator => Boolean(event?.id));
@@ -200,6 +218,12 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           visible.map((event) => event.id),
         );
         visible.forEach((event) => prefetchEventMedia(event));
+        const indexes = viewableItems
+          .map((entry) => entry.index)
+          .filter((index): index is number => index != null);
+        if (indexes.length) {
+          handleHighestViewedIndexRef.current(Math.max(...indexes));
+        }
       },
     ).current;
     const dragActiveRef = useRef(false);
@@ -248,8 +272,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 
     const eventIds = React.useMemo(
-      () => events.map((event) => event.id).filter(Boolean),
-      [events]
+      () => visibleItems.map((event) => event.id).filter(Boolean),
+      [visibleItems]
     );
     const eventIdsKey = React.useMemo(() => eventIds.join(','), [eventIds]);
 
@@ -267,6 +291,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         const targetIndex = events.findIndex((event) => event.id === eventId);
         if (targetIndex < 0 || !showViewportList) return;
 
+        revealThroughIndexRef.current(targetIndex);
         scrollTaskRef.current?.cancel?.();
         scrollTaskRef.current = InteractionManager.runAfterInteractions(() => {
           requestAnimationFrame(() => {
@@ -288,6 +313,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       },
       []
     );
+
+    React.useEffect(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }, [orderKey]);
 
     React.useEffect(() => {
       let cancelled = false;
@@ -683,9 +712,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                     >
                       Mise à jour de la zone…
                     </Text>
-                  ) : events.length > 0 ? (
+                  ) : Math.max(peekCount, totalCount) > 0 ? (
                     <Text style={styles.headerSubtitle}>
-                      {events.length} résultat{events.length > 1 ? 's' : ''}
+                      {Math.max(peekCount, totalCount)} résultat
+                      {Math.max(peekCount, totalCount) > 1 ? 's' : ''}
                     </Text>
                   ) : null}
                 </View>
@@ -756,7 +786,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               <GestureDetector gesture={nativeListGesture}>
             <FlatList
               ref={listRef}
-              data={events}
+              data={visibleItems}
+              extraData={orderKey}
               style={styles.fullList}
               keyExtractor={(item: EventWithCreator) => item.id}
               contentContainerStyle={[
@@ -797,6 +828,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               removeClippedSubviews
               viewabilityConfig={SHEET_VIEWABILITY_CONFIG}
               onViewableItemsChanged={onViewableItemsChanged}
+              onEndReached={revealNextPage}
+              onEndReachedThreshold={2}
+              ListFooterComponent={<DiscoveryListWindowFooter loading={loadingMore} />}
               renderItem={renderListItem}
             />
               </GestureDetector>

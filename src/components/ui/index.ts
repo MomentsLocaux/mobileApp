@@ -9,3 +9,4 @@ export { EventCardSkeleton, EventDetailSkeleton, SkeletonBlock } from './EventCa
 export { EmptyState } from './EmptyState';
 export { BrandLogoSpinner } from './BrandLogoSpinner';
 export { DiscoveryLoadingState } from './DiscoveryLoadingState';
+export { DiscoveryListWindowFooter } from './DiscoveryListWindowFooter';

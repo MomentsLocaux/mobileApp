@@ -47,6 +47,33 @@ describe('map results UI store transitions', () => {
     assert.equal(state.visibleEventCount, 2);
   });
 
+  it('keeps the freeze snapshot aligned when the sheet list is re-sorted', () => {
+    const events = [sampleEvent('a'), sampleEvent('b'), sampleEvent('c')];
+    useMapResultsUIStore.getState().displayViewportResults(events, { totalCount: 3 });
+    useMapResultsUIStore.getState().freezeViewportResults();
+
+    const resorted = [sampleEvent('c'), sampleEvent('a'), sampleEvent('b')];
+    useMapResultsUIStore.getState().displayViewportResults(resorted, { totalCount: 3 });
+
+    const state = useMapResultsUIStore.getState();
+    assert.deepEqual(
+      state.sheetEvents.map((event) => event.id),
+      ['c', 'a', 'b']
+    );
+    assert.deepEqual(
+      state.frozenViewport?.events.map((event) => event.id),
+      ['c', 'a', 'b']
+    );
+    assert.equal(state.frozenViewport?.eventCount, 3);
+
+    useMapResultsUIStore.getState().selectSingleEvent(sampleEvent('a'), 1);
+    useMapResultsUIStore.getState().closeSheet();
+    assert.deepEqual(
+      useMapResultsUIStore.getState().sheetEvents.map((event) => event.id),
+      ['c', 'a', 'b']
+    );
+  });
+
   it('freezes viewport results then restores them when closing a single event sheet', () => {
     const events = [sampleEvent('a'), sampleEvent('b'), sampleEvent('c')];
     useMapResultsUIStore.getState().displayViewportResults(events, { totalCount: 3 });

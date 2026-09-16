@@ -12,6 +12,7 @@ import {
   getMaxSheetHeight,
   getSheetMaxSnapIndex,
   getSheetSnapHeights,
+  resolveSheetHeightForLayout,
   resolveSheetSnapIndex,
   SHEET_SPRING_CONFIG,
   sheetHeightToProgress,
@@ -75,20 +76,27 @@ export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
       layoutHeightRef.current = height;
       layoutHeightShared.value = height;
       maxSheetHeightShared.value = getMaxSheetHeight(height, mode);
+      minSheetHeightShared.value = getInitialSheetHeight(height, mode);
 
-      const initialSheet = getInitialSheetHeight(height, mode);
-      minSheetHeightShared.value = initialSheet;
-      const progress = sheetHeightToProgress(initialSheet, height, mode);
-      sheetVisibleHeight.value = initialSheet;
+      if (isSheetDraggingRef.current) return;
+
+      cancelAnimation(sheetVisibleHeight);
+      cancelAnimation(sheetProgress);
+      const targetSheet = resolveSheetHeightForLayout(height, mode, snapIndex);
+      const progress = sheetHeightToProgress(targetSheet, height, mode);
+      sheetVisibleHeight.value = targetSheet;
       sheetProgress.value = progress;
+      flushOnSettled();
     },
     [
+      flushOnSettled,
       layoutHeightShared,
       maxSheetHeightShared,
       minSheetHeightShared,
       mode,
       sheetProgress,
       sheetVisibleHeight,
+      snapIndex,
     ]
   );
 

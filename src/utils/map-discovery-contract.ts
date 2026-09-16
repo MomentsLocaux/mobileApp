@@ -88,6 +88,31 @@ export function shouldRefetchViewportOnTabFocus(options: {
   return !options.bootstrapped;
 }
 
+/** Last-visit snapshot must not override a live Home/Map search or recadrage ping. */
+export function shouldUseMapLastVisitCamera(options: {
+  searchActive: boolean;
+  hasPendingHomeTransfer: boolean;
+}): boolean {
+  return !options.searchActive && !options.hasPendingHomeTransfer;
+}
+
+/** Preserve first-seen order across Home pins, Map sheet, then snapshots. */
+export function collectDiscoveryHandoffEventIds(
+  groups: (readonly string[] | null | undefined)[]
+): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const group of groups) {
+    if (!group) continue;
+    for (const id of group) {
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
 /** Recadrage when Home published a new ping or a new applied search while Map was away. */
 export function shouldApplyPendingHomeRecadrage(options: {
   mapReady: boolean;

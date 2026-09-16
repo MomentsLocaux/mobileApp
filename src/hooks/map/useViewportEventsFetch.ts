@@ -29,7 +29,8 @@ import {
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { resolveEventTimeScope } from '@/utils/event-time-scope';
-import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit, SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
+import { resolveMapViewportLimit, SEARCH_FETCH_LIMIT } from '@/utils/search-helpers';
+import { DISCOVERY_LIST_PAGE_SIZE } from '@/utils/discovery-list-window';
 import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
 import { resolveMapClientFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
@@ -205,10 +206,12 @@ export function useViewportEventsFetch({
       const filteredEvents = filterEvents(events, effectiveFilters, null);
 
       const metaFilteredEvents = filterEventsByMetaStatus(filteredEvents, currentMetaFilter);
-      const sortedEvents =
-        currentSortBy !== 'triage'
-          ? sortEvents(metaFilteredEvents, currentSortBy, currentSortCenter, currentSortOrder)
-          : metaFilteredEvents;
+      const sortedEvents = sortEvents(
+        metaFilteredEvents,
+        currentSortBy,
+        currentSortCenter,
+        currentSortOrder
+      );
       const dedupedEvents = Array.from(
         new Map(sortedEvents.map((event) => [event.id, event])).values()
       );
@@ -230,12 +233,11 @@ export function useViewportEventsFetch({
 
       mapRef.current?.setShape(filteredFeatures as FeatureCollection);
 
-      const sheetEvents = dedupedEvents.slice(0, MAP_SHEET_LIST_LIMIT);
-      displayViewportResults(sheetEvents, { totalCount: dedupedEvents.length });
+      displayViewportResults(dedupedEvents, { totalCount: dedupedEvents.length });
       useEventPreviewStore.getState().rememberEvents(dedupedEvents);
       useEventPreviewStore.getState().pinVisibleEvents(
         'map-sheet',
-        sheetEvents.map((event) => event.id),
+        dedupedEvents.slice(0, DISCOVERY_LIST_PAGE_SIZE).map((event) => event.id),
       );
       useEventPreviewStore.getState().pinVisibleEvents(
         'map-nearby',
@@ -263,8 +265,15 @@ export function useViewportEventsFetch({
       if (options?.includePast !== undefined) {
         includePastRef.current = options.includePast;
       }
-      const raw = lastViewportRawRef.current;
-      if (!raw) return false;
+      const store = useMapResultsUIStore.getState();
+      const raw = lastViewportRawRef.current ?? {
+        events: store.frozenViewport?.events ?? store.sheetEvents,
+        featureCollection: { type: 'FeatureCollection' as const, features: [] },
+        timeScope: includePastRef.current ? 'all' : 'upcoming',
+        storedAt: Date.now(),
+      };
+      if (!raw.events.length) return false;
+      lastViewportRawRef.current = raw;
       publishFilteredViewport(raw.events, raw.featureCollection, {
         ...options,
         ignoreFreeze: true,

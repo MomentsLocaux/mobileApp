@@ -11,6 +11,8 @@ import {
   shouldResetCriteriaOnAreaSearch,
   shouldApplyWhenFilters,
   shouldApplyPendingHomeRecadrage,
+  shouldUseMapLastVisitCamera,
+  collectDiscoveryHandoffEventIds,
   resolveMapClientFilters,
   resolvePendingProgrammaticRefresh,
   resolveUnitCardCloseCameraAction,
@@ -248,6 +250,32 @@ describe('map discovery contract', () => {
         hasSnapshot: true,
       }),
       'keep',
+    );
+  });
+
+  it('does not restore last-visit camera when a search or Home ping is live', () => {
+    assert.equal(
+      shouldUseMapLastVisitCamera({ searchActive: false, hasPendingHomeTransfer: false }),
+      true
+    );
+    assert.equal(
+      shouldUseMapLastVisitCamera({ searchActive: true, hasPendingHomeTransfer: false }),
+      false
+    );
+    assert.equal(
+      shouldUseMapLastVisitCamera({ searchActive: false, hasPendingHomeTransfer: true }),
+      false
+    );
+  });
+
+  it('keeps Home then Map ids when handing search results across tabs', () => {
+    assert.deepEqual(
+      collectDiscoveryHandoffEventIds([
+        ['home-1', 'home-2'],
+        ['home-2', 'map-1'],
+        ['snap-1'],
+      ]),
+      ['home-1', 'home-2', 'map-1', 'snap-1']
     );
   });
 });

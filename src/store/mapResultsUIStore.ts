@@ -47,14 +47,20 @@ export const useMapResultsUIStore = create<MapResultsUIState>((set, get) => ({
   setViewportFetchError: (message) => set({ viewportFetchError: message }),
   setViewportAreaWarning: (message) => set({ viewportAreaWarning: message }),
   displayViewportResults: (events, options) => {
-    const { activeEventId } = get();
+    const { activeEventId, frozenViewport } = get();
     const keepHighlight =
       !!activeEventId && events.some((event) => event.id === activeEventId);
+    const totalCount = options?.totalCount ?? events.length;
     set({
       sheetStatus: 'viewportResults',
       sheetEvents: events,
-      visibleEventCount: options?.totalCount ?? events.length,
+      visibleEventCount: totalCount,
       activeEventId: keepHighlight ? activeEventId : undefined,
+      // Keep the freeze snapshot in sync so an expanded sheet shows re-sorts
+      // instead of the stale copy taken when the sheet was locked.
+      frozenViewport: frozenViewport
+        ? { events, eventCount: totalCount }
+        : frozenViewport,
     });
   },
   highlightViewportEvent: (event) => {

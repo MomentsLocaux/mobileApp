@@ -44,6 +44,29 @@ export const sheetHeightToProgress = (
 export const getSheetMaxSnapIndex = (mode: MapSheetMode) =>
   mode === 'single' ? 1 : VIEWPORT_FULL_SNAP_INDEX;
 
+/** Keep the current snap when the map column resizes (refine panel, keyboard). */
+export const resolveSheetHeightForLayout = (
+  layoutHeight: number,
+  mode: MapSheetMode,
+  snapIndex: number,
+): number => {
+  const snaps = getSheetSnapHeights(layoutHeight, mode);
+  if (!snaps.length) return VIEWPORT_PEEK_HEIGHT;
+  const clampedSnap = Math.min(Math.max(0, snapIndex), snaps.length - 1);
+  return snaps[clampedSnap] ?? snaps[0] ?? VIEWPORT_PEEK_HEIGHT;
+};
+
+/** Full sheet covers the refine panel — drop to half, never all the way to peek. */
+export const sheetSnapIndexWhenOpeningRefine = (
+  currentIndex: number,
+  mode: MapSheetMode,
+): number => {
+  if (mode === 'viewport' && currentIndex >= VIEWPORT_FULL_SNAP_INDEX) {
+    return VIEWPORT_HALF_SNAP_INDEX;
+  }
+  return currentIndex;
+};
+
 export const resolveMapTabBarProgress = (sheetProgress: number): number => {
   'worklet';
   const range =

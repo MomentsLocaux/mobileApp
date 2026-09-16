@@ -17,9 +17,14 @@ import { useAuth, useLocation } from '@/hooks';
 import { useLumiaTourTarget } from '@/hooks/useLumiaTourTarget';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useDiscoveryFiltersStore, useMapTransferStore } from '@/store';
+import { collectDiscoveryHandoffEventIds } from '@/utils/map-discovery-contract';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useDiscoverySnapshotStore } from '@/store/discoverySnapshotStore';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import { useDiscoveryListWindow } from '@/hooks/useDiscoveryListWindow';
+import {
+  formatDiscoveryResultCount,
+} from '@/utils/discovery-list-window';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { useLikesStore } from '@/store/likesStore';
@@ -64,7 +69,7 @@ import {
   SEARCH_CRITERIA_TIMEOUT_TITLE,
 } from '@/utils/query-timeout';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { DiscoveryLoadingState, EmptyState } from '@/components/ui';
+import { DiscoveryLoadingState, DiscoveryListWindowFooter, EmptyState } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import { buildSearchSummary } from '@/utils/search-summary';
@@ -77,7 +82,6 @@ import {
 } from '@/utils/discovery-filters';
 
 const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
-const HOME_CARD_STATS_LIMIT = 40;
 const HOME_VIEWABILITY_CONFIG = {
   itemVisiblePercentThreshold: 45,
   minimumViewTime: 80,
@@ -248,13 +252,29 @@ export default function HomeScreen() {
     status,
   ]);
 
+  const prefetchHomePage = useCallback((pageItems: EventWithCreator[]) => {
+    pageItems.forEach((event) => prefetchEventMedia(event));
+  }, []);
+
+  const {
+    visibleItems,
+    totalCount,
+    loadingMore,
+    orderKey,
+    revealNextPage,
+    handleHighestViewedIndex,
+  } = useDiscoveryListWindow(filteredAndSortedEvents, {
+    onPrefetchPage: prefetchHomePage,
+  });
+  const listRef = useRef<FlatList<EventWithCreator>>(null);
+
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [orderKey]);
+
   const filteredEventIds = useMemo(
-    () =>
-      filteredAndSortedEvents
-        .slice(0, HOME_CARD_STATS_LIMIT)
-        .map((event) => event.id)
-        .filter(Boolean),
-    [filteredAndSortedEvents],
+    () => visibleItems.map((event) => event.id).filter(Boolean),
+    [visibleItems],
   );
   const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
 
@@ -409,6 +429,9 @@ export default function HomeScreen() {
     });
   }, [loadUnreadNotifications]);
 
+  const searchResultsRef = useRef<EventWithCreator[]>([]);
+  searchResultsRef.current = searchResults;
+
   useEffect(() => {
     let cancelled = false;
     if (!showSearchResults) {
@@ -424,8 +447,51 @@ export default function HomeScreen() {
       return;
     }
 
+    const constrainToPlace = Boolean(
+      place.center || place.label?.trim() || place.radiusKm !== undefined
+    );
+    const searchFilterPayload =
+      constrainToPlace && searchCenter && effectiveRadiusKm
+        ? {
+            ...filters,
+            centerLat: searchCenter.latitude,
+            centerLon: searchCenter.longitude,
+            radiusKm: effectiveRadiusKm,
+          }
+        : {
+            ...filters,
+            centerLat: undefined,
+            centerLon: undefined,
+            radiusKm: undefined,
+          };
+
+    const cache = useEventPreviewStore.getState();
+    const mapSnap = useDiscoverySnapshotStore.getState().map;
+    const seedIds = collectDiscoveryHandoffEventIds([
+      cache.pinnedBySurface['map-sheet'],
+      cache.pinnedBySurface.home,
+      cache.pinnedBySurface['home-view'],
+      mapSnap?.sheetEventIds,
+      mapSnap?.markerEventIds,
+    ]);
+    const seeded = filterEvents(
+      cache.getCachedEvents(seedIds),
+      searchFilterPayload,
+      null
+    );
+    const previous = filterEvents(searchResultsRef.current, searchFilterPayload, null);
+    const immediate = seeded.length > 0 ? seeded : previous;
+    if (immediate.length) {
+      setSearchResults(immediate);
+      setSearchLoading(false);
+      useEventPreviewStore.getState().pinVisibleEvents(
+        'home',
+        immediate.map((event) => event.id),
+      );
+    } else {
+      setSearchLoading(true);
+    }
     setSearchError(null);
-    setSearchLoading(true);
     const searchTimeScope = resolveEventTimeScope({
       metaFilter: status,
       searchActive: true,
@@ -433,9 +499,6 @@ export default function HomeScreen() {
     });
     const run = async () => {
       try {
-        const constrainToPlace = Boolean(
-          place.center || place.label?.trim() || place.radiusKm !== undefined
-        );
         const baseEvents = await fetchDiscoverySearchEvents({
           nameQuery: filters.name,
           timeScope: searchTimeScope,
@@ -446,23 +509,7 @@ export default function HomeScreen() {
           constrainToPlace,
         });
 
-        const filtered = filterEvents(
-          baseEvents,
-          constrainToPlace && searchCenter && effectiveRadiusKm
-            ? {
-                ...filters,
-                centerLat: searchCenter.latitude,
-                centerLon: searchCenter.longitude,
-                radiusKm: effectiveRadiusKm,
-              }
-            : {
-                ...filters,
-                centerLat: undefined,
-                centerLon: undefined,
-                radiusKm: undefined,
-              },
-          null
-        );
+        const filtered = filterEvents(baseEvents, searchFilterPayload, null);
         if (!cancelled) {
           useEventPreviewStore.getState().rememberEvents(filtered);
           useEventPreviewStore.getState().pinVisibleEvents(
@@ -475,7 +522,9 @@ export default function HomeScreen() {
     } catch (error) {
       console.warn('[Home] search failed', error);
       if (!cancelled) {
-        setSearchResults([]);
+        if (searchResultsRef.current.length === 0) {
+          setSearchResults([]);
+        }
         setSearchError(
           isMapBoundsTooLargeError(error) || isQueryTimeoutError(error)
             ? SEARCH_CRITERIA_TIMEOUT_SUBTITLE
@@ -625,8 +674,11 @@ export default function HomeScreen() {
 
   const keyExtractor = useCallback((item: EventWithCreator) => item.id, []);
 
+  const handleHighestViewedIndexRef = useRef(handleHighestViewedIndex);
+  handleHighestViewedIndexRef.current = handleHighestViewedIndex;
+
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: { item?: EventWithCreator }[] }) => {
+    ({ viewableItems }: { viewableItems: { item?: EventWithCreator; index?: number | null }[] }) => {
       const visible = viewableItems
         .map((entry) => entry.item)
         .filter((event): event is EventWithCreator => Boolean(event?.id));
@@ -636,6 +688,12 @@ export default function HomeScreen() {
         visible.map((event) => event.id),
       );
       visible.forEach((event) => prefetchEventMedia(event));
+      const indexes = viewableItems
+        .map((entry) => entry.index)
+        .filter((index): index is number => index != null);
+      if (indexes.length) {
+        handleHighestViewedIndexRef.current(Math.max(...indexes));
+      }
     },
   ).current;
 
@@ -751,7 +809,12 @@ export default function HomeScreen() {
         />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Pour vous</Text>
+          <View style={styles.sectionTitleBlock}>
+            <Text style={styles.sectionTitle}>Pour vous</Text>
+            {totalCount > 0 ? (
+              <Text style={styles.sectionCount}>{formatDiscoveryResultCount(totalCount)}</Text>
+            ) : null}
+          </View>
           <SortControl
             value={sortBy}
             onChange={(value) => setSort('home', value, sortOrder)}
@@ -778,6 +841,7 @@ export default function HomeScreen() {
       sortBy,
       sortOrder,
       status,
+      totalCount,
     ]
   );
 
@@ -874,10 +938,12 @@ export default function HomeScreen() {
       </View>
 
       <FlatList
-        data={filteredAndSortedEvents}
+        ref={listRef}
+        data={visibleItems}
         renderItem={renderFeedItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={<DiscoveryListWindowFooter loading={loadingMore} />}
         contentContainerStyle={styles.listContent}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
@@ -886,6 +952,8 @@ export default function HomeScreen() {
         removeClippedSubviews
         viewabilityConfig={HOME_VIEWABILITY_CONFIG}
         onViewableItemsChanged={onViewableItemsChanged}
+        onEndReached={revealNextPage}
+        onEndReachedThreshold={2}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1111,6 +1179,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h4,
     color: colors.brand.text,
+  },
+  sectionTitleBlock: {
+    flexShrink: 1,
+    paddingRight: spacing.sm,
+  },
+  sectionCount: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginTop: 2,
   },
   storiesContent: {
     gap: spacing.md,

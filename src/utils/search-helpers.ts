@@ -12,9 +12,10 @@ export const SEARCH_FETCH_LIMIT = 300;
  * Map viewport marker cap sent to `list_map_viewport`.
  * Zoom no longer reduces this: the bbox diameter (`MAX_MAP_BBOX_DIAMETER_KM`) is the
  * safety rail. The RPC still clamps with `LEAST(p_limit, 1500)`.
- * The sheet list is capped separately in the fetch hook.
+ * The sheet list is windowed by `DISCOVERY_LIST_PAGE_SIZE` after a global sort.
  */
 export const MAP_VIEWPORT_LIMIT_MAX = 1500;
+/** @deprecated Sheet UI windows with DISCOVERY_LIST_PAGE_SIZE; keep for snapshot-era callers. */
 export const MAP_SHEET_LIST_LIMIT = 120;
 
 export const DEFAULT_SEARCH_RADIUS_KM = DISCOVERY_DEFAULT_RADIUS_KM;

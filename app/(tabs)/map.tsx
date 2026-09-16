@@ -19,6 +19,7 @@ import {
   getSheetSnapHeights,
   MAP_CAMERA_ANIMATION_MS,
   resolveMapTabBarProgress,
+  sheetSnapIndexWhenOpeningRefine,
   shouldFollowMapCameraForSheetIndex,
 } from '../../src/utils/map-sheet-layout';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
@@ -95,14 +96,18 @@ import {
 } from '@/utils/map-viewport-fetch-utils';
 import { MAP_BBOX_TOO_LARGE_MESSAGE } from '@/utils/bbox-event-fetch';
 import {
+  collectDiscoveryHandoffEventIds,
   isDiscoverySearchActive,
   resolveHomeMapRadiusTarget,
+  resolveMapClientFilters,
   resolveMapHandoffMode,
   shouldApplyPendingHomeRecadrage,
   shouldRefetchViewportOnTabFocus,
+  shouldUseMapLastVisitCamera,
   resolveUnitCardCloseCameraAction,
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
+import { filterEvents } from '@/utils/filter-events';
 import { buildMapMarkerCollection } from '@/utils/map-marker-features';
 import { isDefaultDiscoveryTemporal } from '@/utils/search-temporal-choice';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
@@ -154,7 +159,6 @@ export default function MapScreen() {
   const sheetEvents = useMapResultsUIStore((s) => s.sheetEvents);
   const visibleEventCount = useMapResultsUIStore((s) => s.visibleEventCount);
   const activeEventId = useMapResultsUIStore((s) => s.activeEventId);
-  const frozenViewport = useMapResultsUIStore((s) => s.frozenViewport);
   const viewportFetchError = useMapResultsUIStore((s) => s.viewportFetchError);
   const viewportAreaWarning = useMapResultsUIStore((s) => s.viewportAreaWarning);
   const setStatus = useMapResultsUIStore((s) => s.setStatus);
@@ -166,6 +170,7 @@ export default function MapScreen() {
   const clearFrozenViewport = useMapResultsUIStore((s) => s.clearFrozenViewport);
   const closeSheet = useMapResultsUIStore((s) => s.closeSheet);
   const restoreViewportFromFrozen = useMapResultsUIStore((s) => s.restoreViewportFromFrozen);
+  const homeTransfer = useMapTransferStore((s) => s.homeTransfer);
   const clearHomeTransfer = useMapTransferStore((s) => s.clearHomeTransfer);
 
   const insets = useSafeAreaInsets();
@@ -249,14 +254,25 @@ export default function MapScreen() {
     return { latitude, longitude };
   }, [currentLocation]);
 
+  const hasSearchCriteria = useMemo(
+    () => checkSearchCriteria({ place, when, content }),
+    [content, place, when]
+  );
+  const searchActive = isDiscoverySearchActive(searchApplied, hasSearchCriteria);
+  const useLastVisitCamera = shouldUseMapLastVisitCamera({
+    searchActive,
+    hasPendingHomeTransfer: Boolean(homeTransfer),
+  });
+
   const mapCamera = useMemo(
     () =>
       resolveMapInitialCamera({
         userLocation,
         placeCenter: place.center ?? null,
-        snapshotCamera: mapSnapshot?.camera ?? null,
+        snapshotCamera: useLastVisitCamera ? mapSnapshot?.camera ?? null : null,
+        liveIntent: searchActive ? 'search' : 'browse',
       }),
-    [mapSnapshot?.camera, place.center, userLocation]
+    [mapSnapshot?.camera, place.center, searchActive, useLastVisitCamera, userLocation]
   );
   const mapCenter = useMemo(
     () => ({
@@ -279,12 +295,7 @@ export default function MapScreen() {
     [content, discoveryStatus, mapMode, place, sort, when]
   );
   const metaFilter = discoveryStatus;
-  const hasSearchCriteria = useMemo(
-    () => checkSearchCriteria({ place, when, content }),
-    [content, place, when]
-  );
   const includePast = includesPast(discoveryFilters);
-  const searchActive = isDiscoverySearchActive(searchApplied, hasSearchCriteria);
   const searchFilters = useMemo(
     () => toEventFilters(discoveryFilters, userLocation),
     [discoveryFilters, userLocation]
@@ -390,6 +401,7 @@ export default function MapScreen() {
   }, [hasMapSnapshot]);
 
   useEffect(() => {
+    if (!useLastVisitCamera) return;
     if (!mapSnapshot) return;
     const markerEvents = useEventPreviewStore.getState().getCachedEvents(mapSnapshot.markerEventIds);
     const sheet = useEventPreviewStore.getState().getCachedEvents(mapSnapshot.sheetEventIds);
@@ -398,12 +410,16 @@ export default function MapScreen() {
         totalCount: markerEvents.length || sheet.length,
       });
     }
-  }, [cacheEpoch, mapSnapshot]);
+  }, [cacheEpoch, mapSnapshot, useLastVisitCamera]);
 
   const snapshotShapeAppliedRef = useRef(false);
   const snapshotCameraRestoredRef = useRef(false);
   useEffect(() => {
     if (!mapReady || !mapSnapshot) return;
+    if (!useLastVisitCamera) {
+      snapshotCameraRestoredRef.current = true;
+      return;
+    }
     if (!snapshotCameraRestoredRef.current && mapSnapshot.camera) {
       mapRef.current?.restoreCameraSnapshot(
         {
@@ -420,7 +436,7 @@ export default function MapScreen() {
     if (!markerEvents.length) return;
     mapRef.current?.setShape(buildMapMarkerCollection(markerEvents));
     snapshotShapeAppliedRef.current = true;
-  }, [cacheEpoch, mapReady, mapSnapshot]);
+  }, [cacheEpoch, mapReady, mapSnapshot, useLastVisitCamera]);
 
   const { handleCategoriesChange, handleTemporalChoice, handleCustomDateChange, handleClearViewportFilters } =
     useMapFilterActions({
@@ -895,14 +911,53 @@ export default function MapScreen() {
         appliedHomeTransferIdRef.current = transfer.id;
       }
       focusedSearchRevisionRef.current = latest.searchRevision;
+      snapshotCameraRestoredRef.current = true;
       cancelAllMapRequests();
       viewportFrozenRef.current = false;
       clearFrozenViewport();
       setPendingSearchAreaBounds(null);
       setViewportAreaWarning(null);
-      setStatus('loading');
       viewportBootstrappedRef.current = true;
       resultsSheetRef.current?.collapseToPeek();
+      const cache = useEventPreviewStore.getState();
+      const homeSnap = useDiscoverySnapshotStore.getState().home;
+      const handoffIds = collectDiscoveryHandoffEventIds(
+        searchActiveNow
+          ? [
+              cache.pinnedBySurface.home,
+              cache.pinnedBySurface['home-view'],
+              cache.pinnedBySurface['map-sheet'],
+            ]
+          : [
+              cache.pinnedBySurface.home,
+              cache.pinnedBySurface['map-sheet'],
+              homeSnap?.eventIds,
+            ]
+      );
+      const latestSearchFilters = toEventFilters(
+        {
+          status: latest.status,
+          when: latest.when,
+          place: latest.place,
+          content: latest.content,
+          sort: latest.sort,
+          mapMode: latest.mapMode,
+        },
+        userLocation
+      );
+      const seeded = filterEvents(
+        cache.getCachedEvents(handoffIds),
+        resolveMapClientFilters(latestSearchFilters, searchActiveNow),
+        null
+      );
+      if (seeded.length) {
+        useMapResultsUIStore.getState().displayViewportResults(seeded, {
+          totalCount: seeded.length,
+        });
+        mapRef.current?.setShape(buildMapMarkerCollection(seeded));
+      } else {
+        setStatus('loading');
+      }
       const handoffMode = resolveMapHandoffMode({
         searchApplied: latest.searchApplied,
         hasSearchCriteria: latestHasSearchCriteria,
@@ -994,7 +1049,7 @@ export default function MapScreen() {
     ensureInitialViewportLoad,
     disabled: searchActive,
     bootstrapViewportFetch: shouldBootstrapViewportFetch(mapCamera.kind),
-    skipUserRecenter: hasMapSnapshot,
+    skipUserRecenter: hasMapSnapshot || !useLastVisitCamera,
   });
 
   const handleMapReady = useCallback(() => {
@@ -1017,7 +1072,7 @@ export default function MapScreen() {
       return;
     }
     reapplyClientFilters();
-  }, [reapplyClientFilters, sortBy, sortOrder]);
+  }, [reapplyClientFilters, sortBy, sortOrder, sortCenter?.latitude, sortCenter?.longitude]);
 
   useEffect(() => {
     if (!searchActive) {
@@ -1143,9 +1198,10 @@ export default function MapScreen() {
 
   const openRefinePanel = useCallback(() => {
     const idx = useMapResultsUIStore.getState().bottomSheetIndex;
-    if (sheetMode === 'viewport' && idx >= VIEWPORT_FULL_SNAP_INDEX) {
+    const nextSnap = sheetSnapIndexWhenOpeningRefine(idx, sheetMode);
+    if (nextSnap !== idx) {
       sheetSnapBeforeRefineRef.current = idx;
-      handleSheetIndexChange(VIEWPORT_HALF_SNAP_INDEX);
+      handleSheetIndexChange(nextSnap);
     } else {
       sheetSnapBeforeRefineRef.current = null;
     }
@@ -1161,8 +1217,10 @@ export default function MapScreen() {
     return mapMode === 'satellite' ? Mapbox.StyleURL.SatelliteStreet : Mapbox.StyleURL.Street;
   }, [mapMode]);
 
-  const displaySheetEvents = frozenViewport?.events ?? sheetEvents;
-  const displayPeekCount = frozenViewport?.eventCount ?? visibleEventCount;
+  // Live sheetEvents — not the freeze snapshot. Sort/filter reapply updates
+  // the live list while the sheet is locked; frozenViewport is only for restore.
+  const displaySheetEvents = sheetEvents;
+  const displayPeekCount = visibleEventCount;
   const openUnitEventDetails = useCallback(() => {
     if (!unitCardEvent) return;
     useMapDetailTransitionStore.getState().prepare({
@@ -1503,7 +1561,7 @@ export default function MapScreen() {
               onSortByChange={(value) => setSort('map', value, sortOrder)}
               onSortChange={(value, order) => setSort('map', value, order)}
               onSortOrderChange={(value) => setSort('map', sortBy, value)}
-              hasLocation={!!userLocation}
+              hasLocation={!!sortCenter}
               selectedCategories={content.categories}
               hasViewportRefine={hasViewportRefine}
               onClearViewportFilters={handleClearViewportFilters}

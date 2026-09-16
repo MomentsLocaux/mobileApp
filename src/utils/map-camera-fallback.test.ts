@@ -51,4 +51,27 @@ describe('map camera fallback', () => {
     assert.equal(camera.latitude, 44.12);
     assert.equal(camera.zoom, 11);
   });
+
+  it('keeps an applied search place ahead of last-visit camera and GPS', () => {
+    const camera = resolveMapInitialCamera({
+      userLocation: { latitude: 48.69, longitude: 6.18 },
+      placeCenter: { latitude: 43.3, longitude: 5.4 },
+      snapshotCamera: { latitude: 44.12, longitude: 4.81, zoom: 11 },
+      liveIntent: 'search',
+    });
+    assert.equal(camera.kind, 'place');
+    assert.equal(camera.latitude, 43.3);
+    assert.equal(camera.longitude, 5.4);
+  });
+
+  it('uses GPS for a live search that has no explicit place', () => {
+    const camera = resolveMapInitialCamera({
+      userLocation: { latitude: 48.69, longitude: 6.18 },
+      placeCenter: null,
+      snapshotCamera: { latitude: 44.12, longitude: 4.81, zoom: 11 },
+      liveIntent: 'search',
+    });
+    assert.equal(camera.kind, 'user');
+    assert.equal(camera.latitude, 48.69);
+  });
 });
