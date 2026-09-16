@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   AppState,
+  ActivityIndicator,
   FlatList,
   InteractionManager,
   TouchableOpacity,
@@ -421,9 +422,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       scrollToEvent,
     }));
 
+    const showPeekLoading = isLoading && mode !== 'single';
     const peekTitle = useMemo(
-      () => formatViewportPeekLabel(peekCount, metaFilter, isInitialLoading),
-      [isInitialLoading, metaFilter, peekCount]
+      () => formatViewportPeekLabel(peekCount, metaFilter, showPeekLoading),
+      [metaFilter, peekCount, showPeekLoading]
     );
 
     // Advanced search can still apply the otherwise API-only `created` sort:
@@ -698,11 +700,28 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               pointerEvents="none"
               style={[styles.peekHeader, styles.chromeOverlay, peekChromeStyle]}
             >
-              {isInitialLoading ? (
-                <MapResultsSkeleton variant="peek" />
-              ) : (
-                <Text style={styles.peekTitle}>{peekTitle}</Text>
-              )}
+              <View
+                style={styles.peekRow}
+                accessibilityRole={showPeekLoading ? 'progressbar' : undefined}
+                accessibilityLabel={
+                  showPeekLoading
+                    ? `${peekTitle}. Recherche des événements dans cette zone`
+                    : peekTitle
+                }
+                accessibilityLiveRegion="polite"
+              >
+                <Text style={styles.peekTitle} numberOfLines={1}>
+                  {peekTitle}
+                </Text>
+                {showPeekLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.brand.secondary}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                  />
+                ) : null}
+              </View>
             </Animated.View>
 
           {mode !== 'single' ? (
@@ -896,11 +915,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: VIEWPORT_PEEK_HEIGHT,
   },
+  peekRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    maxWidth: '100%',
+  },
   peekTitle: {
     ...typography.body,
     color: colors.brand.text,
     fontWeight: '600',
     textAlign: 'center',
+    flexShrink: 1,
   },
   header: {
     paddingHorizontal: spacing.lg,

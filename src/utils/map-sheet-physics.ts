@@ -1,7 +1,7 @@
 export type MapSheetMode = 'single' | 'viewport';
 
 export const VIEWPORT_PEEK_HEIGHT = 104;
-export const VIEWPORT_HALF_RATIO = 0.55;
+export const VIEWPORT_HALF_RATIO = 0.75;
 export const VIEWPORT_FULL_RATIO = 0.92;
 export const VIEWPORT_HALF_SNAP_INDEX = 1;
 export const VIEWPORT_FULL_SNAP_INDEX = 2;

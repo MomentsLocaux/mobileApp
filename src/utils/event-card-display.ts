@@ -159,15 +159,17 @@ export function getEventEchoesLabel(commentsCount?: number | null): string | nul
   return `${count} écho${count > 1 ? 's' : ''}`;
 }
 
-/** Null when there is no like signal — cards stay empty rather than “soyez le premier”. */
+/** Empty-state copy when nobody has liked yet. */
+export const EVENT_SOCIAL_PROOF_FIRST_LIKE = 'Soyez le premier à aimer';
+
 export function getEventSocialProofLabel(options: {
   likesCount?: number | null;
   isLiked?: boolean;
   followedNames?: (string | null | undefined)[];
-}): string | null {
+}): string {
   const likes = Number.isFinite(options.likesCount) ? Number(options.likesCount) : 0;
   const effectiveLikes = options.isLiked ? Math.max(likes, 1) : likes;
-  if (effectiveLikes <= 0) return null;
+  if (effectiveLikes <= 0) return EVENT_SOCIAL_PROOF_FIRST_LIKE;
 
   const followedNames = (options.followedNames ?? [])
     .map((name) => socialProofFirstName(name))

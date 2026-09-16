@@ -3,9 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Calendar } from 'lucide-react-native';
 import { FilterChip, FilterChipRow, type FilterChipRowOption } from '@/components/filters';
 import { DateRangePicker } from '@/components/DateRangePicker';
-import { createFilterChipTone, defaultFilterChipTone } from '@/constants/filter-tokens';
+import {
+  createFilterChipTone,
+  defaultFilterChipTone,
+  filterDenseHitSlop,
+  filterTypography,
+} from '@/constants/filter-tokens';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
-import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { colors, spacing, borderRadius } from '@/constants/theme';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import { formatWhenDateRange, type DiscoveryWhenFilter } from '@/utils/discovery-filters';
@@ -117,18 +122,17 @@ export function MapViewportRefinePanel({
         onChange={(next) => {
           if (next) onTemporalChoice(next);
         }}
-        size="sm"
-        style={styles.row}
+        size="xs"
         accessibilityLabel="Période"
         testID="map-refine-temporal-filters"
       >
         <FilterChip
           label={formatCustomDateLabel(when)}
           active={hasCustomDate}
-          size="sm"
+          size="xs"
           icon={
             <Calendar
-              size={12}
+              size={11}
               color={
                 hasCustomDate
                   ? defaultFilterChipTone.activeTextColor
@@ -151,6 +155,7 @@ export function MapViewportRefinePanel({
               accessibilityLabel={
                 allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'
               }
+              hitSlop={filterDenseHitSlop}
               style={styles.selectAllButton}
             >
               <Text style={styles.selectAllText}>
@@ -163,8 +168,7 @@ export function MapViewportRefinePanel({
             options={categoryOptions}
             values={selectedCategories}
             onChange={handleCategoryChipsChange}
-            size="sm"
-            style={styles.row}
+            size="xs"
             accessibilityLabel="Catégories"
             testID="map-refine-category-filters"
           />
@@ -175,6 +179,7 @@ export function MapViewportRefinePanel({
           onPress={onClear}
           accessibilityRole="button"
           accessibilityLabel="Effacer les filtres"
+          hitSlop={filterDenseHitSlop}
           style={styles.clearButton}
         >
           <Text style={styles.clearText}>Effacer les filtres</Text>
@@ -202,49 +207,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary[200],
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
+    paddingVertical: 6,
+    gap: 2,
   },
   hint: {
-    ...typography.caption,
+    ...filterTypography.chipDense,
+    fontWeight: '400',
     color: colors.brand.textSecondary,
     paddingHorizontal: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  row: {
-    marginTop: spacing.xs,
   },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xs,
-    marginTop: spacing.sm,
-    minHeight: 44,
+    marginTop: 2,
+    minHeight: 28,
   },
   categoryTitle: {
-    ...typography.caption,
+    ...filterTypography.chipDense,
     color: colors.brand.textSecondary,
     fontWeight: '600',
   },
   selectAllButton: {
-    minHeight: 44,
+    minHeight: 28,
     justifyContent: 'center',
     paddingHorizontal: spacing.xs,
   },
   selectAllText: {
-    ...typography.caption,
+    ...filterTypography.chipDense,
     color: colors.brand.secondary,
     fontWeight: '700',
   },
   clearButton: {
-    minHeight: 44,
+    minHeight: 28,
     justifyContent: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.xs,
   },
   clearText: {
-    ...typography.body,
+    ...filterTypography.chipDense,
     color: colors.brand.secondary,
     fontWeight: '600',
   },

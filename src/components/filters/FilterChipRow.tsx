@@ -73,6 +73,8 @@ export function FilterChipRow<T extends string>(props: FilterChipRowProps<T>) {
     props.onChange(key);
   };
 
+  const isDense = size === 'xs';
+
   const chips = options.map((option) => (
     <FilterChip
       key={option.key}
@@ -90,7 +92,7 @@ export function FilterChipRow<T extends string>(props: FilterChipRowProps<T>) {
   if (!scrollable) {
     return (
       <View
-        style={[styles.wrapRow, style]}
+        style={[styles.wrapRow, isDense && styles.denseWrapRow, style]}
         accessibilityLabel={accessibilityLabel}
         testID={testID}
       >
@@ -106,7 +108,11 @@ export function FilterChipRow<T extends string>(props: FilterChipRowProps<T>) {
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       style={style}
-      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        isDense && styles.denseScrollContent,
+        contentContainerStyle,
+      ]}
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
@@ -123,10 +129,17 @@ const styles = StyleSheet.create({
     gap: filterSpacing.chipGap,
     paddingVertical: filterSpacing.rowPaddingVertical,
   },
+  denseScrollContent: {
+    gap: filterSpacing.denseChipGap,
+    paddingVertical: filterSpacing.denseRowPaddingVertical,
+  },
   wrapRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: filterSpacing.chipGap,
+  },
+  denseWrapRow: {
+    gap: filterSpacing.denseChipGap,
   },
 });

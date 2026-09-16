@@ -8,6 +8,7 @@ import {
   getEventPrefetchUrls,
   getEventSocialProofLabel,
   EVENT_LIST_COVER_DECODE_PX,
+  EVENT_SOCIAL_PROOF_FIRST_LIKE,
   getVisibleEventTags,
   isHiddenDiscoveryTag,
   isInternalTagId,
@@ -93,10 +94,13 @@ describe('event media prefetch urls', () => {
 });
 
 describe('event card social proof', () => {
-  it('hides the row when nobody liked', () => {
-    assert.equal(getEventSocialProofLabel({ likesCount: 0 }), null);
-    assert.equal(getEventSocialProofLabel({ likesCount: 0, followedNames: ['Léa'] }), null);
-    assert.equal(getEventSocialProofLabel({}), null);
+  it('invites the first like when nobody liked', () => {
+    assert.equal(getEventSocialProofLabel({ likesCount: 0 }), EVENT_SOCIAL_PROOF_FIRST_LIKE);
+    assert.equal(getEventSocialProofLabel({}), EVENT_SOCIAL_PROOF_FIRST_LIKE);
+    assert.equal(
+      getEventSocialProofLabel({ likesCount: 0, followedNames: ['Léa'] }),
+      EVENT_SOCIAL_PROOF_FIRST_LIKE,
+    );
   });
 
   it('keeps a like you just added even if the count has not caught up', () => {
@@ -118,7 +122,7 @@ describe('event card social proof', () => {
     );
   });
 
-  it('falls back to the public like count without empty-state copy', () => {
+  it('falls back to the public like count, or an empty-state invite', () => {
     assert.equal(getEventSocialProofLabel({ likesCount: 1 }), '1 personne aime');
     assert.equal(getEventSocialProofLabel({ likesCount: 12 }), '12 personnes aiment');
   });

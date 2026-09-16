@@ -17,9 +17,8 @@ export function formatViewportPeekLabel(
 ): string {
   const scopeLabel = META_SCOPE_LABELS[metaFilter];
 
-  if (isLoading) return 'Chargement...';
-
   if (count <= 0) {
+    if (isLoading) return 'Recherche dans la zone…';
     return metaFilter === 'all'
       ? 'Aucun événement dans la zone'
       : `Aucun événement ${scopeLabel}`;

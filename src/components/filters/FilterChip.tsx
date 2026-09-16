@@ -10,13 +10,14 @@ import {
 import {
   defaultFilterChipTone,
   filterHitSlop,
+  filterDenseHitSlop,
   filterOpacity,
   filterSizing,
   filterTypography,
   type FilterChipTone,
 } from '@/constants/filter-tokens';
 
-export type FilterChipSize = 'sm' | 'md';
+export type FilterChipSize = 'xs' | 'sm' | 'md';
 
 export interface FilterChipProps {
   label: string;
@@ -26,6 +27,7 @@ export interface FilterChipProps {
   /** Announced as an accessibility hint and surfaced by parent rows when disabled. */
   disabledReason?: string;
   tone?: FilterChipTone;
+  /** `xs` is reserved for dense overlays (map refine). Home/search keep `sm`. */
   size?: FilterChipSize;
   icon?: React.ReactNode;
   accessibilityLabel?: string;
@@ -46,16 +48,29 @@ export function FilterChip({
   style,
   testID,
 }: FilterChipProps) {
+  const isDense = size === 'xs';
+  const isComfortable = size === 'md';
   const containerStyle = useMemo<ViewStyle>(
     () => ({
-      minHeight: size === 'md' ? filterSizing.minTouchTarget : filterSizing.compactChipHeight,
-      paddingVertical:
-        size === 'md' ? filterSizing.chipPaddingVertical : filterSizing.chipCompactPaddingVertical,
+      minHeight: isComfortable
+        ? filterSizing.minTouchTarget
+        : isDense
+          ? filterSizing.denseChipHeight
+          : filterSizing.compactChipHeight,
+      paddingVertical: isComfortable
+        ? filterSizing.chipPaddingVertical
+        : isDense
+          ? filterSizing.denseChipPaddingVertical
+          : filterSizing.chipCompactPaddingVertical,
+      paddingHorizontal: isDense
+        ? filterSizing.denseChipPaddingHorizontal
+        : filterSizing.chipPaddingHorizontal,
+      gap: isDense ? 4 : 6,
       backgroundColor: active ? tone.activeBackgroundColor : tone.inactiveBackgroundColor,
       borderColor: active ? tone.activeBorderColor : tone.inactiveBorderColor,
       opacity: disabled ? filterOpacity.disabled : 1,
     }),
-    [active, disabled, size, tone]
+    [active, disabled, isComfortable, isDense, tone]
   );
 
   return (
@@ -64,7 +79,7 @@ export function FilterChip({
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       activeOpacity={filterOpacity.pressed}
-      hitSlop={size === 'md' ? undefined : filterHitSlop}
+      hitSlop={isComfortable ? undefined : isDense ? filterDenseHitSlop : filterHitSlop}
       accessibilityRole="button"
       accessibilityState={{ selected: active, disabled }}
       accessibilityLabel={accessibilityLabel ?? label}
@@ -73,7 +88,11 @@ export function FilterChip({
     >
       {icon ? <View style={styles.icon}>{icon}</View> : null}
       <Text
-        style={[styles.label, { color: active ? tone.activeTextColor : tone.inactiveTextColor }]}
+        style={[
+          styles.label,
+          isDense ? filterTypography.chipDense : null,
+          { color: active ? tone.activeTextColor : tone.inactiveTextColor },
+        ]}
         numberOfLines={1}
       >
         {label}

@@ -55,8 +55,10 @@ export const filterOpacity = {
 
 export const filterSpacing = {
   chipGap: spacing.xs,
+  denseChipGap: 4,
   rowPaddingHorizontal: spacing.lg,
   rowPaddingVertical: spacing.xs,
+  denseRowPaddingVertical: 0,
   sectionGap: spacing.xs,
   sectionMarginTop: spacing.sm,
   controlGap: spacing.sm,
@@ -67,9 +69,13 @@ export const filterSizing = {
   minTouchTarget: minimumTouchTarget,
   /** Visual height of dense chips; paired with `hitSlop` to stay accessible. */
   compactChipHeight: 36,
+  /** Map refine overlay — visually smaller, still reachable via hitSlop. */
+  denseChipHeight: 28,
   chipPaddingHorizontal: spacing.md,
+  denseChipPaddingHorizontal: spacing.sm,
   chipPaddingVertical: spacing.sm,
   chipCompactPaddingVertical: spacing.xs,
+  denseChipPaddingVertical: 2,
   chipRadius: borderRadius.full,
   chipBorderWidth: 1,
   iconButtonSize: 36,
@@ -82,8 +88,20 @@ export const filterHitSlop = (() => {
   return { top: vertical, bottom: vertical, left: spacing.xs, right: spacing.xs };
 })();
 
+export const filterDenseHitSlop = (() => {
+  const missing = Math.max(0, filterSizing.minTouchTarget - filterSizing.denseChipHeight);
+  const vertical = Math.ceil(missing / 2);
+  return { top: vertical, bottom: vertical, left: spacing.xs, right: spacing.xs };
+})();
+
 export const filterTypography = {
   chip: typography.caption,
+  chipDense: {
+    fontFamily: typography.caption.fontFamily,
+    fontSize: 11,
+    fontWeight: '600' as const,
+    lineHeight: 14,
+  },
   sectionTitle: typography.caption,
   sectionHint: typography.caption,
   option: typography.body,
@@ -117,5 +135,6 @@ export const filterTokens = {
   sizing: filterSizing,
   typography: filterTypography,
   hitSlop: filterHitSlop,
+  denseHitSlop: filterDenseHitSlop,
   radius: borderRadius,
 } as const;

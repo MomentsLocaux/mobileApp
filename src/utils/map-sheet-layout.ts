@@ -38,8 +38,8 @@ export const SHEET_JUNCTION_RADIUS = 16;
 /** Airbnb-like peek: count strip only. */
 export const VIEWPORT_PEEK_SNAP = String(VIEWPORT_PEEK_HEIGHT);
 
-/** Half snap: list revealed over ~55% of the layout column. */
-export const VIEWPORT_HALF_SNAP = '55%';
+/** Half snap: list revealed over ~75% of the layout column. */
+export const VIEWPORT_HALF_SNAP = '75%';
 
 /** Expanded snap: full list. */
 export const VIEWPORT_FULL_SNAP = '92%';
