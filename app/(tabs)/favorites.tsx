@@ -560,7 +560,7 @@ export default function FavoritesScreen() {
             renderItem={({ item }) => (
               <EventResultCard
                 event={item}
-                variant="discovery"
+                variant="map-preview"
                 showCarousel={false}
                 noBottomMargin
                 viewsCount={eventCardStatsById[item.id]?.viewsCount ?? 0}

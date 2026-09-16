@@ -50,7 +50,7 @@ export function SkeletonBlock({
           height,
           width: width ?? '100%',
           borderRadius: radius,
-          backgroundColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: colors.brand.surfaceMuted,
         },
         animatedStyle,
         style,
@@ -66,13 +66,9 @@ function EventCardSkeletonItem() {
     <View style={styles.card}>
       <SkeletonBlock height={mediaHeight} radius={0} />
       <View style={styles.body}>
-        <SkeletonBlock height={22} width="78%" />
-        <SkeletonBlock height={14} width="92%" style={{ marginTop: spacing.sm }} />
-        <SkeletonBlock height={14} width="55%" style={{ marginTop: spacing.xs }} />
-        <View style={styles.footer}>
-          <SkeletonBlock height={28} width={88} radius={borderRadius.full} />
-          <SkeletonBlock height={40} width={120} radius={borderRadius.full} />
-        </View>
+        <SkeletonBlock height={18} width="78%" />
+        <SkeletonBlock height={14} width="62%" style={{ marginTop: spacing.sm }} />
+        <SkeletonBlock height={12} width="48%" style={{ marginTop: spacing.xs }} />
       </View>
     </View>
   );
@@ -117,16 +113,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.neutral[200],
   },
   body: {
     padding: spacing.md,
-  },
-  footer: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   detail: {
     flex: 1,

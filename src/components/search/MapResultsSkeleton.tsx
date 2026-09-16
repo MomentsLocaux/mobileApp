@@ -79,7 +79,7 @@ export function MapResultsSkeleton({ variant }: Props) {
     >
       {[0, 1].map((index) => (
         <View key={index} style={styles.card}>
-          <PulseBlock height={132} width="100%" radius={borderRadius.lg} />
+          <PulseBlock height={220} width="100%" radius={borderRadius.lg} />
           <View style={styles.cardLines}>
             <PulseBlock height={15} width="76%" />
             <PulseBlock height={11} width="52%" />

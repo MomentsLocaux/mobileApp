@@ -35,12 +35,13 @@ import {
   type MapSheetMode,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
-import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT, EVENT_RESULT_SHEET_MEDIA_HEIGHT } from './EventResultCard';
+import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT } from './EventResultCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { MapResultsSkeleton } from './MapResultsSkeleton';
 import { haptics } from '@/utils/haptics';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import { sortEvents } from '@/utils/sort-events';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useDiscoveryListWindow } from '@/hooks/useDiscoveryListWindow';
 import { DiscoveryListWindowFooter } from '@/components/ui';
@@ -98,6 +99,7 @@ interface Props {
   onSortChange?: (sortBy: SortOption, sortOrder?: SortOrder) => void;
   onSortOrderChange?: (order: SortOrder) => void;
   hasLocation?: boolean;
+  sortCenter?: { latitude: number; longitude: number } | null;
   selectedCategories?: string[];
   hasViewportRefine?: boolean;
   onClearViewportFilters?: () => void;
@@ -183,6 +185,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       onSortChange,
       onSortOrderChange,
       hasLocation = false,
+      sortCenter = null,
       selectedCategories = [],
       hasViewportRefine: hasViewportRefineProp,
       onClearViewportFilters,
@@ -194,6 +197,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const prefetchSheetPage = useCallback((pageItems: EventWithCreator[]) => {
       pageItems.forEach((event) => prefetchEventMedia(event));
     }, []);
+    const sortedEvents = useMemo(
+      () => sortEvents(events, sortBy, sortCenter, sortOrder),
+      [events, sortBy, sortCenter, sortOrder]
+    );
     const {
       visibleItems,
       totalCount,
@@ -202,7 +209,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       revealNextPage,
       revealThroughIndex,
       handleHighestViewedIndex,
-    } = useDiscoveryListWindow(events, { onPrefetchPage: prefetchSheetPage });
+    } = useDiscoveryListWindow(sortedEvents, { onPrefetchPage: prefetchSheetPage });
     const handleHighestViewedIndexRef = useRef(handleHighestViewedIndex);
     handleHighestViewedIndexRef.current = handleHighestViewedIndex;
     const revealThroughIndexRef = useRef(revealThroughIndex);
@@ -288,7 +295,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
     const scrollToEvent = useCallback(
       (eventId: string) => {
-        const targetIndex = events.findIndex((event) => event.id === eventId);
+        const targetIndex = sortedEvents.findIndex((event) => event.id === eventId);
         if (targetIndex < 0 || !showViewportList) return;
 
         revealThroughIndexRef.current(targetIndex);
@@ -304,7 +311,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           });
         });
       },
-      [events, showViewportList]
+      [sortedEvents, showViewportList]
     );
 
     React.useEffect(
@@ -647,7 +654,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       ({ item, index }: { item: EventWithCreator; index: number }) => (
         <EventResultCard
           event={item}
-          mediaHeight={EVENT_RESULT_SHEET_MEDIA_HEIGHT}
+          variant="map-preview"
+          showCarousel={false}
           listEntranceDelay={isExpanded && index < 4 ? index * Motion.stagger.listItem : 0}
           viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
           friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
@@ -787,7 +795,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             <FlatList
               ref={listRef}
               data={visibleItems}
-              extraData={orderKey}
+              extraData={`${orderKey}:${sortBy}:${sortOrder ?? ''}`}
               style={styles.fullList}
               keyExtractor={(item: EventWithCreator) => item.id}
               contentContainerStyle={[

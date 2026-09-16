@@ -87,7 +87,7 @@ export interface EventCardProps {
   showCarousel?: boolean;
   style?: ViewStyle;
   noBottomMargin?: boolean;
-  /** Overrides `EVENT_CARD_MEDIA_HEIGHT[variant]` (map sheet uses a slightly shorter photo). */
+  /** Overrides `EVENT_CARD_MEDIA_HEIGHT[variant]`. Lists and map overlay share 220. */
   mediaHeight?: number;
 }
 
@@ -128,8 +128,9 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const description = getEventDescriptionPreview(event.description, variant === 'compact' ? 0 : 140);
   const locationLabel = getEventLocationLabel(event);
   const distance = formatDistanceLabel(distanceKm, distanceLabel);
+  const usesCleanBody = variant !== 'compact';
   const humanDate = getHumanizedDate(event, {
-    includeTime: variant !== 'map-preview',
+    includeTime: !usesCleanBody,
   });
   const accessLabel = getEventAccessLabel(event);
   const temporal = getEventTemporalState(event);
@@ -156,17 +157,15 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   );
   const viewCount = Number.isFinite(viewsCount) ? Number(viewsCount) : 0;
   const viewsLabel = `${viewCount} vue${viewCount > 1 ? 's' : ''}`;
-  const showPriceBadge = false;
   const showAccessBadge = isMeaningfulAccessLabel(accessLabel);
   const showViewsBadge = viewCount >= MIN_VIEWS_BADGE_THRESHOLD;
 
-  const showDescription = Boolean(description) && variant !== 'compact' && variant !== 'map-preview';
-  const showSchedulePanel = variant === 'discovery' || variant === 'favorite';
-  const showMetaBadges =
-    variant !== 'map-preview' &&
-    (showPriceBadge || showAccessBadge || showViewsBadge || temporal === 'cancelled');
-  const showSocial = variant !== 'compact' && variant !== 'map-preview';
-  const showFooter = variant === 'favorite';
+  const showDescription = false;
+  const showSchedulePanel = false;
+  const showCleanDateRow = usesCleanBody;
+  const showMetaBadges = temporal === 'cancelled';
+  const showSocial = false;
+  const showFooter = false;
   const canNavigate = Boolean(onNavigate);
   const heartActive = isLiked || isFavorite;
   const showHeart = Boolean(onHeartPress);
@@ -285,7 +284,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
           style={[
             styles.body,
             variant === 'compact' && styles.bodyCompact,
-            variant === 'map-preview' && styles.bodyMapPreview,
+            usesCleanBody && styles.bodyMapPreview,
           ]}
         >
           <View style={styles.titleRow}>
@@ -294,7 +293,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 style={[
                   styles.title,
                   variant === 'compact' && styles.titleCompact,
-                  variant === 'map-preview' && styles.titleMapPreview,
+                  usesCleanBody && styles.titleMapPreview,
                 ]}
                 numberOfLines={2}
               >
@@ -306,7 +305,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 </Text>
               ) : null}
 
-              {variant === 'map-preview' ? (
+              {showCleanDateRow ? (
                 <View style={styles.mapPreviewDateRow}>
                   <Calendar size={14} color={CARD_THEME.accent} />
                   <View style={styles.mapPreviewDateCopy}>
@@ -365,14 +364,14 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                   </View>
                 </View>
               </View>
-            ) : variant !== 'map-preview' ? (
+            ) : usesCleanBody ? null : (
               <View style={styles.compactScheduleCol}>
                 {humanDate.headline ? <Text style={styles.headline}>{humanDate.headline}</Text> : null}
                 <Text style={styles.compactDateLine} numberOfLines={3}>
                   {humanDate.startLine}
                 </Text>
               </View>
-            ) : null}
+            )}
           </View>
 
           {showMetaBadges ? (

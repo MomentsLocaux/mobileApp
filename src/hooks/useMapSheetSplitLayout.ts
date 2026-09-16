@@ -28,6 +28,8 @@ export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
   const isSheetDraggingRef = useRef(false);
   const dragOriginSheetHeightRef = useRef(VIEWPORT_PEEK_HEIGHT);
   const onSettledRef = useRef<(() => void) | null>(null);
+  const snapIndexRef = useRef(snapIndex);
+  snapIndexRef.current = snapIndex;
 
   const layoutHeightShared = useSharedValue(0);
   const minSheetHeightShared = useSharedValue(VIEWPORT_PEEK_HEIGHT);
@@ -73,6 +75,13 @@ export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
   const handleColumnLayout = useCallback(
     (height: number) => {
       if (height <= 0 || height === layoutHeightRef.current) return;
+      const previousHeight = layoutHeightRef.current;
+      const visualSnap =
+        previousHeight > 0
+          ? resolveSheetSnapIndex(sheetVisibleHeight.value, previousHeight, mode)
+          : snapIndexRef.current;
+      const keepSnap = Math.max(snapIndexRef.current, visualSnap);
+
       layoutHeightRef.current = height;
       layoutHeightShared.value = height;
       maxSheetHeightShared.value = getMaxSheetHeight(height, mode);
@@ -82,21 +91,18 @@ export function useMapSheetSplitLayout(mode: MapSheetMode, snapIndex = 0) {
 
       cancelAnimation(sheetVisibleHeight);
       cancelAnimation(sheetProgress);
-      const targetSheet = resolveSheetHeightForLayout(height, mode, snapIndex);
+      const targetSheet = resolveSheetHeightForLayout(height, mode, keepSnap);
       const progress = sheetHeightToProgress(targetSheet, height, mode);
       sheetVisibleHeight.value = targetSheet;
       sheetProgress.value = progress;
-      flushOnSettled();
     },
     [
-      flushOnSettled,
       layoutHeightShared,
       maxSheetHeightShared,
       minSheetHeightShared,
       mode,
       sheetProgress,
       sheetVisibleHeight,
-      snapIndex,
     ]
   );
 

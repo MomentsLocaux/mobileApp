@@ -16,6 +16,7 @@ export {
   resolveSheetHeightForLayout,
   resolveSheetSnapIndex,
   resolveSheetSnapTarget,
+  resolveEffectiveSheetSnapIndex,
   sheetHeightToProgress,
   sheetSnapIndexWhenOpeningRefine,
   VIEWPORT_FULL_RATIO,

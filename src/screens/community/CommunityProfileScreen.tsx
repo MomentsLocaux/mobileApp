@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, Touchable
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Flag } from 'lucide-react-native';
+import { ArrowLeft, Flag, MapPin, Users } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { AppBackground } from '@/components/ui';
 import { CommunityService } from '../../services/community.service';
@@ -15,6 +15,13 @@ import type { EventWithCreator } from '@/types/database';
 import { EventCard } from '@/components/events';
 import { useAuth } from '@/hooks';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
+import { features } from '@/config/features';
+
+function memberFirstName(displayName: string) {
+  const trimmed = displayName.trim();
+  if (!trimmed) return 'ce membre';
+  return trimmed.split(/\s+/)[0] ?? 'ce membre';
+}
 
 export default function CommunityProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +40,7 @@ export default function CommunityProfileScreen() {
   const [isAmbassadeur, setIsAmbassadeur] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const currentUserId = user?.id || session?.user?.id || profile?.id;
+  const showCreatorEvents = features.eventCreate;
 
   const refreshFollowingState = React.useCallback(async () => {
     if (!id || !currentUserId) return;
@@ -67,6 +75,11 @@ export default function CommunityProfileScreen() {
   }, [id]);
 
   useEffect(() => {
+    if (!showCreatorEvents) {
+      setEvents([]);
+      setLoadingEvents(false);
+      return;
+    }
     const loadEvents = async () => {
       if (!id) return;
       setLoadingEvents(true);
@@ -84,7 +97,7 @@ export default function CommunityProfileScreen() {
       }
     };
     loadEvents();
-  }, [id, dateFilter, visibilityFilter]);
+  }, [id, dateFilter, visibilityFilter, showCreatorEvents]);
 
   useEffect(() => {
     refreshFollowingState();
@@ -106,11 +119,13 @@ export default function CommunityProfileScreen() {
   }, [dateFilter, visibilityFilter]);
 
   const galleryUrls = useMemo(() => {
-    const urls = [member?.cover_url, ...events.map((evt) => evt.cover_url)].filter(
+    const cover = member?.cover_url;
+    const eventCovers = showCreatorEvents ? events.map((evt) => evt.cover_url) : [];
+    const urls = [cover, ...eventCovers].filter(
       (url): url is string => typeof url === 'string' && url.trim().length > 0,
     );
     return Array.from(new Set(urls)).slice(0, 6);
-  }, [member?.cover_url, events]);
+  }, [member?.cover_url, events, showCreatorEvents]);
 
   const coverWidth = Dimensions.get('window').width;
 
@@ -132,8 +147,34 @@ export default function CommunityProfileScreen() {
     );
   }
 
+  const isOwnProfile = currentUserId === member.user_id;
+  const firstName = memberFirstName(member.display_name);
+  const cityLabel = member.city?.trim() || null;
+  const presenceCopy = isOwnProfile
+    ? 'C\'est votre profil public. Les autres membres voient votre nom, votre ville et peuvent vous suivre.'
+    : isFollowing
+      ? `Vous suivez ${firstName}. Ses coups de cœur apparaîtront près des événements que vous découvrez.`
+      : `Suivez ${firstName} pour voir ses coups de cœur dans votre fil.`;
+
+  const toggleFollow = async () => {
+    if (!id || followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await CommunityService.unfollow(id);
+      } else {
+        await CommunityService.follow(id);
+      }
+      await refreshFollowingState();
+    } catch (e) {
+      console.warn('follow toggle error', e);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <AppBackground />
       <View style={styles.header}>
         <TouchableOpacity style={[styles.backButton, { paddingTop: insets.top + spacing.xs }]} onPress={() => router.back()}>
@@ -164,46 +205,38 @@ export default function CommunityProfileScreen() {
               ))}
             </View>
           </View>
-        ) : member.cover_url ? (
-          <Image source={{ uri: member.cover_url }} style={styles.cover} />
+        ) : galleryUrls.length === 1 ? (
+          <Image source={{ uri: galleryUrls[0] }} style={styles.cover} />
         ) : (
-          <View style={[styles.cover, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+          <View style={styles.coverFallback} />
         )}
         <View style={styles.headerOverlay}>
           {member.avatar_url ? (
             <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarInitial}>
+                {(member.display_name || '?').slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
           )}
           <Text style={styles.name}>{member.display_name}</Text>
-          <Text style={styles.meta}>{member.city || 'Sans ville'}</Text>
+          <Text style={styles.meta}>{cityLabel || 'Membre de la communauté'}</Text>
           {isAmbassadeur ? (
             <View style={styles.ambassadorBadge}>
               <Text style={styles.ambassadorBadgeText}>Ambassadeur</Text>
             </View>
           ) : null}
           {member.bio ? <Text style={styles.bio}>{member.bio}</Text> : null}
-          {currentUserId !== member.user_id && (
+          {!isOwnProfile ? (
             <View style={styles.profileActions}>
               <TouchableOpacity
                 style={[styles.followButton, isFollowing && styles.followButtonActive]}
-                onPress={async () => {
-                  if (!id || followLoading) return;
-                  setFollowLoading(true);
-                  try {
-                    if (isFollowing) {
-                      await CommunityService.unfollow(id);
-                    } else {
-                      await CommunityService.follow(id);
-                    }
-                    await refreshFollowingState();
-                  } catch (e) {
-                    console.warn('follow toggle error', e);
-                  } finally {
-                    setFollowLoading(false);
-                  }
-                }}
+                onPress={toggleFollow}
                 activeOpacity={0.8}
+                disabled={followLoading}
+                accessibilityRole="button"
+                accessibilityLabel={isFollowing ? 'Ne plus suivre' : 'Suivre'}
               >
                 <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
                   {isFollowing ? 'Suivi' : 'Suivre'}
@@ -214,12 +247,12 @@ export default function CommunityProfileScreen() {
                 <Text style={styles.reportText}>Signaler</Text>
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
         </View>
       </View>
 
       <View style={styles.statsRow}>
-        <Stat label="Événements" value={member.events_created_count} />
+        {showCreatorEvents ? <Stat label="Événements" value={member.events_created_count} /> : null}
         <Stat
           label="Followers"
           value={member.followers_count}
@@ -233,66 +266,96 @@ export default function CommunityProfileScreen() {
         {GAMIFICATION_ENABLED ? <Stat label="Engagement" value={member.lumo_total ?? 0} /> : null}
       </View>
 
-      <View style={styles.eventsSection}>
-        <View style={styles.eventsHeader}>
-          <Text style={styles.sectionTitle}>Événements</Text>
-          <Text style={styles.sectionSubtitle}>{filteredLabel}</Text>
-        </View>
-        <View style={styles.filterRow}>
-          <FilterChip
-            label="Tous"
-            active={dateFilter === 'all'}
-            onPress={() => setDateFilter('all')}
-          />
-          <FilterChip
-            label="À venir"
-            active={dateFilter === 'upcoming'}
-            onPress={() => setDateFilter(dateFilter === 'upcoming' ? 'all' : 'upcoming')}
-          />
-          <FilterChip
-            label="Passés"
-            active={dateFilter === 'past'}
-            onPress={() => setDateFilter(dateFilter === 'past' ? 'all' : 'past')}
-          />
-        </View>
-        <View style={styles.filterRow}>
-          <FilterChip
-            label="Public"
-            active={visibilityFilter === 'public'}
-            onPress={() => setVisibilityFilter(visibilityFilter === 'public' ? 'all' : 'public')}
-          />
-          <FilterChip
-            label="Privé"
-            active={visibilityFilter === 'prive'}
-            onPress={() => setVisibilityFilter(visibilityFilter === 'prive' ? 'all' : 'prive')}
-          />
-          <FilterChip
-            label="Tous"
-            active={visibilityFilter === 'all'}
-            onPress={() => setVisibilityFilter('all')}
-          />
-        </View>
-
-        {loadingEvents ? (
-          <View style={styles.loadingEvents}>
-            <ActivityIndicator size="small" color={colors.brand.primary} />
-            <Text style={styles.loadingText}>Chargement des événements…</Text>
+      {!showCreatorEvents ? (
+        <View style={styles.presenceCard}>
+          <View style={styles.presenceHeader}>
+            <View style={styles.presenceIcon}>
+              <Users size={18} color={colors.brand.secondary} />
+            </View>
+            <Text style={styles.presenceTitle}>Dans la communauté</Text>
           </View>
-        ) : events.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>Aucun événement trouvé</Text>
+          {cityLabel ? (
+            <View style={styles.presenceCityRow}>
+              <MapPin size={14} color={colors.brand.secondary} />
+              <Text style={styles.presenceCity}>{cityLabel}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.presenceCopy}>{presenceCopy}</Text>
+          {features.socialPeers ? (
+            <TouchableOpacity
+              style={styles.presenceCta}
+              onPress={() => router.push('/community' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Découvrir d'autres membres"
+              activeOpacity={0.8}
+            >
+              <Text style={styles.presenceCtaText}>Découvrir d'autres membres</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.eventsSection}>
+          <View style={styles.eventsHeader}>
+            <Text style={styles.sectionTitle}>Événements</Text>
+            <Text style={styles.sectionSubtitle}>{filteredLabel}</Text>
           </View>
-        ) : (
-          events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              variant="discovery"
-              onPress={() => router.push(`/events/${event.id}`)}
+          <View style={styles.filterRow}>
+            <FilterChip
+              label="Tous"
+              active={dateFilter === 'all'}
+              onPress={() => setDateFilter('all')}
             />
-          ))
-        )}
-      </View>
+            <FilterChip
+              label="À venir"
+              active={dateFilter === 'upcoming'}
+              onPress={() => setDateFilter(dateFilter === 'upcoming' ? 'all' : 'upcoming')}
+            />
+            <FilterChip
+              label="Passés"
+              active={dateFilter === 'past'}
+              onPress={() => setDateFilter(dateFilter === 'past' ? 'all' : 'past')}
+            />
+          </View>
+          <View style={styles.filterRow}>
+            <FilterChip
+              label="Public"
+              active={visibilityFilter === 'public'}
+              onPress={() => setVisibilityFilter(visibilityFilter === 'public' ? 'all' : 'public')}
+            />
+            <FilterChip
+              label="Privé"
+              active={visibilityFilter === 'prive'}
+              onPress={() => setVisibilityFilter(visibilityFilter === 'prive' ? 'all' : 'prive')}
+            />
+            <FilterChip
+              label="Tous"
+              active={visibilityFilter === 'all'}
+              onPress={() => setVisibilityFilter('all')}
+            />
+          </View>
+
+          {loadingEvents ? (
+            <View style={styles.loadingEvents}>
+              <ActivityIndicator size="small" color={colors.brand.primary} />
+              <Text style={styles.loadingText}>Chargement des événements…</Text>
+            </View>
+          ) : events.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>Aucun événement trouvé</Text>
+            </View>
+          ) : (
+            events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                variant="map-preview"
+                showCarousel={false}
+                onPress={() => router.push(`/events/${event.id}`)}
+              />
+            ))
+          )}
+        </View>
+      )}
 
       <ReportReasonModal
         visible={reportVisible}
@@ -361,6 +424,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  content: {
+    paddingBottom: spacing.xl,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -390,6 +456,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
   },
+  coverFallback: {
+    width: '100%',
+    height: 120,
+    backgroundColor: colors.brand.surfaceMuted,
+  },
   galleryWrap: {
     position: 'relative',
   },
@@ -406,7 +477,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   galleryDotActive: {
     backgroundColor: colors.brand.secondary,
@@ -423,6 +494,21 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.brand.surface,
     marginBottom: spacing.sm,
+  },
+  avatarFallback: {
+    width: 100,
+    height: 100,
+    borderRadius: borderRadius.full,
+    borderWidth: 3,
+    borderColor: colors.brand.surface,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.brand.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    ...typography.h3,
+    color: colors.brand.text,
   },
   name: {
     ...typography.h3,
@@ -443,7 +529,7 @@ const styles = StyleSheet.create({
   },
   ambassadorBadgeText: {
     ...typography.caption,
-    color: colors.brand.surface,
+    color: colors.brand.ink,
     fontWeight: '700',
   },
   bio: {
@@ -456,10 +542,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     backgroundColor: 'transparent',
+    gap: spacing.sm,
   },
   statBox: {
+    flex: 1,
     alignItems: 'center',
+    backgroundColor: colors.brand.surface,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
   },
   statValue: {
     ...typography.h4,
@@ -468,6 +562,59 @@ const styles = StyleSheet.create({
   statLabel: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+  },
+  presenceCard: {
+    marginHorizontal: spacing.md,
+    backgroundColor: colors.brand.surface,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  presenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  presenceIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.brand.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presenceTitle: {
+    ...typography.h4,
+    color: colors.brand.text,
+  },
+  presenceCityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  presenceCity: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  presenceCopy: {
+    ...typography.body,
+    color: colors.brand.textSecondary,
+  },
+  presenceCta: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surfaceMuted,
+  },
+  presenceCtaText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '700',
   },
   eventsSection: {
     paddingHorizontal: spacing.md,
@@ -494,15 +641,15 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.neutral[200],
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.brand.surface,
   },
   chipActive: {
-    borderColor: colors.brand.primary,
-    backgroundColor: colors.brand.page,
+    borderColor: colors.brand.secondary,
+    backgroundColor: colors.brand.surfaceMuted,
   },
   chipText: {
     ...typography.caption,
@@ -523,19 +670,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.page,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    backgroundColor: colors.brand.secondary,
   },
   followButtonActive: {
     backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
   },
   followText: {
     ...typography.body,
-    color: colors.brand.text,
+    color: colors.brand.onAccent,
     fontWeight: '700',
   },
   followTextActive: {
@@ -548,7 +692,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
   reportText: {
     ...typography.bodySmall,

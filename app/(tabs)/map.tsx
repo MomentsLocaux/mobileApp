@@ -18,6 +18,7 @@ import {
   getSheetMaxSnapIndex,
   getSheetSnapHeights,
   MAP_CAMERA_ANIMATION_MS,
+  resolveEffectiveSheetSnapIndex,
   resolveMapTabBarProgress,
   sheetSnapIndexWhenOpeningRefine,
   shouldFollowMapCameraForSheetIndex,
@@ -108,6 +109,7 @@ import {
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
 import { filterEvents } from '@/utils/filter-events';
+import { sortEvents } from '@/utils/sort-events';
 import { buildMapMarkerCollection } from '@/utils/map-marker-features';
 import { isDefaultDiscoveryTemporal } from '@/utils/search-temporal-choice';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
@@ -1197,16 +1199,31 @@ export default function MapScreen() {
   );
 
   const openRefinePanel = useCallback(() => {
-    const idx = useMapResultsUIStore.getState().bottomSheetIndex;
+    const stored = useMapResultsUIStore.getState().bottomSheetIndex;
+    const idx = resolveEffectiveSheetSnapIndex({
+      storedIndex: stored,
+      visibleHeight: sheetVisibleHeight.value,
+      layoutHeight: mapColumnHeight,
+      mode: sheetMode,
+    });
     const nextSnap = sheetSnapIndexWhenOpeningRefine(idx, sheetMode);
-    if (nextSnap !== idx) {
-      sheetSnapBeforeRefineRef.current = idx;
+    if (nextSnap !== stored) {
+      sheetSnapBeforeRefineRef.current = Math.max(stored, idx);
       handleSheetIndexChange(nextSnap);
+    } else if (idx !== nextSnap) {
+      sheetSnapBeforeRefineRef.current = idx;
+      setSheetSnapIndex(nextSnap, true);
     } else {
       sheetSnapBeforeRefineRef.current = null;
     }
     setRefineOpen(true);
-  }, [handleSheetIndexChange, sheetMode]);
+  }, [
+    handleSheetIndexChange,
+    mapColumnHeight,
+    setSheetSnapIndex,
+    sheetMode,
+    sheetVisibleHeight,
+  ]);
 
   const toggleRefine = useCallback(() => {
     if (refineOpen) closeRefinePanel();
@@ -1217,9 +1234,12 @@ export default function MapScreen() {
     return mapMode === 'satellite' ? Mapbox.StyleURL.SatelliteStreet : Mapbox.StyleURL.Street;
   }, [mapMode]);
 
-  // Live sheetEvents — not the freeze snapshot. Sort/filter reapply updates
-  // the live list while the sheet is locked; frozenViewport is only for restore.
-  const displaySheetEvents = sheetEvents;
+  // Sort at paint time so the sheet list follows SortControl even if the
+  // viewport reapply path does not republish (frozen sheet / missing RPC cache).
+  const displaySheetEvents = useMemo(
+    () => sortEvents(sheetEvents, sortBy, sortCenter, sortOrder),
+    [sheetEvents, sortBy, sortCenter, sortOrder]
+  );
   const displayPeekCount = visibleEventCount;
   const openUnitEventDetails = useCallback(() => {
     if (!unitCardEvent) return;
@@ -1306,18 +1326,6 @@ export default function MapScreen() {
               <View style={styles.filterActiveDot} />
             </FloatingPressable>
           </View>
-          <MapViewportRefinePanel
-            visible={refineOpen}
-            searchActive={searchActive}
-            metaFilter={metaFilter}
-            when={when}
-            selectedCategories={content.categories}
-            selectedSubcategories={content.subcategories}
-            onTemporalChoice={handleTemporalChoice}
-            onCustomDateChange={handleCustomDateChange}
-            onCategoriesChange={handleCategoriesChange}
-            onClear={handleClearViewportFilters}
-          />
         </View>
 
         <View
@@ -1524,6 +1532,21 @@ export default function MapScreen() {
             </Animated.View>
           ) : null}
 
+          <View style={styles.refineOverlay} pointerEvents="box-none">
+            <MapViewportRefinePanel
+              visible={refineOpen}
+              searchActive={searchActive}
+              metaFilter={metaFilter}
+              when={when}
+              selectedCategories={content.categories}
+              selectedSubcategories={content.subcategories}
+              onTemporalChoice={handleTemporalChoice}
+              onCustomDateChange={handleCustomDateChange}
+              onCategoriesChange={handleCategoriesChange}
+              onClear={handleClearViewportFilters}
+            />
+          </View>
+
           <Animated.View
             pointerEvents={unitCardEvent ? 'none' : 'auto'}
             style={[styles.sheetOverlay, sheetOverlayStyle]}
@@ -1562,6 +1585,7 @@ export default function MapScreen() {
               onSortChange={(value, order) => setSort('map', value, order)}
               onSortOrderChange={(value) => setSort('map', sortBy, value)}
               hasLocation={!!sortCenter}
+              sortCenter={sortCenter}
               selectedCategories={content.categories}
               hasViewportRefine={hasViewportRefine}
               onClearViewportFilters={handleClearViewportFilters}
@@ -1681,6 +1705,14 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: colors.brand.page,
+  },
+  refineOverlay: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 25,
+    elevation: 25,
   },
   mapLayer: {
     ...StyleSheet.absoluteFillObject,

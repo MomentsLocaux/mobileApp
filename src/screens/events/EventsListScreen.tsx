@@ -105,7 +105,7 @@ export default function EventsListScreen() {
   const renderEventCard = ({ item }: { item: EventWithCreator }) => (
     <EventCard
       event={item}
-      variant="discovery"
+      variant="map-preview"
       onPress={() => handleEventPress(item.id)}
       onHeartPress={() => handleHeartPress(item)}
       isLiked={likesSet.has(item.id) || favoritesSet.has(item.id)}

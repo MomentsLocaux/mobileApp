@@ -11,8 +11,8 @@ export const EVENT_CARD_CTA = {
 } as const;
 
 export const EVENT_CARD_MEDIA_HEIGHT: Record<EventCardVariant, number> = {
-  discovery: 200,
-  favorite: 200,
+  discovery: 220,
+  favorite: 220,
   compact: 132,
   'map-preview': 220,
 };

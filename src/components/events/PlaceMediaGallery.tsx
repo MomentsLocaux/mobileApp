@@ -1,5 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, FlatList, Pressable, Dimensions, StyleSheet, Text, Modal } from 'react-native';
+import {
+  View,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  Modal,
+  StatusBar,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image as ImageIcon, X } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { EventCoverImage } from './EventCoverImage';
@@ -11,8 +21,8 @@ export type MediaImage = {
   isUserGenerated?: boolean;
 };
 
-const { width } = Dimensions.get('window');
 const HERO_HEIGHT = 300;
+const VIEWER_CHROME = 40;
 
 type Props = {
   images: MediaImage[];
@@ -38,10 +48,12 @@ export function PlaceMediaGallery({
   onPrimaryImageReady,
   children,
 }: Props) {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerTab, setViewerTab] = useState<'organizer' | 'community'>('organizer');
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [stageSize, setStageSize] = useState({ width: windowWidth, height: HERO_HEIGHT + 220 });
   const listRef = useRef<FlatList<MediaImage>>(null);
   const viewerListRef = useRef<FlatList<MediaImage>>(null);
 
@@ -67,6 +79,7 @@ export function PlaceMediaGallery({
   );
   const showAdd = typeof onAddPhoto === 'function';
   const currentViewerData = viewerTab === 'organizer' ? organizerData : communityData;
+  const stageWidth = stageSize.width || windowWidth;
 
   const openViewer = (tab: 'organizer' | 'community', index = 0) => {
     const targetData = tab === 'organizer' ? organizerData : communityData;
@@ -76,6 +89,14 @@ export function PlaceMediaGallery({
     setViewerVisible(true);
     requestAnimationFrame(() => {
       viewerListRef.current?.scrollToIndex({ index, animated: false });
+    });
+  };
+
+  const selectViewerTab = (tab: 'organizer' | 'community') => {
+    setViewerTab(tab);
+    setViewerIndex(0);
+    requestAnimationFrame(() => {
+      viewerListRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
   };
 
@@ -90,7 +111,7 @@ export function PlaceMediaGallery({
               uri={singleHero.uri}
               recyclingKey={singleHero.id}
               variant="detail"
-              style={styles.heroImage}
+              style={[styles.heroImage, { width: windowWidth }]}
               onLoadEnd={onPrimaryImageReady}
             />
           </Pressable>
@@ -103,29 +124,25 @@ export function PlaceMediaGallery({
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
             getItemLayout={(_, index) => ({
-              length: width,
-              offset: width * index,
+              length: windowWidth,
+              offset: windowWidth * index,
               index,
             })}
-            onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / width);
-              setActiveIndex(index);
-            }}
             initialNumToRender={1}
             renderItem={({ item, index }) => (
-              <Pressable onPress={() => openViewer('organizer', activeIndex)}>
+              <Pressable onPress={() => openViewer('organizer', index)}>
                 <EventCoverImage
                   uri={item.uri}
                   recyclingKey={item.id}
                   variant="detail"
-                  style={styles.heroImage}
+                  style={[styles.heroImage, { width: windowWidth }]}
                   onLoadEnd={index === 0 ? onPrimaryImageReady : undefined}
                 />
               </Pressable>
             )}
           />
         ) : (
-          <View style={styles.heroPlaceholder}>
+          <View style={[styles.heroPlaceholder, { width: windowWidth }]}>
             <ImageIcon size={40} color={colors.neutral[400]} />
           </View>
         )}
@@ -138,19 +155,32 @@ export function PlaceMediaGallery({
         {children}
       </View>
 
-      <Modal visible={viewerVisible} transparent={false} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+      <Modal
+        visible={viewerVisible}
+        transparent={false}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setViewerVisible(false)}
+      >
         <View style={styles.viewerContainer}>
-          <View style={styles.viewerHeader}>
+          <StatusBar barStyle="light-content" />
+          <View
+            style={[
+              styles.viewerHeader,
+              {
+                paddingTop: insets.top + spacing.md,
+                paddingBottom: spacing.md,
+              },
+            ]}
+          >
+            <View style={styles.viewerHeaderSide} />
             <View style={styles.viewerTabs}>
               <Pressable
                 style={[styles.viewerTab, viewerTab === 'organizer' && styles.viewerTabActive]}
-                onPress={() => {
-                  setViewerTab('organizer');
-                  setViewerIndex(0);
-                  requestAnimationFrame(() => {
-                    viewerListRef.current?.scrollToOffset({ offset: 0, animated: false });
-                  });
-                }}
+                onPress={() => selectViewerTab('organizer')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: viewerTab === 'organizer' }}
+                accessibilityLabel="Photos organisateur"
               >
                 <Text style={[styles.viewerTabText, viewerTab === 'organizer' && styles.viewerTabTextActive]}>
                   Organisateur
@@ -158,61 +188,83 @@ export function PlaceMediaGallery({
               </Pressable>
               <Pressable
                 style={[styles.viewerTab, viewerTab === 'community' && styles.viewerTabActive]}
-                onPress={() => {
-                  setViewerTab('community');
-                  setViewerIndex(0);
-                  requestAnimationFrame(() => {
-                    viewerListRef.current?.scrollToOffset({ offset: 0, animated: false });
-                  });
-                }}
+                onPress={() => selectViewerTab('community')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: viewerTab === 'community' }}
+                accessibilityLabel="Photos communauté"
               >
                 <Text style={[styles.viewerTabText, viewerTab === 'community' && styles.viewerTabTextActive]}>
                   Communauté
                 </Text>
               </Pressable>
             </View>
-            <Pressable style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
-              <X size={18} color="#FFF" />
-            </Pressable>
+            <View style={styles.viewerHeaderSide}>
+              <Pressable
+                style={styles.viewerClose}
+                onPress={() => setViewerVisible(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Fermer"
+              >
+                <X size={18} color="#FFF" />
+              </Pressable>
+            </View>
           </View>
 
-          {currentViewerData.length > 0 ? (
-            <FlatList
-              ref={viewerListRef}
-              data={currentViewerData}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(item) => `${viewerTab}-${item.id}`}
-              extraData={viewerTab}
-              getItemLayout={(_, index) => ({
-                length: width,
-                offset: width * index,
-                index,
-              })}
-              onMomentumScrollEnd={(e) => {
-                const index = Math.round(e.nativeEvent.contentOffset.x / width);
-                setViewerIndex(index);
-              }}
-              renderItem={({ item }) => (
-                <EventCoverImage
-                  uri={item.uri}
-                  recyclingKey={`viewer-${item.id}`}
-                  contentFit="contain"
-                  style={styles.viewerImage}
-                />
-              )}
-            />
-          ) : (
-            <View style={styles.viewerEmpty}>
-              <ImageIcon size={34} color={colors.neutral[400]} />
-              <Text style={styles.viewerEmptyText}>Aucune image disponible</Text>
-            </View>
-          )}
+          <View
+            style={styles.viewerStage}
+            onLayout={(e) => {
+              const { width: nextWidth, height: nextHeight } = e.nativeEvent.layout;
+              if (nextWidth === stageSize.width && nextHeight === stageSize.height) return;
+              setStageSize({ width: nextWidth, height: nextHeight });
+            }}
+          >
+            {currentViewerData.length > 0 ? (
+              <FlatList
+                ref={viewerListRef}
+                data={currentViewerData}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => `${viewerTab}-${item.id}`}
+                extraData={`${viewerTab}:${stageWidth}:${stageSize.height}`}
+                getItemLayout={(_, index) => ({
+                  length: stageWidth,
+                  offset: stageWidth * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / stageWidth);
+                  setViewerIndex(index);
+                }}
+                renderItem={({ item }) => (
+                  <View style={{ width: stageWidth, height: stageSize.height }}>
+                    <EventCoverImage
+                      uri={item.uri}
+                      recyclingKey={`viewer-${item.id}`}
+                      contentFit="contain"
+                      style={{ width: stageWidth, height: stageSize.height }}
+                    />
+                  </View>
+                )}
+              />
+            ) : (
+              <View style={styles.viewerEmpty}>
+                <ImageIcon size={34} color={colors.neutral[400]} />
+                <Text style={styles.viewerEmptyText}>Aucune image disponible</Text>
+              </View>
+            )}
+          </View>
 
-          {currentViewerData.length > 1 ? (
-            <Text style={styles.viewerIndex}>{viewerIndex + 1}/{currentViewerData.length}</Text>
-          ) : null}
+          <View style={[styles.viewerFooter, { paddingBottom: insets.bottom + spacing.md }]}>
+            {currentViewerData.length > 1 ? (
+              <Text style={styles.viewerIndex}>
+                {viewerIndex + 1}/{currentViewerData.length}
+              </Text>
+            ) : (
+              <View style={styles.viewerIndexSpacer} />
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -227,11 +279,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.page,
   },
   heroImage: {
-    width,
     height: HERO_HEIGHT,
   },
   heroPlaceholder: {
-    width,
     height: HERO_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
@@ -259,22 +309,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   viewerHeader: {
-    paddingTop: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+  },
+  viewerHeaderSide: {
+    width: VIEWER_CHROME,
+    height: VIEWER_CHROME,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   viewerTabs: {
+    flex: 1,
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: spacing.xs,
   },
   viewerTab: {
+    minHeight: VIEWER_CHROME,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   viewerTabActive: {
     backgroundColor: colors.brand.secondary,
@@ -285,19 +344,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   viewerTabTextActive: {
-    color: '#FFF',
+    color: colors.brand.onAccent,
   },
   viewerClose: {
-    width: 34,
-    height: 34,
+    width: VIEWER_CHROME,
+    height: VIEWER_CHROME,
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  viewerImage: {
-    width,
-    height: HERO_HEIGHT + 220,
+  viewerStage: {
+    flex: 1,
   },
   viewerEmpty: {
     flex: 1,
@@ -309,11 +367,18 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.textSecondary,
   },
+  viewerFooter: {
+    minHeight: VIEWER_CHROME,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: spacing.sm,
+  },
   viewerIndex: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    alignSelf: 'center',
     ...typography.caption,
     color: '#FFF',
+    textAlign: 'center',
+  },
+  viewerIndexSpacer: {
+    height: 16,
   },
 });

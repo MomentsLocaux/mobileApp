@@ -67,6 +67,22 @@ export const sheetSnapIndexWhenOpeningRefine = (
   return currentIndex;
 };
 
+/** Prefer the painted sheet over a stale React snap (drag can lead the store). */
+export const resolveEffectiveSheetSnapIndex = (options: {
+  storedIndex: number;
+  visibleHeight: number;
+  layoutHeight: number;
+  mode: MapSheetMode;
+}): number => {
+  if (options.layoutHeight <= 0) return options.storedIndex;
+  const visual = resolveSheetSnapIndex(
+    options.visibleHeight,
+    options.layoutHeight,
+    options.mode,
+  );
+  return Math.max(options.storedIndex, visual);
+};
+
 export const resolveMapTabBarProgress = (sheetProgress: number): number => {
   'worklet';
   const range =

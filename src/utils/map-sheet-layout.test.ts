@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   getSheetSnapHeights,
+  resolveEffectiveSheetSnapIndex,
   resolveMapTabBarProgress,
   resolveSheetHeightForLayout,
   resolveSheetSnapIndex,
@@ -77,5 +78,27 @@ describe('map sheet layout', () => {
     assert.equal(sheetSnapIndexWhenOpeningRefine(1, 'viewport'), 1);
     assert.equal(sheetSnapIndexWhenOpeningRefine(0, 'viewport'), 0);
     assert.equal(sheetSnapIndexWhenOpeningRefine(1, 'single'), 1);
+  });
+
+  it('trusts the painted sheet height when the stored snap is still peek', () => {
+    const [, , full] = getSheetSnapHeights(layoutHeight, 'viewport');
+    assert.equal(
+      resolveEffectiveSheetSnapIndex({
+        storedIndex: 0,
+        visibleHeight: full,
+        layoutHeight,
+        mode: 'viewport',
+      }),
+      2
+    );
+    assert.equal(
+      resolveEffectiveSheetSnapIndex({
+        storedIndex: 1,
+        visibleHeight: VIEWPORT_PEEK_HEIGHT,
+        layoutHeight,
+        mode: 'viewport',
+      }),
+      1
+    );
   });
 });

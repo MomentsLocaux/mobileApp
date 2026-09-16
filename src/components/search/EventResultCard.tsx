@@ -12,19 +12,19 @@ import type { EventWithCreator } from '../../types/database';
 import { useLocationStore } from '@/store';
 import { getDistanceText } from '@/utils/sort-events';
 import { EventCard } from '../events/EventCard';
-import type { EventCardVariant } from '@/constants/event-card-variants';
+import { MAP_PREVIEW_CARD_ESTIMATED_HEIGHT, EVENT_CARD_MEDIA_HEIGHT, type EventCardVariant } from '@/constants/event-card-variants';
 import type { EventCardLikerPreview } from '@/services/event-card-stats.service';
 
 /** Estimated sheet row height for getItemLayout (cards size to content; do not force this as minHeight). */
-export const EVENT_RESULT_LIST_CARD_HEIGHT = 360;
-/** Slightly shorter cover than Home (`EVENT_CARD_MEDIA_HEIGHT.discovery` = 200). */
-export const EVENT_RESULT_SHEET_MEDIA_HEIGHT = 176;
+export const EVENT_RESULT_LIST_CARD_HEIGHT = MAP_PREVIEW_CARD_ESTIMATED_HEIGHT;
+/** Same cover height as the map unit overlay (`map-preview`). */
+export const EVENT_RESULT_SHEET_MEDIA_HEIGHT = EVENT_CARD_MEDIA_HEIGHT['map-preview'];
 /** @deprecated Alias — utiliser EVENT_RESULT_LIST_CARD_HEIGHT. */
 export const EVENT_RESULT_CARD_HEIGHT = EVENT_RESULT_LIST_CARD_HEIGHT;
 
 interface Props {
   event: EventWithCreator;
-  /** Défaut `discovery` : même carte pour feed et bottom sheet. */
+  /** Défaut `map-preview` : même carte épurée que l’overlay map (Home, sheet, favoris). */
   variant?: EventCardVariant;
   distanceKm?: number;
   viewsCount?: number;
@@ -61,7 +61,7 @@ function extractCoords(event: EventWithCreator): { lat: number; lon: number } | 
 
 const EventResultCardComponent: React.FC<Props> = ({
   event,
-  variant = 'discovery',
+  variant = 'map-preview',
   distanceKm,
   viewsCount,
   friendsGoingCount,
