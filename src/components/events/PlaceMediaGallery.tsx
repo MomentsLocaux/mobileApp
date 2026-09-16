@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, FlatList, Image, Pressable, Dimensions, StyleSheet, Text, Modal } from 'react-native';
+import { View, FlatList, Pressable, Dimensions, StyleSheet, Text, Modal } from 'react-native';
 import { Image as ImageIcon, X } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { EventCoverImage } from './EventCoverImage';
 
 export type MediaImage = {
   id: string;
@@ -78,10 +79,22 @@ export function PlaceMediaGallery({
     });
   };
 
+  const singleHero = organizerData.length === 1 ? organizerData[0] : null;
+
   return (
     <View>
       <View style={styles.heroWrapper}>
-        {organizerData.length > 0 ? (
+        {singleHero ? (
+          <Pressable onPress={() => openViewer('organizer', 0)}>
+            <EventCoverImage
+              uri={singleHero.uri}
+              recyclingKey={singleHero.id}
+              variant="detail"
+              style={styles.heroImage}
+              onLoadEnd={onPrimaryImageReady}
+            />
+          </Pressable>
+        ) : organizerData.length > 1 ? (
           <FlatList
             ref={listRef}
             data={organizerData}
@@ -101,10 +114,11 @@ export function PlaceMediaGallery({
             initialNumToRender={1}
             renderItem={({ item, index }) => (
               <Pressable onPress={() => openViewer('organizer', activeIndex)}>
-                <Image
-                  source={{ uri: item.uri }}
+                <EventCoverImage
+                  uri={item.uri}
+                  recyclingKey={item.id}
+                  variant="detail"
                   style={styles.heroImage}
-                  fadeDuration={0}
                   onLoadEnd={index === 0 ? onPrimaryImageReady : undefined}
                 />
               </Pressable>
@@ -181,7 +195,12 @@ export function PlaceMediaGallery({
                 setViewerIndex(index);
               }}
               renderItem={({ item }) => (
-                <Image source={{ uri: item.uri }} style={styles.viewerImage} resizeMode="contain" fadeDuration={0} />
+                <EventCoverImage
+                  uri={item.uri}
+                  recyclingKey={`viewer-${item.id}`}
+                  contentFit="contain"
+                  style={styles.viewerImage}
+                />
               )}
             />
           ) : (
@@ -210,7 +229,6 @@ const styles = StyleSheet.create({
   heroImage: {
     width,
     height: HERO_HEIGHT,
-    resizeMode: 'cover',
   },
   heroPlaceholder: {
     width,

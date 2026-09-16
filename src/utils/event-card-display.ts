@@ -290,3 +290,30 @@ export function getEventPrefetchUrls(
   const cover = urls[0];
   return cover ? [cover] : [];
 }
+
+/** Decode cap for list covers. Same URI as the fiche — ADR 010 law 3. */
+export const EVENT_LIST_COVER_DECODE_PX = 400;
+
+export type EventCoverVariant = 'list' | 'detail';
+
+export type EventCoverImageSource = {
+  uri: string;
+  cacheKey: string;
+  width?: number;
+  height?: number;
+};
+
+export function getEventCoverImageSource(
+  uri: string,
+  variant: EventCoverVariant = 'detail',
+): EventCoverImageSource {
+  if (variant === 'list') {
+    return {
+      uri,
+      cacheKey: uri,
+      width: EVENT_LIST_COVER_DECODE_PX,
+      height: EVENT_LIST_COVER_DECODE_PX,
+    };
+  }
+  return { uri, cacheKey: uri };
+}

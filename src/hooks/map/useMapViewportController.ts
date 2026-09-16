@@ -173,7 +173,10 @@ export function useMapViewportController({
     if (viewportBootstrappedRef.current) return;
     if (initialViewportLoadInFlightRef.current) return;
     initialViewportLoadInFlightRef.current = true;
-    useMapResultsUIStore.getState().setStatus('loading');
+    const hasSnapshotResults = useMapResultsUIStore.getState().sheetEvents.length > 0;
+    if (!hasSnapshotResults) {
+      useMapResultsUIStore.getState().setStatus('loading');
+    }
 
     try {
       for (let attempt = 0; attempt < 16; attempt += 1) {
@@ -186,7 +189,11 @@ export function useMapViewportController({
         if (!bounds) continue;
         if (isMapBoundsTooLarge(bounds)) continue;
         markViewportBootstrapped();
-        queueViewportFetch(bounds, { immediate: true, force: true });
+        queueViewportFetch(bounds, {
+          immediate: true,
+          force: true,
+          silent: hasSnapshotResults,
+        });
         return;
       }
       useMapResultsUIStore.getState().setStatus('browsing');

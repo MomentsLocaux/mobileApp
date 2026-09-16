@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
 import {
-  Image,
-  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
@@ -33,6 +31,7 @@ import {
   getEventLocationLabel,
   getHumanizedDate,
 } from '@/utils/event-card-display';
+import { EventCoverImage, prefetchCoverUris } from '@/components/events/EventCoverImage';
 import { distanceBetweenKm } from './proposal-filtering';
 import { getProposalCategoryLabel } from './proposal-category-display';
 import type { ProposalAnchor, ProposalDecision } from './proposal.types';
@@ -82,8 +81,9 @@ export function ProposalSwipeDeck({
     translateX.value = 0;
     translateY.value = 0;
     decisionLocked.value = 0;
-    if (currentImage) void Image.prefetch(currentImage).catch(() => undefined);
-    if (upcomingImage) void Image.prefetch(upcomingImage).catch(() => undefined);
+    if (currentImage || upcomingImage) {
+      prefetchCoverUris([currentImage, upcomingImage].filter((uri): uri is string => Boolean(uri)));
+    }
   }, [currentImage, decisionLocked, event.id, upcomingImage, translateX, translateY]);
 
   const finishDecision = (decision: ProposalDecision) => {
@@ -280,9 +280,15 @@ function ProposalCardContent({
 
   if (image) {
     return (
-      <ImageBackground source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover">
+      <View style={StyleSheet.absoluteFill}>
+        <EventCoverImage
+          uri={image}
+          recyclingKey={event.id}
+          variant="list"
+          style={{ width: '100%', height: '100%', position: 'absolute' }}
+        />
         {content}
-      </ImageBackground>
+      </View>
     );
   }
   return <View style={StyleSheet.absoluteFill}>{content}</View>;

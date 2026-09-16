@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { View, StyleSheet, Image, ScrollView, LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, ScrollView, LayoutChangeEvent } from 'react-native';
 import { Image as ImageIcon } from 'lucide-react-native';
 import { colors, borderRadius, spacing } from '@/constants/theme';
+import { EventCoverImage } from './EventCoverImage';
 
 type Props = {
   images: (string | null | undefined)[];
@@ -74,10 +75,11 @@ export const EventImageCarousel: React.FC<Props> = ({
       >
         {hasImages ? (
           validImages.map((uri, idx) => (
-            <Image
+            <EventCoverImage
               key={`${uri}-${idx}`}
-              source={{ uri }}
-              fadeDuration={0}
+              uri={uri}
+              recyclingKey={uri}
+              variant="list"
               onError={() =>
                 setFailed((prev) => {
                   const next = new Set(prev);

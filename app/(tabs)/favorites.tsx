@@ -569,9 +569,9 @@ export default function FavoritesScreen() {
                 likers={eventCardStatsById[item.id]?.likers ?? []}
                 isHearted={favoritesSet.has(item.id) || likesSet.has(item.id)}
                 onPress={() => {
-                  useEventPreviewStore.getState().rememberEvent(item);
-                  prefetchEventMedia(item);
-                  router.push(`/events/${item.id}` as any);
+        useEventPreviewStore.getState().prepareEventDetail(item);
+        prefetchEventMedia(item);
+        router.push(`/events/${item.id}` as any);
                 }}
                 onNavigate={() => setNavEvent(item)}
                 onToggleHeart={handleToggleHeart}

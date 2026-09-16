@@ -18,6 +18,7 @@ import { useLumiaTourTarget } from '@/hooks/useLumiaTourTarget';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useDiscoveryFiltersStore, useMapTransferStore } from '@/store';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import { useDiscoverySnapshotStore } from '@/store/discoverySnapshotStore';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
@@ -77,13 +78,16 @@ import {
 
 const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
 const HOME_CARD_STATS_LIMIT = 40;
-const HOME_FEED_CACHE_TTL_MS = 2 * 60 * 1000;
+const HOME_VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 45,
+  minimumViewTime: 80,
+};
 
-let homeFeedCache: {
-  key: string;
-  events: EventWithCreator[];
-  storedAt: number;
-} | null = null;
+const readHomeSnapshotEvents = (): EventWithCreator[] => {
+  const snapshot = useDiscoverySnapshotStore.getState().home;
+  if (!snapshot?.eventIds.length) return [];
+  return useEventPreviewStore.getState().getCachedEvents(snapshot.eventIds);
+};
 
 type HomeFeedEventItemProps = {
   event: EventWithCreator;
@@ -92,7 +96,7 @@ type HomeFeedEventItemProps = {
   likesCount: number;
   likers: EventCardStats['likers'];
   isHearted: boolean;
-  onPressEvent: (eventId: string) => void;
+  onPressEvent: (event: EventWithCreator) => void;
   onNavigateEvent: (event: EventWithCreator) => void;
   onToggleHeart: (event: EventWithCreator) => void;
 };
@@ -108,7 +112,7 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
   onNavigateEvent,
   onToggleHeart,
 }: HomeFeedEventItemProps) {
-  const onPress = useCallback(() => onPressEvent(event.id), [event.id, onPressEvent]);
+  const onPress = useCallback(() => onPressEvent(event), [event, onPressEvent]);
   const onNavigate = useCallback(() => onNavigateEvent(event), [event, onNavigateEvent]);
 
   return (
@@ -168,13 +172,23 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>([]);
-  const [metaFeedLoading, setMetaFeedLoading] = useState(true);
+  const homeSnapshot = useDiscoverySnapshotStore((state) => state.home);
+  const discoveryHydrated = useDiscoverySnapshotStore((state) => state.hydrated);
+  const cacheEpoch = useEventPreviewStore((state) => state.epoch);
+  const snapshotFeedEvents = useMemo(() => {
+    if (!homeSnapshot?.eventIds.length || cacheEpoch < 0) return [];
+    return useEventPreviewStore.getState().getCachedEvents(homeSnapshot.eventIds);
+  }, [cacheEpoch, homeSnapshot]);
+  const [metaFeedEvents, setMetaFeedEvents] = useState<EventWithCreator[]>(readHomeSnapshotEvents);
+  const [metaFeedLoading, setMetaFeedLoading] = useState(() => readHomeSnapshotEvents().length === 0);
   const [metaFeedError, setMetaFeedError] = useState<string | null>(null);
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
   const [eventCardStatsById, setEventCardStatsById] = useState<Record<string, EventCardStats>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const metaFeedRequestId = useRef(0);
+  const metaFeedEventsRef = useRef(metaFeedEvents);
+  metaFeedEventsRef.current = metaFeedEvents;
+  const hasNetworkFeedRef = useRef(false);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const insets = useSafeAreaInsets();
 
@@ -266,17 +280,30 @@ export default function HomeScreen() {
     [place, userLocation]
   );
 
-  const loadMetaFeed = useCallback(async (forceRefresh = false) => {
+  const loadMetaFeed = useCallback(async (_forceRefresh = false) => {
     const requestId = ++metaFeedRequestId.current;
     if (!browseCenter) {
-      setMetaFeedEvents([]);
+      if (metaFeedEventsRef.current.length === 0 && snapshotFeedEvents.length === 0) {
+        setMetaFeedEvents([]);
+      }
       setMetaFeedError(null);
       setMetaFeedLoading(false);
       return;
     }
 
+    const staleEvents =
+      metaFeedEventsRef.current.length > 0 ? metaFeedEventsRef.current : snapshotFeedEvents;
+    const hasStale = staleEvents.length > 0;
     setMetaFeedError(null);
-    setMetaFeedLoading(true);
+    if (hasStale) {
+      if (metaFeedEventsRef.current.length === 0) {
+        setMetaFeedEvents(staleEvents);
+      }
+      setMetaFeedLoading(false);
+    } else if (useDiscoverySnapshotStore.getState().hydrated) {
+      setMetaFeedLoading(true);
+    }
+
     try {
       const timeScope = toTimeScope(discoveryFilters);
       const cacheKey = [
@@ -288,19 +315,6 @@ export default function HomeScreen() {
         when.startDate ?? '',
         when.endDate ?? '',
       ].join(':');
-      if (
-        !forceRefresh &&
-        homeFeedCache?.key === cacheKey &&
-        Date.now() - homeFeedCache.storedAt < HOME_FEED_CACHE_TTL_MS
-      ) {
-        if (requestId === metaFeedRequestId.current) {
-          useEventPreviewStore.getState().rememberEvents(homeFeedCache.events);
-          homeFeedCache.events.slice(0, 4).forEach((event) => prefetchEventMedia(event));
-          setMetaFeedEvents(homeFeedCache.events);
-        }
-        return;
-      }
-
       const bounds = getBoundsFromRadiusKm(
         browseCenter.latitude,
         browseCenter.longitude,
@@ -321,16 +335,26 @@ export default function HomeScreen() {
         startDate: filters.startDate,
         endDate: filters.endDate,
       });
-      homeFeedCache = { key: cacheKey, events, storedAt: Date.now() };
+      useEventPreviewStore.getState().rememberEvents(events);
+      useEventPreviewStore.getState().pinVisibleEvents(
+        'home',
+        events.map((event) => event.id),
+      );
+      useDiscoverySnapshotStore.getState().setHomeSnapshot({
+        queryKey: cacheKey,
+        center: browseCenter,
+        radiusKm: browseRadiusKm,
+        eventIds: events.map((event) => event.id),
+        storedAt: Date.now(),
+      });
       if (requestId === metaFeedRequestId.current) {
-        useEventPreviewStore.getState().rememberEvents(events);
-        events.slice(0, 4).forEach((event) => prefetchEventMedia(event));
+        hasNetworkFeedRef.current = true;
         setMetaFeedEvents(events);
         setMetaFeedError(null);
       }
     } catch (error) {
       console.warn('[Home] loadMetaFeed failed', error);
-      if (requestId === metaFeedRequestId.current) {
+      if (requestId === metaFeedRequestId.current && !hasStale) {
         setMetaFeedEvents([]);
         setMetaFeedError('Impossible de charger les événements à proximité.');
       }
@@ -339,7 +363,15 @@ export default function HomeScreen() {
         setMetaFeedLoading(false);
       }
     }
-  }, [browseCenter, browseRadiusKm, discoveryFilters, filters.endDate, filters.startDate, filters.time, when.endDate, when.preset, when.startDate]);
+  }, [browseCenter, browseRadiusKm, discoveryFilters, filters.endDate, filters.startDate, filters.time, snapshotFeedEvents, when.endDate, when.preset, when.startDate]);
+
+  useEffect(() => {
+    if (hasNetworkFeedRef.current) return;
+    if (metaFeedEvents.length > 0) return;
+    if (snapshotFeedEvents.length === 0) return;
+    setMetaFeedEvents(snapshotFeedEvents);
+    setMetaFeedLoading(false);
+  }, [metaFeedEvents.length, snapshotFeedEvents]);
 
   useEffect(() => {
     if (showSearchResults) return;
@@ -433,7 +465,10 @@ export default function HomeScreen() {
         );
         if (!cancelled) {
           useEventPreviewStore.getState().rememberEvents(filtered);
-          filtered.slice(0, 4).forEach((event) => prefetchEventMedia(event));
+          useEventPreviewStore.getState().pinVisibleEvents(
+            'home',
+            filtered.map((event) => event.id),
+          );
           setSearchResults(filtered);
           setSearchError(null);
         }
@@ -525,9 +560,6 @@ export default function HomeScreen() {
           withUpdatedLikeCount(list, event.id, before.isLiked, after.isLiked);
         setMetaFeedEvents((prev) => patch(prev));
         setSearchResults((prev) => patch(prev));
-        if (homeFeedCache) {
-          homeFeedCache = { ...homeFeedCache, events: patch(homeFeedCache.events) };
-        }
         const self = {
           id: profile.id,
           display_name: profile.display_name || 'Moi',
@@ -553,10 +585,10 @@ export default function HomeScreen() {
   );
 
   const handlePressEvent = useCallback(
-    (eventId: string) => {
-      const cached = useEventPreviewStore.getState().getCachedEvent(eventId);
-      if (cached) prefetchEventMedia(cached);
-      router.push(`/events/${eventId}` as any);
+    (event: EventWithCreator) => {
+      useEventPreviewStore.getState().prepareEventDetail(event);
+      prefetchEventMedia(event);
+      router.push(`/events/${event.id}` as any);
     },
     [router]
   );
@@ -592,6 +624,20 @@ export default function HomeScreen() {
   );
 
   const keyExtractor = useCallback((item: EventWithCreator) => item.id, []);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: { item?: EventWithCreator }[] }) => {
+      const visible = viewableItems
+        .map((entry) => entry.item)
+        .filter((event): event is EventWithCreator => Boolean(event?.id));
+      if (!visible.length) return;
+      useEventPreviewStore.getState().pinVisibleEvents(
+        'home-view',
+        visible.map((event) => event.id),
+      );
+      visible.forEach((event) => prefetchEventMedia(event));
+    },
+  ).current;
 
   const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const chips: ActiveFilterChip[] = [];
@@ -838,6 +884,8 @@ export default function HomeScreen() {
         windowSize={7}
         updateCellsBatchingPeriod={50}
         removeClippedSubviews
+        viewabilityConfig={HOME_VIEWABILITY_CONFIG}
+        onViewableItemsChanged={onViewableItemsChanged}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -846,7 +894,7 @@ export default function HomeScreen() {
           />
         }
         ListEmptyComponent={
-          (showSearchResults ? searchLoading : metaFeedLoading) ? (
+          !discoveryHydrated && !showSearchResults ? null : (showSearchResults ? searchLoading : metaFeedLoading) ? (
             <DiscoveryLoadingState
               title={
                 showSearchResults

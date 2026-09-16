@@ -103,9 +103,14 @@ import {
   resolveUnitCardCloseCameraAction,
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
+import { buildMapMarkerCollection } from '@/utils/map-marker-features';
 import { isDefaultDiscoveryTemporal } from '@/utils/search-temporal-choice';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import {
+  isMapSnapshotStale,
+  useDiscoverySnapshotStore,
+} from '@/store/discoverySnapshotStore';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { MAP_PREVIEW_CARD_ESTIMATED_HEIGHT } from '@/constants/event-card-variants';
@@ -207,7 +212,13 @@ export default function MapScreen() {
   const [mapColumnHeight, setMapColumnHeight] = useState(0);
   const [pendingSearchAreaBounds, setPendingSearchAreaBounds] = useState<MapBounds | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [initialMapPresentationReady, setInitialMapPresentationReady] = useState(false);
+  const mapSnapshot = useDiscoverySnapshotStore((state) => state.map);
+  const discoveryHydrated = useDiscoverySnapshotStore((state) => state.hydrated);
+  const cacheEpoch = useEventPreviewStore((state) => state.epoch);
+  const hasMapSnapshot = Boolean(
+    mapSnapshot?.camera || (mapSnapshot?.markerEventIds.length ?? 0) > 0,
+  );
+  const [initialMapPresentationReady, setInitialMapPresentationReady] = useState(hasMapSnapshot);
   const unitCardModeProgress = useSharedValue(0);
   const returningEventId = useMapDetailTransitionStore((state) => state.returningEventId);
 
@@ -243,8 +254,9 @@ export default function MapScreen() {
       resolveMapInitialCamera({
         userLocation,
         placeCenter: place.center ?? null,
+        snapshotCamera: mapSnapshot?.camera ?? null,
       }),
-    [place.center, userLocation]
+    [mapSnapshot?.camera, place.center, userLocation]
   );
   const mapCenter = useMemo(
     () => ({
@@ -339,24 +351,24 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (initialMapPresentationReady) return;
+    if (!mapReady || !discoveryHydrated) return;
+    if (hasMapSnapshot) {
+      setInitialMapPresentationReady(true);
+      return;
+    }
     const initialViewportSettled =
       viewportBootstrappedRef.current &&
       sheetStatus !== 'loading';
-    if (
-      !mapReady ||
-      locationLoading ||
-      (!initialViewportSettled && !viewportFetchError)
-    ) {
-      return;
-    }
+    if (!initialViewportSettled && !viewportFetchError) return;
 
     const revealTimer = setTimeout(() => {
       setInitialMapPresentationReady(true);
     }, 120);
     return () => clearTimeout(revealTimer);
   }, [
+    discoveryHydrated,
+    hasMapSnapshot,
     initialMapPresentationReady,
-    locationLoading,
     mapReady,
     sheetStatus,
     viewportBootstrappedRef,
@@ -364,12 +376,51 @@ export default function MapScreen() {
   ]);
 
   useEffect(() => {
-    if (initialMapPresentationReady || !mapReady) return;
+    if (initialMapPresentationReady || !mapReady || !discoveryHydrated || hasMapSnapshot) return;
     const revealTimer = setTimeout(() => {
       setInitialMapPresentationReady(true);
     }, MAP_BOOTSTRAP_REVEAL_MAX_MS);
     return () => clearTimeout(revealTimer);
-  }, [initialMapPresentationReady, mapReady]);
+  }, [discoveryHydrated, hasMapSnapshot, initialMapPresentationReady, mapReady]);
+
+  useEffect(() => {
+    if (hasMapSnapshot) {
+      setInitialMapPresentationReady(true);
+    }
+  }, [hasMapSnapshot]);
+
+  useEffect(() => {
+    if (!mapSnapshot) return;
+    const markerEvents = useEventPreviewStore.getState().getCachedEvents(mapSnapshot.markerEventIds);
+    const sheet = useEventPreviewStore.getState().getCachedEvents(mapSnapshot.sheetEventIds);
+    if (sheet.length && useMapResultsUIStore.getState().sheetEvents.length === 0) {
+      useMapResultsUIStore.getState().displayViewportResults(sheet, {
+        totalCount: markerEvents.length || sheet.length,
+      });
+    }
+  }, [cacheEpoch, mapSnapshot]);
+
+  const snapshotShapeAppliedRef = useRef(false);
+  const snapshotCameraRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!mapReady || !mapSnapshot) return;
+    if (!snapshotCameraRestoredRef.current && mapSnapshot.camera) {
+      mapRef.current?.restoreCameraSnapshot(
+        {
+          latitude: mapSnapshot.camera.latitude,
+          longitude: mapSnapshot.camera.longitude,
+          zoom: mapSnapshot.camera.zoom,
+        },
+        { animationDuration: 0 },
+      );
+      snapshotCameraRestoredRef.current = true;
+    }
+    if (snapshotShapeAppliedRef.current) return;
+    const markerEvents = useEventPreviewStore.getState().getCachedEvents(mapSnapshot.markerEventIds);
+    if (!markerEvents.length) return;
+    mapRef.current?.setShape(buildMapMarkerCollection(markerEvents));
+    snapshotShapeAppliedRef.current = true;
+  }, [cacheEpoch, mapReady, mapSnapshot]);
 
   const { handleCategoriesChange, handleTemporalChoice, handleCustomDateChange, handleClearViewportFilters } =
     useMapFilterActions({
@@ -943,6 +994,7 @@ export default function MapScreen() {
     ensureInitialViewportLoad,
     disabled: searchActive,
     bootstrapViewportFetch: shouldBootstrapViewportFetch(mapCamera.kind),
+    skipUserRecenter: hasMapSnapshot,
   });
 
   const handleMapReady = useCallback(() => {
@@ -1119,7 +1171,7 @@ export default function MapScreen() {
       event: unitCardEvent,
       targetCardRect: null,
     });
-    useEventPreviewStore.getState().rememberEvent(unitCardEvent);
+    useEventPreviewStore.getState().prepareEventDetail(unitCardEvent);
     prefetchEventMedia(unitCardEvent, { includeGallery: true });
     router.push(`/map-event/${unitCardEvent.id}?origin=map-unit` as any);
   }, [router, unitCardEvent]);
@@ -1134,14 +1186,20 @@ export default function MapScreen() {
         event,
         targetCardRect: null,
       });
-      useEventPreviewStore.getState().rememberEvent(event);
+      useEventPreviewStore.getState().prepareEventDetail(event);
       prefetchEventMedia(event, { includeGallery: true });
       router.push(`/map-event/${event.id}?origin=map-sheet` as any);
     },
     [router],
   );
 
-  const showLocationOverlay = locationLoading && !userLocation && !searchActive;
+  const showLocationOverlay =
+    discoveryHydrated &&
+    locationLoading &&
+    !userLocation &&
+    !searchActive &&
+    !hasMapSnapshot;
+  const showStaleMapHint = isMapSnapshotStale(mapSnapshot);
   const showLocationUnavailable =
     mapCamera.kind === 'country' &&
     !searchActive &&
@@ -1229,6 +1287,19 @@ export default function MapScreen() {
               onMapBackgroundPress={handleMapBackgroundPress}
               activeEventId={activeEventId}
             />
+
+            {showStaleMapHint ? (
+              <View
+                style={styles.mapStaleHint}
+                pointerEvents="none"
+                accessibilityRole="text"
+                accessibilityLabel="Événements d’une précédente visite, mise à jour en cours"
+              >
+                <Text style={styles.mapStaleHintText}>
+                  Événements d’une précédente visite — mise à jour…
+                </Text>
+              </View>
+            ) : null}
 
             {showLocationOverlay ? (
               <View
@@ -1441,7 +1512,7 @@ export default function MapScreen() {
           </Animated.View>
         </View>
 
-        {!initialMapPresentationReady ? (
+        {discoveryHydrated && !hasMapSnapshot && !initialMapPresentationReady ? (
           <View
             style={styles.mapBootstrapOverlay}
             pointerEvents="auto"
@@ -1636,6 +1707,23 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     fontSize: 15,
     fontWeight: '600',
+  },
+  mapStaleHint: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 20,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.brand.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  mapStaleHintText: {
+    color: colors.brand.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   mapErrorBanner: {
     position: 'absolute',

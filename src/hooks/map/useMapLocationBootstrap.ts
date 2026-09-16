@@ -11,6 +11,8 @@ type Params = {
   disabled?: boolean;
   /** Country overview: wait for zoom or an explicit place instead of fetching France. */
   bootstrapViewportFetch?: boolean;
+  /** Last-visit camera owns the first paint; GPS only patches the puck. */
+  skipUserRecenter?: boolean;
 };
 
 /**
@@ -27,6 +29,7 @@ export function useMapLocationBootstrap({
   ensureInitialViewportLoad,
   disabled = false,
   bootstrapViewportFetch = true,
+  skipUserRecenter = false,
 }: Params) {
   const hasCenteredOnUserRef = useRef(false);
 
@@ -40,6 +43,10 @@ export function useMapLocationBootstrap({
     }
     if (userLocation && !hasCenteredOnUserRef.current) {
       hasCenteredOnUserRef.current = true;
+      if (skipUserRecenter) {
+        void ensureInitialViewportLoad();
+        return;
+      }
       recenterToUser();
       return;
     }
@@ -54,6 +61,7 @@ export function useMapLocationBootstrap({
     locationLoading,
     mapReady,
     recenterToUser,
+    skipUserRecenter,
     userLocation,
   ]);
 }

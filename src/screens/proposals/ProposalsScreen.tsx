@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +37,7 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import type { EventWithCreator } from '@/types/database';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { EventCoverImage } from '@/components/events/EventCoverImage';
 import { getEventImageUrls, getHumanizedDate } from '@/utils/event-card-display';
 import {
   ensureEventHearted,
@@ -170,6 +170,10 @@ export default function ProposalsScreen() {
       ]);
       if (requestId === requestIdRef.current) {
         useEventPreviewStore.getState().rememberEvents(events);
+        useEventPreviewStore.getState().pinVisibleEvents(
+          'proposals',
+          events.map((event) => event.id),
+        );
         setPool(events);
       }
     } catch (error) {
@@ -192,7 +196,7 @@ export default function ProposalsScreen() {
           .find((event) => event.id === eventId) ||
         useEventPreviewStore.getState().getCachedEvent(eventId);
       if (cached) {
-        useEventPreviewStore.getState().rememberEvent(cached);
+        useEventPreviewStore.getState().prepareEventDetail(cached);
         prefetchEventMedia(cached);
       }
       router.push(`/events/${eventId}` as any);
@@ -616,7 +620,12 @@ function ProposalSummary({
                 activeOpacity={0.82}
               >
                 {image ? (
-                  <Image source={{ uri: image }} style={styles.summaryImage} />
+                  <EventCoverImage
+                    uri={image}
+                    recyclingKey={event.id}
+                    variant="list"
+                    style={styles.summaryImage}
+                  />
                 ) : (
                   <View style={[styles.summaryImage, styles.summaryImageFallback]}>
                     <CalendarDays size={24} color={colors.brand.secondary} />

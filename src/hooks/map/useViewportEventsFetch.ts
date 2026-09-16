@@ -34,7 +34,7 @@ import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
 import { resolveMapClientFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
-import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import { useDiscoverySnapshotStore } from '@/store/discoverySnapshotStore';
 
 const VIEWPORT_PAYLOAD_CACHE_MAX = 4;
 const VIEWPORT_PAYLOAD_FRESH_MS = 45 * 1000;
@@ -233,7 +233,14 @@ export function useViewportEventsFetch({
       const sheetEvents = dedupedEvents.slice(0, MAP_SHEET_LIST_LIMIT);
       displayViewportResults(sheetEvents, { totalCount: dedupedEvents.length });
       useEventPreviewStore.getState().rememberEvents(dedupedEvents);
-      sheetEvents.slice(0, 4).forEach((event) => prefetchEventMedia(event));
+      useEventPreviewStore.getState().pinVisibleEvents(
+        'map-sheet',
+        sheetEvents.map((event) => event.id),
+      );
+      useEventPreviewStore.getState().pinVisibleEvents(
+        'map-nearby',
+        dedupedEvents.slice(0, 4).map((event) => event.id),
+      );
     },
     [displayViewportResults, mapRef, viewportFrozenRef]
   );
@@ -392,6 +399,20 @@ export function useViewportEventsFetch({
         if (!isViewportRequestCurrent(requestId)) return;
 
         publishFilteredViewport(events, featureCollection, { metaFilter: currentMetaFilter });
+        const camera = mapRef.current?.getCameraSnapshot?.() ?? null;
+        useDiscoverySnapshotStore.getState().setMapSnapshot({
+          camera: camera
+            ? {
+                latitude: camera.latitude,
+                longitude: camera.longitude,
+                zoom: camera.zoom,
+              }
+            : null,
+          bounds,
+          markerEventIds: events.map((event) => event.id),
+          sheetEventIds: useMapResultsUIStore.getState().sheetEvents.map((event) => event.id),
+          storedAt: Date.now(),
+        });
         traceMapViewportFetch('fetchComplete', {
           outcome: 'success',
           durationMs: Date.now() - startedAt,
@@ -449,6 +470,7 @@ export function useViewportEventsFetch({
       setViewportFetchError,
       viewportFrozenRef,
       zoomRef,
+      mapRef,
     ]
   );
 
@@ -504,10 +526,6 @@ export function useViewportEventsFetch({
             VIEWPORT_PAYLOAD_MAX_STALE_MS
           )
         : null;
-      if (cachedPayload && cacheDisposition === 'expired') {
-        viewportPayloadCacheRef.current.delete(serverRequest.requestKey);
-        cachedPayload = undefined;
-      }
       if (cachedPayload) {
         lastViewportRawRef.current = cachedPayload;
         publishFilteredViewport(cachedPayload.events, cachedPayload.featureCollection, {

@@ -38,5 +38,17 @@ describe('map camera fallback', () => {
     assert.equal(shouldBootstrapViewportFetch('country'), false);
     assert.equal(shouldBootstrapViewportFetch('place'), true);
     assert.equal(shouldBootstrapViewportFetch('user'), true);
+    assert.equal(shouldBootstrapViewportFetch('snapshot'), true);
+  });
+
+  it('reopens on the last map camera before GPS', () => {
+    const camera = resolveMapInitialCamera({
+      userLocation: { latitude: 48.69, longitude: 6.18 },
+      placeCenter: { latitude: 43.3, longitude: 5.4 },
+      snapshotCamera: { latitude: 44.12, longitude: 4.81, zoom: 11 },
+    });
+    assert.equal(camera.kind, 'snapshot');
+    assert.equal(camera.latitude, 44.12);
+    assert.equal(camera.zoom, 11);
   });
 });

@@ -1,49 +1,56 @@
 import { create } from 'zustand';
 import type { EventWithCreator } from '@/types/database';
+import {
+  EMPTY_EVENT_CACHE,
+  EVENT_CACHE_BULK_LIMIT,
+  EVENT_PREVIEW_CACHE_LIMIT,
+  eventsFromCache,
+  pinOpenedEventIntoCache,
+  pinVisibleEventsIntoCache,
+  rememberEventsIntoCache,
+  type EventCachePinSurface,
+  type EventCacheSnapshot,
+} from './eventCache';
 
-export const EVENT_PREVIEW_CACHE_LIMIT = 120;
+export { EVENT_CACHE_BULK_LIMIT, EVENT_PREVIEW_CACHE_LIMIT };
+export {
+  mergeCachedEvent,
+  mergeCachedEvent as mergeEventPreview,
+} from './eventCache';
 
-type EventPreviewState = {
-  byId: Record<string, EventWithCreator>;
-  order: string[];
+type EventPreviewState = EventCacheSnapshot & {
   rememberEvents: (events: EventWithCreator[]) => void;
   rememberEvent: (event: EventWithCreator) => void;
+  pinVisibleEvents: (surface: EventCachePinSurface, ids: string[]) => void;
+  pinOpenedEvent: (id: string | null) => void;
+  prepareEventDetail: (event: EventWithCreator) => void;
   getCachedEvent: (id: string) => EventWithCreator | null;
-};
-
-const mergeEventPreview = (
-  previous: EventWithCreator | undefined,
-  next: EventWithCreator,
-): EventWithCreator => {
-  if (!previous) return next;
-  return { ...previous, ...next };
+  getCachedEvents: (ids: string[]) => EventWithCreator[];
 };
 
 export const useEventPreviewStore = create<EventPreviewState>((set, get) => ({
-  byId: {},
-  order: [],
+  ...EMPTY_EVENT_CACHE,
   rememberEvents: (events) => {
     if (!events.length) return;
-    set((state) => {
-      const byId = { ...state.byId };
-      const incomingIds = new Set(events.map((event) => event.id).filter(Boolean));
-      const order = state.order.filter((id) => !incomingIds.has(id));
-      for (const event of events) {
-        if (!event?.id) continue;
-        byId[event.id] = mergeEventPreview(byId[event.id], event);
-        order.push(event.id);
-      }
-      while (order.length > EVENT_PREVIEW_CACHE_LIMIT) {
-        const evict = order.shift();
-        if (evict) delete byId[evict];
-      }
-      return { byId, order };
-    });
+    set((state) => rememberEventsIntoCache(state, events));
   },
   rememberEvent: (event) => {
     get().rememberEvents([event]);
   },
+  pinVisibleEvents: (surface, ids) => {
+    set((state) => pinVisibleEventsIntoCache(state, surface, ids));
+  },
+  pinOpenedEvent: (id) => {
+    set((state) => pinOpenedEventIntoCache(state, id));
+  },
+  prepareEventDetail: (event) => {
+    if (!event?.id) return;
+    set((state) =>
+      pinOpenedEventIntoCache(rememberEventsIntoCache(state, [event]), event.id),
+    );
+  },
   getCachedEvent: (id) => get().byId[id] ?? null,
+  getCachedEvents: (ids) => eventsFromCache(get(), ids),
 }));
 
 export function resolveSeededEventDetail(options: {
@@ -64,6 +71,10 @@ export function resolveSeededEventDetail(options: {
     return options.mapEvent;
   }
   return useEventPreviewStore.getState().getCachedEvent(eventId);
+}
+
+export function prepareEventDetail(event: EventWithCreator): void {
+  useEventPreviewStore.getState().prepareEventDetail(event);
 }
 
 export function resolveCachedMapEvent(

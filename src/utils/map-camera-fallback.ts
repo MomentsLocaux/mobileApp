@@ -8,7 +8,7 @@ export type MapCameraAnchor = {
   longitude: number;
 };
 
-export type MapInitialCameraKind = 'user' | 'place' | 'country';
+export type MapInitialCameraKind = 'user' | 'place' | 'country' | 'snapshot';
 
 export type MapInitialCamera = MapCameraAnchor & {
   zoom: number;
@@ -22,7 +22,16 @@ export type MapInitialCamera = MapCameraAnchor & {
 export function resolveMapInitialCamera(input: {
   userLocation: MapCameraAnchor | null;
   placeCenter?: MapCameraAnchor | null;
+  snapshotCamera?: (MapCameraAnchor & { zoom: number }) | null;
 }): MapInitialCamera {
+  if (input.snapshotCamera) {
+    return {
+      latitude: input.snapshotCamera.latitude,
+      longitude: input.snapshotCamera.longitude,
+      zoom: input.snapshotCamera.zoom,
+      kind: 'snapshot',
+    };
+  }
   if (input.userLocation) {
     return {
       latitude: input.userLocation.latitude,

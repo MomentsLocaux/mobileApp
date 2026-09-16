@@ -1,4 +1,4 @@
-import { Image } from 'react-native';
+import { prefetchCoverUris } from '@/components/events/EventCoverImage';
 import type { EventWithCreator } from '@/types/database';
 import { EventsService } from '@/services/events.service';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
@@ -20,13 +20,12 @@ export function prefetchProposalCovers(
   events: EventWithCreator[],
   limit = events.length,
 ): Promise<boolean[]> {
-  return Promise.all(
-    events.slice(0, limit).map((event) => {
-      const uri = getEventImageUrls(event)[0];
-      if (!uri) return Promise.resolve(false);
-      return Image.prefetch(uri).catch(() => false);
-    }),
-  );
+  const uris = events
+    .slice(0, limit)
+    .map((event) => getEventImageUrls(event)[0])
+    .filter((uri): uri is string => Boolean(uri));
+  prefetchCoverUris(uris);
+  return Promise.resolve(uris.map(() => true));
 }
 
 export async function waitForProposalCoverPrefetch(

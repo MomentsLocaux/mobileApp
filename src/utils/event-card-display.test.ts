@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   formatResolvedEventTagLabel,
+  getEventCoverImageSource,
+  getEventImageUrls,
   getEventPrefetchUrls,
+  EVENT_LIST_COVER_DECODE_PX,
   getVisibleEventTags,
   isHiddenDiscoveryTag,
   isInternalTagId,
@@ -48,13 +51,12 @@ describe('visible event tags', () => {
 
 describe('event media prefetch urls', () => {
   it('prefetches the cover already shown on the card', () => {
-    assert.deepEqual(
-      getEventPrefetchUrls({
-        cover_url: 'https://cdn.example/cover.jpg',
-        media: [],
-      }),
-      ['https://cdn.example/cover.jpg'],
-    );
+    const event = {
+      cover_url: 'https://cdn.example/cover.jpg',
+      media: [],
+    };
+    assert.deepEqual(getEventPrefetchUrls(event), ['https://cdn.example/cover.jpg']);
+    assert.deepEqual(getEventImageUrls(event), getEventPrefetchUrls(event));
   });
 
   it('skips empty or placeholder covers', () => {
@@ -73,5 +75,16 @@ describe('event media prefetch urls', () => {
       ),
       ['https://cdn.example/cover.jpg', 'https://cdn.example/extra.jpg'],
     );
+  });
+
+  it('keeps the same URI and cache key for list decode and fiche hero', () => {
+    const uri = 'https://cdn.example/cover.jpg';
+    const list = getEventCoverImageSource(uri, 'list');
+    const detail = getEventCoverImageSource(uri, 'detail');
+    assert.equal(list.uri, detail.uri);
+    assert.equal(list.cacheKey, detail.cacheKey);
+    assert.equal(list.cacheKey, uri);
+    assert.equal(list.width, EVENT_LIST_COVER_DECODE_PX);
+    assert.equal(detail.width, undefined);
   });
 });

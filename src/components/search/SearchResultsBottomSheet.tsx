@@ -40,6 +40,13 @@ import { EventCardStatsService, type EventCardStats } from '@/services/event-car
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { MapResultsSkeleton } from './MapResultsSkeleton';
 import { haptics } from '@/utils/haptics';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
+
+const SHEET_VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 45,
+  minimumViewTime: 80,
+};
 
 export {
   VIEWPORT_PEEK_SNAP,
@@ -182,6 +189,19 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     ref
   ) => {
     const listRef = useRef<FlatList<EventWithCreator>>(null);
+    const onViewableItemsChanged = useRef(
+      ({ viewableItems }: { viewableItems: { item?: EventWithCreator }[] }) => {
+        const visible = viewableItems
+          .map((entry) => entry.item)
+          .filter((event): event is EventWithCreator => Boolean(event?.id));
+        if (!visible.length) return;
+        useEventPreviewStore.getState().pinVisibleEvents(
+          'map-sheet',
+          visible.map((event) => event.id),
+        );
+        visible.forEach((event) => prefetchEventMedia(event));
+      },
+    ).current;
     const dragActiveRef = useRef(false);
     const scrollYRef = useRef(0);
     const isExpandedRef = useRef(false);
@@ -775,6 +795,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               maxToRenderPerBatch={8}
               windowSize={7}
               removeClippedSubviews
+              viewabilityConfig={SHEET_VIEWABILITY_CONFIG}
+              onViewableItemsChanged={onViewableItemsChanged}
               renderItem={renderListItem}
             />
               </GestureDetector>

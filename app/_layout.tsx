@@ -14,11 +14,13 @@ import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
 import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
 import { useProposalsStore } from '@/store/proposalsStore';
+import { hydrateDiscoveryCaches } from '@/store/hydrateDiscoveryCache';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 ensureProximityLocationTaskRegistered();
+void hydrateDiscoveryCaches();
 
 export default function RootLayout() {
   useFrameworkReady();

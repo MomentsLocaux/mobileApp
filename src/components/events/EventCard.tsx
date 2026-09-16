@@ -46,6 +46,7 @@ import {
   mergeLikerPreviews,
   type EventCardLikerPreview,
 } from '@/services/event-card-stats.service';
+import { EventCoverImage } from './EventCoverImage';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventHeartButton } from './EventHeartButton';
 import { EventImageCarousel } from './EventImageCarousel';
@@ -206,7 +207,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   };
 
   const handleCardPressIn = () => {
-    useEventPreviewStore.getState().rememberEvent(event);
+    useEventPreviewStore.getState().prepareEventDetail(event);
     prefetchEventMedia(event);
   };
 
@@ -224,7 +225,12 @@ const EventCardComponent: React.FC<EventCardProps> = ({
       onSwipeEnd={() => setIsSwiping(false)}
     />
   ) : images[0] ? (
-    <Image source={{ uri: images[0] }} style={[styles.mediaImage, { height: mediaHeight }]} fadeDuration={0} />
+    <EventCoverImage
+      uri={images[0]}
+      recyclingKey={event.id}
+      variant="list"
+      style={[styles.mediaImage, { height: mediaHeight }]}
+    />
   ) : (
     <EventCoverPlaceholder category={event.category} height={mediaHeight} />
   );

@@ -116,9 +116,11 @@ import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
 import {
+  mergeCachedEvent,
   resolveSeededEventDetail,
   useEventPreviewStore,
 } from '@/store/eventPreviewStore';
+import { eventHeroIdentity } from '@/store/eventCache';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import {
   getMapDetailSlideOffset,
@@ -339,8 +341,20 @@ export default function EventDetailScreen() {
       const data = await EventsService.getEventById(id);
       const enriched = data ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) } : null;
       if (enriched) {
-        setEvent(enriched);
-        useEventPreviewStore.getState().rememberEvent(enriched);
+        setEvent((current) => {
+          const merged = mergeCachedEvent(current ?? undefined, enriched);
+          useEventPreviewStore.getState().rememberEvent(merged);
+          if (
+            current &&
+            eventHeroIdentity(current) === eventHeroIdentity(merged) &&
+            current.description === merged.description &&
+            current.likes_count === merged.likes_count &&
+            current.address === merged.address
+          ) {
+            return current;
+          }
+          return merged;
+        });
       } else {
         setEvent((current) => (current?.id === id ? current : null));
       }
@@ -366,6 +380,17 @@ export default function EventDetailScreen() {
     setEvent(next);
     setLoading(!next);
   }, [id, origin]);
+
+  useEffect(() => {
+    if (!id) return;
+    useEventPreviewStore.getState().pinOpenedEvent(id);
+    return () => {
+      const current = useEventPreviewStore.getState().openedId;
+      if (current === id) {
+        useEventPreviewStore.getState().pinOpenedEvent(null);
+      }
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!event) return;
@@ -1152,7 +1177,7 @@ export default function EventDetailScreen() {
         <AppBackground />
         <StatusBar barStyle="light-content" />
 
-        <MotionReveal delay={0} enabled={!isMapTransitionOrigin}>
+        <MotionReveal delay={0} enabled={!seededEvent && !isMapTransitionOrigin}>
         <View style={styles.heroContainer}>
           <PlaceMediaGallery
             images={mediaImages}
@@ -1238,7 +1263,7 @@ export default function EventDetailScreen() {
         </MotionReveal>
 
         <View style={styles.content}>
-          <MotionReveal delay={Motion.stagger.content}>
+          <MotionReveal delay={Motion.stagger.content} enabled={!seededEvent}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>{event.title}</Text>
             {__DEV__ ? (
@@ -1255,7 +1280,7 @@ export default function EventDetailScreen() {
           </MotionReveal>
 
           {event.description ? (
-            <MotionReveal delay={Motion.stagger.content * 1.5}>
+            <MotionReveal delay={Motion.stagger.content * 1.5} enabled={!seededEvent}>
               <Card padding="md" style={styles.descriptionCard}>
                 {/* Hidden full text to measure whether truncation is needed */}
                 {!descriptionCanExpand && !descriptionExpanded ? (
@@ -1289,7 +1314,7 @@ export default function EventDetailScreen() {
             </MotionReveal>
           ) : null}
 
-          <MotionReveal delay={Motion.stagger.content * 2}>
+          <MotionReveal delay={Motion.stagger.content * 2} enabled={!seededEvent}>
           <Card padding="md" style={styles.infoCard}>
             <TouchableOpacity
               style={styles.infoRowNoMargin}
@@ -1334,7 +1359,7 @@ export default function EventDetailScreen() {
           </Card>
           </MotionReveal>
 
-          <MotionReveal delay={Motion.stagger.content * 3}>
+          <MotionReveal delay={Motion.stagger.content * 3} enabled={!seededEvent}>
           <Card padding="md" style={[styles.infoCard, { marginTop: spacing.md }]}>
             <TouchableOpacity
               style={styles.infoRowNoMargin}
