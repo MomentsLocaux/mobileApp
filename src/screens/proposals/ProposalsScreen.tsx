@@ -33,7 +33,9 @@ import { useAuth, useLocation } from '@/hooks';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
 import { useProposalsStore } from '@/store/proposalsStore';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import type { EventWithCreator } from '@/types/database';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { getEventImageUrls, getHumanizedDate } from '@/utils/event-card-display';
@@ -166,7 +168,10 @@ export default function ProposalsScreen() {
           : Promise.resolve(),
         waitForProposalCoverPrefetch(events),
       ]);
-      if (requestId === requestIdRef.current) setPool(events);
+      if (requestId === requestIdRef.current) {
+        useEventPreviewStore.getState().rememberEvents(events);
+        setPool(events);
+      }
     } catch (error) {
       console.warn('[Proposals] pool load failed', error);
       if (requestId === requestIdRef.current) {
@@ -175,6 +180,25 @@ export default function ProposalsScreen() {
       }
     }
   }, [beginLoading, categoryValues, favoriteEvents, likedEventIds, setPool, setWizardStep]);
+
+  const openEventDetails = useCallback(
+    (eventId: string) => {
+      const state = useProposalsStore.getState();
+      const cached =
+        state.pool.find((event) => event.id === eventId) ||
+        likedEvents.find((event) => event.id === eventId) ||
+        state.sessions
+          .flatMap((session) => session.decisions.map((item) => item.event))
+          .find((event) => event.id === eventId) ||
+        useEventPreviewStore.getState().getCachedEvent(eventId);
+      if (cached) {
+        useEventPreviewStore.getState().rememberEvent(cached);
+        prefetchEventMedia(cached);
+      }
+      router.push(`/events/${eventId}` as any);
+    },
+    [likedEvents, router],
+  );
 
   const handleCurrentLocation = useCallback(() => {
     haptics.selection();
@@ -397,7 +421,7 @@ export default function ProposalsScreen() {
           disabled={processingDecision}
           onDecision={(decision) => void handleDecision(decision)}
           onPause={pauseSession}
-          onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
+          onOpenDetails={openEventDetails}
         />
       ) : null}
 
@@ -421,7 +445,7 @@ export default function ProposalsScreen() {
           onEdit={editPreferences}
           onFavorites={() => router.push('/(tabs)/favorites' as any)}
           onHistory={() => showHistory()}
-          onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
+          onOpenDetails={openEventDetails}
         />
       ) : null}
 
@@ -437,7 +461,7 @@ export default function ProposalsScreen() {
           onDeleteSession={(sessionId) => confirmHistoryDeletion([sessionId])}
           onDeleteAll={() => confirmHistoryDeletion(sessions.map((item) => item.id))}
           onRevise={(sessionId, eventId, decision) => void handleReviseDecision(sessionId, eventId, decision)}
-          onOpenDetails={(eventId) => router.push(`/events/${eventId}` as any)}
+          onOpenDetails={openEventDetails}
         />
       ) : null}
     </GestureHandlerRootView>

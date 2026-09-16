@@ -20,6 +20,8 @@ import { Bell, ChevronDown, Compass, Heart, MapPin, Search } from 'lucide-react-
 import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { EventResultCard } from '@/components/search/EventResultCard';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth, useLocation } from '@/hooks';
@@ -566,7 +568,11 @@ export default function FavoritesScreen() {
                 likesCount={eventCardStatsById[item.id]?.likesCount ?? item.likes_count ?? 0}
                 likers={eventCardStatsById[item.id]?.likers ?? []}
                 isHearted={favoritesSet.has(item.id) || likesSet.has(item.id)}
-                onPress={() => router.push(`/events/${item.id}` as any)}
+                onPress={() => {
+                  useEventPreviewStore.getState().rememberEvent(item);
+                  prefetchEventMedia(item);
+                  router.push(`/events/${item.id}` as any);
+                }}
                 onNavigate={() => setNavEvent(item)}
                 onToggleHeart={handleToggleHeart}
                 distanceKm={

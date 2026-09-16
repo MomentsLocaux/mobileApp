@@ -51,6 +51,7 @@
     "src/utils/cover-generate-quota.test.ts",
     "src/store/discoveryFiltersStore.test.ts",
     "src/store/mapDetailTransitionStore.test.ts",
+    "src/store/eventPreviewStore.test.ts",
     "src/store/mapResultsUIStore.test.ts",
     "src/store/mapTransferStore.test.ts",
     "src/screens/proposals/proposal-filtering.test.ts",

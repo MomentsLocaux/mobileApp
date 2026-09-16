@@ -4,6 +4,9 @@ import type { MapWrapperHandle } from '@/components/map';
 import { EventsService } from '@/services/events.service';
 import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
+import { resolveCachedMapEvent, useEventPreviewStore } from '@/store/eventPreviewStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import { useMapResultsUIStore } from '@/store';
 
 type Params = {
   mapRef: RefObject<MapWrapperHandle | null>;
@@ -48,18 +51,52 @@ export function useMapMarkerPress({
       cancelAllMapRequests();
       const requestId = nextMarkerRequestId();
 
-      try {
-        const cached = eventCacheRef.current.get(id) ?? sheetEvents.find((event) => event.id === id);
-        const event = cached ?? (await EventsService.getEventById(id));
-
-        if (!isMarkerRequestCurrent(requestId)) return;
-        if (!event) return;
-
+      const present = (event: EventWithCreator) => {
         eventCacheRef.current.set(id, event);
+        useEventPreviewStore.getState().rememberEvent(event);
+        prefetchEventMedia(event);
         highlightViewportEvent(event);
         setUnitCardEvent(event);
         collapseSheetToPeek?.();
+        focusOnEvent(event, {
+          bumpZoom: false,
+          paddingBottom: focusPaddingBottom,
+        });
+      };
 
+      try {
+        const preview =
+          eventCacheRef.current.get(id) ??
+          resolveCachedMapEvent(id, [
+            sheetEvents,
+            useMapResultsUIStore.getState().frozenViewport?.events,
+          ]);
+
+        if (preview) {
+          present(preview);
+          if (!viewportFrozenRef.current) {
+            if (!frozenViewportBoundsRef.current) {
+              const bounds = await mapRef.current?.getVisibleBounds?.();
+              if (bounds) {
+                frozenViewportBoundsRef.current = bounds;
+              }
+            }
+            viewportFrozenRef.current = true;
+            freezeViewportResults();
+          }
+          void EventsService.getEventById(id).then((full) => {
+            if (!isMarkerRequestCurrent(requestId) || !full) return;
+            eventCacheRef.current.set(id, full);
+            useEventPreviewStore.getState().rememberEvent(full);
+          });
+          return;
+        }
+
+        const event = await EventsService.getEventById(id);
+        if (!isMarkerRequestCurrent(requestId)) return;
+        if (!event) return;
+
+        present(event);
         if (!viewportFrozenRef.current) {
           if (!frozenViewportBoundsRef.current) {
             const bounds = await mapRef.current?.getVisibleBounds?.();
@@ -70,11 +107,6 @@ export function useMapMarkerPress({
           viewportFrozenRef.current = true;
           freezeViewportResults();
         }
-
-        focusOnEvent(event, {
-          bumpZoom: false,
-          paddingBottom: focusPaddingBottom,
-        });
       } catch (error) {
         if (!isMarkerRequestCurrent(requestId)) return;
         console.warn('getEventById error', error);

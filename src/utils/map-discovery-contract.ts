@@ -159,3 +159,19 @@ export function shouldResetCriteriaOnAreaSearch(): boolean {
 export function resolvePendingProgrammaticRefresh(refreshAfter?: boolean): boolean {
   return refreshAfter === true;
 }
+
+export type UnitCardCloseCameraAction = 'restore-snapshot' | 'keep-and-refresh' | 'keep';
+
+/**
+ * Pin taps restore the pre-card camera. A Home / fiche "see on map" handoff
+ * must keep the landed camera and reload that viewport instead.
+ */
+export function resolveUnitCardCloseCameraAction(options: {
+  openedViaFocusHandoff: boolean;
+  restoreRequested: boolean;
+  hasSnapshot: boolean;
+}): UnitCardCloseCameraAction {
+  if (options.openedViaFocusHandoff) return 'keep-and-refresh';
+  if (options.restoreRequested && options.hasSnapshot) return 'restore-snapshot';
+  return 'keep';
+}

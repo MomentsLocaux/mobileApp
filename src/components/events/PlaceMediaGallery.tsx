@@ -104,6 +104,7 @@ export function PlaceMediaGallery({
                 <Image
                   source={{ uri: item.uri }}
                   style={styles.heroImage}
+                  fadeDuration={0}
                   onLoadEnd={index === 0 ? onPrimaryImageReady : undefined}
                 />
               </Pressable>
@@ -180,7 +181,7 @@ export function PlaceMediaGallery({
                 setViewerIndex(index);
               }}
               renderItem={({ item }) => (
-                <Image source={{ uri: item.uri }} style={styles.viewerImage} resizeMode="contain" />
+                <Image source={{ uri: item.uri }} style={styles.viewerImage} resizeMode="contain" fadeDuration={0} />
               )}
             />
           ) : (

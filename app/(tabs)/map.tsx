@@ -100,10 +100,13 @@ import {
   resolveMapHandoffMode,
   shouldApplyPendingHomeRecadrage,
   shouldRefetchViewportOnTabFocus,
+  resolveUnitCardCloseCameraAction,
 } from '@/utils/map-discovery-contract';
 import { resolveMapInitialCamera, shouldBootstrapViewportFetch } from '@/utils/map-camera-fallback';
 import { isDefaultDiscoveryTemporal } from '@/utils/search-temporal-choice';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { MAP_PREVIEW_CARD_ESTIMATED_HEIGHT } from '@/constants/event-card-variants';
 import { Motion } from '@/constants/motion';
@@ -186,6 +189,7 @@ export default function MapScreen() {
   const sheetCameraSnapshotRef = useRef<MapCameraSnapshot | null>(null);
   const sheetCameraBoundsRef = useRef<MapBounds | null>(null);
   const restoreCameraOnUnitExitRef = useRef(true);
+  const unitCardOpenedViaFocusRef = useRef(false);
   const dismissUnitCardRef = useRef<(restoreCamera?: boolean) => void>(() => {});
   const unitCycleGenerationRef = useRef(0);
   const zoomRef = useRef(12);
@@ -651,13 +655,24 @@ export default function MapScreen() {
     closeSheet();
     const cameraSnapshot = unitCameraSnapshotRef.current;
     unitCameraSnapshotRef.current = null;
-    if (restoreCameraOnUnitExitRef.current && cameraSnapshot) {
+    const cameraAction = resolveUnitCardCloseCameraAction({
+      openedViaFocusHandoff: unitCardOpenedViaFocusRef.current,
+      restoreRequested: restoreCameraOnUnitExitRef.current,
+      hasSnapshot: Boolean(cameraSnapshot),
+    });
+    unitCardOpenedViaFocusRef.current = false;
+    restoreCameraOnUnitExitRef.current = true;
+
+    if (cameraAction === 'restore-snapshot' && cameraSnapshot) {
       mapRef.current?.restoreCameraSnapshot(cameraSnapshot);
     } else {
       mapRef.current?.resetCameraPadding();
     }
     unlockViewportForSheet();
-  }, [closeSheet, unlockViewportForSheet]);
+    if (cameraAction === 'keep-and-refresh') {
+      void refreshBounds();
+    }
+  }, [closeSheet, refreshBounds, unlockViewportForSheet]);
 
   const beginUnitCardDismissal = useCallback((restoreCamera = true) => {
     if (!unitCardEvent) return;
@@ -713,6 +728,7 @@ export default function MapScreen() {
           ? cloneSheetCameraSnapshot(snapshot)
           : null;
         restoreCameraOnUnitExitRef.current = true;
+        unitCardOpenedViaFocusRef.current = false;
       }
       markerSelectionGuardRef.current = true;
       void handleMarkerFeaturePress(id).finally(() => {
@@ -722,7 +738,20 @@ export default function MapScreen() {
     [handleMarkerFeaturePress, unitCardEvent]
   );
 
-  useMapDeepLinkFocus(focus, handleFeaturePress);
+  const handleFocusHandoff = useCallback(
+    (id: string) => {
+      unitCameraSnapshotRef.current = null;
+      restoreCameraOnUnitExitRef.current = false;
+      unitCardOpenedViaFocusRef.current = true;
+      markerSelectionGuardRef.current = true;
+      void handleMarkerFeaturePress(id).finally(() => {
+        markerSelectionGuardRef.current = false;
+      });
+    },
+    [handleMarkerFeaturePress],
+  );
+
+  useMapDeepLinkFocus(focus, handleFocusHandoff);
 
   const handleSheetDragEnd = useCallback(
     (targetIdx: number) => {
@@ -1090,6 +1119,8 @@ export default function MapScreen() {
       event: unitCardEvent,
       targetCardRect: null,
     });
+    useEventPreviewStore.getState().rememberEvent(unitCardEvent);
+    prefetchEventMedia(unitCardEvent, { includeGallery: true });
     router.push(`/map-event/${unitCardEvent.id}?origin=map-unit` as any);
   }, [router, unitCardEvent]);
 
@@ -1103,6 +1134,8 @@ export default function MapScreen() {
         event,
         targetCardRect: null,
       });
+      useEventPreviewStore.getState().rememberEvent(event);
+      prefetchEventMedia(event, { includeGallery: true });
       router.push(`/map-event/${event.id}?origin=map-sheet` as any);
     },
     [router],

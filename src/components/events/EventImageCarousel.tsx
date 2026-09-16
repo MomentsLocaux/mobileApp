@@ -77,6 +77,7 @@ export const EventImageCarousel: React.FC<Props> = ({
             <Image
               key={`${uri}-${idx}`}
               source={{ uri }}
+              fadeDuration={0}
               onError={() =>
                 setFailed((prev) => {
                   const next = new Set(prev);

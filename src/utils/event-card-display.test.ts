@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   formatResolvedEventTagLabel,
+  getEventPrefetchUrls,
   getVisibleEventTags,
   isHiddenDiscoveryTag,
   isInternalTagId,
@@ -41,6 +42,36 @@ describe('visible event tags', () => {
         vide_grenier: { slug: 'vide_grenier', label: 'Vide-grenier' },
       }),
       'Vide-grenier',
+    );
+  });
+});
+
+describe('event media prefetch urls', () => {
+  it('prefetches the cover already shown on the card', () => {
+    assert.deepEqual(
+      getEventPrefetchUrls({
+        cover_url: 'https://cdn.example/cover.jpg',
+        media: [],
+      }),
+      ['https://cdn.example/cover.jpg'],
+    );
+  });
+
+  it('skips empty or placeholder covers', () => {
+    assert.deepEqual(getEventPrefetchUrls({ cover_url: 'null', media: [] }), []);
+    assert.deepEqual(getEventPrefetchUrls(null), []);
+  });
+
+  it('can prefetch the gallery already attached to the event', () => {
+    assert.deepEqual(
+      getEventPrefetchUrls(
+        {
+          cover_url: 'https://cdn.example/cover.jpg',
+          media: [{ url: 'https://cdn.example/extra.jpg' } as never],
+        },
+        { includeGallery: true },
+      ),
+      ['https://cdn.example/cover.jpg', 'https://cdn.example/extra.jpg'],
     );
   });
 });

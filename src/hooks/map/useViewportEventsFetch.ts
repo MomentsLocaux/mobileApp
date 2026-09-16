@@ -33,6 +33,8 @@ import { MAP_SHEET_LIST_LIMIT, resolveMapViewportLimit, SEARCH_FETCH_LIMIT } fro
 import { sortEvents } from '@/utils/sort-events';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
 import { resolveMapClientFilters, shouldPublishViewportToMap } from '@/utils/map-discovery-contract';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 
 const VIEWPORT_PAYLOAD_CACHE_MAX = 4;
 const VIEWPORT_PAYLOAD_FRESH_MS = 45 * 1000;
@@ -230,6 +232,8 @@ export function useViewportEventsFetch({
 
       const sheetEvents = dedupedEvents.slice(0, MAP_SHEET_LIST_LIMIT);
       displayViewportResults(sheetEvents, { totalCount: dedupedEvents.length });
+      useEventPreviewStore.getState().rememberEvents(dedupedEvents);
+      sheetEvents.slice(0, 4).forEach((event) => prefetchEventMedia(event));
     },
     [displayViewportResults, mapRef, viewportFrozenRef]
   );

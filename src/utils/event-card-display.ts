@@ -279,3 +279,14 @@ export function getEventImageUrls(event: Pick<EventWithCreator, 'cover_url' | 'm
 
   return Array.from(new Set(urls)).slice(0, 4);
 }
+
+export function getEventPrefetchUrls(
+  event: Pick<EventWithCreator, 'cover_url' | 'media'> | null | undefined,
+  options?: { includeGallery?: boolean },
+): string[] {
+  if (!event) return [];
+  const urls = getEventImageUrls(event);
+  if (options?.includeGallery) return urls;
+  const cover = urls[0];
+  return cover ? [cover] : [];
+}

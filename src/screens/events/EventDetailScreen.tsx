@@ -116,6 +116,11 @@ import { getDistanceText } from '@/utils/sort-events';
 import MapboxGL from '@rnmapbox/maps';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
 import {
+  resolveSeededEventDetail,
+  useEventPreviewStore,
+} from '@/store/eventPreviewStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import {
   getMapDetailSlideOffset,
   shouldCompleteMapDetailDismiss,
 } from '@/utils/map-detail-transition';
@@ -149,20 +154,25 @@ export default function EventDetailScreen() {
   const isMapTransitionOrigin =
     (origin === 'map-unit' || origin === 'map-sheet') &&
     transitionContext?.origin === origin;
-  const seededMapEvent =
-    isMapTransitionOrigin && transitionContext?.eventId === id
-      ? transitionContext.event
-      : null;
-  const [event, setEvent] = useState<EventWithCreator | null>(seededMapEvent);
-  const [loading, setLoading] = useState(!seededMapEvent);
+  const seededEvent = resolveSeededEventDetail({
+    eventId: id,
+    origin,
+    mapEventId: transitionContext?.eventId,
+    mapOrigin: transitionContext?.origin,
+    mapEvent: transitionContext?.event ?? null,
+  });
+  const [event, setEvent] = useState<EventWithCreator | null>(seededEvent);
+  const [loading, setLoading] = useState(!seededEvent);
   const reduceMotion = useReduceMotion();
-  const canAnimateMapSurface = !reduceMotion && Boolean(seededMapEvent);
+  const canAnimateMapSurface =
+    !reduceMotion && isMapTransitionOrigin && Boolean(seededEvent);
   const surfaceProgress = useSharedValue(canAnimateMapSurface ? 0 : 1);
   const [scrollAtTop, setScrollAtTop] = useState(true);
   const [entryMotionComplete, setEntryMotionComplete] = useState(
     !canAnimateMapSurface,
   );
   const dismissingRef = useRef(false);
+  const seededIdRef = useRef(id);
   const finishEntryMotion = useCallback(() => {
     requestAnimationFrame(() => {
       setEntryMotionComplete(true);
@@ -323,17 +333,16 @@ export default function EventDetailScreen() {
 
   const loadEventDetails = useCallback(async () => {
     if (!id) return;
+    void loadEventStats(id);
+    void loadCommunityPhotos(id);
     try {
       const data = await EventsService.getEventById(id);
       const enriched = data ? { ...data, is_favorited: isFavorite(data.id), is_liked: isLiked(data.id) } : null;
-      setEvent(enriched);
-      setDescriptionExpanded(false);
-      setDescriptionCanExpand(false);
       if (enriched) {
-        await Promise.all([
-          loadEventStats(enriched.id),
-          loadCommunityPhotos(enriched.id),
-        ]);
+        setEvent(enriched);
+        useEventPreviewStore.getState().rememberEvent(enriched);
+      } else {
+        setEvent((current) => (current?.id === id ? current : null));
       }
     } catch (error) {
       console.warn('loadEventDetails error', error);
@@ -343,20 +352,38 @@ export default function EventDetailScreen() {
     }
   }, [id, isFavorite, isLiked, loadCommunityPhotos, loadEventStats]);
 
+  useEffect(() => {
+    if (!id || seededIdRef.current === id) return;
+    seededIdRef.current = id;
+    const transition = useMapDetailTransitionStore.getState().context;
+    const next = resolveSeededEventDetail({
+      eventId: id,
+      origin,
+      mapEventId: transition?.eventId,
+      mapOrigin: transition?.origin,
+      mapEvent: transition?.event ?? null,
+    });
+    setEvent(next);
+    setLoading(!next);
+  }, [id, origin]);
+
+  useEffect(() => {
+    if (!event) return;
+    prefetchEventMedia(event, { includeGallery: true });
+  }, [event]);
+
   useFocusEffect(
     useCallback(() => {
-      if (!entryMotionComplete) return;
       loadEventDetails();
-    }, [entryMotionComplete, loadEventDetails]),
+    }, [loadEventDetails]),
   );
 
   useEffect(() => {
-    if (!entryMotionComplete || !id || authLoading) return;
+    if (!id || authLoading) return;
     void trackEventView(id);
-  }, [entryMotionComplete, id, authLoading, trackEventView]);
+  }, [id, authLoading, trackEventView]);
 
   useEffect(() => {
-    if (!entryMotionComplete) return;
     let mounted = true;
     const run = async () => {
       if (!features.socialPeers || !event?.id || !profile?.id || isGuest) {
@@ -376,7 +403,6 @@ export default function EventDetailScreen() {
       mounted = false;
     };
   }, [
-    entryMotionComplete,
     event?.id,
     profile?.id,
     isGuest,
@@ -1077,7 +1103,7 @@ export default function EventDetailScreen() {
     };
   }, [canAnimateMapSurface, slideOffset]);
 
-  if (loading) {
+  if (loading && !event) {
     return (
       <View style={{ flex: 1 }}>
         <AppBackground />
@@ -1211,7 +1237,6 @@ export default function EventDetailScreen() {
         </View>
         </MotionReveal>
 
-        {entryMotionComplete ? (
         <View style={styles.content}>
           <MotionReveal delay={Motion.stagger.content}>
           <View style={styles.titleRow}>
@@ -1528,7 +1553,6 @@ export default function EventDetailScreen() {
 
           {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
         </View>
-        ) : null}
             </ScrollView>
           </GestureDetector>
           </View>

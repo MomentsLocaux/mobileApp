@@ -13,6 +13,7 @@ import {
   shouldApplyPendingHomeRecadrage,
   resolveMapClientFilters,
   resolvePendingProgrammaticRefresh,
+  resolveUnitCardCloseCameraAction,
 } from './map-discovery-contract';
 
 describe('map discovery contract', () => {
@@ -220,6 +221,33 @@ describe('map discovery contract', () => {
         userLocation: null,
       }),
       null
+    );
+  });
+
+  it('keeps the landed camera after a see-on-map unit card close', () => {
+    assert.equal(
+      resolveUnitCardCloseCameraAction({
+        openedViaFocusHandoff: true,
+        restoreRequested: true,
+        hasSnapshot: true,
+      }),
+      'keep-and-refresh',
+    );
+    assert.equal(
+      resolveUnitCardCloseCameraAction({
+        openedViaFocusHandoff: false,
+        restoreRequested: true,
+        hasSnapshot: true,
+      }),
+      'restore-snapshot',
+    );
+    assert.equal(
+      resolveUnitCardCloseCameraAction({
+        openedViaFocusHandoff: false,
+        restoreRequested: false,
+        hasSnapshot: true,
+      }),
+      'keep',
     );
   });
 });

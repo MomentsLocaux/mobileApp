@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useMemo, useRef, useCallback } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -188,16 +188,18 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const scrollTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(
       null
     );
+    const maxIndex = getSheetMaxSnapIndex(mode);
+    const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
     const nativeDragOrigin = useSharedValue(0);
     const listScrollY = useSharedValue(0);
     const listTouchStartY = useSharedValue(0);
-    const snapIndexShared = useSharedValue(0);
-
-    const maxIndex = getSheetMaxSnapIndex(mode);
-    const clampedIndex = Math.min(Math.max(0, snapIndex), maxIndex);
+    const snapIndexShared = useSharedValue(clampedIndex);
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
-    snapIndexShared.value = clampedIndex;
+
+    useEffect(() => {
+      snapIndexShared.value = clampedIndex;
+    }, [clampedIndex, snapIndexShared]);
 
     const renderCountRef = useRef(0);
     renderCountRef.current += 1;

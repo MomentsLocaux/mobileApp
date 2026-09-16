@@ -49,6 +49,8 @@ import {
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventHeartButton } from './EventHeartButton';
 import { EventImageCarousel } from './EventImageCarousel';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
 
 /** Tokens alignés DESIGN.md (§2 Couleurs, §4 Boutons/Cards). */
 const CARD_THEME = {
@@ -203,6 +205,11 @@ const EventCardComponent: React.FC<EventCardProps> = ({
     onPrimaryAction?.() ?? onPress();
   };
 
+  const handleCardPressIn = () => {
+    useEventPreviewStore.getState().rememberEvent(event);
+    prefetchEventMedia(event);
+  };
+
   const handleCardPress = () => {
     if (isSwiping) return;
     onPress();
@@ -217,7 +224,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
       onSwipeEnd={() => setIsSwiping(false)}
     />
   ) : images[0] ? (
-    <Image source={{ uri: images[0] }} style={[styles.mediaImage, { height: mediaHeight }]} />
+    <Image source={{ uri: images[0] }} style={[styles.mediaImage, { height: mediaHeight }]} fadeDuration={0} />
   ) : (
     <EventCoverPlaceholder category={event.category} height={mediaHeight} />
   );
@@ -237,7 +244,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
   return (
     <View style={[styles.card, noBottomMargin && styles.cardNoMargin, style]}>
-      <Pressable onPress={handleCardPress}>
+      <Pressable onPress={handleCardPress} onPressIn={handleCardPressIn}>
         <View style={[styles.mediaWrap, { height: mediaHeight }]}>
           {mediaSection}
           <LinearGradient

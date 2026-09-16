@@ -17,6 +17,8 @@ import { useAuth, useLocation } from '@/hooks';
 import { useLumiaTourTarget } from '@/hooks/useLumiaTourTarget';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { useDiscoveryFiltersStore, useMapTransferStore } from '@/store';
+import { useEventPreviewStore } from '@/store/eventPreviewStore';
+import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { useLikesStore } from '@/store/likesStore';
@@ -292,6 +294,8 @@ export default function HomeScreen() {
         Date.now() - homeFeedCache.storedAt < HOME_FEED_CACHE_TTL_MS
       ) {
         if (requestId === metaFeedRequestId.current) {
+          useEventPreviewStore.getState().rememberEvents(homeFeedCache.events);
+          homeFeedCache.events.slice(0, 4).forEach((event) => prefetchEventMedia(event));
           setMetaFeedEvents(homeFeedCache.events);
         }
         return;
@@ -319,6 +323,8 @@ export default function HomeScreen() {
       });
       homeFeedCache = { key: cacheKey, events, storedAt: Date.now() };
       if (requestId === metaFeedRequestId.current) {
+        useEventPreviewStore.getState().rememberEvents(events);
+        events.slice(0, 4).forEach((event) => prefetchEventMedia(event));
         setMetaFeedEvents(events);
         setMetaFeedError(null);
       }
@@ -426,6 +432,8 @@ export default function HomeScreen() {
           null
         );
         if (!cancelled) {
+          useEventPreviewStore.getState().rememberEvents(filtered);
+          filtered.slice(0, 4).forEach((event) => prefetchEventMedia(event));
           setSearchResults(filtered);
           setSearchError(null);
         }
@@ -546,6 +554,8 @@ export default function HomeScreen() {
 
   const handlePressEvent = useCallback(
     (eventId: string) => {
+      const cached = useEventPreviewStore.getState().getCachedEvent(eventId);
+      if (cached) prefetchEventMedia(cached);
       router.push(`/events/${eventId}` as any);
     },
     [router]
