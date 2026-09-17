@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIn
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Star, Heart, Flag, Pencil, Trash2 } from 'lucide-react-native';
 import { AppBackground, Button, Card, ScreenHeader } from '@/components/ui';
+import { EchoCommentCard } from '@/components/events/EchoCommentCard';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { formatEchoesListTitle } from '@/utils/relative-time';
 import { useAuth } from '@/hooks';
 import { useComments } from '@/hooks/useComments';
 import { EventsService } from '@/services/events.service';
@@ -250,7 +252,7 @@ export default function EventEchoesScreen() {
   return (
     <View style={styles.container}>
       <AppBackground />
-      <ScreenHeader title="Echos de la communauté" onBack={() => router.back()} />
+      <ScreenHeader title={formatEchoesListTitle(rootComments.length)} onBack={() => router.back()} />
 
       <View style={styles.tabRow}>
         <TouchableOpacity style={[styles.tab, tab === 'reviews' && styles.tabActive]} onPress={() => setTab('reviews')}>
@@ -272,20 +274,14 @@ export default function EventEchoesScreen() {
             ) : rootComments.length === 0 ? (
               <Text style={styles.muted}>Aucun avis pour le moment</Text>
             ) : (
-              rootComments.map((comment) => {
+              rootComments.map((comment, index) => {
                 const replies = repliesByParent.get(comment.id) || [];
                 return (
-                  <Card key={comment.id} padding="md" style={styles.card}>
-                    <View style={styles.rowBetween}>
-                      <Text style={styles.author}>{comment.author?.display_name || 'Utilisateur'}</Text>
-                      {typeof comment.rating === 'number' ? (
-                        <View style={styles.rowCenter}>
-                          <Star size={14} color="#FBBF24" fill="#FBBF24" />
-                          <Text style={styles.muted}> {comment.rating.toFixed(1)}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={styles.body}>{comment.message}</Text>
+                  <View
+                    key={comment.id}
+                    style={[styles.thread, index < rootComments.length - 1 && styles.threadDivider]}
+                  >
+                    <EchoCommentCard comment={comment} />
                     <View style={styles.commentActions}>
                       <TouchableOpacity
                         style={styles.commentAction}
@@ -356,8 +352,7 @@ export default function EventEchoesScreen() {
                       <View style={styles.repliesWrap}>
                         {replies.map((reply) => (
                           <View key={reply.id} style={styles.replyItem}>
-                            <Text style={styles.replyAuthor}>{reply.author?.display_name || 'Utilisateur'}</Text>
-                            <Text style={styles.replyBody}>{reply.message}</Text>
+                            <EchoCommentCard comment={reply} size="reply" />
                             <View style={styles.commentActions}>
                               <TouchableOpacity
                                 style={styles.commentAction}
@@ -416,7 +411,7 @@ export default function EventEchoesScreen() {
                         ))}
                       </View>
                     ) : null}
-                  </Card>
+                  </View>
                 );
               })
             )}
@@ -530,17 +525,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
   tabActive: { backgroundColor: colors.brand.secondary },
   tabText: { ...typography.bodySmall, color: colors.brand.textSecondary },
-  tabTextActive: { color: '#0f1719', fontWeight: '700' },
+  tabTextActive: { color: colors.brand.onAccent, fontWeight: '700' },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  card: { marginBottom: spacing.sm },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowCenter: { flexDirection: 'row', alignItems: 'center' },
-  author: { ...typography.bodySmall, color: colors.brand.text, fontWeight: '700' },
-  body: { ...typography.bodySmall, color: colors.brand.textSecondary, marginTop: spacing.xs },
+  card: { marginBottom: spacing.sm, marginTop: spacing.md },
+  thread: {
+    paddingBottom: spacing.lg,
+  },
+  threadDivider: {
+    marginBottom: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(26, 51, 41, 0.12)',
+  },
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -565,27 +564,18 @@ const styles = StyleSheet.create({
     color: colors.warning[500],
   },
   repliesWrap: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    gap: spacing.sm,
+    borderTopColor: 'rgba(26, 51, 41, 0.12)',
+    gap: spacing.md,
   },
   replyItem: {
     marginLeft: spacing.sm,
-    paddingLeft: spacing.sm,
+    paddingLeft: spacing.md,
     borderLeftWidth: 2,
-    borderLeftColor: 'rgba(255,255,255,0.12)',
-  },
-  replyAuthor: {
-    ...typography.caption,
-    color: colors.brand.text,
-    fontWeight: '700',
-  },
-  replyBody: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-    marginTop: 2,
+    borderLeftColor: 'rgba(26, 51, 41, 0.12)',
+    gap: spacing.xs,
   },
   muted: { ...typography.bodySmall, color: colors.brand.textSecondary },
   label: { ...typography.caption, color: colors.brand.textSecondary, marginBottom: spacing.xs },
@@ -614,9 +604,9 @@ const styles = StyleSheet.create({
   starsRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
   commentInput: {
     ...typography.body,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: colors.primary[200],
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     marginBottom: spacing.sm,
@@ -629,6 +619,6 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
 });

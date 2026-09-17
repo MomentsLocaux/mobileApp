@@ -1,8 +1,64 @@
 import type { Feature, FeatureCollection } from 'geojson';
 import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
-import { resolveEventMarkerIconFromEvent } from '@/constants/category-visuals';
+import {
+  CATEGORY_VISUAL_SLUGS,
+  categoryMarkerImageKey,
+  DEFAULT_MAP_MARKER,
+  resolveEventMarkerIconFromEvent,
+  toClusterMarkerImageKey,
+} from '@/constants/category-visuals';
 import { getBoundsFromRadiusKm } from '@/utils/search-helpers';
+
+/** Always-mounted sources — avoids Mapbox "Layer … is not in style" when filters change icon buckets. */
+export const STABLE_EVENT_ICON_KEYS: string[] = [
+  ...CATEGORY_VISUAL_SLUGS.map((slug) => categoryMarkerImageKey(slug)),
+  DEFAULT_MAP_MARKER,
+];
+
+export function normalizeMapMarkerIconKey(rawIcon: unknown): string {
+  if (typeof rawIcon !== 'string') return DEFAULT_MAP_MARKER;
+  const icon = rawIcon.trim();
+  if (!icon) return DEFAULT_MAP_MARKER;
+  return STABLE_EVENT_ICON_KEYS.includes(icon) ? icon : DEFAULT_MAP_MARKER;
+}
+
+export function mapMarkerSourceId(iconKey: string, prefix = 'events-source'): string {
+  return `${prefix}-${iconKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+
+export type GroupedMapMarkerSource = {
+  iconKey: string;
+  clusterIconKey: string;
+  sourceId: string;
+  shape: FeatureCollection;
+};
+
+export function groupMapMarkerFeaturesByIcon(
+  features: Feature[],
+  sourcePrefix = 'events-source',
+): GroupedMapMarkerSource[] {
+  const featuresByIcon: Record<string, Feature[]> = {};
+  for (const key of STABLE_EVENT_ICON_KEYS) {
+    featuresByIcon[key] = [];
+  }
+  features.forEach((feature) => {
+    const iconKey = normalizeMapMarkerIconKey(
+      (feature.properties as Record<string, unknown> | null)?.icon,
+    );
+    featuresByIcon[iconKey].push(feature);
+  });
+
+  return STABLE_EVENT_ICON_KEYS.map((iconKey) => ({
+    iconKey,
+    clusterIconKey: toClusterMarkerImageKey(iconKey),
+    sourceId: mapMarkerSourceId(iconKey, sourcePrefix),
+    shape: {
+      type: 'FeatureCollection',
+      features: featuresByIcon[iconKey],
+    },
+  }));
+}
 
 export function extractEventCoordinates(
   event: EventWithCreator

@@ -32,6 +32,7 @@ import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { withUpdatedLikeCount } from '@/utils/likes-count';
 import { sortEvents } from '@/utils/sort-events';
+import { takeLatestCreatedEvents } from '@/utils/latest-added-events';
 import { colors, spacing, typography } from '@/constants/theme';
 import { features } from '@/config/features';
 import {
@@ -39,6 +40,7 @@ import {
   DISCOVERY_MAX_RADIUS_KM,
 } from '@/constants/filters';
 import { EventResultCard } from '@/components/search/EventResultCard';
+import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
 import type { EventWithCreator } from '@/types/database';
 import { SearchBar, type SearchBarHandle } from '@/components/search/SearchBar';
 import { NotificationsService } from '@/services/notifications.service';
@@ -645,6 +647,11 @@ export default function HomeScreen() {
     [router]
   );
 
+  const latestAddedEvents = useMemo(
+    () => (taxonomyReady ? takeLatestCreatedEvents(filteredAndSortedEvents) : []),
+    [filteredAndSortedEvents, taxonomyReady],
+  );
+
   const handleNavigateEvent = useCallback((event: EventWithCreator) => {
     setNavEvent(event);
   }, []);
@@ -811,6 +818,15 @@ export default function HomeScreen() {
           }
         />
 
+        <EventMiniatureCarousel
+          title="Derniers ajoutés"
+          events={latestAddedEvents}
+          padded
+          showDate={false}
+          showCategoryBorder
+          onPressEvent={handlePressEvent}
+        />
+
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleBlock}>
             <Text style={styles.sectionTitle}>Pour vous</Text>
@@ -836,6 +852,8 @@ export default function HomeScreen() {
       activeFilterChips,
       browseCenter,
       canCreateNow,
+      handlePressEvent,
+      latestAddedEvents,
       profile?.avatar_url,
       router,
       resetCriteria,

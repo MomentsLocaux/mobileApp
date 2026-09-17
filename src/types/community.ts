@@ -4,6 +4,7 @@ export type CommunityMember = {
   avatar_url?: string | null;
   cover_url?: string | null;
   city?: string | null;
+  region?: string | null;
   bio?: string | null;
   events_created_count: number;
   /** Present when gamification surfaces select it; optional for MVP peer lists. */

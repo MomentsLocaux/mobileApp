@@ -187,7 +187,7 @@ function PeersMembersScreen() {
             {item.display_name}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {item.city || 'Ville non renseignée'}
+            {[item.city, item.region].filter(Boolean).join(' · ') || 'Ville non renseignée'}
             {isFollowing ? ' · Suivi' : ''}
           </Text>
         </View>
@@ -237,12 +237,12 @@ function PeersMembersScreen() {
             style={styles.searchInput}
             value={query}
             onChangeText={setQuery}
-            placeholder="Rechercher un prénom ou pseudo"
+            placeholder="Prénom, pseudo, ville ou zone"
             placeholderTextColor={colors.brand.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}
             clearButtonMode="while-editing"
-            accessibilityLabel="Rechercher un membre"
+            accessibilityLabel="Rechercher un membre par nom, ville ou zone"
           />
         </View>
 
@@ -284,8 +284,8 @@ function PeersMembersScreen() {
                   title={query.trim() ? 'Aucun résultat' : 'Aucun membre pour le moment'}
                   subtitle={
                     query.trim()
-                      ? 'Essayez un autre nom, ou invitez vos proches à rejoindre l’app.'
-                      : 'Recherchez un prénom ou parcourez les membres pour les suivre.'
+                      ? 'Essayez un autre nom, une ville ou une zone, ou invitez vos proches à rejoindre l’app.'
+                      : 'Recherchez un prénom, une ville ou parcourez les membres pour les suivre.'
                   }
                   ctaLabel="Inviter des amis"
                   onCtaPress={() => router.push('/profile/invite' as any)}

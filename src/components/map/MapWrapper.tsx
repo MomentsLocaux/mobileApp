@@ -2,22 +2,19 @@ import React, { useRef, forwardRef, useImperativeHandle, useCallback, useMemo, u
 import { Motion } from '@/constants/motion';
 import { StyleSheet, View, Text, Platform } from 'react-native';
 import Mapbox, { type MapState } from '@rnmapbox/maps';
-import { MapPin, Users, type LucideIcon } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 import { colors } from '../../constants/theme';
 import Constants from 'expo-constants';
-import type { FeatureCollection, Feature } from 'geojson';
+import type { FeatureCollection } from 'geojson';
 import {
-  CATEGORY_VISUAL_SLUGS,
-  CATEGORY_VISUALS,
-  categoryClusterMarkerImageKey,
-  categoryMarkerImageKey,
   DEFAULT_CLUSTER_MAP_MARKER,
   DEFAULT_MAP_MARKER,
-  toClusterMarkerImageKey,
-  type CategoryVisualSlug,
 } from '../../constants/category-visuals';
-import { CategoryEventMarker } from './CategoryEventMarker';
-import { useTaxonomyStore } from '../../store/taxonomyStore';
+import { CategoryMarkerImages, useCategoryMarkerVisuals } from './CategoryMarkerImages';
+import {
+  groupMapMarkerFeaturesByIcon,
+  normalizeMapMarkerIconKey,
+} from '../../utils/map-marker-features';
 import { MAP_CAMERA_ANIMATION_MS } from '../../utils/map-sheet-layout';
 import { insetMapBoundsForBottomOverlay } from '../../utils/map-viewport-fetch-utils';
 import { consumeBooleanFlag } from '@/utils/map-interaction-token';
@@ -25,59 +22,7 @@ import { consumeBooleanFlag } from '@/utils/map-interaction-token';
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
 
-type CategoryMarkerVisual = {
-  color: string;
-  iconColor?: string;
-  Icon: LucideIcon;
-};
-
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
-
-/** Always-mounted sources — avoids Mapbox "Layer … is not in style" when filters change icon buckets. */
-const STABLE_EVENT_ICON_KEYS: string[] = [
-  ...CATEGORY_VISUAL_SLUGS.map((slug) => categoryMarkerImageKey(slug)),
-  DEFAULT_MAP_MARKER,
-];
-
-const normalizeEventIconKey = (feature: Feature): string => {
-  const rawIcon = (feature.properties as Record<string, unknown> | null)?.icon;
-  if (typeof rawIcon !== 'string') return DEFAULT_MAP_MARKER;
-  const icon = rawIcon.trim();
-  if (!icon) return DEFAULT_MAP_MARKER;
-  return STABLE_EVENT_ICON_KEYS.includes(icon) ? icon : DEFAULT_MAP_MARKER;
-};
-
-const toSourceId = (iconKey: string) => `events-source-${iconKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-
-const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
-  visuals,
-}: {
-  visuals: Record<CategoryVisualSlug, CategoryMarkerVisual>;
-}) {
-  return (
-    <Mapbox.Images>
-      {CATEGORY_VISUAL_SLUGS.map((slug) => {
-        const visual = visuals[slug];
-        return (
-          <React.Fragment key={slug}>
-            <Mapbox.Image name={categoryMarkerImageKey(slug)}>
-              <CategoryEventMarker color={visual.color} Icon={visual.Icon} iconColor={visual.iconColor} />
-            </Mapbox.Image>
-            <Mapbox.Image name={categoryClusterMarkerImageKey(slug)}>
-              <CategoryEventMarker color={visual.color} Icon={visual.Icon} variant="cluster" />
-            </Mapbox.Image>
-          </React.Fragment>
-        );
-      })}
-      <Mapbox.Image name={DEFAULT_MAP_MARKER}>
-        <CategoryEventMarker color={colors.brand.secondary} Icon={Users} />
-      </Mapbox.Image>
-      <Mapbox.Image name={DEFAULT_CLUSTER_MAP_MARKER}>
-        <CategoryEventMarker color={colors.brand.secondary} Icon={Users} variant="cluster" />
-      </Mapbox.Image>
-    </Mapbox.Images>
-  );
-});
 
 interface MapWrapperProps {
   initialRegion: {
@@ -158,7 +103,7 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
     ref
   ) => {
   const isMapboxAvailable = !!Mapbox.MapView;
-  const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
+  const categoryMarkerVisuals = useCategoryMarkerVisuals();
   const mapViewRef = useRef<Mapbox.MapView>(null);
   const shapeSourceRefs = useRef<Record<string, any>>({});
   const cameraRef = useRef<Mapbox.Camera>(null);
@@ -261,22 +206,6 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
   // Overlay height is query inset only (getVisibleBounds). Do not re-emit bounds
   // here: that overwrote the camera target with already-inset coordinates.
 
-  const categoryMarkerVisuals = useMemo(() => {
-    const visuals = {} as Record<CategoryVisualSlug, CategoryMarkerVisual>;
-    CATEGORY_VISUAL_SLUGS.forEach((slug) => {
-      const base = CATEGORY_VISUALS[slug as CategoryVisualSlug];
-      const categoryColor = categoriesMap[slug]?.color;
-      const color =
-        typeof categoryColor === 'string' && categoryColor.trim().length > 0 ? categoryColor : base.fallbackColor;
-      visuals[slug] = {
-        color,
-        iconColor: base.iconColor,
-        Icon: base.Icon,
-      };
-    });
-    return visuals;
-  }, [categoriesMap]);
-
   const selectedEventShape = useMemo((): FeatureCollection => {
     if (!activeEventId) return EMPTY_FEATURE_COLLECTION;
     const feature = (eventsShape.features || []).find(
@@ -289,7 +218,7 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
   const selectedMarkerIconKey = useMemo(() => {
     const feature = selectedEventShape.features[0];
     if (!feature) return DEFAULT_MAP_MARKER;
-    return normalizeEventIconKey(feature);
+    return normalizeMapMarkerIconKey((feature.properties as Record<string, unknown> | null)?.icon);
   }, [selectedEventShape]);
 
   /** Hide the base pin while the enlarged selected overlay is shown (avoids visual double). */
@@ -313,26 +242,10 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
     });
   }, [mapPadding]);
 
-  const groupedEventSources = useMemo(() => {
-    const featuresByIcon: Record<string, Feature[]> = {};
-    for (const key of STABLE_EVENT_ICON_KEYS) {
-      featuresByIcon[key] = [];
-    }
-    (eventsShape.features || []).forEach((feature) => {
-      const iconKey = normalizeEventIconKey(feature);
-      featuresByIcon[iconKey].push(feature);
-    });
-
-    return STABLE_EVENT_ICON_KEYS.map((iconKey) => ({
-      iconKey,
-      clusterIconKey: toClusterMarkerImageKey(iconKey),
-      sourceId: toSourceId(iconKey),
-      shape: {
-        type: 'FeatureCollection',
-        features: featuresByIcon[iconKey],
-      } as FeatureCollection,
-    }));
-  }, [eventsShape]);
+  const groupedEventSources = useMemo(
+    () => groupMapMarkerFeaturesByIcon(eventsShape.features || []),
+    [eventsShape],
+  );
 
   const setShapeSourceRef = useCallback((sourceId: string, sourceRef: any | null) => {
     if (sourceRef) {

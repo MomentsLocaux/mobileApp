@@ -5,7 +5,6 @@ import {
   FlatList,
   Image,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,11 +14,13 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronDown, Compass, Heart, MapPin, Search } from 'lucide-react-native';
+import { Bell, ChevronDown, Compass, Heart, List, Map as MapIcon, MapPin, Search } from 'lucide-react-native';
 
-import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
+import { AppBackground, DiscoveryLoadingState, EmptyState, SlidingSegmentedControl } from '@/components/ui';
+import { FilterChipRow } from '@/components/filters';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { EventResultCard } from '@/components/search/EventResultCard';
+import { FavoritesMapView } from '@/components/favorites/FavoritesMapView';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
@@ -49,6 +50,7 @@ type FavoriteRow = {
 
 type Tab = 'events' | 'creators';
 type FavoriteSort = 'distance' | 'date_asc' | 'date_desc';
+type EventsView = 'list' | 'map';
 
 const TIME_FILTERS: { value: FavoriteTimeFilter; label: string }[] = [
   { value: 'active', label: 'En cours & à venir' },
@@ -56,6 +58,16 @@ const TIME_FILTERS: { value: FavoriteTimeFilter; label: string }[] = [
   { value: 'upcoming', label: 'À venir' },
   { value: 'past', label: 'Passés' },
   { value: 'all', label: 'Tous' },
+];
+
+const TIME_FILTER_OPTIONS = TIME_FILTERS.map((option) => ({
+  key: option.value,
+  label: option.label,
+}));
+
+const FAVORITE_TAB_OPTIONS = [
+  { value: 'events' as const, label: 'Événements' },
+  { value: 'creators' as const, label: 'Suivis' },
 ];
 
 export default function FavoritesScreen() {
@@ -67,6 +79,8 @@ export default function FavoritesScreen() {
   const { likedEventIds, toggleLike } = useLikesStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('events');
+  const [eventsView, setEventsView] = useState<EventsView>('list');
+  const [mapPreviewEvent, setMapPreviewEvent] = useState<EventWithCreator | null>(null);
   const [query, setQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState<FavoriteTimeFilter>(DEFAULT_FAVORITE_TIME_FILTER);
   const [favoriteSort, setFavoriteSort] = useState<FavoriteSort>('distance');
@@ -210,6 +224,19 @@ export default function FavoritesScreen() {
   const filteredEventIdsKey = useMemo(() => filteredEventIds.join(','), [filteredEventIds]);
 
   useEffect(() => {
+    if (eventsView !== 'map' || activeTab !== 'events') {
+      setMapPreviewEvent(null);
+    }
+  }, [activeTab, eventsView]);
+
+  useEffect(() => {
+    if (!mapPreviewEvent) return;
+    if (!filteredEvents.some((event) => event.id === mapPreviewEvent.id)) {
+      setMapPreviewEvent(null);
+    }
+  }, [filteredEvents, mapPreviewEvent]);
+
+  useEffect(() => {
     let cancelled = false;
     if (!filteredEventIds.length) {
       setEventCardStatsById({});
@@ -301,6 +328,17 @@ export default function FavoritesScreen() {
       console.warn('favorites screen toggle heart error', error);
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
     }
+  };
+
+  const handlePressFavoriteEvent = (event: EventWithCreator) => {
+    useEventPreviewStore.getState().prepareEventDetail(event);
+    prefetchEventMedia(event);
+    router.push(`/events/${event.id}` as any);
+  };
+
+  const handleSelectMapEvent = (event: EventWithCreator) => {
+    setMapPreviewEvent(event);
+    prefetchEventMedia(event);
   };
 
   const handleUnfollowCreator = async (creatorId: string) => {
@@ -432,72 +470,50 @@ export default function FavoritesScreen() {
     <View style={styles.container}>
       <AppBackground />
 
-      <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.content, { paddingTop: insets.top + spacing.xs }]}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Mes Favoris</Text>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => router.push('/notifications' as any)}
             activeOpacity={0.85}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
           >
-            <Bell size={18} color={colors.brand.text} />
+            <Bell size={16} color={colors.brand.text} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.searchBox}>
-          <Search size={20} color={colors.brand.textSecondary} />
+          <Search size={16} color={colors.brand.textSecondary} />
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Rechercher vos pépites enregistrées..."
+            placeholder="Rechercher vos pépites..."
             placeholderTextColor={colors.brand.textSecondary}
             style={styles.searchInput}
           />
         </View>
 
-        <View style={styles.segmentedControl}>
-          <TouchableOpacity
-            style={[styles.segmentButton, activeTab === 'events' && styles.segmentButtonActive]}
-            onPress={() => setActiveTab('events')}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.segmentText, activeTab === 'events' && styles.segmentTextActive]}>Événements</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.segmentButton, activeTab === 'creators' && styles.segmentButtonActive]}
-            onPress={() => setActiveTab('creators')}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.segmentText, activeTab === 'creators' && styles.segmentTextActive]}>Suivis</Text>
-          </TouchableOpacity>
-        </View>
+        <SlidingSegmentedControl
+          value={activeTab}
+          options={FAVORITE_TAB_OPTIONS}
+          onChange={setActiveTab}
+          accessibilityLabel="Type de favoris"
+        />
 
         {activeTab === 'events' ? (
           <View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRow}
-              accessibilityRole="radiogroup"
-            >
-              {TIME_FILTERS.map((option) => {
-                const active = timeFilter === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.filterChip, active && styles.filterChipActive]}
-                    onPress={() => setTimeFilter(option.value)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    activeOpacity={0.82}
-                  >
-                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <FilterChipRow
+              options={TIME_FILTER_OPTIONS}
+              value={timeFilter}
+              onChange={(next) => {
+                if (next) setTimeFilter(next);
+              }}
+              size="xs"
+              accessibilityLabel="Période des favoris"
+            />
             {favoriteSort === 'distance' && !userLocation && !locationLoading ? (
               <Text style={styles.locationHint}>
                 Activez la localisation pour classer les favoris par distance. Tri par date appliqué temporairement.
@@ -510,20 +526,50 @@ export default function FavoritesScreen() {
           <Text style={styles.listTitle}>{activeTab === 'events' ? eventsCountLabel : creatorsCountLabel}</Text>
           {activeTab === 'events' ? (
             <View style={styles.listHeaderActions}>
-              <TouchableOpacity
-                style={styles.sortButton}
-                onPress={handleChooseSort}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={`Tri actuel : ${sortLabel}`}
-              >
-                <MapPin size={14} color={colors.brand.secondary} />
-                <Text style={styles.sortText}>{sortLabel}</Text>
-                <ChevronDown
-                  size={14}
-                  color={colors.brand.secondary}
-                />
-              </TouchableOpacity>
+              <View style={styles.viewToggle} accessibilityRole="tablist">
+                <TouchableOpacity
+                  style={[styles.viewToggleBtn, eventsView === 'list' && styles.viewToggleBtnActive]}
+                  onPress={() => setEventsView('list')}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: eventsView === 'list' }}
+                  accessibilityLabel="Vue liste"
+                  activeOpacity={0.85}
+                >
+                  <List
+                    size={14}
+                    color={eventsView === 'list' ? colors.brand.onAccent : colors.brand.secondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.viewToggleBtn, eventsView === 'map' && styles.viewToggleBtnActive]}
+                  onPress={() => setEventsView('map')}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: eventsView === 'map' }}
+                  accessibilityLabel="Vue carte"
+                  activeOpacity={0.85}
+                >
+                  <MapIcon
+                    size={14}
+                    color={eventsView === 'map' ? colors.brand.onAccent : colors.brand.secondary}
+                  />
+                </TouchableOpacity>
+              </View>
+              {eventsView === 'list' ? (
+                <TouchableOpacity
+                  style={styles.sortButton}
+                  onPress={handleChooseSort}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Tri actuel : ${sortLabel}`}
+                >
+                  <MapPin size={12} color={colors.brand.secondary} />
+                  <Text style={styles.sortText}>{sortLabel}</Text>
+                  <ChevronDown
+                    size={12}
+                    color={colors.brand.secondary}
+                  />
+                </TouchableOpacity>
+              ) : null}
               {loadingFavorites && !refreshing ? (
                 <ActivityIndicator size="small" color={colors.brand.secondary} />
               ) : null}
@@ -541,6 +587,33 @@ export default function FavoritesScreen() {
         </View>
 
         {activeTab === 'events' ? (
+          eventsView === 'map' ? (
+            filteredEvents.length === 0 ? (
+              <EmptyState
+                icon={Heart}
+                title={eventEmptyState.title}
+                subtitle={eventEmptyState.subtitle}
+                ctaLabel={eventEmptyState.ctaLabel}
+                onCtaPress={eventEmptyState.onCtaPress}
+              />
+            ) : (
+              <FavoritesMapView
+                events={filteredEvents}
+                selectedEvent={mapPreviewEvent}
+                currentUserId={profile?.id}
+                isHearted={
+                  mapPreviewEvent
+                    ? favoritesSet.has(mapPreviewEvent.id) || likesSet.has(mapPreviewEvent.id)
+                    : false
+                }
+                onSelectEvent={handleSelectMapEvent}
+                onClearSelection={() => setMapPreviewEvent(null)}
+                onOpenDetails={handlePressFavoriteEvent}
+                onNavigate={setNavEvent}
+                onToggleHeart={handleToggleHeart}
+              />
+            )
+          ) : (
           <FlatList
             data={filteredEvents}
             keyExtractor={(item) => item.id}
@@ -568,11 +641,7 @@ export default function FavoritesScreen() {
                 likesCount={eventCardStatsById[item.id]?.likesCount ?? item.likes_count ?? 0}
                 likers={eventCardStatsById[item.id]?.likers ?? []}
                 isHearted={favoritesSet.has(item.id) || likesSet.has(item.id)}
-                onPress={() => {
-        useEventPreviewStore.getState().prepareEventDetail(item);
-        prefetchEventMedia(item);
-        router.push(`/events/${item.id}` as any);
-                }}
+                onPress={() => handlePressFavoriteEvent(item)}
                 onNavigate={() => setNavEvent(item)}
                 onToggleHeart={handleToggleHeart}
                 distanceKm={
@@ -588,6 +657,7 @@ export default function FavoritesScreen() {
               />
             )}
           />
+          )
         ) : (
           <FlatList
             data={filteredCreators}
@@ -664,7 +734,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   centeredContainer: {
     flex: 1,
@@ -687,24 +757,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    ...typography.h2,
+    ...typography.h4,
     color: colors.brand.text,
     fontWeight: '800',
   },
   iconButton: {
-    width: 48,
-    height: 48,
+    width: 36,
+    height: 36,
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 51, 41, 0.10)',
   },
   searchBox: {
-    height: 56,
+    height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.brand.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: colors.primary[200],
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -712,69 +784,17 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.body,
-    color: colors.brand.text,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: borderRadius.full,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  segmentButton: {
-    flex: 1,
-    borderRadius: borderRadius.full,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.brand.secondary,
-  },
-  segmentText: {
-    ...typography.h6,
-    color: colors.brand.textSecondary,
-    fontWeight: '700',
-  },
-  segmentTextActive: {
-    color: '#06242c',
-  },
-  filterRow: {
-    gap: spacing.sm,
-    paddingRight: spacing.md,
-  },
-  filterChip: {
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  filterChipActive: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(124, 181, 24, 0.16)',
-  },
-  filterChipText: {
     ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-    fontWeight: '700',
-  },
-  filterChipTextActive: {
-    color: colors.brand.secondary,
+    color: colors.brand.text,
+    paddingVertical: 0,
   },
   locationHint: {
     ...typography.caption,
     color: colors.brand.textSecondary,
-    marginTop: spacing.sm,
-    lineHeight: 17,
+    marginTop: spacing.xs,
+    lineHeight: 16,
   },
   listHeader: {
-    marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -785,11 +805,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  viewToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    padding: 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surfaceMuted,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 51, 41, 0.10)',
+  },
+  viewToggleBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewToggleBtnActive: {
+    backgroundColor: colors.brand.secondary,
+  },
   listTitle: {
-    ...typography.h6,
+    ...typography.caption,
     flex: 1,
-    color: '#9eb0c4',
-    letterSpacing: 1,
+    color: colors.brand.textSecondary,
+    letterSpacing: 0.8,
     fontWeight: '800',
   },
   sortButton: {
