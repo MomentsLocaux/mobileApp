@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import {
   cloneMapBounds,
   cloneSheetCameraSnapshot,
+  getSheetCameraPaddingBottom,
+  SHEET_CAMERA_PADDING_MAX_RATIO,
   resolveSheetCameraFitBounds,
   shouldCaptureSheetCameraAnchor,
   shouldRestoreSheetCameraAnchor,
@@ -39,5 +41,17 @@ describe('map sheet camera cycle', () => {
     bounds.ne[0] = 9;
     assert.equal(nextSnapshot.zoom, 12);
     assert.equal(nextBounds.ne[0], 3);
+  });
+
+  it('caps half-snap camera padding below the full sheet height', () => {
+    const layoutHeight = 800;
+    const halfSheet = Math.round(layoutHeight * 0.75);
+    const padding = getSheetCameraPaddingBottom(halfSheet, layoutHeight, 20);
+    assert.equal(padding, Math.round(layoutHeight * SHEET_CAMERA_PADDING_MAX_RATIO) + 20);
+    assert.ok(padding < halfSheet + 20);
+  });
+
+  it('uses the full overlay when the sheet is shorter than the camera cap', () => {
+    assert.equal(getSheetCameraPaddingBottom(104, 800, 20), 124);
   });
 });

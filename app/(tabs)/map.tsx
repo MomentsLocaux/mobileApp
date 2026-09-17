@@ -27,6 +27,7 @@ import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import {
   cloneMapBounds,
   cloneSheetCameraSnapshot,
+  getSheetCameraPaddingBottom,
   resolveSheetCameraFitBounds,
   shouldCaptureSheetCameraAnchor,
   shouldRestoreSheetCameraAnchor,
@@ -541,7 +542,11 @@ export default function MapScreen() {
       const fitBoundsTarget = resolveSheetCameraFitBounds(sheetCameraBoundsRef.current);
       if (!fitBoundsTarget) return;
       const visibleSheetHeight = sheetVisibleHeight.value;
-      const paddingBottom = visibleSheetHeight + MAP_FIT_PADDING;
+      const paddingBottom = getSheetCameraPaddingBottom(
+        visibleSheetHeight,
+        layoutHeightShared.value,
+        MAP_FIT_PADDING,
+      );
       traceMapSheetPerf('fitSheetCameraAnchor', {
         reason: 'sheetSnapSettled',
         paddingBottom,
@@ -556,6 +561,7 @@ export default function MapScreen() {
     [
       applySheetSideEffects,
       fitToBounds,
+      layoutHeightShared,
       sheetMode,
       sheetVisibleHeight,
     ]

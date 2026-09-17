@@ -1272,7 +1272,7 @@ export default function EventDetailScreen() {
                     { color: getCategoryTextColor(event.category || '') },
                   ]}
                 >
-                  {getCategoryLabel(event.category || '')}
+                  {getCategoryLabel(event.category || '', event.category_meta)}
                 </Text>
               </View>
               {visibleTags.map((tag) => (

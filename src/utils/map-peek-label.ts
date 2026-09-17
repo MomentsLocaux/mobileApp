@@ -13,12 +13,10 @@ export const VIEWPORT_PEEK_PLUS_THRESHOLD = 100;
 export function formatViewportPeekLabel(
   count: number,
   metaFilter: EventMetaFilter = 'all',
-  isLoading = false
 ): string {
   const scopeLabel = META_SCOPE_LABELS[metaFilter];
 
   if (count <= 0) {
-    if (isLoading) return 'Recherche dans la zone…';
     return metaFilter === 'all'
       ? 'Aucun événement dans la zone'
       : `Aucun événement ${scopeLabel}`;

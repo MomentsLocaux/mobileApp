@@ -1,6 +1,8 @@
 export type MapSheetMode = 'single' | 'viewport';
 
 export const VIEWPORT_PEEK_HEIGHT = 104;
+/** Visible list height at the intermediate snap. Camera recul is capped separately
+ *  in `SHEET_CAMERA_PADDING_MAX_RATIO` (`map-sheet-camera.ts`). */
 export const VIEWPORT_HALF_RATIO = 0.75;
 export const VIEWPORT_FULL_RATIO = 0.92;
 export const VIEWPORT_HALF_SNAP_INDEX = 1;

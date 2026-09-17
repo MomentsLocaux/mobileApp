@@ -34,8 +34,8 @@ describe('map sheet layout', () => {
   it('uses projected inertia to choose the next viewport snap', () => {
     const [peek, half] = getSheetSnapHeights(layoutHeight, 'viewport');
 
-    assert.equal(resolveSheetSnapIndex(peek + 20, layoutHeight, 'viewport', -0.7), 1);
-    assert.equal(resolveSheetSnapIndex(half - 20, layoutHeight, 'viewport', 0.7), 0);
+    assert.equal(resolveSheetSnapIndex(peek + 20, layoutHeight, 'viewport', -1.4), 1);
+    assert.equal(resolveSheetSnapIndex(half - 20, layoutHeight, 'viewport', 1.4), 0);
   });
 
   it('chooses the nearest snap when released without momentum', () => {
@@ -56,7 +56,7 @@ describe('map sheet layout', () => {
 
   it('returns a snap target that matches the resolved index height', () => {
     const [, half] = getSheetSnapHeights(layoutHeight, 'viewport');
-    const target = resolveSheetSnapTarget(half - 20, layoutHeight, 'viewport', 0.7);
+    const target = resolveSheetSnapTarget(half - 20, layoutHeight, 'viewport', 1.4);
     assert.equal(target.index, 0);
     assert.equal(target.height, VIEWPORT_PEEK_HEIGHT);
     assert.equal(target.progress, 0);

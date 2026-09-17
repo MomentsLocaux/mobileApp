@@ -1,9 +1,10 @@
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { resolveCategoryLabel } from '@/utils/category-label';
 import {
-  CATEGORY_VISUAL_LABELS,
   getCategoryFallbackColor,
   getCategoryVisual,
   isCategoryVisualSlug,
+  pickCategoryMetaSlug,
 } from './category-visuals';
 import { colors } from './theme';
 import type { EventCategory } from '../types/database';
@@ -39,15 +40,16 @@ const getColorLuminance = (hexColor: string): number => {
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 };
 
-export const getCategoryLabel = (category: EventCategory): string => {
+export const getCategoryLabel = (category: EventCategory, categoryMeta?: unknown): string => {
   const { categoriesMap } = useTaxonomyStore.getState();
-  if (!category) return 'Catégorie';
-  const categoryMeta = categoriesMap[category];
-  const slug = categoryMeta?.slug ?? (isCategoryVisualSlug(category) ? category : null);
-  return (
-    categoryMeta?.label ||
-    (isCategoryVisualSlug(slug) ? CATEGORY_VISUAL_LABELS[slug] : String(category))
-  );
+  const slug = pickCategoryMetaSlug(categoryMeta);
+  const fromStore = (category && categoriesMap[category]) || (slug ? categoriesMap[slug] : undefined);
+  return resolveCategoryLabel({
+    category,
+    categoryMeta,
+    taxonomyLabel: fromStore?.label,
+    taxonomySlug: fromStore?.slug,
+  });
 };
 
 /**

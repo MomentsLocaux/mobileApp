@@ -2,6 +2,13 @@ import { persistStorage } from './persistStorage';
 import { partializeEventCache, type EventCacheSnapshot } from './eventCache';
 import { useDiscoverySnapshotStore } from './discoverySnapshotStore';
 import { useEventPreviewStore } from './eventPreviewStore';
+import {
+  applyTaxonomyCache,
+  getTaxonomyCacheSnapshot,
+  isTaxonomyCache,
+  TAXONOMY_STORAGE_KEY,
+  useTaxonomyStore,
+} from './taxonomyStore';
 
 const EVENT_CACHE_STORAGE_KEY = 'event-cache-store';
 const DISCOVERY_SNAPSHOT_STORAGE_KEY = 'discovery-snapshots';
@@ -27,9 +34,10 @@ const parseJson = (raw: string | null): unknown => {
 
 async function readAndHydrate(): Promise<void> {
   try {
-    const [cacheRaw, snapshotRaw] = await Promise.all([
+    const [cacheRaw, snapshotRaw, taxonomyRaw] = await Promise.all([
       persistStorage.getItem(EVENT_CACHE_STORAGE_KEY),
       persistStorage.getItem(DISCOVERY_SNAPSHOT_STORAGE_KEY),
+      persistStorage.getItem(TAXONOMY_STORAGE_KEY),
     ]);
 
     const cacheParsed = parseJson(cacheRaw) as Partial<EventCacheSnapshot> | null;
@@ -50,6 +58,11 @@ async function readAndHydrate(): Promise<void> {
         map: snapshots.map ?? null,
       });
     }
+
+    const taxonomy = parseJson(taxonomyRaw);
+    if (isTaxonomyCache(taxonomy) && taxonomy.categories.length) {
+      applyTaxonomyCache(taxonomy);
+    }
   } finally {
     useDiscoverySnapshotStore.getState().markHydrated();
   }
@@ -58,12 +71,16 @@ async function readAndHydrate(): Promise<void> {
 async function flushDiscoveryPersist(): Promise<void> {
   const cache = partializeEventCache(useEventPreviewStore.getState());
   const snapshots = useDiscoverySnapshotStore.getState();
+  const taxonomy = getTaxonomyCacheSnapshot();
   await Promise.all([
     persistStorage.setItem(EVENT_CACHE_STORAGE_KEY, JSON.stringify(cache)),
     persistStorage.setItem(
       DISCOVERY_SNAPSHOT_STORAGE_KEY,
       JSON.stringify({ home: snapshots.home, map: snapshots.map }),
     ),
+    taxonomy
+      ? persistStorage.setItem(TAXONOMY_STORAGE_KEY, JSON.stringify(taxonomy))
+      : Promise.resolve(),
   ]);
 }
 
@@ -85,6 +102,7 @@ export function hydrateDiscoveryCaches(): Promise<void> {
     persistBound = true;
     useEventPreviewStore.subscribe(schedulePersist);
     useDiscoverySnapshotStore.subscribe(schedulePersist);
+    useTaxonomyStore.subscribe(schedulePersist);
   }
   return hydratePromise;
 }

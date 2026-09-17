@@ -172,6 +172,9 @@ export default function HomeScreen() {
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
   const taxonomyTags = useTaxonomyStore((s) => s.tags);
+  const taxonomyLoaded = useTaxonomyStore((s) => s.loaded);
+  const taxonomyLoadError = useTaxonomyStore((s) => s.loadError);
+  const taxonomyReady = taxonomyLoaded || taxonomyLoadError;
   const [refreshing, setRefreshing] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -939,7 +942,7 @@ export default function HomeScreen() {
 
       <FlatList
         ref={listRef}
-        data={visibleItems}
+        data={taxonomyReady ? visibleItems : []}
         renderItem={renderFeedItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={listHeader}
@@ -962,7 +965,12 @@ export default function HomeScreen() {
           />
         }
         ListEmptyComponent={
-          !discoveryHydrated && !showSearchResults ? null : (showSearchResults ? searchLoading : metaFeedLoading) ? (
+          !taxonomyReady ? (
+            <DiscoveryLoadingState
+              title="Nous préparons votre accueil"
+              subtitle="Encore un instant, le temps de charger les catégories."
+            />
+          ) : !discoveryHydrated && !showSearchResults ? null : (showSearchResults ? searchLoading : metaFeedLoading) ? (
             <DiscoveryLoadingState
               title={
                 showSearchResults

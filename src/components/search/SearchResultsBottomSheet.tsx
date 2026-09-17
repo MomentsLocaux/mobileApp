@@ -424,8 +424,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
     const showPeekLoading = isLoading && mode !== 'single';
     const peekTitle = useMemo(
-      () => formatViewportPeekLabel(peekCount, metaFilter, showPeekLoading),
-      [metaFilter, peekCount, showPeekLoading]
+      () => formatViewportPeekLabel(peekCount, metaFilter),
+      [metaFilter, peekCount]
     );
 
     // Advanced search can still apply the otherwise API-only `created` sort:
@@ -705,14 +705,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 accessibilityRole={showPeekLoading ? 'progressbar' : undefined}
                 accessibilityLabel={
                   showPeekLoading
-                    ? `${peekTitle}. Recherche des événements dans cette zone`
+                    ? 'Recherche des événements dans cette zone'
                     : peekTitle
                 }
                 accessibilityLiveRegion="polite"
               >
-                <Text style={styles.peekTitle} numberOfLines={1}>
-                  {peekTitle}
-                </Text>
                 {showPeekLoading ? (
                   <ActivityIndicator
                     size="small"
@@ -720,7 +717,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                     accessibilityElementsHidden
                     importantForAccessibility="no"
                   />
-                ) : null}
+                ) : (
+                  <Text style={styles.peekTitle} numberOfLines={1}>
+                    {peekTitle}
+                  </Text>
+                )}
               </View>
             </Animated.View>
 

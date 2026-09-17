@@ -15,12 +15,15 @@ import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
 import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
 import { useProposalsStore } from '@/store/proposalsStore';
 import { hydrateDiscoveryCaches } from '@/store/hydrateDiscoveryCache';
+import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 ensureProximityLocationTaskRegistered();
-void hydrateDiscoveryCaches();
+void hydrateDiscoveryCaches().finally(() => {
+  void useTaxonomyStore.getState().load();
+});
 
 export default function RootLayout() {
   useFrameworkReady();

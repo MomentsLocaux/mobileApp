@@ -284,6 +284,8 @@ export interface Event {
   title: string;
   description: string;
   category: string | null;
+  /** Joined `event_category` row from list/detail selects (`slug`, `icon`). */
+  category_meta?: unknown;
   subcategory?: string | null;
   tags: string[];
   starts_at: string;

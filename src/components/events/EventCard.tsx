@@ -25,6 +25,7 @@ import {
   MAP_PREVIEW_BODY_MIN_HEIGHT,
   type EventCardVariant,
 } from '@/constants/event-card-variants';
+import { UNRESOLVED_CATEGORY_LABEL } from '@/utils/category-label';
 import {
   formatDistanceLabel,
   getEventAccessLabel,
@@ -119,12 +120,18 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const { profile } = useAuth();
   useTaxonomy();
   const tagsMap = useTaxonomyStore((s) => s.tagsMap);
+  const categoriesMap = useTaxonomyStore((s) => s.categoriesMap);
+  const taxonomyLoaded = useTaxonomyStore((s) => s.loaded);
   const [isSwiping, setIsSwiping] = useState(false);
 
   const images = useMemo(() => getEventImageUrls(event), [event.cover_url, event.media]);
   const hasCarousel = showCarousel && images.length > 1;
   const mediaHeight = mediaHeightOverride ?? EVENT_CARD_MEDIA_HEIGHT[variant];
-  const categoryLabel = getCategoryLabel(event.category || '').toUpperCase();
+  const storeCategory = event.category ? categoriesMap[event.category] : undefined;
+  const categoryLabel = getCategoryLabel(event.category || '', event.category_meta).toUpperCase();
+  const showCategoryBadge =
+    Boolean(categoryLabel) &&
+    (taxonomyLoaded || Boolean(storeCategory?.label) || categoryLabel !== UNRESOLVED_CATEGORY_LABEL.toUpperCase());
   const categoryColor = getCategoryColor(event.category || '');
   const categoryTextColor = getCategoryTextColor(event.category || '');
   const visibleTags = getEventContextTags(event, tagsMap);
@@ -273,9 +280,11 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
           <View style={styles.mediaTopRow} pointerEvents="box-none">
             <View style={styles.badgeCol}>
-              <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
-                <Text style={[styles.categoryText, { color: categoryTextColor }]}>{categoryLabel}</Text>
-              </View>
+              {showCategoryBadge ? (
+                <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
+                  <Text style={[styles.categoryText, { color: categoryTextColor }]}>{categoryLabel}</Text>
+                </View>
+              ) : null}
               {visibleTags.map((tag) => (
                 <View key={tag} style={styles.tagBadge}>
                   <Text style={styles.tagText}>{formatResolvedEventTagLabel(tag, tagsMap)}</Text>
