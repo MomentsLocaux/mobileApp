@@ -45,7 +45,8 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Home latest-added carousel | `HomeScreen`, `EventMiniatureCarousel` | Miniatures au-dessus de « Pour vous », mêmes critères que le fil ; cover + titre seulement (pas de date) pour rester compact ; contour cover = couleur de catégorie (`getCategoryColor`) |
 | Favorites map | `app/(tabs)/favorites.tsx`, `FavoritesMapView` | Toggle liste/carte surface + leaf ; pins = `CategoryEventMarker` (mêmes images que la carte découverte) ; tap → preview `MapEventUnitOverlay` / `EventCard` `map-preview` ; pas de CircleLayer leaf |
 | Favorites header | `favorites.tsx`, `SlidingSegmentedControl` | Entête compact : titre `h4`, search 44 mint, chips période `FilterChip` `xs` ; Événements/Suivis = radio glissant leaf/`onAccent`, pas de verre sombre |
-| Community member search | `CommunityScreen`, `community.service` | Champ unique prénom/pseudo **ou** ville/zone (`city` + `region`) ; pas de verre sombre |
+| Notifications inbox | `NotificationsInboxScreen`, `SlidingSegmentedControl` | Toutes / Non lues = radio glissant leaf/`onAccent`, pas de pills plates ni verre sombre |
+| Community member search | `CommunityScreen`, `CommunityMemberCard` | Même carte/search que Ma communauté : `surface`, CTA Suivre/Suivi leaf/`onAccent`, search 44 mint, ville + `MapPin` (+ zone) ; pas de verre sombre |
 | Platform organizer sheet | `src/components/events/EventPlatformOrganizerSheet.tsx` | Light sheet; claim CTA « Vous êtes l’organisateur ? Nous écrire » only when organizer is Moments Locaux (SCRUM-36); opens the website contact form prefilled (`intent=diffuseur` + titre) ; copy agenda vs suggestion communautaire |
 | Correction / doublon sheet | `src/components/events/EventCorrectionSheet.tsx` | Sheet bg + inputs + CTA leaf + duplicate candidate rows (SCRUM-120 / SCRUM-156) |
 | Navigation (“Y aller”) sheet | `src/components/search/NavigationOptionsSheet.tsx` | Sheet bg + close + option rows |
@@ -53,7 +54,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Proposal deck distance chip | `src/screens/proposals/ProposalSwipeDeck.tsx` | Contrast on photo overlay |
 | Create / suggest location picker | `src/components/events/LocationPickerModal.tsx` | Light outline « Localiser » next to the address field + surface map FAB; GPS fills address and flies the camera (SCRUM-45) |
 | Suggestion / create location preview | `EventPreviewMiniMap`, `app/events/create/preview.tsx` | Pin as Mapbox CircleLayer; Camera `defaultSettings` + `onDidFinishLoadingMap` so Nyons is not Africa; map sits above the submit footer |
-| Follows list location maps | `app/community/follows.tsx` | Static Mapbox image only when RPC allows; otherwise “Position non partagée” |
+| Community follows (Ma communauté) | `app/community/follows.tsx`, `CommunityMemberCard`, `SlidingSegmentedControl` | Radio glissant leaf « Ceux qui me suivent / Ceux que je suis » (compact) ; cartes `surface` + CTA Suivre / Suivre aussi ; search 44 mint ; ville + `MapPin`, pas de mini-carte par ligne ; empty states invite / découverte membres ; pas de verre sombre |
 | Contact assistance | `app/contact.tsx` | Light settings form, leaf CTA, closed subjects matching website |
 | Map unit overlay close / heart | `EventHeartButton`, `MapEventUnitOverlay`, `EventCard`, `EventDetailScreen` | Cœur canonique 34 px / glyphe 19 px issu de la card individuelle, partagé par toutes les fiches ; petite croix **haut-droit** sur la card individuelle |
 | EventCard (listes + overlay map) | `EventCard`, `EventResultCard`, Home, favoris, bottom sheet, `EventsListScreen` | Même corps `map-preview` : cover 220, titre, ligne date calendrier, lieu ; pas de panneau DÉBUT/FIN ni description. Preuve sociale d’une ligne sous le lieu : avatars suivis (max 3) + likes / « Aimé par Léa », `Soyez le premier à aimer` si 0 like, et `N échos` si `comments_count` ≥ 1. Badge catégorie = label taxonomie / slug visuel, jamais l’UUID. Vues / check-ins restent sur la fiche. |
@@ -75,7 +76,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Lumia chat | `src/screens/lumia/LumiaChatScreen.tsx` | Flag off = hidden; light bubbles, leaf send — no dark glass |
 | Lumia first-run tour | `src/components/lumia/LumiaTourOverlay.tsx` | Light surface card, leaf CTA, ink text — not a dark glass sheet |
 | Profile edit identity row | `src/screens/profile/ProfileEditScreen.tsx` | Hide “Profil : Particulier”; home location uses `LocationPickerModal` + leaf outline GPS CTA |
-| Community invite | `src/screens/community/CommunityScreen.tsx` | Header “Inviter un ami” |
+| Community invite | `CommunityScreen`, `app/community/follows.tsx` | Header “Inviter un ami” (Membres) + icône `UserPlus` sur Ma communauté |
 | Organizer avatar fallback | `src/constants/branding.ts` + assets | Keep in sync with app icon |
 | App / store icon | `assets/images/icon.png`, `icon-meta-1024.png`, `app.config.ts`, native AppIcon | Rebuild after asset change |
 | Welcome email | `docs/email-templates/` + Brevo | Out-of-app; still charter-bound |

@@ -7,20 +7,20 @@ import {
   FlatList,
   RefreshControl,
   Alert,
-  Image,
-  TextInput,
 } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, Users, UserPlus } from 'lucide-react-native';
+import { Users, UserPlus } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
 import type { CommunityMember } from '../../types/community';
 import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
+import { CommunityMemberCard, CommunitySearchField } from '@/components/community/CommunityMemberCard';
 import { haptics } from '@/utils/haptics';
 import { features } from '@/config/features';
 import { MOMENTS_LOCAUX_ORGANIZER_NAME } from '@/constants/branding';
+import { followActionLabel, formatMemberLocation } from '@/utils/community-follows';
 
 /**
  * MVP peer social — find / follow members (not creator rankings).
@@ -55,8 +55,6 @@ function PeersMembersScreen() {
       setLoadError(null);
 
       const trimmed = search.trim();
-      // Peer discovery is global by default (city filter was opt-in on main).
-      // Hard-filtering by profile.city emptied the list for most users.
       const membersRequest = trimmed
         ? CommunityService.searchMembers({
             query: trimmed,
@@ -156,56 +154,21 @@ function PeersMembersScreen() {
     });
   }, [members, followingSet, profile?.city]);
 
+  const filtered = query.trim().length > 0;
+  const summary = filtered
+    ? sortedMembers.length === 0
+      ? 'Aucun résultat'
+      : sortedMembers.length === 1
+        ? '1 résultat'
+        : `${sortedMembers.length} résultats`
+    : sortedMembers.length === 1
+      ? '1 membre'
+      : `${sortedMembers.length} membres`;
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load(query);
     setRefreshing(false);
-  };
-
-  const renderMemberItem = ({ item }: { item: CommunityMember }) => {
-    const isFollowing = followingSet.has(item.user_id);
-    const initial = (item.display_name || '?').slice(0, 1).toUpperCase();
-
-    return (
-      <TouchableOpacity
-        style={styles.memberCard}
-        activeOpacity={0.88}
-        onPress={() => router.push(`/community/${item.user_id}` as any)}
-        accessibilityRole="button"
-        accessibilityLabel={`Profil de ${item.display_name}`}
-      >
-        {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarFallbackText}>{initial}</Text>
-          </View>
-        )}
-
-        <View style={styles.memberBody}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.display_name}
-          </Text>
-          <Text style={styles.meta} numberOfLines={1}>
-            {[item.city, item.region].filter(Boolean).join(' · ') || 'Ville non renseignée'}
-            {isFollowing ? ' · Suivi' : ''}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.followBtn, isFollowing && styles.followingBtn]}
-          disabled={followPendingId === item.user_id}
-          onPress={() => toggleFollow(item.user_id, isFollowing)}
-          accessibilityRole="button"
-          accessibilityLabel={isFollowing ? 'Ne plus suivre' : 'Suivre'}
-          hitSlop={8}
-        >
-          <Text style={[styles.followText, isFollowing && styles.followingText]}>
-            {isFollowing ? 'Suivi' : 'Suivre'}
-          </Text>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
   };
 
   return (
@@ -231,20 +194,12 @@ function PeersMembersScreen() {
           </Text>
         </View>
 
-        <View style={styles.searchRow}>
-          <Search size={18} color={colors.brand.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Prénom, pseudo, ville ou zone"
-            placeholderTextColor={colors.brand.textSecondary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            accessibilityLabel="Rechercher un membre par nom, ville ou zone"
-          />
-        </View>
+        <CommunitySearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Prénom, pseudo, ville ou zone"
+          accessibilityLabel="Rechercher un membre par nom, ville ou zone"
+        />
 
         {loadingMembers && !refreshing ? (
           <DiscoveryLoadingState
@@ -255,17 +210,36 @@ function PeersMembersScreen() {
           <FlatList
             data={sortedMembers}
             keyExtractor={(item) => item.user_id}
-            renderItem={renderMemberItem}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => {
+              const isFollowing = followingSet.has(item.user_id);
+              return (
+                <CommunityMemberCard
+                  displayName={item.display_name}
+                  avatarUrl={item.avatar_url}
+                  locationLabel={formatMemberLocation(item.city, item.region)}
+                  followLabel={followActionLabel({
+                    isFollowing,
+                    tab: 'following',
+                    isOwnList: false,
+                  })}
+                  isFollowing={isFollowing}
+                  pending={followPendingId === item.user_id}
+                  onPressProfile={() => router.push(`/community/${item.user_id}` as any)}
+                  onPressFollow={() => void toggleFollow(item.user_id, isFollowing)}
+                />
+              );
+            }}
             ListHeaderComponent={
-              <View style={styles.listHeaderBlock}>
-                <Text style={styles.countLabel}>
-                  {followingIds.length > 0
-                    ? `${followingIds.length} suivi${followingIds.length > 1 ? 's' : ''} · ${sortedMembers.length} résultat${sortedMembers.length > 1 ? 's' : ''}`
-                    : `${sortedMembers.length} MEMBRE${sortedMembers.length === 1 ? '' : 'S'}`}
-                </Text>
-              </View>
+              sortedMembers.length > 0 || filtered ? (
+                <Text style={styles.summary}>{summary}</Text>
+              ) : null
             }
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: spacing.xxl + insets.bottom },
+              sortedMembers.length === 0 ? styles.listEmpty : null,
+            ]}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.secondary} />
             }
@@ -281,9 +255,9 @@ function PeersMembersScreen() {
               ) : (
                 <EmptyState
                   icon={Users}
-                  title={query.trim() ? 'Aucun résultat' : 'Aucun membre pour le moment'}
+                  title={filtered ? 'Aucun résultat' : 'Aucun membre pour le moment'}
                   subtitle={
-                    query.trim()
+                    filtered
                       ? 'Essayez un autre nom, une ville ou une zone, ou invitez vos proches à rejoindre l’app.'
                       : 'Recherchez un prénom, une ville ou parcourez les membres pour les suivre.'
                   }
@@ -306,12 +280,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.md,
-    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   header: {
     gap: spacing.xs,
-    paddingHorizontal: spacing.xs,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -320,8 +293,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   title: {
-    ...typography.h3,
+    ...typography.h4,
     color: colors.brand.text,
+    fontWeight: '800',
     flexShrink: 1,
   },
   inviteButton: {
@@ -345,102 +319,17 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     lineHeight: 20,
   },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    minHeight: 48,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  searchInput: {
-    flex: 1,
+  summary: {
     ...typography.body,
-    color: colors.brand.text,
-    paddingVertical: spacing.sm,
-  },
-  listHeaderBlock: {
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.xs,
-  },
-  countLabel: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    letterSpacing: 0.6,
     fontWeight: '700',
+    color: colors.brand.text,
+    marginBottom: spacing.sm,
   },
   listContent: {
-    paddingBottom: spacing.xl * 2,
     flexGrow: 1,
+    paddingTop: spacing.xs,
   },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  avatarFallback: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(124, 181, 24, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.28)',
-  },
-  avatarFallbackText: {
-    ...typography.h5,
-    color: colors.brand.secondary,
-  },
-  memberBody: {
-    flex: 1,
-    gap: 4,
-    minWidth: 0,
-  },
-  name: {
-    ...typography.body,
-    fontWeight: '700',
-    color: colors.brand.text,
-  },
-  meta: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-  },
-  followBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.secondary,
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  followingBtn: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  followText: {
-    ...typography.bodySmall,
-    color: colors.brand.primary,
-    fontWeight: '800',
-  },
-  followingText: {
-    color: colors.brand.text,
+  listEmpty: {
+    flexGrow: 1,
   },
 });

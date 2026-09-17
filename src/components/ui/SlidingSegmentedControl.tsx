@@ -12,6 +12,7 @@ const PAD = 3;
 export type SlidingSegmentOption<T extends string> = {
   value: T;
   label: string;
+  accessibilityLabel?: string;
 };
 
 type Props<T extends string> = {
@@ -19,6 +20,8 @@ type Props<T extends string> = {
   options: readonly SlidingSegmentOption<T>[];
   onChange: (value: T) => void;
   accessibilityLabel?: string;
+  /** Smaller labels for longer copy (e.g. « Ceux qui me suivent »). */
+  compact?: boolean;
 };
 
 export function SlidingSegmentedControl<T extends string>({
@@ -26,6 +29,7 @@ export function SlidingSegmentedControl<T extends string>({
   options,
   onChange,
   accessibilityLabel,
+  compact = false,
 }: Props<T>) {
   const reduceMotion = useReduceMotion();
   const selectedIndex = Math.max(
@@ -72,12 +76,14 @@ export function SlidingSegmentedControl<T extends string>({
             }}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
-            accessibilityLabel={option.label}
+            accessibilityLabel={option.accessibilityLabel ?? option.label}
             hitSlop={4}
           >
             <Text
-              style={[styles.label, selected && styles.labelSelected]}
+              style={[styles.label, compact && styles.labelCompact, selected && styles.labelSelected]}
               numberOfLines={1}
+              adjustsFontSizeToFit={compact}
+              minimumFontScale={0.8}
             >
               {option.label}
             </Text>
@@ -119,6 +125,11 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     fontWeight: '700',
+  },
+  labelCompact: {
+    ...typography.caption,
+    fontWeight: '700',
+    paddingHorizontal: 2,
   },
   labelSelected: {
     color: colors.brand.onAccent,

@@ -28,7 +28,7 @@ import { useAuth } from '@/hooks';
 import { useAuthStore } from '@/state/auth';
 import { NotificationsService, type AppNotification, type AppNotificationType, type NotificationVisual, hasFreshInboxCache, peekInboxCache } from '@/services/notifications.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
-import { EmptyState, ScreenHeader, SkeletonBlock } from '@/components/ui';
+import { EmptyState, ScreenHeader, SkeletonBlock, SlidingSegmentedControl } from '@/components/ui';
 import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import { getCategoryColor, getCategoryLucideIcon, getCategoryTextColor } from '@/constants/categories';
 import {
@@ -37,6 +37,11 @@ import {
 } from '@/constants/branding';
 
 type FilterMode = 'all' | 'unread';
+
+const INBOX_FILTER_OPTIONS = [
+  { value: 'all' as const, label: 'Toutes' },
+  { value: 'unread' as const, label: 'Non lues' },
+];
 
 type InboxSection = {
   title: string | null;
@@ -402,18 +407,12 @@ export default function NotificationsInboxScreen() {
       />
 
       <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.filterPill, mode === 'all' && styles.filterPillActive]}
-          onPress={() => setMode('all')}
-        >
-          <Text style={[styles.filterText, mode === 'all' && styles.filterTextActive]}>Toutes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterPill, mode === 'unread' && styles.filterPillActive]}
-          onPress={() => setMode('unread')}
-        >
-          <Text style={[styles.filterText, mode === 'unread' && styles.filterTextActive]}>Non lues</Text>
-        </TouchableOpacity>
+        <SlidingSegmentedControl
+          value={mode}
+          options={INBOX_FILTER_OPTIONS}
+          onChange={setMode}
+          accessibilityLabel="Filtrer les notifications"
+        />
       </View>
 
       {(loading && items.length === 0) || (!userId && !isGuest) ? (
@@ -500,27 +499,8 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
   },
   filterRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
-  },
-  filterPill: {
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.surfaceMuted,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-  },
-  filterPillActive: {
-    backgroundColor: colors.brand.secondary,
-  },
-  filterText: {
-    ...typography.caption,
-    color: colors.brand.text,
-    fontWeight: '600',
-  },
-  filterTextActive: {
-    color: colors.brand.onAccent,
   },
   listContent: {
     paddingBottom: spacing.xxl + CONTRIBUTION_FAB_STACK_SPACE,

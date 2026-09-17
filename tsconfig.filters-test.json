@@ -37,6 +37,7 @@
     "src/utils/favorite-map-pins.test.ts",
     "src/utils/member-place-search.test.ts",
     "src/utils/relative-time.test.ts",
+    "src/utils/community-follows.test.ts",
     "src/utils/map-sheet-layout.test.ts",
     "src/utils/map-sheet-camera.test.ts",
     "src/utils/map-unit-cycle.test.ts",
