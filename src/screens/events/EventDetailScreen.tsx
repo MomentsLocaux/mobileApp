@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Heart,
   MapPin,
+  MapPinned,
   Calendar,
   Share2,
   Flag,
@@ -44,6 +45,7 @@ import {
   MotionReveal,
   FloatingPressable,
   EventDetailSkeleton,
+  PushButton,
 } from '../../components/ui';
 import { features } from '@/config/features';
 import { getEventAppLink, getEventShareMessage } from '@/utils/event-share';
@@ -91,6 +93,8 @@ import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { PlaceMediaGallery, type MediaImage } from '@/components/events/PlaceMediaGallery';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
+import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
+import { EventEchoesPreview } from '@/components/events/EventEchoesPreview';
 import { supabase } from '@/lib/supabase/client';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -108,7 +112,9 @@ import Toast from 'react-native-toast-message';
 import { useLikesStore } from '@/store/likesStore';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
+import { useSimilarEvents } from '@/hooks/useSimilarEvents';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
+import { openDiffuseurContact } from '@/utils/open-website';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
@@ -138,6 +144,26 @@ const normalizeImageUrl = (value: unknown): string | null => {
   if (lower === 'null' || lower === 'undefined' || lower === 'none') return null;
   return trimmed;
 };
+
+const capitalizeFirst = (value: string) => {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+const formatTime = (date: string) =>
+  new Date(date).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+const formatDateLong = (value: string) =>
+  capitalizeFirst(
+    new Date(value).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }),
+  );
 
 export default function EventDetailScreen() {
   const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
@@ -227,6 +253,10 @@ export default function EventDetailScreen() {
   const isEventLiked = event ? isLiked(event.id) : false;
   const isEventFavorited = event ? isFavorite(event.id) : false;
   const isEventHearted = isEventLiked || isEventFavorited;
+  const similarReady = Boolean(event) && !loading && entryMotionComplete;
+  const { events: similarEvents, loading: similarLoading } = useSimilarEvents(event, {
+    ready: similarReady,
+  });
 
   const heartScale = useSharedValue(1);
   const wasHeartedRef = useRef(isEventHearted);
@@ -572,6 +602,12 @@ export default function EventDetailScreen() {
     finishMapDismiss();
   };
 
+  const handlePressSimilarEvent = (item: EventWithCreator) => {
+    useEventPreviewStore.getState().prepareEventDetail(item);
+    prefetchEventMedia(item);
+    router.push(`/events/${item.id}` as any);
+  };
+
   const handleToggleHeart = async () => {
     if (isGuest) {
       openGuestGate('Aimer cet événement');
@@ -719,19 +755,6 @@ export default function EventDetailScreen() {
     router.push(`/events/echoes?id=${event.id}` as any);
   };
 
-  const formatTime = (date: string) => {
-    const d = new Date(date);
-    return d.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const capitalizeFirst = (value: string) => {
-    if (!value) return value;
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  };
-
   const formatPrice = (price?: number | null) => {
     if (typeof price !== 'number' || Number.isNaN(price) || price <= 0) return 'Gratuit';
     return `${price.toFixed(2)}€`;
@@ -753,6 +776,18 @@ export default function EventDetailScreen() {
       endsAt: event.ends_at,
       locationLabel,
     };
+  };
+
+  const handleClaimOrganizer = () => {
+    setPlatformOrganizerSheetVisible(false);
+    void openDiffuseurContact({
+      name: profile?.display_name,
+      email: profile?.email,
+      eventTitle: event?.title,
+    }).catch((error) => {
+      console.warn('open organizer contact', error);
+      Alert.alert('Contact', 'Impossible d’ouvrir le formulaire pour le moment.');
+    });
   };
 
   const handleAddToCalendar = async () => {
@@ -856,36 +891,34 @@ export default function EventDetailScreen() {
     });
   }, [currentLocation, eventCoordinates]);
 
+  const startDateLabel = useMemo(() => {
+    if (!event) return '';
+    return formatDateLong(event.starts_at);
+  }, [event]);
+
   const startDateTimeLabel = useMemo(() => {
     if (!event) return '';
-    const day = capitalizeFirst(
-      new Date(event.starts_at).toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }),
-    );
-    return `${day} - ${formatTime(event.starts_at)}`;
-  }, [event]);
+    return `${startDateLabel} - ${formatTime(event.starts_at)}`;
+  }, [event, startDateLabel]);
 
   const visibleTags = useMemo(
     () => (event ? getVisibleEventTags(event.tags, tagsMap).slice(0, 6) : []),
     [event, tagsMap],
   );
 
-  const endDateTimeLabel = useMemo(() => {
+  const endDateLabel = useMemo(() => {
     if (!event?.ends_at) return 'Se termine selon les informations de l’organisateur.';
     const endDate = new Date(event.ends_at);
     if (Number.isNaN(endDate.getTime())) return 'Se termine selon les informations de l’organisateur.';
-    const day = capitalizeFirst(
-      endDate.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }),
-    );
-    return `Se termine à ${formatTime(event.ends_at)} le ${day}.`;
+    return `Se termine le ${formatDateLong(event.ends_at)}.`;
   }, [event?.ends_at]);
+
+  const endDateTimeLabel = useMemo(() => {
+    if (!event?.ends_at) return endDateLabel;
+    const endDate = new Date(event.ends_at);
+    if (Number.isNaN(endDate.getTime())) return endDateLabel;
+    return `Se termine à ${formatTime(event.ends_at)} le ${formatDateLong(event.ends_at)}.`;
+  }, [event?.ends_at, endDateLabel]);
 
   const calendarDetailLines = useMemo(() => {
     if (!event) return [] as Array<{ title: string; value: string }>;
@@ -1339,36 +1372,33 @@ export default function EventDetailScreen() {
 
           <MotionReveal delay={Motion.stagger.content * 2} enabled={!seededEvent}>
           <Card padding="md" style={styles.infoCard}>
-            <TouchableOpacity
-              style={styles.infoRowNoMargin}
-              activeOpacity={0.85}
-              onPress={() => setCalendarExpanded((prev) => !prev)}
-            >
-              <View style={styles.infoIconWrap}>
-                <Calendar size={20} color={colors.brand.secondary} />
-              </View>
+            <View style={styles.infoRowNoMargin}>
+              <PushButton
+                icon={Calendar}
+                toggled={calendarExpanded}
+                onPress={() => setCalendarExpanded((prev) => !prev)}
+                accessibilityLabel={
+                  calendarExpanded ? 'Masquer le détail des horaires' : 'Afficher le détail des horaires'
+                }
+              />
               <View style={styles.infoContent}>
-                <Text style={styles.infoDatePrimary}>{startDateTimeLabel}</Text>
-                <Text style={styles.infoDateSecondary}>{endDateTimeLabel}</Text>
+                <Text style={styles.infoDatePrimary}>{startDateLabel}</Text>
+                <Text style={styles.infoDateSecondary}>{endDateLabel}</Text>
               </View>
               <View style={styles.priceBlock}>
                 <Text style={styles.priceValue}>{formatPrice(event.price)}</Text>
                 {hasTicketPrice ? <Text style={styles.priceHint}>PAR BILLET</Text> : null}
               </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.calendarCta}
-              activeOpacity={0.85}
+            </View>
+            <PushButton
+              icon={Calendar}
+              iconSize={16}
+              label={calendarBusy ? 'Ouverture de l’agenda…' : EVENT_CALENDAR_LABEL}
               disabled={calendarBusy}
               onPress={() => void handleAddToCalendar()}
-              accessibilityRole="button"
               accessibilityLabel={EVENT_CALENDAR_LABEL}
-            >
-              <Calendar size={16} color={colors.brand.secondary} />
-              <Text style={styles.calendarCtaText}>
-                {calendarBusy ? 'Ouverture de l’agenda…' : EVENT_CALENDAR_LABEL}
-              </Text>
-            </TouchableOpacity>
+              style={styles.calendarCta}
+            />
             {calendarExpanded ? (
               <View style={styles.calendarExpandedWrap}>
                 {calendarDetailLines.map((line, index) => (
@@ -1384,25 +1414,28 @@ export default function EventDetailScreen() {
 
           <MotionReveal delay={Motion.stagger.content * 3} enabled={!seededEvent}>
           <Card padding="md" style={[styles.infoCard, { marginTop: spacing.md }]}>
-            <TouchableOpacity
-              style={styles.infoRowNoMargin}
-              activeOpacity={0.85}
-              onPress={() => setLocationExpanded((prev) => !prev)}
-            >
-                <View style={styles.infoIconWrap}>
-                  <MapPin size={20} color={colors.brand.secondary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoValue}>{locationLabel}</Text>
-                  <Text style={styles.infoLabel}>{locationSubLabel}</Text>
-                </View>
-                <View style={styles.routeColumn}>
-                  <TouchableOpacity style={styles.routeButton} onPress={handleOpenNavigationOptions}>
-                    <Text style={styles.routeText}>{EVENT_ITINERARY_LABEL}</Text>
-                  </TouchableOpacity>
-                  {distanceLabel ? <Text style={styles.routeDistanceText}>{distanceLabel}</Text> : null}
-                </View>
-            </TouchableOpacity>
+            <View style={styles.infoRowNoMargin}>
+              <PushButton
+                icon={MapPin}
+                toggled={locationExpanded}
+                onPress={() => setLocationExpanded((prev) => !prev)}
+                accessibilityLabel={locationExpanded ? 'Masquer la carte' : 'Afficher la carte'}
+              />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoValue}>{locationLabel}</Text>
+                <Text style={styles.infoLabel}>{locationSubLabel}</Text>
+              </View>
+              <View style={styles.routeColumn}>
+                <PushButton
+                  icon={MapPinned}
+                  iconSize={16}
+                  label={EVENT_ITINERARY_LABEL}
+                  onPress={handleOpenNavigationOptions}
+                  accessibilityLabel={EVENT_ITINERARY_LABEL}
+                />
+                {distanceLabel ? <Text style={styles.routeDistanceText}>{distanceLabel}</Text> : null}
+              </View>
+            </View>
               {locationExpanded ? (
                 <View style={styles.locationExpandedWrap}>
                   <View style={styles.locationMapBox}>
@@ -1579,27 +1612,16 @@ export default function EventDetailScreen() {
             </Card>
           ) : null}
 
-          <View style={styles.echoesHeader}>
-            <Text style={styles.echoesTitle}>Echos de la communauté</Text>
-            <TouchableOpacity onPress={handleGoToEchoes}>
-              <Text style={styles.echoesLink}>Voir tout</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Card padding="md" style={styles.echoesCard}>
-            {comments.slice(0, 2).length === 0 ? (
-              <Text style={styles.emptyComments}>Aucun avis pour le moment</Text>
-            ) : (
-              comments.slice(0, 2).map((comment) => (
-                <View key={comment.id} style={{ marginBottom: spacing.sm }}>
-                  <Text style={styles.commentAuthor}>{comment.author?.display_name || 'Utilisateur'}</Text>
-                  <Text style={styles.commentContent} numberOfLines={2}>{comment.message}</Text>
-                </View>
-              ))
-            )}
-          </Card>
+          <EventEchoesPreview comments={comments} onOpenAll={handleGoToEchoes} />
 
           {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
+
+          <EventMiniatureCarousel
+            title="Vous aimerez peut-être"
+            events={similarEvents}
+            loading={similarLoading}
+            onPressEvent={handlePressSimilarEvent}
+          />
         </View>
             </ScrollView>
           </GestureDetector>
@@ -1620,9 +1642,9 @@ export default function EventDetailScreen() {
       <EventPlatformOrganizerSheet
         visible={platformOrganizerSheetVisible}
         variant={isCommunitySuggestedEvent(event?.submission_source) ? 'community_suggest' : 'agenda'}
-        showClaimCta={false}
+        showClaimCta={isPlatformOrganizer}
         onClose={() => setPlatformOrganizerSheetVisible(false)}
-        onClaim={() => {}}
+        onClaim={handleClaimOrganizer}
       />
 
       <GuestGateModal
@@ -1801,14 +1823,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  infoIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(124, 181, 24,0.12)',
-  },
   infoContent: {
     marginLeft: spacing.md,
     flex: 1,
@@ -1852,28 +1866,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   calendarCta: {
-    marginTop: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24,0.5)',
-    backgroundColor: 'rgba(124, 181, 24,0.12)',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  calendarCtaText: {
-    ...typography.bodySmall,
-    color: colors.brand.secondary,
-    fontWeight: '700',
+    marginTop: spacing.md,
+    alignSelf: 'stretch',
   },
   calendarExpandedWrap: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.15)',
+    borderTopColor: 'rgba(26, 51, 41, 0.12)',
     gap: spacing.xs,
   },
   calendarExpandedRow: {
@@ -1891,23 +1891,11 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     lineHeight: 18,
   },
-  routeButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24,0.5)',
-    backgroundColor: 'rgba(124, 181, 24,0.12)',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  routeText: {
-    ...typography.bodySmall,
-    color: colors.brand.secondary,
-    fontWeight: '700',
-  },
   routeColumn: {
     marginLeft: spacing.sm,
     alignItems: 'flex-end',
     gap: 4,
+    flexShrink: 0,
   },
   routeDistanceText: {
     ...typography.caption,
@@ -2106,36 +2094,5 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.secondary,
     fontWeight: '700',
-  },
-  echoesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  echoesTitle: {
-    ...typography.h4,
-    color: colors.brand.text,
-  },
-  echoesLink: {
-    ...typography.bodySmall,
-    color: colors.brand.secondary,
-    fontWeight: '700',
-  },
-  echoesCard: {
-    marginBottom: spacing.md,
-  },
-  emptyComments: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-  },
-  commentAuthor: {
-    ...typography.bodySmall,
-    fontWeight: '700',
-    color: colors.brand.text,
-  },
-  commentContent: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
   },
 });

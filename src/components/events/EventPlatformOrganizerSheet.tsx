@@ -96,16 +96,25 @@ export function EventPlatformOrganizerSheet({
               : 'Cette fiche vient d’un agenda public. L’organisateur n’a pas encore de page sur Moments Locaux.'}
           </Text>
 
+          {showClaimCta ? (
+            <View style={styles.claimBlock}>
+              <Text style={styles.claimTitle}>Vous êtes l’organisateur de cet événement ?</Text>
+              <Text style={styles.body}>
+                Contactez-nous pour reprendre cette fiche, la mettre à jour et publier vos prochains moments.
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.actions}>
-            <Button title="J’ai compris" onPress={closeAnimated} fullWidth />
             {showClaimCta ? (
-              <Button
-                title="Parlons de vos événements"
-                variant="ghost"
-                onPress={onClaim}
-                fullWidth
-              />
+              <Button title="Vous êtes l’organisateur ? Nous écrire" onPress={onClaim} fullWidth />
             ) : null}
+            <Button
+              title="J’ai compris"
+              variant={showClaimCta ? 'outline' : 'primary'}
+              onPress={closeAnimated}
+              fullWidth
+            />
           </View>
         </Animated.View>
       </View>
@@ -163,6 +172,15 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     marginBottom: spacing.sm,
+  },
+  claimBlock: {
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  claimTitle: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '800',
   },
   actions: {
     gap: spacing.sm,

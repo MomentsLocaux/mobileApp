@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import { sanitizeIlikeFragment } from '@/utils/event-name-search';
+import { buildMemberSearchOrFilter } from '@/utils/member-place-search';
 import type { CommunityMember, LeaderboardEntry } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
 
@@ -24,6 +25,7 @@ type PublicMemberProfile = {
   avatar_url: string | null;
   cover_url: string | null;
   city: string | null;
+  region: string | null;
   bio: string | null;
 };
 
@@ -33,6 +35,7 @@ const toCommunityMember = (profile: PublicMemberProfile): CommunityMember => ({
   avatar_url: profile.avatar_url,
   cover_url: profile.cover_url,
   city: profile.city,
+  region: profile.region,
   bio: profile.bio,
   events_created_count: 0,
   followers_count: 0,
@@ -85,16 +88,16 @@ export const CommunityService = {
     const { query, city, limit = 12 } = options;
     let db = supabase
       .from('profiles')
-      .select('id, display_name, avatar_url, cover_url, city, bio')
+      .select('id, display_name, avatar_url, cover_url, city, region, bio')
       .eq('status', 'active')
       .not('display_name', 'is', null)
       .order('display_name', { ascending: true })
       .limit(limit);
 
-    const nameFragment = query ? sanitizeIlikeFragment(query) : '';
     const cityFragment = city ? sanitizeIlikeFragment(city) : '';
-    if (nameFragment) {
-      db = db.ilike('display_name', `%${nameFragment}%`);
+    const orFilter = query ? buildMemberSearchOrFilter(query) : null;
+    if (orFilter) {
+      db = db.or(orFilter);
     }
 
     if (cityFragment) {
@@ -120,6 +123,7 @@ export const CommunityService = {
         avatar_url,
         cover_url,
         city,
+        region,
         bio
       `)
       .eq('status', 'active')
