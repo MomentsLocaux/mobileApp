@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -16,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronDown, Compass, Heart, List, Map as MapIcon, MapPin, Search } from 'lucide-react-native';
 
-import { AppBackground, DiscoveryLoadingState, EmptyState, SlidingSegmentedControl } from '@/components/ui';
+import { AppBackground, DiscoveryLoadingState, EmptyState, SlidingSegmentedControl, UserAvatar } from '@/components/ui';
 import { FilterChipRow } from '@/components/filters';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { EventResultCard } from '@/components/search/EventResultCard';
@@ -681,13 +680,7 @@ export default function FavoritesScreen() {
                 activeOpacity={0.9}
                 onPress={() => router.push(`/community/${item.user_id}` as any)}
               >
-                {item.avatar_url ? (
-                  <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarFallback}>
-                    <Text style={styles.avatarFallbackText}>{(item.display_name || '?').slice(0, 1).toUpperCase()}</Text>
-                  </View>
-                )}
+                <UserAvatar uri={item.avatar_url} name={item.display_name} size={58} />
 
                 <View style={styles.creatorBody}>
                   <Text style={styles.creatorName} numberOfLines={1}>

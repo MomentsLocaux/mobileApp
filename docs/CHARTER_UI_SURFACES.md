@@ -73,6 +73,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Map navigation / style controls | `app/(tabs)/map.tsx` | Back arrow left of SearchBar; satellite toggle reste derrière la sheet lorsqu’elle est levée et derrière la card individuelle |
 | Onboarding category cards | `src/components/onboarding/OnboardingThemesStep.tsx` | Borders `#334155`; select-all |
 | Onboarding text fields | `src/screens/onboarding/OnboardingScreen.tsx`, `OnboardingConnectorStep.tsx` | No `lineHeight` on `TextInput`; extra bottom padding so descenders (g/p/y) are not clipped |
+| Onboarding / profile avatars | `AvatarPresetPicker`, `PresetAvatarArt`, `UserAvatar`, `OnboardingScreen`, `ProfileEditScreen` | 20 portraits cartoon vectoriels mint/leaf, contours souples, coiffures distinctes et ombres légères ; cadrage circulaire dès le SVG, lisible en miniature ; mêmes identifiants `preset:<id>` ; case Photo et skip onboarding conservés ; rendu partagé profil / communauté / commentaires / notifications / preuves sociales |
 | Lumia chat | `src/screens/lumia/LumiaChatScreen.tsx` | Flag off = hidden; light bubbles, leaf send — no dark glass |
 | Lumia first-run tour | `src/components/lumia/LumiaTourOverlay.tsx` | Light surface card, leaf CTA, ink text — not a dark glass sheet |
 | Profile edit identity row | `src/screens/profile/ProfileEditScreen.tsx` | Hide “Profil : Particulier”; home location uses `LocationPickerModal` + leaf outline GPS CTA |

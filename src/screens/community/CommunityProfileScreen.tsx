@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Flag, MapPin, Users } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { AppBackground } from '@/components/ui';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { CommunityService } from '../../services/community.service';
 import { LocalStatusService } from '@/services/local-status.service';
 import { ReportService } from '@/services/report.service';
@@ -211,15 +212,12 @@ export default function CommunityProfileScreen() {
           <View style={styles.coverFallback} />
         )}
         <View style={styles.headerOverlay}>
-          {member.avatar_url ? (
-            <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarInitial}>
-                {(member.display_name || '?').slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          <UserAvatar
+            uri={member.avatar_url}
+            name={member.display_name}
+            size={100}
+            style={styles.avatar}
+          />
           <Text style={styles.name}>{member.display_name}</Text>
           <Text style={styles.meta}>{cityLabel || 'Membre de la communauté'}</Text>
           {isAmbassadeur ? (

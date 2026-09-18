@@ -28,7 +28,8 @@ import { useAuth } from '@/hooks';
 import { useAuthStore } from '@/state/auth';
 import { NotificationsService, type AppNotification, type AppNotificationType, type NotificationVisual, hasFreshInboxCache, peekInboxCache } from '@/services/notifications.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
-import { EmptyState, ScreenHeader, SkeletonBlock, SlidingSegmentedControl } from '@/components/ui';
+import { EmptyState, ScreenHeader, SkeletonBlock, SlidingSegmentedControl, UserAvatar } from '@/components/ui';
+import { hasRenderableAvatar } from '@/constants/avatar-presets';
 import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import { getCategoryColor, getCategoryLucideIcon, getCategoryTextColor } from '@/constants/categories';
 import {
@@ -190,20 +191,22 @@ function NotificationAvatar({
   type: AppNotificationType;
 }) {
   const [failed, setFailed] = useState(false);
-  const source = !uri || failed ? MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL : { uri };
+  const showUserAvatar = hasRenderableAvatar(uri) && !failed;
   const BadgeIcon = categorySlug ? getCategoryLucideIcon(categorySlug) : typeIcon(type);
   const badgeColor = categorySlug ? getCategoryColor(categorySlug) : colors.brand.secondary;
   const badgeIconColor = categorySlug ? getCategoryTextColor(categorySlug) : colors.brand.onAccent;
 
   return (
     <View style={styles.avatarWrap}>
-      <Image
-        source={source}
-        defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
-        onError={() => setFailed(true)}
-        style={styles.avatar}
-        accessibilityIgnoresInvertColors
-      />
+      {showUserAvatar ? (
+        <UserAvatar uri={uri} size={AVATAR_SIZE} fallback="empty" onRemoteError={() => setFailed(true)} />
+      ) : (
+        <Image
+          source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
+          style={styles.avatar}
+          accessibilityIgnoresInvertColors
+        />
+      )}
       <View style={[styles.typeBadge, { backgroundColor: badgeColor }]}>
         <BadgeIcon size={12} color={badgeIconColor} strokeWidth={2.4} />
       </View>

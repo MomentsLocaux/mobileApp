@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -26,7 +27,9 @@ import {
   X,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { AppBackground, Button, MotionReveal } from '../../components/ui';
+import { AppBackground, Button, MotionReveal, UserAvatar } from '../../components/ui';
+import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
+import { isRemoteAvatarUrl } from '@/constants/avatar-presets';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
 import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
@@ -89,7 +92,7 @@ export default function OnboardingScreen() {
   const { replay } = useLocalSearchParams<{ replay?: string }>();
   const isReplay = replay === '1' || replay === 'true';
   const { profile, user, refreshProfile } = useAuth();
-  const { pickImage } = useImagePicker();
+  const { pickImage, takePhoto } = useImagePicker();
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
@@ -305,13 +308,18 @@ export default function OnboardingScreen() {
   }, []);
 
   const uploadImage = useCallback(
-    async (target: 'avatar' | 'cover') => {
+    async (target: 'avatar' | 'cover', source: 'library' | 'camera' = 'library') => {
       if (!user?.id) {
         setError('Connexion requise pour téléverser une image.');
         return;
       }
 
-      const asset = await pickImage({ allowsEditing: true });
+      const pickerOptions =
+        target === 'avatar'
+          ? { allowsEditing: true as const, aspect: [1, 1] as [number, number] }
+          : { allowsEditing: true as const };
+      const asset =
+        source === 'camera' ? await takePhoto(pickerOptions) : await pickImage(pickerOptions);
       if (!asset?.uri) return;
       setError(null);
       setUploadTarget(target);
@@ -343,8 +351,16 @@ export default function OnboardingScreen() {
         setUploadTarget(null);
       }
     },
-    [pickImage, user?.id],
+    [pickImage, takePhoto, user?.id],
   );
+
+  const chooseAvatarPhoto = useCallback(() => {
+    Alert.alert('Photo de profil', 'Choisissez une option', [
+      { text: 'Galerie', onPress: () => void uploadImage('avatar', 'library') },
+      { text: 'Prendre une photo', onPress: () => void uploadImage('avatar', 'camera') },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  }, [uploadImage]);
 
   const finishToHome = () => {
     haptics.success();
@@ -1004,30 +1020,25 @@ export default function OnboardingScreen() {
 
         {stepId === 'avatar' && (
           <MotionReveal key="avatar" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Ajoutez une photo</Text>
-            <Text style={styles.helper}>Optionnel — vous pourrez la modifier plus tard.</Text>
-            <TouchableOpacity
-              style={styles.avatarUpload}
-              onPress={() => uploadImage('avatar')}
-              disabled={isUploading}
-              accessibilityRole="button"
-              accessibilityLabel="Choisir une photo de profil"
-            >
-              {uploadTarget === 'avatar' ? (
-                <View style={styles.avatarPlaceholder}>
-                  <ActivityIndicator color={colors.brand.secondary} />
-                </View>
-              ) : avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatarPreview} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <User size={30} color={colors.brand.secondary} />
-                  <Text style={styles.uploadText}>Choisir une photo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            <Text style={styles.stepTitle}>Choisissez un portrait</Text>
+            <Text style={styles.helper}>
+              Optionnel — un avatar illustré ou une photo. Vous pourrez le modifier plus tard.
+            </Text>
+            <View style={styles.avatarPreviewWrap}>
+              <UserAvatar uri={avatarUrl || null} name={displayName} size={96} />
+            </View>
+            <AvatarPresetPicker
+              selectedUrl={avatarUrl || null}
+              onSelectPreset={setAvatarUrl}
+              onPressPhoto={chooseAvatarPhoto}
+              photoBusy={uploadTarget === 'avatar'}
+            />
             {avatarUrl && uploadTarget !== 'avatar' ? (
-              <Text style={styles.avatarHint}>Touchez la photo pour la remplacer.</Text>
+              <Text style={styles.avatarHint}>
+                {isRemoteAvatarUrl(avatarUrl)
+                  ? 'Touchez Photo pour remplacer l’image.'
+                  : 'Touchez un autre portrait, ou Photo pour envoyer une image.'}
+              </Text>
             ) : null}
           </MotionReveal>
         )}
@@ -1486,25 +1497,12 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  avatarUpload: {
+  avatarPreviewWrap: {
     alignSelf: 'center',
-    width: 132,
-    height: 132,
-    borderRadius: 66,
+    borderRadius: 48,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.neutral[200],
-    backgroundColor: colors.brand.surfaceMuted,
-  },
-  avatarPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
   },
   avatarHint: {
     ...typography.caption,

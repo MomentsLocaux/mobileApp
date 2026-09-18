@@ -22,6 +22,7 @@
     "src/utils/event-schedule.test.ts",
     "src/utils/suggestion-history.test.ts",
     "src/utils/event-organizer.test.ts",
+    "src/utils/avatar-presets.test.ts",
     "src/utils/community-photo-eligibility.test.ts",
     "src/utils/event-time-scope.test.ts",
     "src/utils/ugc-sanitize.test.ts",

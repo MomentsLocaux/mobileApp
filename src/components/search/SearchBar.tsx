@@ -7,7 +7,6 @@ import {
   TextInput,
   ScrollView,
   Pressable,
-  Image,
   useWindowDimensions,
   Alert,
   Platform,
@@ -34,6 +33,7 @@ import { MapboxService } from '@/services/mapbox.service';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { DateRangePicker } from '@/components/DateRangePicker';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import type { DateRangeValue } from '@/types/eventDate.model';
 import { useLocationStore } from '@/store';
 import { fetchSearchPreviewEvents } from '@/utils/search-preview-events';
@@ -744,11 +744,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                         router.push(`/community/${member.user_id}` as any);
                       }}
                     >
-                      {member.avatar_url ? (
-                        <Image source={{ uri: member.avatar_url }} style={styles.memberAvatar} />
-                      ) : (
-                        <View style={styles.memberAvatarPlaceholder} />
-                      )}
+                      <UserAvatar uri={member.avatar_url} name={member.display_name} size={40} fallback="empty" />
                       <View style={styles.memberMeta}>
                         <Text style={styles.memberName}>{member.display_name}</Text>
                         <Text style={styles.memberCity}>{member.city || 'Ville inconnue'}</Text>

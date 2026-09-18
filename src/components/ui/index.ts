@@ -11,5 +11,6 @@ export { EmptyState } from './EmptyState';
 export { SlidingSegmentedControl } from './SlidingSegmentedControl';
 export type { SlidingSegmentOption } from './SlidingSegmentedControl';
 export { BrandLogoSpinner } from './BrandLogoSpinner';
+export { UserAvatar } from './UserAvatar';
 export { DiscoveryLoadingState } from './DiscoveryLoadingState';
 export { DiscoveryListWindowFooter } from './DiscoveryListWindowFooter';

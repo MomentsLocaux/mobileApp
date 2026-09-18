@@ -46,6 +46,7 @@ import {
   FloatingPressable,
   EventDetailSkeleton,
   PushButton,
+  UserAvatar,
 } from '../../components/ui';
 import { features } from '@/config/features';
 import { getEventAppLink, getEventShareMessage } from '@/utils/event-share';
@@ -1540,7 +1541,7 @@ export default function EventDetailScreen() {
                 accessibilityLabel={`Organisateur ${organizerName}. En savoir plus.`}
               >
                 {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
-                  <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
+                  <UserAvatar uri={event.creator.avatar_url} name={organizerName} size={46} />
                 ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
                   <Image
                     source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
@@ -1559,7 +1560,7 @@ export default function EventDetailScreen() {
             ) : (
               <View style={styles.creatorMain}>
                 {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
-                  <Image source={{ uri: event.creator.avatar_url }} style={styles.creatorCardAvatar} />
+                  <UserAvatar uri={event.creator.avatar_url} name={organizerName} size={46} />
                 ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
                   <Image
                     source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
@@ -1594,15 +1595,7 @@ export default function EventDetailScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Profil de ${peer.display_name}`}
                   >
-                    {peer.avatar_url ? (
-                      <Image source={{ uri: peer.avatar_url }} style={styles.peerAvatar} />
-                    ) : (
-                      <View style={[styles.peerAvatar, styles.peerAvatarFallback]}>
-                        <Text style={styles.peerAvatarInitial}>
-                          {(peer.display_name || '?').slice(0, 1).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
+                    <UserAvatar uri={peer.avatar_url} name={peer.display_name} size={28} />
                     <Text style={styles.peerName} numberOfLines={1}>
                       {peer.display_name}
                     </Text>

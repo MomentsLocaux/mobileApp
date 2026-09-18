@@ -1,9 +1,10 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/constants/theme';
 import type { CommentWithAuthor } from '@/types/database';
 import { formatAuthorHomeLocation, formatTimeAgo } from '@/utils/relative-time';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 const STAR_COLOR = '#FBBF24';
 
@@ -32,7 +33,6 @@ function StarRow({ rating }: { rating?: number | null }) {
 
 export function EchoCommentCard({ comment, compact = false, size = 'default' }: Props) {
   const name = comment.author?.display_name?.trim() || 'Utilisateur';
-  const initial = name.slice(0, 1).toUpperCase();
   const location = formatAuthorHomeLocation(comment.author?.city, comment.author?.region);
   const ago = formatTimeAgo(comment.created_at);
   const hasRating = typeof comment.rating === 'number' && comment.rating > 0;
@@ -42,22 +42,11 @@ export function EchoCommentCard({ comment, compact = false, size = 'default' }: 
   return (
     <View>
       <View style={styles.header}>
-        {comment.author?.avatar_url ? (
-          <Image
-            source={{ uri: comment.author.avatar_url }}
-            style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
-          />
-        ) : (
-          <View
-            style={[
-              styles.avatar,
-              styles.avatarFallback,
-              { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
-            ]}
-          >
-            <Text style={styles.avatarInitial}>{initial}</Text>
-          </View>
-        )}
+        <UserAvatar
+          uri={comment.author?.avatar_url}
+          name={name}
+          size={avatarSize}
+        />
         <View style={styles.identity}>
           <Text style={styles.name} numberOfLines={1}>
             {name}
@@ -94,19 +83,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  avatar: {
-    backgroundColor: colors.brand.surfaceMuted,
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(124, 181, 24, 0.16)',
-  },
-  avatarInitial: {
-    ...typography.body,
-    color: colors.brand.secondary,
-    fontWeight: '800',
   },
   identity: {
     flex: 1,
