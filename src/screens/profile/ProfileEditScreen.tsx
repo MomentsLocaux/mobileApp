@@ -14,8 +14,9 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { MapPin, Upload, User as UserIcon } from 'lucide-react-native';
-import { AppBackground, Button, Input, ScreenHeader } from '../../components/ui';
+import { MapPin, Upload } from 'lucide-react-native';
+import { AppBackground, Button, Input, ScreenHeader, UserAvatar } from '../../components/ui';
+import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
 import { LocationPickerModal } from '@/components/events/LocationPickerModal';
 import { useAuth } from '../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -141,28 +142,34 @@ export default function ProfileEditScreen() {
     }
   };
 
-  const handleAvatarUpload = async () => {
-    if (Platform.OS === 'web') {
-      fileInputRef.current?.click();
-      return;
-    }
-
+  const pickNativeAvatar = async (source: 'library' | 'camera') => {
     if (!user) return;
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Autorisation requise', 'Veuillez autoriser l’accès à vos photos pour changer l’avatar.');
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') {
+      Alert.alert(
+        'Autorisation requise',
+        source === 'camera'
+          ? 'Veuillez autoriser l’appareil photo pour prendre un avatar.'
+          : 'Veuillez autoriser l’accès à vos photos pour changer l’avatar.',
+      );
       return;
     }
 
     const mediaTypes = [(ImagePicker as any).MediaType?.Images ?? 'images'] as any;
-
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const options = {
       mediaTypes,
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: [1, 1] as [number, number],
       quality: 0.8,
-    });
+    };
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
 
     if (result.canceled || !result.assets?.length) {
       return;
@@ -177,10 +184,22 @@ export default function ProfileEditScreen() {
 
     if (uploadedUrl) {
       setAvatarUri(uploadedUrl);
-      Alert.alert('Succès', 'Avatar uploadé');
     } else {
       Alert.alert('Erreur', 'Impossible d\'uploader l\'avatar');
     }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    Alert.alert('Photo de profil', 'Choisissez une option', [
+      { text: 'Galerie', onPress: () => void pickNativeAvatar('library') },
+      { text: 'Prendre une photo', onPress: () => void pickNativeAvatar('camera') },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
   };
 
   const handleCoverUpload = async () => {
@@ -285,17 +304,18 @@ export default function ProfileEditScreen() {
         </TouchableOpacity>
 
         <View style={styles.avatarContainer}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <UserIcon size={48} color={colors.brand.textSecondary} />
-            </View>
-          )}
+          <UserAvatar
+            uri={avatarUri || null}
+            name={displayName}
+            size={120}
+            style={styles.avatar}
+          />
           <TouchableOpacity
             style={styles.cameraButton}
             onPress={handleAvatarUpload}
             disabled={uploadingAvatar}
+            accessibilityRole="button"
+            accessibilityLabel="Choisir une photo de profil"
           >
             {uploadingAvatar ? (
               <ActivityIndicator size="small" color={colors.brand.secondary} />
@@ -313,7 +333,15 @@ export default function ProfileEditScreen() {
             onChange={handleFileChange}
           />
         )}
-        <Text style={styles.uploadHint}>Cliquez sur l&apos;icône pour changer votre avatar</Text>
+        <Text style={styles.uploadHint}>Choisissez un portrait illustré, ou une photo.</Text>
+        <View style={styles.presetWrap}>
+          <AvatarPresetPicker
+            selectedUrl={avatarUri || null}
+            onSelectPreset={setAvatarUri}
+            onPressPhoto={handleAvatarUpload}
+            photoBusy={uploadingAvatar}
+          />
+        </View>
       </View>
 
       <View style={styles.form}>
@@ -406,6 +434,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
     paddingBottom: spacing.lg,
+    width: '100%',
   },
   coverWrapper: {
     width: '100%',
@@ -446,11 +475,6 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: colors.brand.primary,
   },
-  avatarPlaceholder: {
-    backgroundColor: colors.brand.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   cameraButton: {
     position: 'absolute',
     bottom: 0,
@@ -468,6 +492,12 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  presetWrap: {
+    width: '100%',
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
   },
   form: {
     padding: spacing.lg,

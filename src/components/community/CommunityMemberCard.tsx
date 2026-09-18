@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { MapPin, Search } from 'lucide-react-native';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 type CardProps = {
   displayName: string;
@@ -36,7 +36,6 @@ export function CommunityMemberCard({
   onPressProfile,
   onPressFollow,
 }: CardProps) {
-  const initial = (displayName || '?').slice(0, 1).toUpperCase();
   const meta = caption ? `${locationLabel} · ${caption}` : locationLabel;
 
   return (
@@ -47,13 +46,7 @@ export function CommunityMemberCard({
       accessibilityRole="button"
       accessibilityLabel={`Profil de ${displayName}`}
     >
-      {avatarUrl ? (
-        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-      ) : (
-        <View style={styles.avatarFallback}>
-          <Text style={styles.avatarFallbackText}>{initial}</Text>
-        </View>
-      )}
+      <UserAvatar uri={avatarUrl} name={displayName} size={52} />
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {displayName}
@@ -133,26 +126,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.surface,
     borderWidth: 1,
     borderColor: 'rgba(26, 51, 41, 0.08)',
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.brand.surfaceMuted,
-  },
-  avatarFallback: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(124, 181, 24, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.28)',
-  },
-  avatarFallbackText: {
-    ...typography.h5,
-    color: colors.brand.secondary,
   },
   body: {
     flex: 1,

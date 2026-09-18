@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Settings, User as UserIcon, Calendar, Award, Send, Sparkles, Lightbulb } from 'lucide-react-native';
+import { Settings, Calendar, Award, Send, Sparkles, Lightbulb } from 'lucide-react-native';
 import { features } from '@/config/features';
 import { PremiumAvatarFrame } from '@/components/premium/PremiumAvatarFrame';
 import { PremiumCard } from '@/components/premium/PremiumCard';
-import { Button, ScreenHeader } from '../../src/components/ui';
+import { Button, ScreenHeader, UserAvatar } from '../../src/components/ui';
 import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { useAuth } from '../../src/hooks';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
@@ -153,13 +153,7 @@ export default function ProfileScreen() {
           )}
           <View style={styles.headerOverlay}>
             <PremiumAvatarFrame isPremium={false} size={100}>
-              {profile.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <UserIcon size={40} color={colors.brand.text} />
-                </View>
-              )}
+              <UserAvatar uri={profile.avatar_url} name={profile.display_name} size={100} />
             </PremiumAvatarFrame>
             <Text style={styles.displayName}>{profile.display_name}</Text>
             <Text style={styles.email}>{profile.email}</Text>

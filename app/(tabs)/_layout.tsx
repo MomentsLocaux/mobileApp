@@ -9,7 +9,6 @@ import {
   User,
   Bell,
   PlusCircle,
-  UserCircle2,
   Heart,
   Lightbulb,
   Bug,
@@ -20,8 +19,8 @@ import {
   WandSparkles,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Pressable, Text, ScrollView } from 'react-native';
-import { BrandLogoSpinner } from '@/components/ui';
+import { View, StyleSheet, TouchableOpacity, Pressable, Text, ScrollView } from 'react-native';
+import { BrandLogoSpinner, UserAvatar } from '@/components/ui';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -392,9 +391,11 @@ export default function TabsLayout() {
                 <View style={styles.profileTabIconWrap}>
                   {profile?.avatar_url ? (
                     <PremiumAvatarFrame isPremium={false} size={26} showBadge={false}>
-                      <Image
-                        source={{ uri: profile.avatar_url }}
-                        style={[styles.tabAvatar, focused && styles.tabAvatarActive]}
+                      <UserAvatar
+                        uri={profile.avatar_url}
+                        name={profile.display_name}
+                        size={26}
+                        style={focused ? styles.tabAvatarActive : undefined}
                       />
                     </PremiumAvatarFrame>
                   ) : (
@@ -447,13 +448,7 @@ export default function TabsLayout() {
               }}
             >
               <PremiumAvatarFrame isPremium={false} size={56}>
-                {profile?.avatar_url ? (
-                  <Image source={{ uri: profile.avatar_url }} style={styles.drawerAvatar} />
-                ) : (
-                  <View style={styles.drawerAvatarPlaceholder}>
-                    <UserCircle2 size={32} color={colors.neutral[400]} />
-                  </View>
-                )}
+                <UserAvatar uri={profile?.avatar_url} name={profile?.display_name} size={56} />
               </PremiumAvatarFrame>
             </TouchableOpacity>
             <View style={styles.drawerIdentity}>

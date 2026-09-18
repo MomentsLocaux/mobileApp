@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Pressable,
   type ViewStyle,
 } from 'react-native';
@@ -53,6 +52,7 @@ import { EventCoverImage } from './EventCoverImage';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventHeartButton } from './EventHeartButton';
 import { EventImageCarousel } from './EventImageCarousel';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 
@@ -426,23 +426,15 @@ const EventCardComponent: React.FC<EventCardProps> = ({
             >
               {showSocialAvatars ? (
                 <View style={styles.likerStack} accessible={false}>
-                  {visibleLikers.map((liker, index) => {
-                    const initial = (liker.display_name || '?').slice(0, 1).toUpperCase();
-                    return liker.avatar_url ? (
-                      <Image
-                        key={liker.id}
-                        source={{ uri: liker.avatar_url }}
-                        style={[styles.likerAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: visibleLikers.length - index }]}
-                      />
-                    ) : (
-                      <View
-                        key={liker.id}
-                        style={[styles.likerAvatar, styles.likerFallback, { marginLeft: index === 0 ? 0 : -8, zIndex: visibleLikers.length - index }]}
-                      >
-                        <Text style={styles.likerFallbackText}>{initial}</Text>
-                      </View>
-                    );
-                  })}
+                  {visibleLikers.map((liker, index) => (
+                    <UserAvatar
+                      key={liker.id}
+                      uri={liker.avatar_url}
+                      name={liker.display_name}
+                      size={22}
+                      style={[styles.likerAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: visibleLikers.length - index }]}
+                    />
+                  ))}
                 </View>
               ) : null}
               {socialLabel ? (
@@ -759,15 +751,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: CARD_THEME.surface,
     backgroundColor: colors.brand.surfaceMuted,
-  },
-  likerFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  likerFallbackText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: CARD_THEME.text,
   },
   socialText: {
     flexShrink: 1,

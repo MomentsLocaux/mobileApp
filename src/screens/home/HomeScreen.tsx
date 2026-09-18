@@ -71,7 +71,7 @@ import {
   SEARCH_CRITERIA_TIMEOUT_TITLE,
 } from '@/utils/query-timeout';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
-import { DiscoveryLoadingState, DiscoveryListWindowFooter, EmptyState } from '@/components/ui';
+import { DiscoveryLoadingState, DiscoveryListWindowFooter, EmptyState, UserAvatar } from '@/components/ui';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import { buildSearchSummary } from '@/utils/search-summary';
@@ -790,7 +790,7 @@ export default function HomeScreen() {
                 >
                   <View style={styles.storyInner}>
                     {profile?.avatar_url ? (
-                      <Image source={{ uri: profile.avatar_url }} style={styles.storyAvatar} />
+                      <UserAvatar uri={profile.avatar_url} name={profile.display_name} size={64} />
                     ) : (
                       <View style={[styles.storyAvatar, styles.storyPlaceholder]} />
                     )}
@@ -886,7 +886,7 @@ export default function HomeScreen() {
             >
               <View style={styles.headerAvatarContainer}>
                 {profile?.avatar_url ? (
-                  <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatar} />
+                  <UserAvatar uri={profile.avatar_url} name={profile.display_name} size={40} style={styles.headerAvatar} />
                 ) : (
                   <View style={[styles.headerAvatar, { backgroundColor: colors.brand.secondary }]} />
                 )}

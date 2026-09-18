@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
 import { Heart, X } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { CommunityService, type EventLikerProfile } from '@/services/community.service';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 type Props = {
   visible: boolean;
@@ -76,15 +76,7 @@ export function EventLikersSheet({ visible, eventId, onClose, onPressProfile }: 
                   accessibilityRole="button"
                   accessibilityLabel={`Profil de ${item.display_name}`}
                 >
-                  {item.avatar_url ? (
-                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarFallback]}>
-                      <Text style={styles.avatarInitial}>
-                        {(item.display_name || '?').slice(0, 1).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
+                  <UserAvatar uri={item.avatar_url} name={item.display_name} size={40} />
                   <Text style={styles.name} numberOfLines={1}>
                     {item.display_name}
                   </Text>
@@ -147,21 +139,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarFallback: {
-    backgroundColor: colors.neutral[700],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '700',
   },
   name: {
     ...typography.body,

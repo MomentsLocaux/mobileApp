@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { Users, Search } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { CommunityService } from '@/services/community.service';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 type Props = {
   value: 'public' | 'unlisted';
@@ -102,11 +103,7 @@ export const VisibilitySelector = ({ value, privateAudienceIds, onChange, onChan
                     style={[styles.followerRow, active && styles.followerRowActive]}
                     onPress={() => toggleAudience(follower.id)}
                   >
-                    {follower.avatar_url ? (
-                      <Image source={{ uri: follower.avatar_url }} style={styles.avatar} />
-                    ) : (
-                      <View style={[styles.avatar, styles.avatarFallback]} />
-                    )}
+                    <UserAvatar uri={follower.avatar_url} name={follower.display_name} size={28} fallback="empty" />
                     <Text style={[styles.followerName, active && styles.followerNameActive]} numberOfLines={1}>
                       {follower.display_name}
                     </Text>
