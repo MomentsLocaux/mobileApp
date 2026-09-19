@@ -333,7 +333,7 @@ export default function ProfileEditScreen() {
             onChange={handleFileChange}
           />
         )}
-        <Text style={styles.uploadHint}>Choisissez un portrait illustré, ou une photo.</Text>
+        <Text style={styles.uploadHint}>Créez votre avatar, choisissez un portrait ou une photo.</Text>
         <View style={styles.presetWrap}>
           <AvatarPresetPicker
             selectedUrl={avatarUri || null}

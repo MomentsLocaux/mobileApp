@@ -1022,7 +1022,7 @@ export default function OnboardingScreen() {
           <MotionReveal key="avatar" style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Choisissez un portrait</Text>
             <Text style={styles.helper}>
-              Optionnel — un avatar illustré ou une photo. Vous pourrez le modifier plus tard.
+              Optionnel — créez votre avatar, choisissez un portrait ou une photo. Vous pourrez le modifier plus tard.
             </Text>
             <View style={styles.avatarPreviewWrap}>
               <UserAvatar uri={avatarUrl || null} name={displayName} size={96} />
@@ -1037,7 +1037,7 @@ export default function OnboardingScreen() {
               <Text style={styles.avatarHint}>
                 {isRemoteAvatarUrl(avatarUrl)
                   ? 'Touchez Photo pour remplacer l’image.'
-                  : 'Touchez un autre portrait, ou Photo pour envoyer une image.'}
+                  : 'Personnalisez votre avatar, choisissez un autre portrait ou une photo.'}
               </Text>
             ) : null}
           </MotionReveal>

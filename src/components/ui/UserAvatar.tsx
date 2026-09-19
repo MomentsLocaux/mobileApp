@@ -7,7 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { getAvatarPreset, isRemoteAvatarUrl } from '@/constants/avatar-presets';
+import { getIllustratedAvatar, isRemoteAvatarUrl } from '@/constants/avatar-presets';
 import { colors, typography } from '@/constants/theme';
 import { PresetAvatarArt } from './PresetAvatarArt';
 
@@ -28,9 +28,9 @@ export function UserAvatar({
   fallback = 'initial',
   onRemoteError,
 }: Props) {
-  const [remoteFailed, setRemoteFailed] = useState(false);
-  const preset = getAvatarPreset(uri);
-  const showRemote = !preset && isRemoteAvatarUrl(uri) && !remoteFailed;
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const preset = getIllustratedAvatar(uri);
+  const showRemote = !preset && isRemoteAvatarUrl(uri) && failedUri !== uri;
   const initial = (name || '?').trim().slice(0, 1).toUpperCase() || '?';
   const radius = size / 2;
 
@@ -54,7 +54,7 @@ export function UserAvatar({
           source={{ uri: uri as string }}
           style={{ width: size, height: size, borderRadius: radius }}
           onError={() => {
-            setRemoteFailed(true);
+            setFailedUri(uri ?? null);
             onRemoteError?.();
           }}
           accessibilityIgnoresInvertColors
