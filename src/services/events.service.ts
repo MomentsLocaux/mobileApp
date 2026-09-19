@@ -34,6 +34,7 @@ export const EventsService = {
     limit?: number;
     timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
     mergeUpcoming?: boolean;
+    signal?: AbortSignal;
   }) => {
     if (!(dataProvider as any).listMapViewport) {
       // Missing wiring must not look like a successful empty viewport.

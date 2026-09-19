@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildMapViewportCacheKey,
+  createSerialAsyncGate,
   getMapBoundsDiameterKm,
   getViewportCacheDisposition,
   haveMapBoundsMeaningfullyChanged,
@@ -43,13 +44,17 @@ describe('map viewport fetch helpers', () => {
   });
 
   it('rejects when the underlying promise exceeds the client timeout', async () => {
+    let aborted = false;
     await assert.rejects(
       () =>
         raceWithViewportTimeout(
           new Promise((resolve) => {
             setTimeout(() => resolve('late'), 80);
           }),
-          20
+          20,
+          () => {
+            aborted = true;
+          }
         ),
       (error: Error & { code?: string }) => {
         assert.match(error.message, /client timeout/);
@@ -57,6 +62,25 @@ describe('map viewport fetch helpers', () => {
         return true;
       }
     );
+    assert.equal(aborted, true);
+  });
+
+  it('runs exclusive tasks one after another', async () => {
+    const runExclusive = createSerialAsyncGate();
+    const order: number[] = [];
+    const slow = runExclusive(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      order.push(1);
+      return 'a';
+    });
+    const fast = runExclusive(async () => {
+      order.push(2);
+      return 'b';
+    });
+    const [first, second] = await Promise.all([slow, fast]);
+    assert.equal(first, 'a');
+    assert.equal(second, 'b');
+    assert.deepEqual(order, [1, 2]);
   });
 
   it('accepts a 300 km bbox and blocks a wider viewport', () => {

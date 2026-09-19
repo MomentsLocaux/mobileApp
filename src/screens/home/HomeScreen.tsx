@@ -84,6 +84,8 @@ import {
 } from '@/utils/discovery-filters';
 
 const HOME_FEED_LIMIT = SEARCH_FETCH_LIMIT;
+/** After a viewport timeout, skip automatic Home refetches so we do not restack PostgREST. */
+const HOME_VIEWPORT_TIMEOUT_COOLDOWN_MS = 12_000;
 const HOME_VIEWABILITY_CONFIG = {
   itemVisiblePercentThreshold: 45,
   minimumViewTime: 80,
@@ -174,9 +176,6 @@ export default function HomeScreen() {
   const categories = useTaxonomyStore((s) => s.categories);
   const subcategories = useTaxonomyStore((s) => s.subcategories);
   const taxonomyTags = useTaxonomyStore((s) => s.tags);
-  const taxonomyLoaded = useTaxonomyStore((s) => s.loaded);
-  const taxonomyLoadError = useTaxonomyStore((s) => s.loadError);
-  const taxonomyReady = taxonomyLoaded || taxonomyLoadError;
   const [refreshing, setRefreshing] = useState(false);
   const [searchResults, setSearchResults] = useState<EventWithCreator[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -197,7 +196,11 @@ export default function HomeScreen() {
   const metaFeedRequestId = useRef(0);
   const metaFeedEventsRef = useRef(metaFeedEvents);
   metaFeedEventsRef.current = metaFeedEvents;
+  const snapshotFeedEventsRef = useRef(snapshotFeedEvents);
+  snapshotFeedEventsRef.current = snapshotFeedEvents;
   const hasNetworkFeedRef = useRef(false);
+  const metaFeedInFlightRef = useRef(false);
+  const lastViewportTimeoutAtRef = useRef(0);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const insets = useSafeAreaInsets();
 
@@ -305,10 +308,11 @@ export default function HomeScreen() {
     [place, userLocation]
   );
 
-  const loadMetaFeed = useCallback(async (_forceRefresh = false) => {
-    const requestId = ++metaFeedRequestId.current;
+  const loadMetaFeed = useCallback(async (forceRefresh = false) => {
     if (!browseCenter) {
-      if (metaFeedEventsRef.current.length === 0 && snapshotFeedEvents.length === 0) {
+      metaFeedRequestId.current += 1;
+      metaFeedInFlightRef.current = false;
+      if (metaFeedEventsRef.current.length === 0 && snapshotFeedEventsRef.current.length === 0) {
         setMetaFeedEvents([]);
       }
       setMetaFeedError(null);
@@ -316,8 +320,19 @@ export default function HomeScreen() {
       return;
     }
 
+    if (!forceRefresh && metaFeedInFlightRef.current) return;
+    if (
+      !forceRefresh &&
+      lastViewportTimeoutAtRef.current > 0 &&
+      Date.now() - lastViewportTimeoutAtRef.current < HOME_VIEWPORT_TIMEOUT_COOLDOWN_MS
+    ) {
+      return;
+    }
+
+    const requestId = ++metaFeedRequestId.current;
+
     const staleEvents =
-      metaFeedEventsRef.current.length > 0 ? metaFeedEventsRef.current : snapshotFeedEvents;
+      metaFeedEventsRef.current.length > 0 ? metaFeedEventsRef.current : snapshotFeedEventsRef.current;
     const hasStale = staleEvents.length > 0;
     setMetaFeedError(null);
     if (hasStale) {
@@ -329,6 +344,7 @@ export default function HomeScreen() {
       setMetaFeedLoading(true);
     }
 
+    metaFeedInFlightRef.current = true;
     try {
       const timeScope = toTimeScope(discoveryFilters);
       const cacheKey = [
@@ -374,21 +390,26 @@ export default function HomeScreen() {
       });
       if (requestId === metaFeedRequestId.current) {
         hasNetworkFeedRef.current = true;
+        lastViewportTimeoutAtRef.current = 0;
         setMetaFeedEvents(events);
         setMetaFeedError(null);
       }
     } catch (error) {
       console.warn('[Home] loadMetaFeed failed', error);
+      if (isQueryTimeoutError(error)) {
+        lastViewportTimeoutAtRef.current = Date.now();
+      }
       if (requestId === metaFeedRequestId.current && !hasStale) {
         setMetaFeedEvents([]);
         setMetaFeedError('Impossible de charger les événements à proximité.');
       }
     } finally {
       if (requestId === metaFeedRequestId.current) {
+        metaFeedInFlightRef.current = false;
         setMetaFeedLoading(false);
       }
     }
-  }, [browseCenter, browseRadiusKm, discoveryFilters, filters.endDate, filters.startDate, filters.time, snapshotFeedEvents, when.endDate, when.preset, when.startDate]);
+  }, [browseCenter, browseRadiusKm, discoveryFilters, filters.endDate, filters.startDate, filters.time, when.endDate, when.preset, when.startDate]);
 
   useEffect(() => {
     if (hasNetworkFeedRef.current) return;
@@ -648,8 +669,8 @@ export default function HomeScreen() {
   );
 
   const latestAddedEvents = useMemo(
-    () => (taxonomyReady ? takeLatestCreatedEvents(filteredAndSortedEvents) : []),
-    [filteredAndSortedEvents, taxonomyReady],
+    () => takeLatestCreatedEvents(filteredAndSortedEvents),
+    [filteredAndSortedEvents],
   );
 
   const handleNavigateEvent = useCallback((event: EventWithCreator) => {
@@ -960,7 +981,7 @@ export default function HomeScreen() {
 
       <FlatList
         ref={listRef}
-        data={taxonomyReady ? visibleItems : []}
+        data={visibleItems}
         renderItem={renderFeedItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={listHeader}
@@ -983,12 +1004,7 @@ export default function HomeScreen() {
           />
         }
         ListEmptyComponent={
-          !taxonomyReady ? (
-            <DiscoveryLoadingState
-              title="Nous préparons votre accueil"
-              subtitle="Encore un instant, le temps de charger les catégories."
-            />
-          ) : !discoveryHydrated && !showSearchResults ? null : (showSearchResults ? searchLoading : metaFeedLoading) ? (
+          !discoveryHydrated && !showSearchResults ? null : (showSearchResults ? searchLoading : metaFeedLoading) ? (
             <DiscoveryLoadingState
               title={
                 showSearchResults

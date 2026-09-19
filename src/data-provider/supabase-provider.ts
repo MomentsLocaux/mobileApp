@@ -541,14 +541,26 @@ export const supabaseProvider: (Pick<
     limit?: number;
     timeScope?: EventTimeScope;
     mergeUpcoming?: boolean;
+    signal?: AbortSignal;
   }) {
-    const { ne, sw, limit = 1500, timeScope = 'current', mergeUpcoming = false } = params || {};
+    const {
+      ne,
+      sw,
+      limit = 1500,
+      timeScope = 'current',
+      mergeUpcoming = false,
+      signal,
+    } = params || {};
     const minLon = Math.min(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const maxLon = Math.max(ne?.[0] ?? 0, sw?.[0] ?? 0);
     const minLat = Math.min(ne?.[1] ?? 0, sw?.[1] ?? 0);
     const maxLat = Math.max(ne?.[1] ?? 0, sw?.[1] ?? 0);
 
-    const { data, error } = await supabase.rpc('list_map_viewport', {
+    if (signal?.aborted) {
+      throw Object.assign(new Error('list_map_viewport client timeout'), { code: '57014' });
+    }
+
+    const rpc = supabase.rpc('list_map_viewport', {
       p_min_lon: minLon,
       p_min_lat: minLat,
       p_max_lon: maxLon,
@@ -557,8 +569,16 @@ export const supabaseProvider: (Pick<
       p_limit: limit,
       p_merge_upcoming: mergeUpcoming,
     });
+    const { data, error } = await (signal ? rpc.abortSignal(signal) : rpc);
 
     if (error) {
+      const aborted =
+        signal?.aborted ||
+        String((error as { name?: string }).name || '').toLowerCase() === 'aborterror' ||
+        String((error as { message?: string }).message || '').toLowerCase().includes('abort');
+      if (aborted) {
+        throw Object.assign(new Error('list_map_viewport client timeout'), { code: '57014' });
+      }
       if (isMissingFunctionError(error)) {
         throw Object.assign(formatSupabaseError(error, 'listMapViewport'), { code: 'PGRST202' });
       }

@@ -8,11 +8,13 @@ import type { FeatureCollection } from 'geojson';
 import type { EventTimeScope } from '@/utils/event-time-scope';
 import {
   buildMapViewportCacheKey,
+  createViewportTimeoutError,
   getMapBoundsDiameterKm,
   isMapBoundsTooLarge,
   isMissingViewportRpc,
   MAX_MAP_BBOX_DIAMETER_KM,
   raceWithViewportTimeout,
+  runExclusiveViewportRpc,
 } from '@/utils/map-viewport-fetch-utils';
 import { traceMapViewportFetch } from '@/utils/map-viewport-trace';
 
@@ -82,14 +84,21 @@ export async function listMapViewportForMap(
     return existing;
   }
 
-  const request = (async () => {
+  const request = runExclusiveViewportRpc(async () => {
+    const controller = new AbortController();
     try {
       const rpcPromise = EventsService.listMapViewport({
         ...bbox,
         timeScope,
         mergeUpcoming: Boolean(options?.mergeUpcomingForDatePreset && timeScope === 'current'),
+        signal: controller.signal,
+      }).catch((error: unknown) => {
+        if (controller.signal.aborted) throw createViewportTimeoutError();
+        throw error;
       });
-      const result = await raceWithViewportTimeout<MapViewportRpcResult>(rpcPromise);
+      const result = await raceWithViewportTimeout<MapViewportRpcResult>(rpcPromise, undefined, () => {
+        controller.abort();
+      });
       return {
         events: result.events || [],
         featureCollection: (result.featureCollection || {
@@ -110,7 +119,7 @@ export async function listMapViewportForMap(
     } finally {
       viewportInflight.delete(cacheKey);
     }
-  })();
+  });
 
   viewportInflight.set(cacheKey, request);
   return request;

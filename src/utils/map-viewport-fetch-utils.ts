@@ -178,18 +178,45 @@ export const shouldRetryViewportFetch = (error: unknown, alreadyRetried: boolean
   return true;
 };
 
+export function createViewportTimeoutError(): Error & { code: string } {
+  return Object.assign(new Error('list_map_viewport client timeout'), { code: '57014' });
+}
+
+/**
+ * Run viewport RPCs one at a time. Home (300) and Map (1500) use different
+ * cache keys, so the same-key inflight map cannot dedupe them — a serial gate
+ * stops both from sitting on PostgREST together after login.
+ */
+export function createSerialAsyncGate() {
+  let tail: Promise<void> = Promise.resolve();
+  return function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = tail.then(fn, fn);
+    tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  };
+}
+
+export const runExclusiveViewportRpc = createSerialAsyncGate();
+
 /** Race against a client timeout and always clear the timer when the RPC settles first. */
 export async function raceWithViewportTimeout<T>(
   promise: Promise<T>,
-  timeoutMs = RPC_CLIENT_TIMEOUT_MS
+  timeoutMs = RPC_CLIENT_TIMEOUT_MS,
+  onTimeout?: () => void,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
+  // The slower racer must not become an unhandled rejection after the race settles.
+  void promise.then(() => undefined, () => undefined);
   try {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
-          reject(Object.assign(new Error('list_map_viewport client timeout'), { code: '57014' }));
+          onTimeout?.();
+          reject(createViewportTimeoutError());
         }, timeoutMs);
       }),
     ]);
