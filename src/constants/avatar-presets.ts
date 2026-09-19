@@ -1,23 +1,13 @@
+import type { AvatarConfig, AvatarStyles } from './avatar-options';
+import { createAvatarConfig, decodeCustomAvatar } from '../utils/avatar-config';
+
 export const AVATAR_PRESET_SCHEME = 'preset:';
 
-export type AvatarHairStyle =
-  | 'bob'
-  | 'afro'
-  | 'short'
-  | 'bun'
-  | 'wavy'
-  | 'ponytail'
-  | 'locs'
-  | 'pixie'
-  | 'curly'
-  | 'buzz'
-  | 'long'
-  | 'undercut';
-
-export type AvatarEyes = 'round' | 'smiling' | 'lashes';
-export type AvatarMouth = 'smile' | 'grin' | 'neutral';
-export type AvatarFacialHair = 'none' | 'stubble' | 'beard' | 'mustache';
-export type AvatarAccessory = 'none' | 'glasses' | 'round-glasses' | 'earrings' | 'cap' | 'beanie' | 'leaf';
+export type AvatarHairStyle = AvatarStyles['hairStyle'];
+export type AvatarEyes = AvatarStyles['eyes'];
+export type AvatarMouth = AvatarStyles['mouth'];
+export type AvatarFacialHair = AvatarStyles['facialHair'];
+export type AvatarAccessory = AvatarStyles['accessory'];
 
 export type AvatarPreset = {
   id: string;
@@ -31,6 +21,11 @@ export type AvatarPreset = {
   shirt: string;
   accessory: AvatarAccessory;
   facialHair: AvatarFacialHair;
+  faceShape?: AvatarConfig['faceShape'];
+  nose?: AvatarConfig['nose'];
+  ears?: AvatarConfig['ears'];
+  eyeColor?: string;
+  accessoryColor?: string;
 };
 
 export const AVATAR_PRESETS: readonly AvatarPreset[] = [
@@ -320,11 +315,23 @@ export function isPresetAvatarUrl(url?: string | null): boolean {
   return getAvatarPreset(url) !== null;
 }
 
+/** One resolver for all illustrated avatars; photo URLs continue through Image. */
+export function getIllustratedAvatar(url?: string | null): AvatarPreset | null {
+  const preset = getAvatarPreset(url);
+  if (preset) return preset;
+  const custom = decodeCustomAvatar(url);
+  return custom ? { ...custom, id: 'custom-v1', label: 'Avatar personnalisé' } : null;
+}
+
+export function getEditableAvatarConfig(url?: string | null): AvatarConfig {
+  return createAvatarConfig(getIllustratedAvatar(url) ?? AVATAR_PRESETS[0]);
+}
+
 export function isRemoteAvatarUrl(url?: string | null): boolean {
   if (!url) return false;
   return /^(https?:|file:|content:|data:|blob:|ph:|assets-library:)/i.test(url);
 }
 
 export function hasRenderableAvatar(url?: string | null): boolean {
-  return isPresetAvatarUrl(url) || isRemoteAvatarUrl(url);
+  return getIllustratedAvatar(url) !== null || isRemoteAvatarUrl(url);
 }

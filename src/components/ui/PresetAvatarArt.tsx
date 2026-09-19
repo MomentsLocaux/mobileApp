@@ -22,6 +22,7 @@ function shade(hex: string, amount: number): string {
 
 function HairBack({ preset }: { preset: AvatarPreset }) {
   const { hair, hairStyle } = preset;
+  if (hairStyle === 'bald') return null;
   const outline = shade(hair, -18);
   const shapes = {
     bob: 'M20 49 C12 24 25 12 46 12 C72 9 83 29 76 51 L78 69 Q64 80 48 70 Q28 79 17 67 Z',
@@ -42,7 +43,7 @@ function HairBack({ preset }: { preset: AvatarPreset }) {
 
 function HairFront({ preset }: { preset: AvatarPreset }) {
   const { hair, hairStyle, accessory } = preset;
-  if (accessory === 'beanie' || accessory === 'cap') return null;
+  if (hairStyle === 'bald' || accessory === 'beanie' || accessory === 'cap') return null;
   const highlight = shade(hair, 28);
   if (hairStyle === 'afro' || hairStyle === 'curly') {
     return (
@@ -90,8 +91,42 @@ function HairFront({ preset }: { preset: AvatarPreset }) {
   );
 }
 
+function Eyes({ preset }: { preset: AvatarPreset }) {
+  const { eyes, eyeColor = INK } = preset;
+  return (
+    <>
+      {[0, 22].map((offset) => (
+        <G key={offset} transform={`translate(${offset} 0)`}>
+          {eyes === 'smiling' || (eyes === 'wink' && offset === 22) ? (
+            <Path d="M33 47 Q38 40 43 47" stroke={INK} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+          ) : (
+            <>
+              {eyes === 'almond' ? (
+                <Path d="M32 46 Q38 38 44 46 Q38 53 32 46 Z" fill={PAPER} />
+              ) : (
+                <Ellipse cx="38" cy="46" rx="4" ry="5" fill={PAPER} />
+              )}
+              <Ellipse cx="39" cy="46.5" rx="2.8" ry={eyes === 'almond' ? 3 : 3.8} fill={eyeColor} />
+              <Ellipse cx="39" cy="46.5" rx="1.3" ry="2" fill={INK} />
+              <Circle cx="39.7" cy="45" r="1" fill={PAPER} />
+              {eyes === 'lashes' && (
+                <Path d="M34 43 L32 41 M37 41 L36 39" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
+              )}
+            </>
+          )}
+        </G>
+      ))}
+    </>
+  );
+}
+
 function Face({ preset }: { preset: AvatarPreset }) {
-  const { eyes, mouth, skin, hair } = preset;
+  const { mouth, skin, hair, nose = 'rounded' } = preset;
+  const noses = {
+    rounded: 'M48 47 L46 54 Q49 56 52 53',
+    small: 'M47 52 Q49 55 51 52',
+    broad: 'M46 48 Q45 51 43 53 Q42 57 48 57 Q55 57 54 53 Q52 51 52 49',
+  };
   return (
     <>
       <G fill="#DF795D" opacity={0.3}>
@@ -102,30 +137,18 @@ function Face({ preset }: { preset: AvatarPreset }) {
         <Path d="M33 39 Q38 36 42 39" />
         <Path d="M55 38 Q60 35 65 39" />
       </G>
-      {eyes === 'smiling' ? (
-        <G stroke={INK} strokeWidth="2.5" strokeLinecap="round" fill="none">
-          <Path d="M33 47 Q38 40 43 47" />
-          <Path d="M55 47 Q60 40 65 47" />
-        </G>
-      ) : (
-        <>
-          <Ellipse cx="38" cy="46" rx="4" ry="5" fill={PAPER} />
-          <Ellipse cx="60" cy="46" rx="4" ry="5" fill={PAPER} />
-          <Ellipse cx="39" cy="46.5" rx="2.8" ry="3.8" fill={INK} />
-          <Ellipse cx="61" cy="46.5" rx="2.8" ry="3.8" fill={INK} />
-          <Circle cx="39.7" cy="45" r="1" fill={PAPER} />
-          <Circle cx="61.7" cy="45" r="1" fill={PAPER} />
-          {eyes === 'lashes' && (
-            <Path d="M34 43 L32 41 M37 41 L36 39 M57 42 L55 40 M61 41 L61 39" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
-          )}
-        </>
-      )}
-      <Path d="M48 47 L46 54 Q49 56 52 53" stroke={shade(skin, -38)} strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Eyes preset={preset} />
+      <Path d={noses[nose]} stroke={shade(skin, -38)} strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       {mouth === 'grin' ? (
         <>
           <Path d="M39 59 Q49 62 59 58 C58 70 41 72 39 59 Z" fill={INK} />
           <Path d="M41 60 Q49 63 57 60 L56 63 Q49 66 42 63 Z" fill={PAPER} />
           <Path d="M46 68 Q50 64 54 67 Q50 70 46 68" fill="#E68C79" />
+        </>
+      ) : mouth === 'open' ? (
+        <>
+          <Ellipse cx="49" cy="63" rx="4" ry="5" fill={INK} />
+          <Path d="M46 66 Q49 63 52 66 Q49 69 46 66" fill="#E68C79" />
         </>
       ) : (
         <Path d={mouth === 'neutral' ? 'M43 61 Q49 64 55 60' : 'M40 60 Q49 69 58 59'} stroke={INK} strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -156,10 +179,10 @@ function FacialHair({ preset }: { preset: AvatarPreset }) {
 }
 
 function Accessory({ preset }: { preset: AvatarPreset }) {
-  const { accessory } = preset;
+  const { accessory, accessoryColor } = preset;
   if (accessory === 'earrings') {
     return (
-      <G fill="none" stroke={GOLD} strokeWidth="3">
+      <G fill="none" stroke={accessoryColor ?? GOLD} strokeWidth="3">
         <Ellipse cx="24" cy="58" rx="3.5" ry="5" />
         <Ellipse cx="73" cy="58" rx="3.5" ry="5" />
       </G>
@@ -167,7 +190,7 @@ function Accessory({ preset }: { preset: AvatarPreset }) {
   }
   if (accessory === 'glasses' || accessory === 'round-glasses') {
     return (
-      <G stroke={INK} strokeWidth="2.3" fill="none">
+      <G stroke={accessoryColor ?? INK} strokeWidth="2.3" fill="none">
         <Path d="M25 44 L30 45 M46 46 Q49 44 52 46 M69 44 L73 43" />
         {accessory === 'round-glasses' ? (
           <>
@@ -188,9 +211,9 @@ function Accessory({ preset }: { preset: AvatarPreset }) {
     return (
       <>
         <Path d="M22 33 C20 8 63 5 70 28 L71 35 Q48 27 22 36 Z" fill={colors.brand.primary} stroke={INK} strokeWidth="1.5" />
-        <Path d="M25 32 C47 23 66 27 83 37 Q73 46 56 35 Q39 31 25 36 Z" fill={colors.brand.secondary} stroke={INK} strokeWidth="1.5" />
+        <Path d="M25 32 C47 23 66 27 83 37 Q73 46 56 35 Q39 31 25 36 Z" fill={accessoryColor ?? colors.brand.secondary} stroke={INK} strokeWidth="1.5" />
         <Path d="M46 14 Q39 21 41 28" stroke={PAPER} strokeOpacity={0.3} strokeWidth="1.5" fill="none" />
-        <Circle cx="51" cy="11" r="2.5" fill={colors.brand.secondary} />
+        <Circle cx="51" cy="11" r="2.5" fill={accessoryColor ?? colors.brand.secondary} />
       </>
     );
   }
@@ -199,7 +222,7 @@ function Accessory({ preset }: { preset: AvatarPreset }) {
       <>
         <Path d="M22 33 C21 17 30 10 48 10 C65 9 75 20 73 36 Z" fill={colors.brand.primary} stroke={INK} strokeWidth="1.5" />
         <Path d="M31 28 Q30 20 35 16 M41 27 L42 14 M52 27 L52 14 M63 29 Q65 22 59 16" stroke={PAPER} strokeOpacity={0.22} strokeWidth="2" fill="none" strokeLinecap="round" />
-        <Path d="M22 30 Q48 25 73 32 L73 41 Q48 35 22 40 Z" fill={colors.brand.secondary} stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+        <Path d="M22 30 Q48 25 73 32 L73 41 Q48 35 22 40 Z" fill={accessoryColor ?? colors.brand.secondary} stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
         <Rect x="55" y="31" width="8" height="7" rx="1.5" fill={PAPER} transform="rotate(5 59 34)" />
       </>
     );
@@ -207,12 +230,32 @@ function Accessory({ preset }: { preset: AvatarPreset }) {
   if (accessory === 'leaf') {
     return (
       <G>
-        <Path d="M64 87 Q60 77 71 77 Q74 85 64 87" fill={colors.brand.secondary} stroke={INK} strokeWidth="1" />
+        <Path d="M64 87 Q60 77 71 77 Q74 85 64 87" fill={accessoryColor ?? colors.brand.secondary} stroke={INK} strokeWidth="1" />
         <Path d="M64 88 L69 81" stroke={INK} strokeWidth="1" strokeLinecap="round" />
       </G>
     );
   }
   return null;
+}
+
+const FACE_SHAPES = {
+  oval: 'M26 39 C26 25 37 21 49 21 C63 21 71 29 71 41 L69 56 C67 69 57 75 48 75 C37 75 28 67 27 55 Z',
+  round: 'M26 39 C26 25 37 21 49 21 C63 21 71 29 71 41 C77 62 66 75 49 75 C31 75 21 62 26 39 Z',
+  square: 'M26 39 C26 25 37 21 49 21 C63 21 71 29 71 41 L71 59 Q70 72 59 73 H38 Q26 71 26 59 Z',
+  heart: 'M26 39 C26 25 37 21 49 21 C63 21 71 29 71 41 Q73 55 62 64 L53 74 Q49 78 44 74 L35 65 Q23 55 26 39 Z',
+};
+
+function Ears({ preset }: { preset: AvatarPreset }) {
+  const { skin, ears = 'regular' } = preset;
+  const sizes = { small: [4.5, 6], regular: [6, 8], large: [7.5, 10] };
+  const [rx, ry] = sizes[ears];
+  return (
+    <>
+      <Ellipse cx="25" cy="49" rx={rx} ry={ry} fill={skin} stroke={shade(skin, -32)} strokeWidth="1.3" />
+      <Ellipse cx="72" cy="49" rx={rx} ry={ry} fill={skin} stroke={shade(skin, -32)} strokeWidth="1.3" />
+      <Path d="M23 47 Q27 45 27 52 M74 47 Q70 45 70 52" stroke={shade(skin, -36)} strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    </>
+  );
 }
 
 export function PresetAvatarArt({ preset, size }: Props) {
@@ -221,10 +264,13 @@ export function PresetAvatarArt({ preset, size }: Props) {
   const clip = `avatar-clip-${id}`;
   const skin = `avatar-skin-${id}`;
   const shirt = `avatar-shirt-${id}`;
+  const faceClip = `avatar-face-${id}`;
+  const facePath = FACE_SHAPES[preset.faceShape ?? 'oval'];
   return (
     <Svg width={size} height={size} viewBox="0 0 96 96" accessibilityLabel={preset.label}>
       <Defs>
         <ClipPath id={clip}><Circle cx="48" cy="48" r="48" /></ClipPath>
+        <ClipPath id={faceClip}><Path d={facePath} /></ClipPath>
         <LinearGradient id={skin} x1="0%" y1="0%" x2="100%" y2="100%">
           <Stop offset="0%" stopColor={shade(preset.skin, 18)} />
           <Stop offset="65%" stopColor={preset.skin} />
@@ -245,11 +291,9 @@ export function PresetAvatarArt({ preset, size }: Props) {
         <Path d="M39 70 Q48 77 57 70 L57 73 Q48 80 39 74 Z" fill={shade(preset.skin, -34)} opacity={0.4} />
         <Path d="M34 77 Q47 96 63 78" stroke={shade(preset.shirt, -34)} strokeWidth="2.8" fill="none" strokeLinecap="round" />
         <Path d="M25 88 L23 96 M72 88 L74 96" stroke={shade(preset.shirt, -34)} strokeWidth="1.6" strokeLinecap="round" />
-        <Ellipse cx="25" cy="49" rx="6" ry="8" fill={preset.skin} stroke={shade(preset.skin, -32)} strokeWidth="1.3" />
-        <Ellipse cx="72" cy="49" rx="6" ry="8" fill={preset.skin} stroke={shade(preset.skin, -32)} strokeWidth="1.3" />
-        <Path d="M23 47 Q27 45 27 52 M74 47 Q70 45 70 52" stroke={shade(preset.skin, -36)} strokeWidth="1.4" fill="none" strokeLinecap="round" />
-        <Path d="M26 39 C26 25 37 21 49 21 C63 21 71 29 71 41 L69 56 C67 69 57 75 48 75 C37 75 28 67 27 55 Z" fill={`url(#${skin})`} stroke={shade(preset.skin, -34)} strokeWidth="1.3" />
-        <FacialHair preset={preset} />
+        <Ears preset={preset} />
+        <Path d={facePath} fill={`url(#${skin})`} stroke={shade(preset.skin, -34)} strokeWidth="1.3" />
+        <G clipPath={`url(#${faceClip})`}><FacialHair preset={preset} /></G>
         <Face preset={preset} />
         <HairFront preset={preset} />
         <Accessory preset={preset} />

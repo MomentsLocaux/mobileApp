@@ -1,5 +1,15 @@
 # MVP Tickets
 
+## Extension autorisée — avatars
+
+### ID: AVATAR-001
+
+Titre : Créateur d’avatar cartoon depuis l’onboarding et le profil.
+
+Demande produit explicite du 2026-09-18, sur branche dédiée `feat/avatar-builder`.
+
+Périmètre, critères d’acceptation et vérifications : [AVATAR_BUILDER.md](./AVATAR_BUILDER.md).
+
 ## P0 - Bloquants Avant MVP Public
 
 ### ID: MVP-P0-001
