@@ -24,7 +24,7 @@ En **search**, le pan n’auto-fetche pas. En **browse**, si. Le chip conserve q
 
 Le toggle satellite n’est plus à côté de la recherche : il est groupé avec le recentrage GPS (outils carte).
 
-Si la sheet est au snap **full (92 %)** et que l’utilisateur ouvre l’overfilter, on la ramène au **half (55 %)** pour laisser voir pins + chips. Fermer le panneau restaure le full **seulement** si l’utilisateur n’a pas bougé la sheet (et n’est pas passé en fiche single). Peek / half inchangés. Ouvrir la SearchBar ferme le panneau sans restaurer le full.
+Si la sheet est au snap **full (92 %)** et que l’utilisateur ouvre l’overfilter, on la ramène au **peek** pour laisser voir pins + chips. Fermer le panneau restaure le full **seulement** si l’utilisateur n’a pas bougé la sheet (et n’est pas passé en fiche single). Peek inchangé. Ouvrir la SearchBar ferme le panneau sans restaurer le full.
 
 | Filtre | Browse | Search active |
 |--------|--------|----------------|
@@ -39,7 +39,7 @@ Si la sheet est au snap **full (92 %)** et que l’utilisateur ouvre l’overfil
 | Champ | Valeurs | Signification |
 |-------|---------|---------------|
 | `sheetStatus` | `browsing` \| `loading` \| `viewportResults` \| `singleEvent` | État bottom sheet / chargement |
-| `bottomSheetIndex` | 0, 1, 2 | Snap peek / half (55 %) / full (92 %) |
+| `bottomSheetIndex` | 0, 1 | Snap peek / full (92 %) |
 | `sheetEvents` | `EventWithCreator[]` | Liste affichée dans la sheet |
 | `frozenViewport` | snapshot \| null | Copie figée des résultats quand viewport locké |
 | `activeEventId` | string \| undefined | Marker / card surligné |
@@ -54,7 +54,7 @@ Si la sheet est au snap **full (92 %)** et que l’utilisateur ouvre l’overfil
 
 `refreshAfter` est **opt-in** (`refreshAfter === true`). Focus marker et refit sheet passent `false`. Handoff Home, search apply et recenter passent `true`.
 
-Le bbox de fetch **n’inclut pas** la bande recouverte par la sheet : `getVisibleBounds` est inset vers le nord de `sheetCoverPx / mapHeight` (peek 72 px, half/full selon le snap). Helper `insetMapBoundsForBottomOverlay`.
+Le bbox de fetch **n’inclut pas** la bande recouverte par la sheet : `getVisibleBounds` est inset vers le nord de `sheetCoverPx / mapHeight` (peek 104 px, full selon le snap). Helper `insetMapBoundsForBottomOverlay`.
 
 ---
 
@@ -125,7 +125,7 @@ Déclenché par `lockViewportForSheet()` (sheet index ≥ 1) et par le marker pr
 
 Dégel : repli de la sheet (`unlockViewportForSheet`), tap fond de carte, fermeture de la preview marker, pan utilisateur (`unlockViewportFromUserPan`), `refreshBounds()`, chip zone, ou recenter.
 
-Le follow caméra (padding bas = hauteur de sheet) ne s’applique qu’entre peek et half, tant que la carte reste visible. Au snap full (92 %), **aucun** `fitToBounds` : la carte est cachée, un recadrage est inutile et peut perturber Mapbox. Le repli peek restaure le padding standard.
+Le follow caméra (padding bas plafonné) ne s’applique plus au mode viewport : peek montre déjà les pins, full les couvre. Seule la fiche **single** recadre le pin dans le slot carte restant. Le repli peek restaure le snapshot caméra capturé en quittant peek.
 
 ---
 

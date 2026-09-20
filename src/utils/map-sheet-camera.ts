@@ -42,10 +42,9 @@ export const resolveSheetCameraFitBounds = (
 ): MapBounds | null => (anchorRawBounds ? cloneMapBounds(anchorRawBounds) : null);
 
 /**
- * Max share of the map column used as Mapbox bottom padding when the sheet
- * follows the camera (half snap). The list snap (`VIEWPORT_HALF_RATIO`) can be
- * taller: leftover overlay covers the frozen viewport instead of forcing a
- * huge zoom-out.
+ * Max share of the map column used as Mapbox bottom padding when the single
+ * event sheet follows the camera. Caps zoom-out so a tall overlay does not
+ * force the pin off-screen into a huge recul.
  */
 export const SHEET_CAMERA_PADDING_MAX_RATIO = 0.42;
 
