@@ -16,6 +16,7 @@ import { DEFAULT_MAP_MARKER } from '@/constants/category-visuals';
 import { CategoryMarkerImages, useCategoryMarkerVisuals } from '@/components/map/CategoryMarkerImages';
 import { MapEventUnitOverlay } from '@/components/search/MapEventUnitOverlay';
 import { consumeBooleanFlag } from '@/utils/map-interaction-token';
+import { getMapMarkerLayout, MAP_MARKER_HITBOX } from '@/constants/map-marker-assets';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
@@ -167,6 +168,7 @@ export function FavoritesMapView({
                 key={sourceId}
                 id={sourceId}
                 shape={shape}
+                hitbox={MAP_MARKER_HITBOX}
                 onPress={handleMarkerPress}
               >
                 <MapboxGL.SymbolLayer
@@ -174,27 +176,28 @@ export function FavoritesMapView({
                   filter={unselectedFilter as any}
                   style={{
                     iconImage: iconKey || DEFAULT_MAP_MARKER,
-                    iconSize: 1,
+                    ...getMapMarkerLayout(iconKey),
                     iconAllowOverlap: true,
                     iconIgnorePlacement: true,
-                    iconAnchor: 'bottom',
-                    iconOffset: [0, 2],
                   }}
                 />
               </MapboxGL.ShapeSource>
             ))
           : null}
         {styleReady ? (
-          <MapboxGL.ShapeSource id="favorites-selected-source" shape={selectedEventShape}>
+          <MapboxGL.ShapeSource
+            id="favorites-selected-source"
+            shape={selectedEventShape}
+            hitbox={MAP_MARKER_HITBOX}
+            onPress={handleMarkerPress}
+          >
             <MapboxGL.SymbolLayer
               id="favorites-selected-marker"
               style={{
                 iconImage: selectedMarkerIconKey,
-                iconSize: 1.45 * Motion.transform.markerSelectedScale,
+                ...getMapMarkerLayout(selectedMarkerIconKey, 1.45 * Motion.transform.markerSelectedScale),
                 iconAllowOverlap: true,
                 iconIgnorePlacement: true,
-                iconAnchor: 'bottom',
-                iconOffset: [0, 2],
               }}
             />
           </MapboxGL.ShapeSource>

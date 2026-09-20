@@ -18,6 +18,7 @@ import {
 import { MAP_CAMERA_ANIMATION_MS } from '../../utils/map-sheet-layout';
 import { insetMapBoundsForBottomOverlay } from '../../utils/map-viewport-fetch-utils';
 import { consumeBooleanFlag } from '@/utils/map-interaction-token';
+import { getMapMarkerLayout, MAP_MARKER_HITBOX } from '@/constants/map-marker-assets';
 
 Mapbox.setAccessToken(Constants.expoConfig?.extra?.mapboxToken || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 Mapbox.setTelemetryEnabled(false);
@@ -567,6 +568,7 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
                 cluster
                 clusterRadius={42}
                 clusterMaxZoomLevel={15}
+                hitbox={MAP_MARKER_HITBOX}
                 onPress={(pressEvent) => {
                   void handlePress(pressEvent, sourceId);
                 }}
@@ -602,11 +604,9 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
                   filter={unselectedEventMarkerFilter as any}
                   style={{
                     iconImage: iconKey || DEFAULT_MAP_MARKER,
-                    iconSize: 1,
+                    ...getMapMarkerLayout(iconKey),
                     iconAllowOverlap: true,
                     iconIgnorePlacement: true,
-                    iconAnchor: 'bottom',
-                    iconOffset: [0, 2],
                   }}
                 />
               </Mapbox.ShapeSource>
@@ -614,17 +614,20 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
           : null}
 
         {styleReady ? (
-        <Mapbox.ShapeSource id="selected-event-source" shape={selectedEventShape}>
+        <Mapbox.ShapeSource
+          id="selected-event-source"
+          shape={selectedEventShape}
+          hitbox={MAP_MARKER_HITBOX}
+          onPress={(pressEvent) => { void handlePress(pressEvent, 'selected-event-source'); }}
+        >
           <Mapbox.SymbolLayer
             id="selected-event-marker"
             filter={['!', ['has', 'point_count']]}
             style={{
               iconImage: selectedMarkerIconKey,
-              iconSize: 1.45 * Motion.transform.markerSelectedScale,
+              ...getMapMarkerLayout(selectedMarkerIconKey, 1.45 * Motion.transform.markerSelectedScale),
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
-              iconAnchor: 'bottom',
-              iconOffset: [0, 2],
             }}
           />
         </Mapbox.ShapeSource>
