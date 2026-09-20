@@ -1,5 +1,13 @@
 # MVP Tickets
 
+## Simplification — sheet carte à deux snaps
+
+### ID: MAP-SHEET-001
+
+Titre : Retirer le snap intermédiaire de la bottom sheet carte.
+
+Demande produit du 2026-09-19, branche `fix/map-sheet-two-snaps`. La sheet viewport n’a plus que peek (bandeau compteur) et full (liste). Ouvrir le panneau de surfiltrage depuis full ramène au peek.
+
 ## Extension autorisée — avatars
 
 ### ID: AVATAR-001

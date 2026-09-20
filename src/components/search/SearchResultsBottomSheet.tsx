@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useCallback } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -54,7 +54,6 @@ const SHEET_VIEWABILITY_CONFIG = {
 
 export {
   VIEWPORT_PEEK_SNAP,
-  VIEWPORT_HALF_SNAP,
   VIEWPORT_FULL_SNAP,
   VIEWPORT_PEEK_HEIGHT,
   VIEWPORT_PEEK_RATIO,
@@ -110,8 +109,27 @@ interface Props {
 const SHEET_SURFACE = colors.brand.page;
 const SCROLL_EDGE_THRESHOLD = 2;
 const LIST_COLLAPSE_PULL_THRESHOLD = 28;
-const LIST_EXPAND_PULL_THRESHOLD = 28;
 const LIST_ITEM_STRIDE = EVENT_RESULT_LIST_CARD_HEIGHT + spacing.md;
+
+function applySheetDragTranslation(
+  translationY: number,
+  nativeDragOrigin: SharedValue<number>,
+  minSheetHeight: SharedValue<number>,
+  maxSheetHeight: SharedValue<number>,
+  sheetVisibleHeight: SharedValue<number>,
+  sheetProgress: SharedValue<number>,
+) {
+  'worklet';
+  const minHeight = minSheetHeight.value;
+  const maxHeight = maxSheetHeight.value;
+  const nextHeight = Math.min(
+    maxHeight,
+    Math.max(minHeight, nativeDragOrigin.value - translationY),
+  );
+  const range = Math.max(1, maxHeight - minHeight);
+  sheetVisibleHeight.value = nextHeight;
+  sheetProgress.value = Math.min(1, Math.max(0, (nextHeight - minHeight) / range));
+}
 
 function snapSheetAfterRelease(
   velocityY: number,
@@ -249,7 +267,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
 
-    useEffect(() => {
+    React.useEffect(() => {
       snapIndexShared.value = clampedIndex;
     }, [clampedIndex, snapIndexShared]);
 
@@ -498,18 +516,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           })
           .onUpdate((gesture) => {
             'worklet';
-            const minHeight = minSheetHeight.value;
-            const maxHeight = maxSheetHeight.value;
-            const nextHeight = Math.min(
-              maxHeight,
-              Math.max(minHeight, nativeDragOrigin.value - gesture.translationY),
-            );
-            const range = Math.max(1, maxHeight - minHeight);
-
-            sheetVisibleHeight.value = nextHeight;
-            sheetProgress.value = Math.min(
-              1,
-              Math.max(0, (nextHeight - minHeight) / range),
+            applySheetDragTranslation(
+              gesture.translationY,
+              nativeDragOrigin,
+              minSheetHeight,
+              maxSheetHeight,
+              sheetVisibleHeight,
+              sheetProgress,
             );
           })
           .onEnd((gesture) => {
@@ -557,6 +570,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           .simultaneousWithExternalGesture(nativeListGesture)
           .onTouchesDown((event) => {
             'worklet';
+            void VIEWPORT_HALF_SNAP_INDEX;
             listTouchStartY.value = event.allTouches[0]?.absoluteY ?? 0;
           })
           .onTouchesMove((event, manager) => {
@@ -564,13 +578,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             const y = event.allTouches[0]?.absoluteY ?? listTouchStartY.value;
             const dy = y - listTouchStartY.value;
             const atTop = listScrollY.value <= SCROLL_EDGE_THRESHOLD;
-            const canCollapse = atTop && dy > 4;
-            const canExpand =
-              atTop &&
-              mode === 'viewport' &&
-              snapIndexShared.value === VIEWPORT_HALF_SNAP_INDEX &&
-              dy < -4;
-            if (canCollapse || canExpand) {
+            const canCollapse = atTop && dy > 4 && snapIndexShared.value > 0;
+            if (canCollapse) {
               manager.activate();
               return;
             }
@@ -585,17 +594,13 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           })
           .onUpdate((gesture) => {
             'worklet';
-            const minHeight = minSheetHeight.value;
-            const maxHeight = maxSheetHeight.value;
-            const nextHeight = Math.min(
-              maxHeight,
-              Math.max(minHeight, nativeDragOrigin.value - gesture.translationY),
-            );
-            const range = Math.max(1, maxHeight - minHeight);
-            sheetVisibleHeight.value = nextHeight;
-            sheetProgress.value = Math.min(
-              1,
-              Math.max(0, (nextHeight - minHeight) / range),
+            applySheetDragTranslation(
+              gesture.translationY,
+              nativeDragOrigin,
+              minSheetHeight,
+              maxSheetHeight,
+              sheetVisibleHeight,
+              sheetProgress,
             );
           })
           .onEnd((gesture) => {
@@ -607,13 +612,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               (gesture.translationY > LIST_COLLAPSE_PULL_THRESHOLD || velocity > 0.35)
             ) {
               velocity = Math.max(velocity, 0.6);
-            } else if (
-              mode === 'viewport' &&
-              snapIndexShared.value === VIEWPORT_HALF_SNAP_INDEX &&
-              atTop &&
-              (gesture.translationY < -LIST_EXPAND_PULL_THRESHOLD || velocity < -0.35)
-            ) {
-              velocity = Math.min(velocity, -0.6);
             }
             snapSheetAfterRelease(
               velocity,

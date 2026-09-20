@@ -3,7 +3,6 @@ import { Motion } from '@/constants/motion';
 import {
   getSheetSnapHeights,
   type MapSheetMode,
-  VIEWPORT_HALF_SNAP_INDEX,
   VIEWPORT_PEEK_HEIGHT,
 } from './map-sheet-physics';
 
@@ -21,9 +20,9 @@ export {
   sheetSnapIndexWhenOpeningRefine,
   VIEWPORT_FULL_RATIO,
   VIEWPORT_FULL_SNAP_INDEX,
-  VIEWPORT_HALF_RATIO,
   VIEWPORT_HALF_SNAP_INDEX,
   VIEWPORT_PEEK_HEIGHT,
+  VIEWPORT_PEEK_SNAP_INDEX,
 } from './map-sheet-physics';
 export type { MapSheetMode } from './map-sheet-physics';
 
@@ -37,9 +36,6 @@ export const SHEET_JUNCTION_RADIUS = 16;
 
 /** Airbnb-like peek: count strip only. */
 export const VIEWPORT_PEEK_SNAP = String(VIEWPORT_PEEK_HEIGHT);
-
-/** Half snap: list revealed over ~75% of the layout column. */
-export const VIEWPORT_HALF_SNAP = '75%';
 
 /** Expanded snap: full list. */
 export const VIEWPORT_FULL_SNAP = '92%';
@@ -65,31 +61,15 @@ export const getScreenHeight = () => SCREEN_HEIGHT;
 export const getTabContentHeight = () => SCREEN_HEIGHT - TAB_BAR_HEIGHT;
 
 /**
- * Camera follow keeps the frozen viewport in the remaining map slot (peek ↔ half).
- * Full sheet covers the map: extra `fitToBounds` is invisible and can perturb Mapbox.
+ * Viewport peek/full never reculs the map: peek already shows the pins, full covers them.
+ * The single-event sheet still fits the pin into the remaining map slot.
  */
 export function shouldFollowMapCameraForSheetIndex(
   snapIndex: number,
   mode: MapSheetMode
 ): boolean {
   if (snapIndex <= 0) return false;
-  if (mode === 'single') return true;
-  return snapIndex === VIEWPORT_HALF_SNAP_INDEX;
-}
-
-export function shouldFollowMapCameraForSheetHeight(
-  sheetHeight: number,
-  layoutHeight: number,
-  mode: MapSheetMode
-): boolean {
-  if (layoutHeight <= 0) return false;
-  const snaps = getSheetSnapHeights(layoutHeight, mode);
-  const maxFollowHeight =
-    mode === 'single'
-      ? snaps[snaps.length - 1]
-      : snaps[VIEWPORT_HALF_SNAP_INDEX];
-  if (maxFollowHeight == null) return false;
-  return sheetHeight <= maxFollowHeight + 1;
+  return mode === 'single';
 }
 
 export const getMapSlotHeight = (layoutHeight: number, sheetHeight: number) => {

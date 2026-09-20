@@ -33,7 +33,7 @@ Helpers : `createEnterTiming`, `createExitTiming`, `createStandardTiming`.
 | **Marqueurs** (`MapWrapper`) | Pulse scale léger à la sélection (~1.08), spring snappy, zIndex relevé |
 | **Preview card** (`MapEventUnitOverlay`) | Entrée : translateY 80, opacity, scale 0.96 → 1 ; sortie inverse, ~180 ms |
 | **Carte fond** (`map.tsx`) | Opacity 1 → 0.92 selon progression sheet ; refit caméra synchronisé à la fin du resize layout |
-| **Bottom sheet** (`SearchResultsBottomSheet`, `map-sheet-layout`) | Pan au doigt, spring `Motion.spring.sheet`, snaps peek (72 px) → half (55 %) → full (92 %) ; depuis half, scroll vers le haut en tête de liste élargit vers full |
+| **Bottom sheet** (`SearchResultsBottomSheet`, `map-sheet-layout`) | Pan au doigt, spring `Motion.spring.sheet`, snaps peek (104 px) → full (92 %) ; pull down en tête de liste replie vers peek |
 | **Liste** (`EventResultCard`) | Stagger 30 ms sur les 4 premières cards, press scale |
 | **Boutons flottants** (`FloatingPressable` sur map) | Fade + scale entrée, press 0.94 |
 
