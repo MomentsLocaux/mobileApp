@@ -6,13 +6,13 @@ import {
   CATEGORY_VISUAL_SLUGS,
   CATEGORY_VISUALS,
   categoryClusterMarkerImageKey,
-  categoryMarkerImageKey,
   DEFAULT_CLUSTER_MAP_MARKER,
   DEFAULT_MAP_MARKER,
   type CategoryVisualSlug,
 } from '@/constants/category-visuals';
 import { CategoryEventMarker } from './CategoryEventMarker';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { MAP_MARKER_IMAGES } from '@/constants/map-marker-assets';
 
 export type CategoryMarkerVisual = {
   color: string;
@@ -41,29 +41,24 @@ export function useCategoryMarkerVisuals(): Record<CategoryVisualSlug, CategoryM
   }, [categoriesMap]);
 }
 
-/** Registers the same category pin images used by the discovery map. */
+/** Registers shared category silhouettes and the existing cluster artwork. */
 export const CategoryMarkerImages = React.memo(function CategoryMarkerImages({
   visuals,
 }: {
   visuals: Record<CategoryVisualSlug, CategoryMarkerVisual>;
 }) {
   return (
-    <Mapbox.Images>
+    <Mapbox.Images images={MAP_MARKER_IMAGES}>
       {CATEGORY_VISUAL_SLUGS.map((slug) => {
         const visual = visuals[slug];
         return (
-          <React.Fragment key={slug}>
-            <Mapbox.Image name={categoryMarkerImageKey(slug)}>
-              <CategoryEventMarker color={visual.color} Icon={visual.Icon} iconColor={visual.iconColor} />
-            </Mapbox.Image>
-            <Mapbox.Image name={categoryClusterMarkerImageKey(slug)}>
-              <CategoryEventMarker color={visual.color} Icon={visual.Icon} variant="cluster" />
-            </Mapbox.Image>
-          </React.Fragment>
+          <Mapbox.Image key={`${slug}-cluster`} name={categoryClusterMarkerImageKey(slug)}>
+            <CategoryEventMarker color={visual.color} Icon={visual.Icon} variant="cluster" />
+          </Mapbox.Image>
         );
       })}
       <Mapbox.Image name={DEFAULT_MAP_MARKER}>
-        <CategoryEventMarker color={colors.brand.secondary} Icon={Users} />
+        <CategoryEventMarker color={colors.brand.secondary} Icon={Users} variant="symbol" size={48} />
       </Mapbox.Image>
       <Mapbox.Image name={DEFAULT_CLUSTER_MAP_MARKER}>
         <CategoryEventMarker color={colors.brand.secondary} Icon={Users} variant="cluster" />

@@ -49,7 +49,7 @@ type Props = {
   Icon: LucideIcon;
   iconColor?: string;
   size?: number;
-  variant?: 'pin' | 'cluster';
+  variant?: 'pin' | 'cluster' | 'symbol';
 };
 
 export const CategoryEventMarker: React.FC<Props> = React.memo(
@@ -58,6 +58,16 @@ export const CategoryEventMarker: React.FC<Props> = React.memo(
       () => resolveIconColor(color, iconColor),
       [color, iconColor]
     );
+
+    // Neutral unknown-category fallback, with no pin or enclosing disc.
+    // The legacy pin below is retained for before/after review fixtures only.
+    if (variant === 'symbol') {
+      return (
+        <View collapsable={false} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon size={size * 0.82} color={color} strokeWidth={2.6} />
+        </View>
+      );
+    }
 
     if (variant === 'cluster') {
       const clusterSize = Math.round(size * 1.05);

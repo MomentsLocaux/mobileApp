@@ -1,0 +1,263 @@
+{
+  "assets": [
+    {
+      "file": "arts-culture.png",
+      "bytes": 4555,
+      "width": 64,
+      "transparent": 2625,
+      "solid": 1289
+    },
+    {
+      "file": "arts-culture@2x.png",
+      "bytes": 13542,
+      "width": 128,
+      "transparent": 10633,
+      "solid": 5385
+    },
+    {
+      "file": "arts-culture@3x.png",
+      "bytes": 25881,
+      "width": 192,
+      "transparent": 23997,
+      "solid": 12299
+    },
+    {
+      "file": "marches-artisanat.png",
+      "bytes": 5366,
+      "width": 64,
+      "transparent": 2295,
+      "solid": 1524
+    },
+    {
+      "file": "marches-artisanat@2x.png",
+      "bytes": 16414,
+      "width": 128,
+      "transparent": 9374,
+      "solid": 6448
+    },
+    {
+      "file": "marches-artisanat@3x.png",
+      "bytes": 31571,
+      "width": 192,
+      "transparent": 21232,
+      "solid": 14777
+    },
+    {
+      "file": "fetes-animations.png",
+      "bytes": 3852,
+      "width": 64,
+      "transparent": 2662,
+      "solid": 1131
+    },
+    {
+      "file": "fetes-animations@2x.png",
+      "bytes": 11144,
+      "width": 128,
+      "transparent": 10895,
+      "solid": 4860
+    },
+    {
+      "file": "fetes-animations@3x.png",
+      "bytes": 21051,
+      "width": 192,
+      "transparent": 24687,
+      "solid": 11195
+    },
+    {
+      "file": "famille-enfants.png",
+      "bytes": 5791,
+      "width": 64,
+      "transparent": 2158,
+      "solid": 1701
+    },
+    {
+      "file": "famille-enfants@2x.png",
+      "bytes": 17442,
+      "width": 128,
+      "transparent": 8794,
+      "solid": 7102
+    },
+    {
+      "file": "famille-enfants@3x.png",
+      "bytes": 33261,
+      "width": 192,
+      "transparent": 19882,
+      "solid": 16229
+    },
+    {
+      "file": "gastronomie-saveurs.png",
+      "bytes": 3688,
+      "width": 64,
+      "transparent": 2661,
+      "solid": 1249
+    },
+    {
+      "file": "gastronomie-saveurs@2x.png",
+      "bytes": 11257,
+      "width": 128,
+      "transparent": 10739,
+      "solid": 5245
+    },
+    {
+      "file": "gastronomie-saveurs@3x.png",
+      "bytes": 21619,
+      "width": 192,
+      "transparent": 24265,
+      "solid": 12023
+    },
+    {
+      "file": "nature-bienetre.png",
+      "bytes": 4175,
+      "width": 64,
+      "transparent": 2833,
+      "solid": 1018
+    },
+    {
+      "file": "nature-bienetre@2x.png",
+      "bytes": 12256,
+      "width": 128,
+      "transparent": 11515,
+      "solid": 4360
+    },
+    {
+      "file": "nature-bienetre@3x.png",
+      "bytes": 22920,
+      "width": 192,
+      "transparent": 26057,
+      "solid": 10018
+    },
+    {
+      "file": "ateliers-apprentissage.png",
+      "bytes": 4202,
+      "width": 64,
+      "transparent": 2308,
+      "solid": 1569
+    },
+    {
+      "file": "ateliers-apprentissage@2x.png",
+      "bytes": 12921,
+      "width": 128,
+      "transparent": 9376,
+      "solid": 6590
+    },
+    {
+      "file": "ateliers-apprentissage@3x.png",
+      "bytes": 24941,
+      "width": 192,
+      "transparent": 21199,
+      "solid": 15019
+    },
+    {
+      "file": "sport-loisirs.png",
+      "bytes": 4003,
+      "width": 64,
+      "transparent": 2729,
+      "solid": 1154
+    },
+    {
+      "file": "sport-loisirs@2x.png",
+      "bytes": 11936,
+      "width": 128,
+      "transparent": 11073,
+      "solid": 4877
+    },
+    {
+      "file": "sport-loisirs@3x.png",
+      "bytes": 22884,
+      "width": 192,
+      "transparent": 25033,
+      "solid": 11180
+    },
+    {
+      "file": "vie-locale.png",
+      "bytes": 4613,
+      "width": 64,
+      "transparent": 2035,
+      "solid": 1839
+    },
+    {
+      "file": "vie-locale@2x.png",
+      "bytes": 13790,
+      "width": 128,
+      "transparent": 8268,
+      "solid": 7692
+    },
+    {
+      "file": "vie-locale@3x.png",
+      "bytes": 26748,
+      "width": 192,
+      "transparent": 18673,
+      "solid": 17504
+    },
+    {
+      "file": "insolite-ephemere.png",
+      "bytes": 3363,
+      "width": 64,
+      "transparent": 3062,
+      "solid": 810
+    },
+    {
+      "file": "insolite-ephemere@2x.png",
+      "bytes": 9675,
+      "width": 128,
+      "transparent": 12436,
+      "solid": 3483
+    },
+    {
+      "file": "insolite-ephemere@3x.png",
+      "bytes": 18113,
+      "width": 192,
+      "transparent": 28148,
+      "solid": 8025
+    }
+  ],
+  "initialReadyMs": 1532.5999999940395,
+  "dense": [
+    {
+      "baseline": true,
+      "features": 1500,
+      "layers": 34,
+      "samples": 90,
+      "p50": 16.69999999999891,
+      "p95": 16.799999999999272
+    },
+    {
+      "baseline": false,
+      "features": 1500,
+      "layers": 34,
+      "samples": 90,
+      "p50": 16.69999999999891,
+      "p95": 16.799999999999272
+    },
+    {
+      "baseline": true,
+      "features": 1500,
+      "layers": 34,
+      "samples": 84,
+      "p50": 16.69999999999891,
+      "p95": 16.80000000000109
+    },
+    {
+      "baseline": false,
+      "features": 1500,
+      "layers": 34,
+      "samples": 91,
+      "p50": 16.69999999999891,
+      "p95": 16.799999999999272
+    }
+  ],
+  "checks": [
+    "30 PNG alpha + density sizes",
+    "exhaustive 10-category palette registry",
+    "10-event map rendering",
+    "tap on each of 10 categories + selected tap",
+    "48px source hitbox",
+    "stable 34 layers / 1500 events",
+    "zone update",
+    "unknown category fallback + selection",
+    "36-point cluster count + expansion",
+    "satellite map rendering",
+    "no browser runtime / Mapbox errors"
+  ],
+  "environment": "Mapbox GL JS 2.15.0 / headless Chrome / 390x844 @3x. Review fixture; not a native iOS/Android performance certification."
+}

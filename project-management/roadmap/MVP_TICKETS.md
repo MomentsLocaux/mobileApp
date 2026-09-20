@@ -1,5 +1,13 @@
 # MVP Tickets
 
+## Refonte autorisée — markers de carte
+
+### ID: MAP-MARKERS-001
+
+Collection de dix silhouettes 2.5D, couleur dominante de chaque catégorie conservée, registre d’assets partagé Découvrir/Favoris et interactions Mapbox préservées. Extension aux sept catégories restantes autorisée après validation des trois pilotes.
+
+Demande produit du 2026-09-19, branche `feat/map-category-markers`. Critères et vérifications : [MAP_CATEGORY_MARKERS.md](./MAP_CATEGORY_MARKERS.md).
+
 ## Simplification — sheet carte à deux snaps
 
 ### ID: MAP-SHEET-001
