@@ -15,11 +15,14 @@ function errorText(error: unknown): { code: string; message: string } {
 /** Postgres statement timeout, RPC client race, or equivalent query abort. */
 export function isQueryTimeoutError(error: unknown): boolean {
   const { code, message } = errorText(error);
+  const name = String((error as { name?: unknown } | null)?.name || '').toLowerCase();
   return (
     code === '57014' ||
+    name === 'aborterror' ||
     message.includes('57014') ||
     message.includes('statement timeout') ||
     message.includes('canceling statement') ||
-    message.includes('client timeout')
+    message.includes('client timeout') ||
+    message.includes('aborted')
   );
 }

@@ -23,6 +23,11 @@ describe('isQueryTimeoutError', () => {
     );
   });
 
+  it('detects an aborted fetch as a timeout', () => {
+    const aborted = Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' });
+    assert.equal(isQueryTimeoutError(aborted), true);
+  });
+
   it('ignores generic network failures', () => {
     assert.equal(isQueryTimeoutError(new Error('Network request failed')), false);
     assert.equal(isQueryTimeoutError(new Error('Supabase ne répond pas (timeout). Réessayez.')), false);

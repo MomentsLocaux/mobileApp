@@ -97,6 +97,7 @@ export interface IDataProvider {
     limit?: number;
     timeScope?: 'ongoing' | 'upcoming' | 'current' | 'all';
     mergeUpcoming?: boolean;
+    signal?: AbortSignal;
   }): Promise<{ events: EventWithCreator[]; featureCollection: FeatureCollection }>;
   listProposalCandidates?(params: {
     latitude: number;
