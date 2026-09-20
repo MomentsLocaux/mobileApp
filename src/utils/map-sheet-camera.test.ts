@@ -13,7 +13,6 @@ import {
 describe('map sheet camera cycle', () => {
   it('captures an anchor only when leaving peek without one already held', () => {
     assert.equal(shouldCaptureSheetCameraAnchor(1, false), true);
-    assert.equal(shouldCaptureSheetCameraAnchor(2, false), true);
     assert.equal(shouldCaptureSheetCameraAnchor(1, true), false);
     assert.equal(shouldCaptureSheetCameraAnchor(0, false), false);
   });
@@ -21,7 +20,6 @@ describe('map sheet camera cycle', () => {
   it('restores the peek camera only when returning to peek', () => {
     assert.equal(shouldRestoreSheetCameraAnchor(0), true);
     assert.equal(shouldRestoreSheetCameraAnchor(1), false);
-    assert.equal(shouldRestoreSheetCameraAnchor(2), false);
   });
 
   it('fits the camera to the peek-time raw bounds and never to query bounds', () => {
@@ -43,12 +41,12 @@ describe('map sheet camera cycle', () => {
     assert.equal(nextBounds.ne[0], 3);
   });
 
-  it('caps half-snap camera padding below the full sheet height', () => {
+  it('caps overlay camera padding below a tall sheet height', () => {
     const layoutHeight = 800;
-    const halfSheet = Math.round(layoutHeight * 0.75);
-    const padding = getSheetCameraPaddingBottom(halfSheet, layoutHeight, 20);
+    const tallSheet = Math.round(layoutHeight * 0.92);
+    const padding = getSheetCameraPaddingBottom(tallSheet, layoutHeight, 20);
     assert.equal(padding, Math.round(layoutHeight * SHEET_CAMERA_PADDING_MAX_RATIO) + 20);
-    assert.ok(padding < halfSheet + 20);
+    assert.ok(padding < tallSheet + 20);
   });
 
   it('uses the full overlay when the sheet is shorter than the camera cap', () => {

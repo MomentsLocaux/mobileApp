@@ -61,7 +61,7 @@
 
 ## Comportements à ne pas modifier
 
-- Snaps sheet : peek → 55 % → 92 %
+- Snaps sheet : peek → 92 %
 - Gel viewport dès sheet index ≥ 1
 - Preview card au marker (sans réduire la liste au clic détail)
 - Restore `frozenViewport` au retour détail

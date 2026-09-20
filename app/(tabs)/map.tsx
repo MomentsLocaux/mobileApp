@@ -14,7 +14,7 @@ import {
   SHEET_LAYOUT_TIMING,
   VIEWPORT_PEEK_HEIGHT,
   VIEWPORT_FULL_SNAP_INDEX,
-  VIEWPORT_HALF_SNAP_INDEX,
+  VIEWPORT_PEEK_SNAP_INDEX,
   getSheetMaxSnapIndex,
   getSheetSnapHeights,
   MAP_CAMERA_ANIMATION_MS,
@@ -1196,7 +1196,7 @@ export default function MapScreen() {
         savedSnap >= VIEWPORT_FULL_SNAP_INDEX &&
         sheetMode === 'viewport' &&
         ui.sheetStatus !== 'singleEvent' &&
-        ui.bottomSheetIndex === VIEWPORT_HALF_SNAP_INDEX
+        ui.bottomSheetIndex === VIEWPORT_PEEK_SNAP_INDEX
       ) {
         handleSheetIndexChange(savedSnap);
       }
