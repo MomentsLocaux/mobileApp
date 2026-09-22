@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   View,
   FlatList,
@@ -24,12 +24,17 @@ export type MediaImage = {
 const HERO_HEIGHT = 300;
 const VIEWER_CHROME = 40;
 
+export type PlaceMediaGalleryHandle = {
+  openHero: () => void;
+};
+
 type Props = {
   images: MediaImage[];
   communityImages?: MediaImage[];
   onAddPhoto?: () => void;
   onPrimaryImageReady?: () => void;
   children?: React.ReactNode;
+  heroHeight?: number;
 };
 
 const normalizeImageUrl = (value: unknown): string | null => {
@@ -41,13 +46,14 @@ const normalizeImageUrl = (value: unknown): string | null => {
   return trimmed;
 };
 
-export function PlaceMediaGallery({
+export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(function PlaceMediaGallery({
   images,
   communityImages = [],
   onAddPhoto,
   onPrimaryImageReady,
   children,
-}: Props) {
+  heroHeight = HERO_HEIGHT,
+}, ref) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -92,6 +98,10 @@ export function PlaceMediaGallery({
     });
   };
 
+  useImperativeHandle(ref, () => ({
+    openHero: () => openViewer('organizer', 0),
+  }));
+
   const selectViewerTab = (tab: 'organizer' | 'community') => {
     setViewerTab(tab);
     setViewerIndex(0);
@@ -103,15 +113,16 @@ export function PlaceMediaGallery({
   const singleHero = organizerData.length === 1 ? organizerData[0] : null;
 
   return (
-    <View>
-      <View style={styles.heroWrapper}>
+    <>
+      <View pointerEvents="none" style={{ height: heroHeight }}>
+      <View style={[styles.heroWrapper, { height: heroHeight }]}>
         {singleHero ? (
           <Pressable onPress={() => openViewer('organizer', 0)}>
             <EventCoverImage
               uri={singleHero.uri}
               recyclingKey={singleHero.id}
               variant="detail"
-              style={[styles.heroImage, { width: windowWidth }]}
+              style={[styles.heroImage, { width: windowWidth, height: heroHeight }]}
               onLoadEnd={onPrimaryImageReady}
             />
           </Pressable>
@@ -135,14 +146,14 @@ export function PlaceMediaGallery({
                   uri={item.uri}
                   recyclingKey={item.id}
                   variant="detail"
-                  style={[styles.heroImage, { width: windowWidth }]}
+                  style={[styles.heroImage, { width: windowWidth, height: heroHeight }]}
                   onLoadEnd={index === 0 ? onPrimaryImageReady : undefined}
                 />
               </Pressable>
             )}
           />
         ) : (
-          <View style={[styles.heroPlaceholder, { width: windowWidth }]}>
+          <View style={[styles.heroPlaceholder, { width: windowWidth, height: heroHeight }]}>
             <ImageIcon size={40} color={colors.neutral[400]} />
           </View>
         )}
@@ -153,6 +164,7 @@ export function PlaceMediaGallery({
           </Pressable>
         )}
         {children}
+      </View>
       </View>
 
       <Modal
@@ -267,16 +279,19 @@ export function PlaceMediaGallery({
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
-}
+});
+
+PlaceMediaGallery.displayName = 'PlaceMediaGallery';
 
 const styles = StyleSheet.create({
   heroWrapper: {
     position: 'relative',
     width: '100%',
     height: HERO_HEIGHT,
-    backgroundColor: colors.brand.page,
+    backgroundColor: colors.brand.ink,
+    overflow: 'hidden',
   },
   heroImage: {
     height: HERO_HEIGHT,

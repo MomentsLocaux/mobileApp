@@ -87,11 +87,10 @@ Spotlight et liste utilisent le même enveloppe que la liste Accueil : fond `col
 
 Like et partage de la bottom sheet passent en pastilles outline 34 px (cœur + compteur, share + « Partager »), même famille que `EventHeartButton`. En dessous de 360 px, share icône seule. La liste Accueil gagne le même bouton Partager (`sharePublishedEvent` / `Share.share`). Cœur cover Accueil inchangé (34 px, sans compteur).
 
-### Proposition à valider — 2026-09-22 (fiche tiroir)
+### Intégration — 2026-09-22 (fiche tiroir)
 
-Référence Knockk : tap image → surface type sheet avec croix ; le panneau recouvre / révèle la photo au scroll. Maquette : `audits/ui-relief-event/detail-drawer-proposal.html`.
+Référence Knockk, validée : tap image → même route `map-event/[id]` (modal transparente), pas de deuxième sheet empilée. Maquette : `audits/ui-relief-event/detail-drawer-proposal.html`.
 
-- Même route `map-event/[id]` (modal transparente). Pas de deuxième sheet empilée sur la liste carte.
-- Image en fond, contenu en tiroir `page` coins 28 px. Croix seule sur le visuel (+ compteur photos). Tap image = galerie existante.
-- Catégorie / tags / like / partage / corriger / signaler / éditer quittent le hero. Pastilles 34 px + menu ⋯ dans le tiroir. Poussoirs et CTA inchangés.
-- À valider avant tout code natif.
+- Image en fond (~56 %), peek ~46 %, panneau `page` coins 28 px qui recouvre / révèle au scroll (parallax). Croix 34 px + compteur photos en chrome. Tap peek = galerie existante (`PlaceMediaGallery.openHero`).
+- Catégorie / tags / like+compteur / partage dans le tiroir. Titre compact (ville + chip, 2 lignes). Correction (crayon), ajout photo (+) et signalement (drapeau) restent des pastilles icône 34 px, comme avant — pas de chips texte. Modifier / Supprimer en icône si droits. Poussoirs et CTA inchangés.
+- Échos : bandeau d’onglets Avis / Photos orga / Photos communauté en carrousel horizontal pour ne plus rogner la dernière pastille.

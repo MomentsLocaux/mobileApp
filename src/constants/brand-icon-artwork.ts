@@ -44,6 +44,15 @@ export const brandIconArtwork = {
     detail: 'M8 9a4 3 0 0 1 4-3M10 13l2 2 2-2M12 15v2',
   },
   plus: { body: 'M11 5v6H5v2h6v6h2v-6h6v-2h-6V5z', detail: '' },
+  pen: {
+    body: '',
+    detail: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z',
+  },
+  flag: {
+    body: 'M5 4h12l-2.2 4.5L17 13H5z',
+    detail: 'M5 4v17',
+  },
+  close: { body: '', detail: 'M6 6l12 12M18 6 6 18' },
   bug: { body: 'M7 9a5 5 0 0 1 10 0v7a5 5 0 0 1-10 0Z', detail: 'M12 11v9M7 11H3M17 11h4M7 16H3M17 16h4M8 5 6 3M16 5l2-2' },
   logout: { body: 'M11 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6Z', detail: 'M9 12h13m-4-4 4 4-4 4' },
   info: { body: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z', detail: 'M12 11v6M12 7v.1' },

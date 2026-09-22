@@ -20,5 +20,8 @@ describe('brand icon artwork (Duo végétal)', () => {
     assert.ok(brandIconArtwork.navigation.body.length > 0);
     assert.ok(brandIconArtwork.back.detail.length > 0);
     assert.ok(brandIconArtwork.share.detail.length > 0);
+    assert.ok(brandIconArtwork.close.detail.length > 0);
+    assert.ok(brandIconArtwork.pen.detail.length > 0);
+    assert.ok(brandIconArtwork.flag.body.length > 0);
   });
 });

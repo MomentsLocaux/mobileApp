@@ -254,17 +254,41 @@ export default function EventEchoesScreen() {
       <AppBackground />
       <ScreenHeader title={formatEchoesListTitle(rootComments.length)} onBack={() => router.back()} />
 
-      <View style={styles.tabRow}>
-        <TouchableOpacity style={[styles.tab, tab === 'reviews' && styles.tabActive]} onPress={() => setTab('reviews')}>
+      <ScrollView
+        horizontal
+        nestedScrollEnabled
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabRow}
+        style={styles.tabScroller}
+      >
+        <TouchableOpacity
+          style={[styles.tab, tab === 'reviews' && styles.tabActive]}
+          onPress={() => setTab('reviews')}
+          accessibilityRole="button"
+          accessibilityState={{ selected: tab === 'reviews' }}
+          accessibilityLabel="Avis et commentaires"
+        >
           <Text style={[styles.tabText, tab === 'reviews' && styles.tabTextActive]}>Avis et commentaires</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tab === 'organizer' && styles.tabActive]} onPress={() => setTab('organizer')}>
+        <TouchableOpacity
+          style={[styles.tab, tab === 'organizer' && styles.tabActive]}
+          onPress={() => setTab('organizer')}
+          accessibilityRole="button"
+          accessibilityState={{ selected: tab === 'organizer' }}
+          accessibilityLabel="Photos orga"
+        >
           <Text style={[styles.tabText, tab === 'organizer' && styles.tabTextActive]}>Photos orga</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tab === 'community' && styles.tabActive]} onPress={() => setTab('community')}>
+        <TouchableOpacity
+          style={[styles.tab, tab === 'community' && styles.tabActive]}
+          onPress={() => setTab('community')}
+          accessibilityRole="button"
+          accessibilityState={{ selected: tab === 'community' }}
+          accessibilityLabel="Photos communauté"
+        >
           <Text style={[styles.tabText, tab === 'community' && styles.tabTextActive]}>Photos communauté</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       <ScrollView contentContainerStyle={styles.content}>
         {tab === 'reviews' ? (
@@ -520,8 +544,19 @@ export default function EventEchoesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.page },
-  tabRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  tabScroller: {
+    flexGrow: 0,
+    marginBottom: spacing.md,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingRight: spacing.xl,
+  },
   tab: {
+    flexShrink: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,

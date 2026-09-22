@@ -10,8 +10,7 @@ import {
   Alert,
   Dimensions,
   Linking,
-  Share,
-  Platform,
+  Pressable,
   StatusBar,
   useWindowDimensions,
   AppState,
@@ -23,12 +22,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Flag,
-  Edit,
   ChevronRight,
   Star,
   Eye,
-  PenLine,
+  Edit,
   Trash2,
 } from 'lucide-react-native';
 import {
@@ -44,7 +41,7 @@ import {
   BrandIcon,
 } from '../../components/ui';
 import { features } from '@/config/features';
-import { getEventAppLink, getEventShareMessage } from '@/utils/event-share';
+import { sharePublishedEvent } from '@/utils/event-share';
 import {
   EVENT_CALENDAR_LABEL,
   presentAddToDeviceCalendar,
@@ -86,8 +83,9 @@ import { formatResolvedEventTagLabel, getVisibleEventTags } from '../../utils/ev
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
-import { PlaceMediaGallery, type MediaImage } from '@/components/events/PlaceMediaGallery';
+import { PlaceMediaGallery, type MediaImage, type PlaceMediaGalleryHandle } from '@/components/events/PlaceMediaGallery';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
+import { EventShareButton } from '@/components/events/EventShareButton';
 import { EventDetailSection } from '@/components/events/EventDetailSection';
 import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
 import { EventEchoesPreview } from '@/components/events/EventEchoesPreview';
@@ -201,6 +199,11 @@ export default function EventDetailScreen() {
   );
   const dismissingRef = useRef(false);
   const seededIdRef = useRef(id);
+  const galleryRef = useRef<PlaceMediaGalleryHandle>(null);
+  const scrollY = useSharedValue(0);
+  const photoHeight = Math.round(windowDimensions.height * 0.56);
+  const photoPeek = Math.round(windowDimensions.height * 0.46);
+  const compactShare = windowDimensions.width < 360;
   const finishEntryMotion = useCallback(() => {
     requestAnimationFrame(() => {
       setEntryMotionComplete(true);
@@ -651,12 +654,7 @@ export default function EventDetailScreen() {
     }
     if (!event) return;
     try {
-      const message = getEventShareMessage(event.title, event.id, event.external_url);
-      if (Platform.OS === 'ios') {
-        await Share.share({ message, url: getEventAppLink(event.id) });
-      } else {
-        await Share.share({ message });
-      }
+      await sharePublishedEvent(event);
     } catch (err) {
       console.warn('share error', err);
     }
@@ -1172,6 +1170,22 @@ export default function EventDetailScreen() {
     };
   }, [canAnimateListSurface, canAnimateSurface, slideOffset]);
 
+  const photoParallaxStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [0, photoHeight],
+          [0, -photoHeight * 0.18],
+          Extrapolation.CLAMP,
+        ),
+      },
+      {
+        scale: interpolate(scrollY.value, [0, photoHeight], [1, 1.05], Extrapolation.CLAMP),
+      },
+    ],
+  }));
+
   if (loading && !event) {
     return (
       <View style={{ flex: 1 }}>
@@ -1204,6 +1218,18 @@ export default function EventDetailScreen() {
               },
             ]}
           >
+          <Animated.View
+            pointerEvents="box-none"
+            style={[styles.photoLayer, { height: photoHeight }, photoParallaxStyle]}
+          >
+            <PlaceMediaGallery
+              ref={galleryRef}
+              images={mediaImages}
+              communityImages={communityMediaImages}
+              heroHeight={photoHeight}
+            />
+          </Animated.View>
+          <StatusBar barStyle="light-content" />
           <GestureDetector gesture={detailScrollGesture}>
             <ScrollView
               style={styles.container}
@@ -1212,110 +1238,45 @@ export default function EventDetailScreen() {
               scrollEventThrottle={16}
               bounces={!canSwipeDismiss}
               onScroll={(scrollEvent) => {
-                const nextAtTop = scrollEvent.nativeEvent.contentOffset.y <= 1;
-                setScrollAtTop((current) =>
-                  current === nextAtTop ? current : nextAtTop,
-                );
+                const y = scrollEvent.nativeEvent.contentOffset.y;
+                scrollY.value = y;
+                const nextAtTop = y <= 1;
+                setScrollAtTop((current) => (current === nextAtTop ? current : nextAtTop));
               }}
             >
-        <AppBackground />
-        <StatusBar barStyle="light-content" />
-
-        <MotionReveal delay={0} enabled={!seededEvent && !canSwipeDismiss}>
-        <View style={styles.heroContainer}>
-          <PlaceMediaGallery
-            images={mediaImages}
-            communityImages={communityMediaImages}
-            onAddPhoto={handleAddPhoto}
-          >
-            <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-              <FloatingPressable style={styles.iconButton} onPress={handleBack} entranceDelay={0}>
-                <BrandIcon name="back" size={22} />
-              </FloatingPressable>
-              <View style={styles.headerActions}>
-                <FloatingPressable style={styles.iconButton} onPress={handleShare} entranceDelay={40}>
-                  <BrandIcon name="share" size={20} />
-                </FloatingPressable>
-                {event.status === 'published' ? (
-                  <FloatingPressable
-                    style={styles.iconButton}
-                    onPress={handleOpenEventCorrection}
-                    entranceDelay={80}
-                    accessibilityLabel="Proposer une correction"
-                  >
-                    <PenLine size={20} color={colors.brand.text} />
-                  </FloatingPressable>
-                ) : null}
-                <FloatingPressable style={styles.iconButton} onPress={handleOpenEventReport} entranceDelay={100}>
-                  <Flag
-                    size={20}
-                    color={eventReported ? colors.error[500] : colors.brand.text}
-                    fill={eventReported ? colors.error[500] : 'transparent'}
-                  />
-                </FloatingPressable>
-                {canEditEvent ? (
-                  <FloatingPressable
-                    style={styles.iconButton}
-                    onPress={() => router.push(`/events/create?edit=${event.id}` as any)}
-                    entranceDelay={120}
-                  >
-                    <Edit size={20} color={colors.brand.secondary} />
-                  </FloatingPressable>
-                ) : null}
-                {canDeleteEvent ? (
-                  <FloatingPressable
-                    style={styles.iconButton}
-                    onPress={handleDeleteEvent}
-                    entranceDelay={140}
-                    accessibilityLabel="Supprimer l’événement"
-                  >
-                    <Trash2 size={20} color={colors.error[500]} />
-                  </FloatingPressable>
-                ) : null}
-                <EventHeartButton
-                  active={isEventHearted}
-                  onPress={handleToggleHeart}
-                  hapticsEnabled={false}
-                  disabled={heartPending}
-                  style={styles.heroHeart}
-                />
-              </View>
-            </View>
-
-            <View style={styles.heroBadges}>
-              <View
-                style={[
-                  styles.heroBadge,
-                  { backgroundColor: getCategoryColor(event.category || '') },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.heroBadgeText,
-                    { color: getCategoryTextColor(event.category || '') },
-                  ]}
-                >
-                  {getCategoryLabel(event.category || '', event.category_meta)}
-                </Text>
-              </View>
-              {visibleTags.map((tag) => (
-                <View key={tag} style={styles.heroTagBadge}>
-                  <Text style={styles.heroTagText}>{formatResolvedEventTagLabel(tag, tagsMap)}</Text>
-                </View>
-              ))}
-            </View>
-          </PlaceMediaGallery>
-        </View>
-        </MotionReveal>
-
-        <View style={styles.content}>
+        <Pressable
+          onPress={() => galleryRef.current?.openHero()}
+          style={{ height: photoPeek }}
+          accessibilityRole="imagebutton"
+          accessibilityLabel="Voir les photos de l’événement"
+        />
+        <View style={styles.drawer}>
+          <View style={styles.drawerHandle} />
+          <View style={styles.content}>
           <MotionReveal delay={Motion.stagger.content} enabled={!seededEvent}>
-          <View style={styles.titleRow}>
-            <View style={styles.titleBlock}>
-              {event.city ? (
-                <Text style={styles.eventKicker}>{event.city}</Text>
-              ) : null}
-              <Text style={styles.title}>{event.title}</Text>
+          <View style={styles.metaRow}>
+            {event.city ? (
+              <Text style={styles.eventKicker} numberOfLines={1}>
+                {event.city}
+              </Text>
+            ) : (
+              <View style={styles.metaRowSpacer} />
+            )}
+            <View
+              style={[
+                styles.categoryChip,
+                { backgroundColor: getCategoryColor(event.category || '') },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  { color: getCategoryTextColor(event.category || '') },
+                ]}
+                numberOfLines={1}
+              >
+                {getCategoryLabel(event.category || '', event.category_meta)}
+              </Text>
             </View>
             {__DEV__ ? (
               <TouchableOpacity
@@ -1325,6 +1286,90 @@ export default function EventDetailScreen() {
                 accessibilityLabel="Afficher l'identifiant de l'événement"
               >
                 <Text style={styles.debugIdText}>?</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+            {event.title}
+          </Text>
+          {visibleTags.length ? (
+            <View style={styles.tagRow}>
+              {visibleTags.map((tag) => (
+                <View key={tag} style={styles.tagChip}>
+                  <Text style={styles.tagChipText}>{formatResolvedEventTagLabel(tag, tagsMap)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.socialRow}>
+            <EventHeartButton
+              active={isEventHearted}
+              onPress={handleToggleHeart}
+              hapticsEnabled={false}
+              disabled={heartPending}
+              count={eventStats.likes}
+              compactCount
+              accessibilityLabel={`${isEventHearted ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${eventStats.likes} j’aime`}
+            />
+            <EventShareButton
+              compact={compactShare}
+              onPress={() => void handleShare()}
+              accessibilityLabel={`Partager ${event.title}`}
+            />
+            {event.status === 'published' ? (
+              <TouchableOpacity
+                onPress={handleOpenEventCorrection}
+                accessibilityRole="button"
+                accessibilityLabel="Proposer une correction"
+                style={styles.iconAction}
+                hitSlop={8}
+              >
+                <BrandIcon name="pen" size={18} />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              onPress={handleAddPhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Ajouter une photo"
+              style={styles.iconAction}
+              hitSlop={8}
+            >
+              <BrandIcon name="plus" size={18} fillColor={colors.brand.page} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleOpenEventReport}
+              accessibilityRole="button"
+              accessibilityLabel={eventReported ? 'Déjà signalé' : 'Signaler cet événement'}
+              style={styles.iconAction}
+              hitSlop={8}
+            >
+              <BrandIcon
+                name="flag"
+                size={18}
+                fillColor={eventReported ? colors.error[500] : 'transparent'}
+                color={eventReported ? colors.error[500] : colors.brand.ink}
+              />
+            </TouchableOpacity>
+            {canEditEvent ? (
+              <TouchableOpacity
+                onPress={() => router.push(`/events/create?edit=${event.id}` as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Modifier l’événement"
+                style={styles.iconAction}
+                hitSlop={8}
+              >
+                <Edit size={18} color={colors.brand.secondary} />
+              </TouchableOpacity>
+            ) : null}
+            {canDeleteEvent ? (
+              <TouchableOpacity
+                onPress={handleDeleteEvent}
+                accessibilityRole="button"
+                accessibilityLabel="Supprimer l’événement"
+                style={styles.iconAction}
+                hitSlop={8}
+              >
+                <Trash2 size={18} color={colors.error[500]} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -1599,8 +1644,26 @@ export default function EventDetailScreen() {
             onPressEvent={handlePressSimilarEvent}
           />
         </View>
+        </View>
             </ScrollView>
           </GestureDetector>
+          <View pointerEvents="box-none" style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
+            <FloatingPressable
+              style={styles.iconButton}
+              onPress={handleBack}
+              entranceDelay={0}
+              accessibilityLabel="Fermer"
+            >
+              <BrandIcon name="close" size={18} />
+            </FloatingPressable>
+            {mediaImages.length > 1 ? (
+              <View style={styles.photoCount} pointerEvents="none">
+                <Text style={styles.photoCountText}>{mediaImages.length} photos</Text>
+              </View>
+            ) : (
+              <View />
+            )}
+          </View>
           </View>
         </Animated.View>
       </GestureDetector>
@@ -1704,96 +1767,140 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     textAlign: 'center',
   },
-  header: {
+  photoLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 0,
+    overflow: 'hidden',
+  },
+  chrome: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 20,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  headerActions: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    gap: spacing.xs,
+    justifyContent: 'space-between',
   },
   iconButton: {
     ...screenHeaderStyles.iconButton,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(244, 251, 246, 0.92)',
     borderColor: colors.neutral[200],
   },
-  heroContainer: {
-    position: 'relative',
-  },
-  heroBadges: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    flexDirection: 'row',
-    gap: 8,
-    zIndex: 10,
-    maxWidth: '68%',
-    flexWrap: 'wrap',
-  },
-  heroBadge: {
-    paddingHorizontal: 12,
+  photoCount: {
+    borderRadius: 12,
+    backgroundColor: 'rgba(26, 51, 41, 0.72)',
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.secondary,
   },
-  heroBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
+  photoCountText: {
+    ...typography.caption,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: colors.brand.page,
   },
-  heroTagBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(244,251,246,0.92)',
+  drawer: {
+    backgroundColor: colors.brand.page,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    minHeight: '100%',
+    overflow: 'hidden',
   },
-  heroTagText: {
-    color: colors.brand.text,
-    fontSize: 12,
-    fontWeight: '700',
+  drawerHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 8,
+    backgroundColor: '#B7CFBE',
+    alignSelf: 'center',
+    marginTop: 10,
   },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 8,
   },
-  titleRow: {
+  metaRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: 6,
   },
-  titleBlock: {
+  metaRowSpacer: {
     flex: 1,
     minWidth: 0,
   },
   eventKicker: {
     ...typography.caption,
+    flex: 1,
+    minWidth: 0,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.brand.textSecondary,
-    marginBottom: 8,
   },
   title: {
-    ...typography.h2,
+    ...typography.h4,
+    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: -0.4,
     color: colors.brand.text,
+    marginBottom: spacing.sm,
   },
-  heroHeart: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  categoryChip: {
+    flexShrink: 0,
+    maxWidth: 128,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  categoryChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  tagChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.brand.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  tagChipText: {
+    color: colors.brand.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.md,
+  },
+  iconAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.page,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   locationSection: {
     marginTop: spacing.md,
@@ -1804,10 +1911,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.brand.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    marginTop: 4,
+    borderColor: colors.neutral[200],
   },
   debugIdText: {
     ...typography.caption,
