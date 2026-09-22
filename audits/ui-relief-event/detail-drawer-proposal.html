@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moments Locaux — fiche tiroir</title>
+<style>
+@font-face{font-family:Jakarta;src:url('../../node_modules/@expo-google-fonts/plus-jakarta-sans/400Regular/PlusJakartaSans_400Regular.ttf')}
+@font-face{font-family:Jakarta;src:url('../../node_modules/@expo-google-fonts/plus-jakarta-sans/700Bold/PlusJakartaSans_700Bold.ttf');font-weight:700}
+:root{--page:#F4FBF6;--ink:#1A3329;--leaf:#7CB518;--muted:#5B7A6A;--wash:#E8F5E9;--line:#D5E6DA}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--page);font:14px Jakarta,system-ui,sans-serif}
+button,a{color:inherit}button{font:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,a:focus-visible{outline:3px solid #557C10;outline-offset:3px}
+h1,h2,h3,p{margin:0}svg.icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.wrap{max-width:1180px;margin:auto;padding:28px 36px}
+.masthead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:22px;gap:16px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700}
+.brand img{width:34px;height:34px;object-fit:contain}
+.back{font-size:12px;text-underline-offset:5px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:56px;padding-top:36px;align-items:start}
+.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;color:var(--muted)}
+h1{font-size:42px;line-height:1.12;letter-spacing:-1.8px;margin:16px 0 18px}
+h1 span{color:#557C10}
+.intro{font-size:15px;color:var(--muted);line-height:1.85;max-width:520px}
+.chapter{margin-top:28px;display:grid;grid-template-columns:32px 1fr;gap:12px}
+.chapter .num{font-size:11px;color:var(--muted);padding-top:4px}
+.chapter h2{font-size:17px;letter-spacing:-.4px}
+.chapter p,.chapter li{font-size:13px;line-height:1.8;color:var(--muted)}
+.chapter ul{margin:8px 0 0;padding-left:18px}
+.chapter + .chapter{border-top:1px solid var(--line);padding-top:22px}
+.swatches{display:flex;gap:8px;margin-top:22px}
+.swatch{width:24px;height:24px;border:1px solid #1a332918;border-radius:50%}
+.try{background:var(--wash);border:1px solid var(--line);border-radius:20px;padding:18px;margin-top:28px}
+.try h2{font-size:15px}.try p{font-size:12px;line-height:1.8;color:var(--muted);margin:8px 0 0}
+.footnote{font-size:11px;line-height:1.8;color:var(--muted);margin:18px 0 0}
+.preview-title{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px}
+.preview-title span:first-child:before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--leaf);margin-right:6px}
+.phone{border:6px solid #243F34;border-radius:42px;overflow:hidden;background:#243F34;box-shadow:0 22px 65px #1a33291a}
+.status{height:30px;display:flex;justify-content:space-between;padding:8px 22px 0;font-size:10px;font-weight:700;color:var(--ink);background:transparent;position:absolute;top:0;left:0;right:0;z-index:8;pointer-events:none}
+.device{height:820px;position:relative;overflow:hidden;background:var(--page)}
+.list{position:absolute;inset:0;padding:54px 16px 24px;overflow:auto}
+.list h2{font-size:22px;letter-spacing:-.6px}
+.list .sub{font-size:12px;color:var(--muted);margin:6px 0 16px}
+.spot{background:var(--wash);border:1px solid var(--line);border-radius:24px;overflow:hidden}
+.spot-cover{height:235px;padding:0;display:block;width:100%;background:#36574D}
+.spot-cover svg{width:100%;height:100%;display:block}
+.spot-body{padding:10px 10px 12px}
+.spot-body strong{display:block;font-size:13px;margin:4px 0 10px}
+.pills{display:flex;gap:6px;align-items:center}
+.pill{height:34px;border-radius:17px;border:1px solid var(--line);background:var(--page);display:inline-flex;align-items:center;gap:5px;padding:0 10px;font-size:12px;font-weight:700}
+.pill .icon{width:18px;height:18px}
+#heart[aria-pressed=true] .icon{fill:var(--leaf)}
+.stage{position:absolute;inset:0;transform:translateY(110%);transition:transform .42s cubic-bezier(.2,.8,.2,1)}
+.stage.open{transform:none}
+.photo{position:absolute;top:0;left:0;right:0;height:58%;background:#36574D}
+.photo svg{width:100%;height:100%;display:block;object-fit:cover}
+.chrome{position:absolute;top:38px;left:14px;right:14px;z-index:6;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.chrome button{pointer-events:auto;width:34px;height:34px;border-radius:17px;background:var(--page);border:1px solid var(--line);display:grid;place-items:center}
+.photos-hint{font-size:10px;font-weight:700;background:#1a3329cc;color:#F4FBF6;border-radius:10px;padding:6px 8px}
+.scroller{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
+.scroller::-webkit-scrollbar{display:none}
+.photo-hit{height:46%;min-height:210px;padding:0;background:transparent;width:100%;display:block}
+.drawer{background:var(--page);border-radius:28px 28px 0 0;padding:18px 18px 40px;min-height:78%;box-shadow:0 -12px 40px #1a332914}
+.handle{width:36px;height:4px;border-radius:8px;background:#B7CFBE;margin:0 auto 14px}
+.kicker{font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted)}
+.title-row{display:flex;align-items:flex-start;gap:8px;margin:8px 0 12px}
+.title-row h2{font-size:26px;letter-spacing:-.8px;line-height:1.15;flex:1}
+.cat{flex:none;background:#8B5CF6;color:#fff;font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:999px;padding:7px 9px;margin-top:4px}
+.social{display:flex;align-items:center;gap:8px;margin:0 0 16px}
+.avatars{display:flex}
+.avatar{width:22px;height:22px;border-radius:50%;background:#B5DDBB;border:2px solid var(--page);margin-left:-6px;display:grid;place-items:center;font-size:8px;font-weight:700}
+.avatar:first-child{margin:0}
+.social-text{font-size:11px;color:var(--muted);flex:1}
+.actions{display:flex;gap:6px;margin-left:auto}
+.panel{background:var(--wash);border:1px solid var(--line);border-radius:20px;padding:14px;margin-top:10px}
+.row{display:flex;gap:10px;align-items:center}
+.row strong{display:block;font-size:13px}
+.row small{display:block;font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+.push{min-height:48px;border-radius:15px;border:1px solid #6A9A14;background:linear-gradient(#8fc535,var(--leaf));box-shadow:0 3px 0 #557C10;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:700;width:100%;margin-top:12px;padding:10px}
+.push.secondary{background:var(--page);border-color:var(--line);box-shadow:0 3px 0 var(--line)}
+.push.toggle{width:48px;height:48px;flex:none;margin:0;padding:0}
+.price{font-size:11px;font-weight:700;border:1px solid var(--line);border-radius:8px;padding:5px 7px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.tag{font-size:11px;font-weight:700;background:var(--wash);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+.more{display:flex;gap:8px;margin-top:8px}
+.text-btn{min-height:44px;font-size:11px;text-decoration:underline;text-underline-offset:4px}
+.phone-foot{height:14px;background:var(--page)}
+.phone-foot:after{content:'';display:block;width:110px;height:4px;border-radius:8px;background:var(--ink);margin:6px auto 0}
+dialog{max-width:360px;width:calc(100% - 32px);border:1px solid var(--line);padding:24px;border-radius:24px;color:var(--ink);background:var(--page)}
+dialog::backdrop{background:#1a332950}
+dialog h2{font-size:20px}dialog p{font-size:13px;line-height:1.8;color:var(--muted);margin:12px 0 18px}
+.menu button{display:block;width:100%;text-align:left;min-height:48px;padding:12px 0;border-bottom:1px solid var(--line);font-weight:700}
+.announce{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+@media(max-width:740px){.wrap{padding:20px 14px}.layout{display:flex;flex-direction:column;gap:28px}.preview{max-width:430px;align-self:center;width:100%}h1{font-size:34px}}
+</style>
+<div class="wrap">
+<header class="masthead">
+  <div class="brand"><img src="../../assets/images/logo-mark.png" alt="">moments locaux</div>
+  <a class="back" href="proposal.html">← Icônes & fiche</a>
+</header>
+<main class="layout">
+<section>
+  <p class="eyebrow">Proposition · Fiche tiroir</p>
+  <h1>La photo reste une photo.<br><span>La fiche glisse par-dessus.</span></h1>
+  <p class="intro">Même route qu’aujourd’hui (<code>map-event/[id]</code>), même swipe pour fermer. On change la composition : une image libre, un panneau arrondi qui la recouvre au scroll, une croix pour partir. Pas de deuxième sheet empilée sur la liste carte.</p>
+  <div class="swatches" aria-hidden="true"><i class="swatch" style="background:#1A3329"></i><i class="swatch" style="background:#7CB518"></i><i class="swatch" style="background:#B5DDBB"></i><i class="swatch" style="background:#E8F5E9"></i></div>
+
+  <div class="chapter"><span class="num">01</span><div>
+    <h2>Le geste Knockk, dans notre architecture</h2>
+    <p>Tap image (sheet, Accueil ou card pin) → la fiche actuelle s’ouvre en modal transparente. L’image est calée en fond. Le contenu est un tiroir menthe à coins 28 px qui chevauche déjà la photo. Scroll vers le haut : le tiroir recouvre. Scroll vers le bas : la photo réapparaît. Croix en haut à gauche. Swipe down en haut de scroll conserve la fermeture actuelle.</p>
+  </div></div>
+  <div class="chapter"><span class="num">02</span><div>
+    <h2>Sur la photo, presque rien</h2>
+    <p>Aujourd’hui le hero porte retour, partage, correction, signalement, édition, suppression, cœur 48 px, chip catégorie et jusqu’à 6 tags. Proposition :</p>
+    <ul>
+      <li><strong>Sur l’image :</strong> croix (ou retour), compteur de photos si besoin. Tap photo = galerie existante.</li>
+      <li><strong>Dans le tiroir :</strong> titre, une chip catégorie à droite du titre (couleur taxonomie), tags sous le titre, pastilles cœur + Partager (34 px, déjà en liste).</li>
+      <li><strong>Derrière ⋯ :</strong> corriger, signaler, éditer, supprimer — plus sur le visuel.</li>
+    </ul>
+  </div></div>
+  <div class="chapter"><span class="num">03</span><div>
+    <h2>Ce qu’on ne change pas</h2>
+    <p>Poussoirs Duo végétal, « Je note la date » / « J’y vais », échos, similaires, deep links, guest gate. Pas de RSVP Knockk. Pas de sheet dans la sheet carte : un seul owner de geste, la page-tiroir.</p>
+  </div></div>
+  <div class="try">
+    <h2>Dans le téléphone</h2>
+    <p>Tapez l’image, puis scrollez. La fiche recouvre le concert, redescendre le dévoile. La croix ramène à la liste.</p>
+  </div>
+  <p class="footnote">Maquette HTML — aucun écran natif modifié. Contenu fictif, aucun réseau.</p>
+</section>
+
+<aside class="preview" aria-label="Maquette interactive fiche tiroir">
+  <div class="preview-title"><span>Liste → fiche tiroir</span><span>Menthe · Duo végétal</span></div>
+  <div class="phone">
+    <div class="device" id="device">
+      <div class="status"><span>9:41</span><span aria-hidden="true">▂▄▆ ▰</span></div>
+      <section class="list" aria-label="Liste de démonstration">
+        <p class="sub">Autour de Nyons</p>
+        <h2>On fait quoi dans le coin ?</h2>
+        <p class="sub" style="margin-bottom:14px">Tapez l’image pour ouvrir la fiche.</p>
+        <article class="spot">
+          <button class="spot-cover" id="open" aria-label="Voir Les soirées du jardin partagé">
+            <svg viewBox="0 0 390 235" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path fill="#71988A" d="M0 0h390v235H0z"/><circle cx="287" cy="52" r="28" fill="#EEE5B5"/><path fill="#345443" d="M0 110 70 72 120 118 190 80 250 110 390 70v165H0z"/><path fill="#d8c47a" d="M98 118h194v70H98z"/><path fill="#E4DAB0" d="m84 118 111-36 112 36Z"/><g fill="#243F34"><rect x="118" y="138" width="18" height="40"/><rect x="254" y="138" width="18" height="40"/><circle cx="188" cy="136" r="8"/><path d="m180 146-6 32h28l-6-32Z"/></g></svg>
+          </button>
+          <div class="spot-body">
+            <p class="kicker">Nyons · 1,2 km</p>
+            <strong>Les soirées du jardin partagé</strong>
+            <div class="pills">
+              <span class="pill" aria-hidden="true">♥ 24</span>
+              <span class="pill" aria-hidden="true">↗ Partager</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="stage" id="stage" aria-label="Fiche événement" hidden>
+        <div class="photo" id="photo">
+          <svg viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Concert en plein air">
+            <path fill="#71988A" d="M0 0h390v420H0z"/><circle cx="300" cy="70" r="36" fill="#EEE5B5"/>
+            <path fill="#496E5B" d="M0 140 80 110 140 160 220 120 310 150 390 100v320H0z"/>
+            <path fill="#345443" d="M0 200q80-40 150 10t140-10 100 20v200H0z"/>
+            <path fill="#d8c47a" d="M90 210h210v90H90z"/><path fill="#E4DAB0" d="m76 210 119-48 120 48Z"/>
+            <g fill="#243F34"><rect x="118" y="238" width="20" height="48"/><rect x="262" y="238" width="20" height="48"/><circle cx="188" cy="232" r="10"/><path d="m178 244-8 40h36l-8-40Z"/></g>
+          </svg>
+        </div>
+        <div class="chrome">
+          <button type="button" id="close" aria-label="Fermer la fiche"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          <span class="photos-hint">1 / 3</span>
+        </div>
+        <div class="scroller" id="scroller" tabindex="0">
+          <button class="photo-hit" id="gallery" aria-label="Voir les photos de l’événement"></button>
+          <article class="drawer">
+            <div class="handle" aria-hidden="true"></div>
+            <p class="kicker">Nyons · Drôme provençale</p>
+            <div class="title-row">
+              <h2>Les soirées du jardin partagé</h2>
+              <span class="cat">Fêtes</span>
+            </div>
+            <div class="social">
+              <div class="avatars" aria-hidden="true"><span class="avatar">L</span><span class="avatar">M</span><span class="avatar">A</span></div>
+              <span class="social-text">Aimé par Léa + 2</span>
+              <div class="actions">
+                <button class="pill" id="heart" aria-pressed="false" aria-label="Aimer, 24 j’aime"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21C9 18.5 2 13.7 2 8.5 2 3 8.5 1 12 6c3.5-5 10-3 10 2.5 0 5.2-7 10-10 12.5Z"/></svg> 24</button>
+                <button class="pill" data-share aria-label="Partager Les soirées du jardin partagé"><svg class="icon" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M5 12v8h14v-8"/></svg> Partager</button>
+                <button class="pill" id="more" aria-label="Plus d’actions" style="padding:0;width:34px;justify-content:center">⋯</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="row">
+                <button class="push toggle secondary" aria-label="Afficher les horaires"><svg class="icon" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></button>
+                <div style="flex:1"><strong>Samedi 26 septembre</strong><small>18 h – 23 h</small></div>
+                <span class="price">Gratuit</span>
+              </div>
+              <button class="push secondary">Je note la date</button>
+            </div>
+            <div class="panel">
+              <div class="row">
+                <button class="push toggle secondary" aria-label="Afficher la carte"><svg class="icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></button>
+                <div style="flex:1"><strong>Le jardin partagé</strong><small>Nyons · 1,2 km</small></div>
+              </div>
+              <button class="push">J’y vais</button>
+            </div>
+            <p class="kicker" style="margin-top:18px">À propos</p>
+            <p style="font-size:13px;line-height:1.8;color:var(--muted);margin-top:8px">Un concert sous les guirlandes, des saveurs du coin et le plaisir de se retrouver au grand air. Venez comme vous êtes.</p>
+            <div class="tags">
+              <span class="tag">Plein air</span>
+              <span class="tag">Musique</span>
+              <span class="tag">Famille</span>
+            </div>
+            <p class="kicker" style="margin-top:22px">Les échos du coin</p>
+            <p style="font-size:13px;line-height:1.8;color:var(--muted);margin-top:8px">« Une belle ambiance, on reviendra. »</p>
+            <button class="text-btn">Afficher les commentaires</button>
+            <p style="font-size:11px;color:var(--muted);margin-top:24px;line-height:1.7">Démo · scrollez pour recouvrir la photo, redescendez pour la revoir.</p>
+          </article>
+        </div>
+      </section>
+    </div>
+    <div class="phone-foot"></div>
+  </div>
+</aside>
+</main>
+</div>
+<dialog id="dialog"><h2 id="dialog-title"></h2><p id="dialog-text"></p><form method="dialog"><button class="push" style="margin:0">Fermer</button></form></dialog>
+<div class="announce" id="announce" role="status" aria-live="polite"></div>
+<script>
+const glyphs={heart:'M12 21C9 18.5 2 13.7 2 8.5 2 3 8.5 1 12 6c3.5-5 10-3 10 2.5 0 5.2-7 10-10 12.5Z',share:'M12 16V3m-5 5 5-5 5 5M5 12v8h14v-8'};
+const stage=document.getElementById('stage');
+const scroller=document.getElementById('scroller');
+const photo=document.getElementById('photo');
+const dialog=document.getElementById('dialog');
+function openDialog(title,text){document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-text').textContent=text;dialog.showModal()}
+function openStage(){stage.hidden=false;requestAnimationFrame(()=>stage.classList.add('open'));scroller.scrollTop=0;document.getElementById('announce').textContent='Fiche ouverte. Scrollez pour recouvrir la photo.'}
+function closeStage(){stage.classList.remove('open');const done=()=>{stage.hidden=true;stage.removeEventListener('transitionend',done)};stage.addEventListener('transitionend',done);document.getElementById('announce').textContent='Fiche fermée.'}
+document.getElementById('open').addEventListener('click',openStage);
+document.getElementById('close').addEventListener('click',closeStage);
+document.getElementById('gallery').addEventListener('click',()=>openDialog('Photos de l’événement','Dans l’app, le tap sur l’image ouvre la galerie existante (organisateur / communauté). Aucune action n’est posée sur le visuel.'));
+document.getElementById('more').addEventListener('click',()=>openDialog('Plus d’actions','Corriger, signaler, éditer ou supprimer. Ces actions quittent le hero et passent derrière ⋯.'));
+document.querySelector('[data-share]').addEventListener('click',()=>openDialog('Partager','Partage système, comme sur la liste et la bottom sheet.'));
+document.getElementById('heart').addEventListener('click',function(){const on=this.getAttribute('aria-pressed')==='true';this.setAttribute('aria-pressed',String(!on));this.lastChild.textContent=on?' 24':' 25'});
+scroller.addEventListener('scroll',()=>{
+  const y=Math.min(180,scroller.scrollTop);
+  photo.style.transform='translateY('+(-y*0.18)+'px) scale('+(1+y/1400)+')';
+},{passive:true});
+</script>

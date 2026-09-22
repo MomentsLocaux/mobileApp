@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus } from 'lucide-react-native';
+import { BrandIcon } from '@/components/ui/BrandIcon';
 import { colors } from '@/constants/theme';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -311,7 +311,7 @@ export function ContributionFab({
         }
         style={[styles.fab, { backgroundColor: color }, animatedStyle]}
       >
-        <Plus size={28} color={colors.brand.onAccent} strokeWidth={2.6} />
+        <BrandIcon name="plus" size={22} color={colors.brand.onAccent} fillColor={colors.brand.page} />
       </Animated.View>
     </GestureDetector>
   );

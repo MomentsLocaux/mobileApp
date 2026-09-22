@@ -1,6 +1,9 @@
 import { useCallback } from 'react';
+import { Alert } from 'react-native';
 import type { EventWithCreator } from '@/types/database';
 import { isEventHearted, syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+
+export type MapHeartToggleResult = { beforeLiked: boolean; afterLiked: boolean };
 
 type Params = {
   profileId?: string;
@@ -18,10 +21,10 @@ export function useMapSocialActions({
   toggleFavorite,
 }: Params) {
   const handleToggleHeart = useCallback(
-    async (event: EventWithCreator) => {
+    async (event: EventWithCreator): Promise<MapHeartToggleResult | null> => {
       if (!profileId) {
-        console.warn('Cannot heart event without profile id');
-        return;
+        Alert.alert('Connexion nécessaire', 'Connectez-vous pour aimer et enregistrer un événement.');
+        return null;
       }
 
       const before = {
@@ -32,8 +35,11 @@ export function useMapSocialActions({
       try {
         const after = await toggleEventHeart(profileId, event, before);
         syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+        return { beforeLiked: before.isLiked, afterLiked: after.isLiked };
       } catch (error) {
         console.warn('toggle heart error', error);
+        Alert.alert('Erreur', 'Impossible d’enregistrer pour le moment.');
+        return null;
       }
     },
     [favoritesSet, likesSet, profileId, toggleFavorite, toggleLike]

@@ -1,3 +1,4 @@
+import { Platform, Share } from 'react-native';
 import { WEBSITE_CANONICAL_ORIGIN, WEBSITE_FR_ORIGIN } from '../constants/website';
 
 const DEFAULT_SHARE_ORIGIN = WEBSITE_CANONICAL_ORIGIN;
@@ -22,4 +23,15 @@ export function getEventShareMessage(title: string, eventId: string, externalUrl
   const downloadUrl = `${WEBSITE_FR_ORIGIN}/download`;
   const extra = externalUrl?.trim() && externalUrl.trim() !== appLink ? `\n${externalUrl.trim()}` : '';
   return `${title}\n${appLink}\n\nPas encore l’app ? ${downloadUrl}${extra}`;
+}
+
+export async function sharePublishedEvent(event: {
+  id: string;
+  title: string;
+  external_url?: string | null;
+}): Promise<void> {
+  const message = getEventShareMessage(event.title, event.id, event.external_url);
+  await Share.share(
+    Platform.OS === 'ios' ? { message, url: getEventAppLink(event.id) } : { message },
+  );
 }

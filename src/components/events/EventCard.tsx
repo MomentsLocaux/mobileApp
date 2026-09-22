@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
+  useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -51,6 +52,7 @@ import {
 import { EventCoverImage } from './EventCoverImage';
 import { EventCoverPlaceholder } from './EventCoverPlaceholder';
 import { EventHeartButton } from './EventHeartButton';
+import { EventShareButton } from './EventShareButton';
 import { EventImageCarousel } from './EventImageCarousel';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
@@ -79,6 +81,7 @@ export interface EventCardProps {
   onPrimaryAction?: () => void;
   onSecondaryAction?: () => void;
   onHeartPress?: () => void;
+  onShare?: () => void;
   onNavigate?: () => void;
   isFavorite?: boolean;
   isLiked?: boolean;
@@ -103,6 +106,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   onPrimaryAction,
   onSecondaryAction,
   onHeartPress,
+  onShare,
   onNavigate,
   isFavorite = false,
   isLiked = false,
@@ -118,6 +122,8 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   mediaHeight: mediaHeightOverride,
 }) => {
   const { profile } = useAuth();
+  const { width } = useWindowDimensions();
+  const compactShare = width < 360;
   useTaxonomy();
   const tagsMap = useTaxonomyStore((s) => s.tagsMap);
   const categoriesMap = useTaxonomyStore((s) => s.categoriesMap);
@@ -184,7 +190,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   const showSchedulePanel = false;
   const showCleanDateRow = usesCleanBody;
   const showMetaBadges = temporal === 'cancelled';
-  const showEngagement = variant !== 'compact' && Boolean(socialLabel || echoesLabel);
+  const showEngagement = variant !== 'compact' && Boolean(socialLabel || echoesLabel || onShare);
   const showFooter = false;
   const canNavigate = Boolean(onNavigate);
   const heartActive = isLiked || isFavorite;
@@ -420,9 +426,10 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
           {showEngagement ? (
             <View
-              style={styles.socialRow}
-              accessibilityRole="text"
-              accessibilityLabel={[socialLabel, echoesLabel].filter(Boolean).join(', ')}
+              style={[styles.socialRow, onShare ? styles.socialRowWithShare : null]}
+              accessible={!onShare}
+              accessibilityRole={onShare ? undefined : 'text'}
+              accessibilityLabel={onShare ? undefined : [socialLabel, echoesLabel].filter(Boolean).join(', ')}
             >
               {showSocialAvatars ? (
                 <View style={styles.likerStack} accessible={false}>
@@ -438,7 +445,11 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 </View>
               ) : null}
               {socialLabel ? (
-                <Text style={styles.socialText} numberOfLines={1}>
+                <Text
+                  style={styles.socialText}
+                  numberOfLines={1}
+                  accessibilityLabel={onShare ? [socialLabel, echoesLabel].filter(Boolean).join(', ') : undefined}
+                >
                   {socialLabel}
                 </Text>
               ) : null}
@@ -447,6 +458,15 @@ const EventCardComponent: React.FC<EventCardProps> = ({
                 <Text style={styles.echoesText} numberOfLines={1}>
                   {echoesLabel}
                 </Text>
+              ) : null}
+              {onShare ? (
+                <View style={styles.socialShare}>
+                  <EventShareButton
+                    compact={compactShare}
+                    onPress={onShare}
+                    accessibilityLabel={`Partager ${event.title}`}
+                  />
+                </View>
               ) : null}
             </View>
           ) : null}
@@ -739,6 +759,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
     minHeight: 22,
   },
+  socialRowWithShare: {
+    minHeight: 34,
+  },
+  socialShare: {
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
   likerStack: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -754,6 +781,7 @@ const styles = StyleSheet.create({
   },
   socialText: {
     flexShrink: 1,
+    minWidth: 0,
     fontSize: 12,
     fontWeight: '600',
     color: CARD_THEME.accent,

@@ -8,6 +8,8 @@ import {
   FlatList,
   InteractionManager,
   TouchableOpacity,
+  Pressable,
+  Alert,
 } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -36,16 +38,22 @@ import {
   type MapSheetMode,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
-import { EventResultCard, EVENT_RESULT_LIST_CARD_HEIGHT } from './EventResultCard';
+import { EventResultCard } from './EventResultCard';
+import { MapDiscoveryEventCard } from './MapDiscoveryEventCard';
+import { MapDiscoveryHeader } from './MapDiscoveryHeader';
+import { BrandIcon } from '@/components/ui/BrandIcon';
+import { selectMapSpotlight, mapEventDateHeading, estimateMapEventOffset } from '@/utils/map-discovery-presentation';
+import { sharePublishedEvent } from '@/utils/event-share';
+import type { MapHeartToggleResult } from '@/hooks/map/useMapSocialActions';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { MapResultsSkeleton } from './MapResultsSkeleton';
 import { haptics } from '@/utils/haptics';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
-import { sortEvents } from '@/utils/sort-events';
+import { sortEvents, getDistanceText } from '@/utils/sort-events';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useDiscoveryListWindow } from '@/hooks/useDiscoveryListWindow';
-import { DiscoveryListWindowFooter } from '@/components/ui';
+import { DiscoveryListWindowFooter } from '@/components/ui/DiscoveryListWindowFooter';
 
 const SHEET_VIEWABILITY_CONFIG = {
   itemVisiblePercentThreshold: 45,
@@ -86,7 +94,7 @@ interface Props {
   onNavigate: (event: EventWithCreator) => void;
   onOpenDetails: (event: EventWithCreator) => void;
   onOpenCreator?: (creatorId: string) => void;
-  onToggleHeart?: (event: EventWithCreator) => void;
+  onToggleHeart?: (event: EventWithCreator) => Promise<MapHeartToggleResult | null>;
   isHearted?: (id: string) => boolean;
   onSnapIndexChange: (index: number) => void;
   mode: 'single' | 'viewport';
@@ -109,7 +117,6 @@ interface Props {
 const SHEET_SURFACE = colors.brand.page;
 const SCROLL_EDGE_THRESHOLD = 2;
 const LIST_COLLAPSE_PULL_THRESHOLD = 28;
-const LIST_ITEM_STRIDE = EVENT_RESULT_LIST_CARD_HEIGHT + spacing.md;
 
 function applySheetDragTranslation(
   translationY: number,
@@ -213,6 +220,31 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     ref
   ) => {
     const listRef = useRef<FlatList<EventWithCreator>>(null);
+    const listHeaderHeight = useRef(0);
+    const resultsHeaderY = useRef(0);
+    const scrollRetry = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const scrollAttempts = useRef(0);
+    const scrollTarget = useRef<number | null>(null);
+    const pendingHeartIds = useRef(new Set<string>());
+    const [pendingIds, setPendingIds] = React.useState<ReadonlySet<string>>(new Set());
+    const spotlightEvents = useMemo(() => selectMapSpotlight(events, sortCenter), [events, sortCenter]);
+    const distanceFor = useCallback((event: EventWithCreator) => {
+      const coordinates = typeof event.location === 'object' ? event.location?.coordinates : undefined;
+      const latitude = coordinates?.[1] ?? event.latitude;
+      const longitude = coordinates?.[0] ?? event.longitude;
+      return typeof latitude === 'number' && typeof longitude === 'number'
+        ? getDistanceText(latitude, longitude, sortCenter) : null;
+    }, [sortCenter]);
+    const shareEvent = useCallback(async (event: EventWithCreator) => {
+      try {
+        await sharePublishedEvent(event);
+      } catch {
+        Alert.alert('Erreur', 'Impossible d’ouvrir le partage pour le moment.');
+      }
+    }, []);
+    const showAllEvents = useCallback(() => {
+      listRef.current?.scrollToOffset({ offset: resultsHeaderY.current, animated: false });
+    }, []);
     const prefetchSheetPage = useCallback((pageItems: EventWithCreator[]) => {
       pageItems.forEach((event) => prefetchEventMedia(event));
     }, []);
@@ -229,6 +261,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       revealThroughIndex,
       handleHighestViewedIndex,
     } = useDiscoveryListWindow(sortedEvents, { onPrefetchPage: prefetchSheetPage });
+    const visibleCountRef = useRef(visibleItems.length);
+    visibleCountRef.current = visibleItems.length;
     const handleHighestViewedIndexRef = useRef(handleHighestViewedIndex);
     handleHighestViewedIndexRef.current = handleHighestViewedIndex;
     const revealThroughIndexRef = useRef(revealThroughIndex);
@@ -263,6 +297,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const nativeDragOrigin = useSharedValue(0);
     const listScrollY = useSharedValue(0);
     const listTouchStartY = useSharedValue(0);
+    const listTouchStartX = useSharedValue(0);
     const snapIndexShared = useSharedValue(clampedIndex);
     const snapIndexRef = useRef(clampedIndex);
     snapIndexRef.current = clampedIndex;
@@ -298,8 +333,8 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
 
     const eventIds = React.useMemo(
-      () => visibleItems.map((event) => event.id).filter(Boolean),
-      [visibleItems]
+      () => Array.from(new Set([...visibleItems, ...spotlightEvents].map((event) => event.id).filter(Boolean))),
+      [visibleItems, spotlightEvents]
     );
     const eventIdsKey = React.useMemo(() => eventIds.join(','), [eventIds]);
 
@@ -318,31 +353,39 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         if (targetIndex < 0 || !showViewportList) return;
 
         revealThroughIndexRef.current(targetIndex);
+        if (scrollRetry.current) clearTimeout(scrollRetry.current);
+        scrollAttempts.current = 0;
+        scrollTarget.current = targetIndex;
         scrollTaskRef.current?.cancel?.();
         scrollTaskRef.current = InteractionManager.runAfterInteractions(() => {
           requestAnimationFrame(() => {
-            if (!listRef.current) return;
+            if (!listRef.current || targetIndex >= visibleCountRef.current) return;
             listRef.current.scrollToIndex({
               index: targetIndex,
-              animated: true,
+              animated: !reduceMotion,
               viewPosition: 0.25,
             });
           });
         });
       },
-      [sortedEvents, showViewportList]
+      [sortedEvents, showViewportList, reduceMotion]
     );
 
     React.useEffect(
       () => () => {
         scrollTaskRef.current?.cancel?.();
+        if (scrollRetry.current) clearTimeout(scrollRetry.current);
       },
       []
     );
 
     React.useEffect(() => {
+      if (scrollRetry.current) clearTimeout(scrollRetry.current);
+      scrollTarget.current = null;
+      scrollYRef.current = 0;
+      listScrollY.value = 0;
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    }, [orderKey]);
+    }, [orderKey, listScrollY]);
 
     React.useEffect(() => {
       let cancelled = false;
@@ -366,29 +409,26 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
     const handleToggleHeart = useCallback(
       async (event: EventWithCreator) => {
-        const beforeLiked = Boolean(isHearted?.(event.id));
-        await onToggleHeart?.(event);
-        const self = currentUserId
-          ? {
-              id: currentUserId,
-              display_name: 'Moi',
-              avatar_url: null as string | null,
-              is_followed: false,
-            }
-          : null;
-        setStatsByEventId((prev) => ({
-          ...prev,
-          [event.id]: EventCardStatsService.applyLikeToggle(
-            event.id,
-            beforeLiked,
-            !beforeLiked,
-            self,
-            currentUserId,
-            prev[event.id],
-          ),
-        }));
+        if (!onToggleHeart || pendingHeartIds.current.has(event.id)) return;
+        pendingHeartIds.current.add(event.id);
+        setPendingIds(new Set(pendingHeartIds.current));
+        try {
+          const result = await onToggleHeart(event);
+          if (!result) return;
+          const self = currentUserId ? { id: currentUserId, display_name: 'Moi', avatar_url: null, is_followed: false } : null;
+          setStatsByEventId((prev) => ({
+            ...prev,
+            [event.id]: EventCardStatsService.applyLikeToggle(
+              event.id, result.beforeLiked, result.afterLiked, self, currentUserId,
+              prev[event.id] ?? { viewsCount: 0, friendsGoingCount: 0, likesCount: event.likes_count ?? 0, likers: [] },
+            ),
+          }));
+        } finally {
+          pendingHeartIds.current.delete(event.id);
+          setPendingIds(new Set(pendingHeartIds.current));
+        }
       },
-      [currentUserId, isHearted, onToggleHeart],
+      [currentUserId, onToggleHeart],
     );
 
     const expandedChromeStyle = useAnimatedStyle(() => {
@@ -572,11 +612,17 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             'worklet';
             void VIEWPORT_HALF_SNAP_INDEX;
             listTouchStartY.value = event.allTouches[0]?.absoluteY ?? 0;
+            listTouchStartX.value = event.allTouches[0]?.absoluteX ?? 0;
           })
           .onTouchesMove((event, manager) => {
             'worklet';
             const y = event.allTouches[0]?.absoluteY ?? listTouchStartY.value;
             const dy = y - listTouchStartY.value;
+            const dx = (event.allTouches[0]?.absoluteX ?? listTouchStartX.value) - listTouchStartX.value;
+            if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+              manager.fail();
+              return;
+            }
             const atTop = listScrollY.value <= SCROLL_EDGE_THRESHOLD;
             const canCollapse = atTop && dy > 4 && snapIndexShared.value > 0;
             if (canCollapse) {
@@ -637,6 +683,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         layoutHeight,
         listScrollY,
         listTouchStartY,
+        listTouchStartX,
         maxSheetHeight,
         minSheetHeight,
         mode,
@@ -651,47 +698,31 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     );
 
     const renderListItem = useCallback(
-      ({ item, index }: { item: EventWithCreator; index: number }) => (
-        <EventResultCard
-          event={item}
-          variant="map-preview"
-          showCarousel={false}
-          listEntranceDelay={isExpanded && index < 4 ? index * Motion.stagger.listItem : 0}
-          viewsCount={statsByEventId[item.id]?.viewsCount ?? 0}
-          friendsGoingCount={statsByEventId[item.id]?.friendsGoingCount ?? 0}
-          likesCount={statsByEventId[item.id]?.likesCount ?? item.likes_count ?? 0}
-          likers={statsByEventId[item.id]?.likers ?? []}
-          active={item.id === activeEventId}
-          onPress={() => onOpenDetails(item)}
-          onSelect={() => {
-            onHighlightEvent(item, { focusMap: false });
-          }}
-          onNavigate={() => onNavigate(item)}
-          onOpenCreator={onOpenCreator}
-          onToggleHeart={handleToggleHeart}
-          isHearted={isHearted ? isHearted(item.id) : undefined}
-        />
-      ),
-      [
-        activeEventId,
-        isExpanded,
-        isHearted,
-        onHighlightEvent,
-        onNavigate,
-        onOpenCreator,
-        onOpenDetails,
-        handleToggleHeart,
-        statsByEventId,
-      ]
+      ({ item, index }: { item: EventWithCreator; index: number }) => {
+        const heading = mapEventDateHeading(item, sortedEvents[index - 1], sortBy);
+        return <View style={styles.rowWrap}>
+          {heading ? <Text accessibilityRole="header" style={styles.dateHeading}>{heading}</Text> : null}
+          <MapDiscoveryEventCard event={item} stats={statsByEventId[item.id]}
+            liked={Boolean(isHearted?.(item.id))} pending={pendingIds.has(item.id)}
+            active={item.id === activeEventId} distance={distanceFor(item)}
+            onOpen={onOpenDetails} onHighlight={(event) => onHighlightEvent(event, { focusMap: false })}
+            onToggleHeart={handleToggleHeart} onShare={shareEvent} />
+        </View>;
+      },
+      [activeEventId, isHearted, onHighlightEvent, onOpenDetails, handleToggleHeart, statsByEventId, pendingIds, distanceFor, shareEvent, sortedEvents, sortBy]
     );
 
     return (
       <View style={styles.container}>
         <GestureDetector gesture={sheetChromeGesture}>
           <View style={styles.sheetChrome}>
-          <View style={[styles.handleArea, !isSheetExpandable && styles.handleAreaDisabled]}>
+          <Pressable style={[styles.handleArea, !isSheetExpandable && styles.handleAreaDisabled]}
+            accessibilityRole="button" accessibilityLabel={isExpanded ? 'Replier la liste' : 'Afficher les événements'}
+            accessibilityState={{ expanded: isExpanded, disabled: !isSheetExpandable }}
+            disabled={!isSheetExpandable} hitSlop={12}
+            onPress={() => isExpanded ? requestSnapIndex(0) : openFromPeekRef.current()}>
             {isSheetExpandable ? <View style={styles.handleIndicator} /> : null}
-          </View>
+          </Pressable>
 
           <View style={styles.chromeContent}>
             <Animated.View
@@ -730,7 +761,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             >
               <View style={styles.headerRow}>
                 <View style={styles.headerTextBlock}>
-                  <Text style={styles.headerTitle}>{peekTitle}</Text>
+                  <Text style={styles.headerTitle}>On fait quoi dans le coin ?</Text>
                   {isRefreshing ? (
                     <Text
                       style={styles.refreshSubtitle}
@@ -779,6 +810,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               onNavigate={() => onNavigate(events[0])}
               onOpenCreator={onOpenCreator}
               onToggleHeart={handleToggleHeart}
+              onShare={shareEvent}
               isHearted={isHearted ? isHearted(events[0].id) : undefined}
             />
           </View>
@@ -825,33 +857,43 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
               alwaysBounceVertical={isExpanded}
               scrollEventThrottle={16}
               nestedScrollEnabled
+              onScrollBeginDrag={() => {
+                scrollTarget.current = null;
+                if (scrollRetry.current) clearTimeout(scrollRetry.current);
+              }}
               onScroll={(event) => {
                 const offsetY = event.nativeEvent.contentOffset.y;
                 scrollYRef.current = offsetY;
                 listScrollY.value = offsetY;
               }}
-              getItemLayout={(_, index) => ({
-                length: LIST_ITEM_STRIDE,
-                offset: LIST_ITEM_STRIDE * index,
-                index,
-              })}
-              onScrollToIndexFailed={(info: { index: number; averageItemLength: number }) => {
-                const fallbackOffset = info.averageItemLength
-                  ? info.averageItemLength * info.index
-                  : LIST_ITEM_STRIDE * info.index;
-                listRef.current?.scrollToOffset({ offset: fallbackOffset, animated: true });
-                requestAnimationFrame(() => {
-                  listRef.current?.scrollToIndex({
-                    index: info.index,
-                    animated: true,
-                    viewPosition: 0.25,
-                  });
+              onScrollToIndexFailed={(info) => {
+                if (scrollTarget.current !== info.index || scrollAttempts.current >= 24) return;
+                scrollAttempts.current += 1;
+                listRef.current?.scrollToOffset({
+                  offset: estimateMapEventOffset(info.index, info.averageItemLength, listHeaderHeight.current),
+                  animated: false,
                 });
+                if (scrollRetry.current) clearTimeout(scrollRetry.current);
+                scrollRetry.current = setTimeout(() => {
+                  if (scrollTarget.current === info.index && info.index < visibleCountRef.current) {
+                    listRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.25 });
+                  }
+                }, 180);
               }}
+              ListHeaderComponent={
+                <View onLayout={(event) => { listHeaderHeight.current = event.nativeEvent.layout.height; }}>
+                  <MapDiscoveryHeader spotlight={spotlightEvents} stats={statsByEventId} pendingIds={pendingIds}
+                    isHearted={isHearted} total={Math.max(peekCount, totalCount)} sortBy={sortBy} sortOrder={sortOrder}
+                    hasLocation={hasLocation} onSort={onSortChange ?? (onSortByChange ? (value) => onSortByChange(value) : undefined)}
+                    onOpen={onOpenDetails} onToggleHeart={handleToggleHeart} onShare={shareEvent}
+                    onShowAll={showAllEvents}
+                    onResultsLayout={(y) => { resultsHeaderY.current = y; }} distanceFor={distanceFor} />
+                </View>
+              }
               initialNumToRender={6}
               maxToRenderPerBatch={8}
               windowSize={7}
-              removeClippedSubviews
+              removeClippedSubviews={false}
               viewabilityConfig={SHEET_VIEWABILITY_CONFIG}
               onViewableItemsChanged={onViewableItemsChanged}
               onEndReached={revealNextPage}
@@ -863,6 +905,11 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             </Animated.View>
           </GestureDetector>
         )}
+        {showViewportList && isExpanded ? (
+          <Pressable onPress={() => requestSnapIndex(0)} accessibilityRole="button" accessibilityLabel="Revenir à la carte" style={[styles.mapButton, { bottom: Math.max(16, bottomContentInset - 48) }]}>
+            <BrandIcon name="map" size={21} /><Text style={styles.mapButtonText}>Carte</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
@@ -968,10 +1015,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   listContent: {
-    paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xl,
-    gap: spacing.md,
   },
+  rowWrap: { paddingHorizontal: spacing.md },
+  dateHeading: { ...typography.bodySmall, fontWeight: '700', color: colors.brand.text, marginTop: spacing.md },
+  mapButton: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, paddingHorizontal: 18, borderRadius: 15, backgroundColor: colors.brand.page, borderWidth: 1, borderColor: colors.neutral[200], shadowColor: colors.brand.ink, shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  mapButtonText: { ...typography.bodySmall, fontWeight: '700', color: colors.brand.text },
   singleContainer: {
     paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xl,

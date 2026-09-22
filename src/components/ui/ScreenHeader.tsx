@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { BrandIcon } from '@/components/ui/BrandIcon';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
 type Props = {
@@ -23,7 +23,7 @@ export function ScreenHeader({ title, onBack, right, style }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Retour"
         >
-          <ChevronLeft size={22} color={colors.brand.text} />
+          <BrandIcon name="back" size={22} />
         </TouchableOpacity>
       ) : (
         <View style={styles.placeholder} />

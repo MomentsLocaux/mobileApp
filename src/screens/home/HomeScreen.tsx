@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, Search } from 'lucide-react-native';
@@ -30,6 +31,7 @@ import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { useLikesStore } from '@/store/likesStore';
 import { filterEvents, filterEventsByMetaStatus } from '@/utils/filter-events';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { sharePublishedEvent } from '@/utils/event-share';
 import { withUpdatedLikeCount } from '@/utils/likes-count';
 import { sortEvents } from '@/utils/sort-events';
 import { takeLatestCreatedEvents } from '@/utils/latest-added-events';
@@ -107,6 +109,7 @@ type HomeFeedEventItemProps = {
   onPressEvent: (event: EventWithCreator) => void;
   onNavigateEvent: (event: EventWithCreator) => void;
   onToggleHeart: (event: EventWithCreator) => void;
+  onShareEvent: (event: EventWithCreator) => void;
 };
 
 const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
@@ -119,6 +122,7 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
   onPressEvent,
   onNavigateEvent,
   onToggleHeart,
+  onShareEvent,
 }: HomeFeedEventItemProps) {
   const onPress = useCallback(() => onPressEvent(event), [event, onPressEvent]);
   const onNavigate = useCallback(() => onNavigateEvent(event), [event, onNavigateEvent]);
@@ -136,6 +140,7 @@ const HomeFeedEventItem = React.memo(function HomeFeedEventItem({
       onNavigate={onNavigate}
       isHearted={isHearted}
       onToggleHeart={onToggleHeart}
+      onShare={onShareEvent}
     />
   );
 });
@@ -677,6 +682,14 @@ export default function HomeScreen() {
     setNavEvent(event);
   }, []);
 
+  const handleShareEvent = useCallback(async (event: EventWithCreator) => {
+    try {
+      await sharePublishedEvent(event);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d’ouvrir le partage pour le moment.');
+    }
+  }, []);
+
   const renderFeedItem = useCallback(
     ({ item }: { item: EventWithCreator }) => (
       <View style={styles.feedItemWrap}>
@@ -690,6 +703,7 @@ export default function HomeScreen() {
           onPressEvent={handlePressEvent}
           onNavigateEvent={handleNavigateEvent}
           onToggleHeart={handleToggleHeart}
+          onShareEvent={handleShareEvent}
         />
       </View>
     ),
@@ -699,6 +713,7 @@ export default function HomeScreen() {
       handleNavigateEvent,
       handlePressEvent,
       handleToggleHeart,
+      handleShareEvent,
       likesSet,
     ]
   );

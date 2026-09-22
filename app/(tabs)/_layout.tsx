@@ -2,25 +2,10 @@ import { Tabs, Redirect, usePathname, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
-import {
-  Map,
-  HouseHeart,
-  Users,
-  User,
-  Bell,
-  PlusCircle,
-  Heart,
-  Lightbulb,
-  Bug,
-  Mail,
-  Settings,
-  LogOut,
-  MapPinned,
-  WandSparkles,
-} from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Pressable, Text, ScrollView } from 'react-native';
-import { BrandLogoSpinner, UserAvatar } from '@/components/ui';
+import { BrandIcon, BrandLogoSpinner, UserAvatar } from '@/components/ui';
+import type { BrandIconName } from '@/components/ui/BrandIcon';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -206,11 +191,6 @@ export default function TabsLayout() {
     opacity: drawerProgress.value,
   }));
 
-  const tabIconColor = (focused: boolean, disabled = false) => {
-    if (disabled) return colors.brand.textSecondary;
-    return focused ? accent.accent : colors.brand.textSecondary;
-  };
-
   const renderTabIconSlot = (
     focused: boolean,
     content: React.ReactNode,
@@ -308,7 +288,12 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused, size }) =>
               renderTabIconSlot(
                 focused,
-                <HouseHeart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />,
+                <BrandIcon
+                  name="home"
+                  size={size}
+                  active={focused && !isGuest}
+                  color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
+                />,
                 'home',
               ),
             tabBarButton: (props) =>
@@ -328,10 +313,11 @@ export default function TabsLayout() {
                   tabBarIcon: ({ focused, size }) =>
                     renderTabIconSlot(
                       focused,
-                      <WandSparkles
+                      <BrandIcon
+                        name="sparkles"
                         size={size}
-                        color={tabIconColor(focused, isGuest)}
-                        strokeWidth={focused ? 2.4 : 2}
+                        active={focused && !isGuest}
+                        color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
                       />,
                       'proposals',
                     ),
@@ -347,7 +333,7 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused, size }) =>
               renderTabIconSlot(
                 focused,
-                <Map size={size} color={tabIconColor(focused)} strokeWidth={focused ? 2.4 : 2} />,
+                <BrandIcon name="map" size={size} active={focused} color={colors.brand.ink} />,
                 'map',
               ),
             tabBarStyle: {
@@ -374,7 +360,12 @@ export default function TabsLayout() {
                   tabBarIcon: ({ focused, size }) =>
                     renderTabIconSlot(
                       focused,
-                      <Heart size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />,
+                      <BrandIcon
+                        name="heart"
+                        size={size}
+                        active={focused && !isGuest}
+                        color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
+                      />,
                       'favorites',
                     ),
                   tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
@@ -399,7 +390,12 @@ export default function TabsLayout() {
                       />
                     </PremiumAvatarFrame>
                   ) : (
-                    <User size={size} color={tabIconColor(focused, isGuest)} strokeWidth={focused ? 2.4 : 2} />
+                    <BrandIcon
+                      name="user"
+                      size={size}
+                      active={focused && !isGuest}
+                      color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
+                    />
                   )}
                   {unreadNotifications > 0 ? (
                     <View style={styles.profileTabBadge}>
@@ -476,7 +472,7 @@ export default function TabsLayout() {
             <Text style={styles.sectionTitle}>DÉCOUVERTE</Text>
             {publishSurfaces.showCenterTabAction ? (
               <DrawerLink
-                icon={PlusCircle}
+                icon="plus"
                 label="Ajouter une suggestion"
                 onPress={() => {
                   toggleDrawer(false);
@@ -495,7 +491,7 @@ export default function TabsLayout() {
               />
             ) : null}
             <DrawerLink
-              icon={User}
+              icon="user"
               label="Mon profil"
               active
               onPress={() => {
@@ -505,7 +501,7 @@ export default function TabsLayout() {
             />
             {features.socialPeers && (
               <DrawerLink
-                icon={Users}
+                icon="users"
                 label="Membres"
                 onPress={() => {
                   toggleDrawer(false);
@@ -515,7 +511,7 @@ export default function TabsLayout() {
             )}
             {features.socialPeers && profile?.id ? (
               <DrawerLink
-                icon={Users}
+                icon="users"
                 label="Ma communauté"
                 onPress={() => {
                   toggleDrawer(false);
@@ -529,7 +525,7 @@ export default function TabsLayout() {
           <View style={styles.drawerSection}>
             <Text style={styles.sectionTitle}>COMPTE</Text>
             <DrawerLink
-              icon={Settings}
+              icon="settings"
               label="Paramètres"
               onPress={() => {
                 toggleDrawer(false);
@@ -537,7 +533,7 @@ export default function TabsLayout() {
               }}
             />
             <DrawerLink
-              icon={Bell}
+              icon="bell"
               label="Notifications"
               badgeCount={unreadNotifications}
               onPress={() => {
@@ -552,7 +548,7 @@ export default function TabsLayout() {
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
             {!isProfessionnelAccount ? (
               <DrawerLink
-                icon={Heart}
+                icon="heart"
                 label="Mes favoris"
                 onPress={() => {
                   toggleDrawer(false);
@@ -562,7 +558,7 @@ export default function TabsLayout() {
             ) : null}
             {publishSurfaces.showMySuggestions ? (
               <DrawerLink
-                icon={Lightbulb}
+                icon="bulb"
                 label="Mes suggestions"
                 onPress={() => {
                   toggleDrawer(false);
@@ -572,7 +568,7 @@ export default function TabsLayout() {
             ) : null}
             {publishSurfaces.showMyEvents ? (
               <DrawerLink
-                icon={MapPinned}
+                icon="pin"
                 label="Mes événements"
                 onPress={() => {
                   toggleDrawer(false);
@@ -586,7 +582,7 @@ export default function TabsLayout() {
             <View style={styles.drawerSection}>
               <Text style={styles.sectionTitle}>ASSISTANCE</Text>
               <DrawerLink
-                icon={Bug}
+                icon="bug"
                 label="Reporter un bug"
                 iconColor={colors.error[400]}
                 onPress={() => {
@@ -595,7 +591,7 @@ export default function TabsLayout() {
                 }}
               />
               <DrawerLink
-                icon={Mail}
+                icon="mail"
                 label="Contact"
                 onPress={() => {
                   toggleDrawer(false);
@@ -628,7 +624,7 @@ export default function TabsLayout() {
                 });
               }}
             >
-              <LogOut size={20} color={colors.neutral[400]} />
+              <BrandIcon name="logout" size={20} color={colors.neutral[400]} />
               <Text style={styles.logoutText}>Déconnexion</Text>
             </TouchableOpacity>
           ) : null}
@@ -689,7 +685,7 @@ export default function TabsLayout() {
 }
 
 const DrawerLink = ({
-  icon: IconCmp,
+  icon,
   label,
   onPress,
   active,
@@ -697,7 +693,7 @@ const DrawerLink = ({
   iconColor,
   premium,
 }: {
-  icon: any;
+  icon: BrandIconName;
   label: string;
   onPress: () => void;
   active?: boolean;
@@ -721,10 +717,11 @@ const DrawerLink = ({
     }
     accessibilityState={{ selected: !!active }}
   >
-    <IconCmp
-      size={20}
-      color={iconColor || (active ? colors.brand.secondary : colors.brand.textSecondary)}
-      strokeWidth={2}
+    <BrandIcon
+      name={icon}
+      size={22}
+      active={Boolean(active)}
+      color={iconColor || (active ? colors.brand.ink : colors.brand.textSecondary)}
     />
     <View style={styles.linkLabelWrapper}>
       <Text style={[styles.linkLabel, active && styles.linkLabelActive, premium && styles.linkLabelPremium]}>

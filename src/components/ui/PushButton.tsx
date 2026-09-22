@@ -3,7 +3,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -15,24 +14,19 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, spacing, typography, borderRadius, minimumTouchTarget } from '@/constants/theme';
+import { colors, spacing, typography, minimumTouchTarget } from '@/constants/theme';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { haptics } from '@/utils/haptics';
+import { BrandIcon, type BrandIconName } from '@/components/ui/BrandIcon';
 
-const TRAVEL = 5;
-const WELL = colors.primary[700];
-const FACE_OFF = colors.brand.surface;
+const TRAVEL = 3;
+const WELL_PRIMARY = colors.primary[700];
+const WELL_SECONDARY = colors.primary[200];
+const FACE_OFF = colors.brand.page;
 const FACE_LIT = colors.brand.secondary;
 const FACE_PRESS = colors.primary[600];
-const ICON_OFF = colors.brand.secondary;
-const ICON_ON = colors.brand.onAccent;
-
-type LucideGlyph = React.ComponentType<{
-  size?: number;
-  color?: string;
-  strokeWidth?: number;
-}>;
+const CORNER = 15;
 
 type Props = {
   onPress: () => void;
@@ -40,11 +34,13 @@ type Props = {
   /** Latched down + lit. Omit for a momentary push CTA. */
   toggled?: boolean;
   disabled?: boolean;
-  icon?: LucideGlyph;
+  icon?: BrandIconName;
   iconSize?: number;
   label?: string;
-  /** Circular icon well (calendar / pin). */
-  shape?: 'circle' | 'pill';
+  /** Leaf face (primary CTA) or mint-edged page face (secondary / toggles). */
+  tone?: 'primary' | 'secondary';
+  /** Square icon well (calendar / pin) or wide labelled CTA. */
+  shape?: 'square' | 'pill';
   style?: StyleProp<ViewStyle>;
 };
 
@@ -53,13 +49,16 @@ export function PushButton({
   accessibilityLabel,
   toggled,
   disabled = false,
-  icon: Icon,
+  icon,
   iconSize = 20,
   label,
-  shape = label ? 'pill' : 'circle',
+  tone,
+  shape = label ? 'pill' : 'square',
   style,
 }: Props) {
   const isToggle = typeof toggled === 'boolean';
+  const resolvedTone = tone ?? (isToggle ? 'secondary' : 'primary');
+  const isPrimary = resolvedTone === 'primary';
   const reduceMotion = useReduceMotion();
   const lit = useSharedValue(toggled ? 1 : 0);
   const press = useSharedValue(0);
@@ -74,11 +73,19 @@ export function PushButton({
   }, [isToggle, lit, reduceMotion, toggled]);
 
   const haloStyle = useAnimatedStyle(() => ({
-    opacity: isToggle ? lit.value * 0.9 : press.value * 0.4,
+    opacity: press.value * 0.28,
     transform: [
-      { scale: interpolate(isToggle ? lit.value : press.value, [0, 1], [0.86, 1.12]) },
+      { scale: interpolate(press.value, [0, 1], [0.9, 1.08]) },
     ],
   }));
+
+  const wellStyle = useAnimatedStyle(() => {
+    if (isPrimary) return { backgroundColor: WELL_PRIMARY };
+    const latched = isToggle ? lit.value : 0;
+    return {
+      backgroundColor: interpolateColor(latched, [0, 1], [WELL_SECONDARY, WELL_PRIMARY]),
+    };
+  });
 
   const faceStyle = useAnimatedStyle(() => {
     const latched = isToggle ? lit.value : 0;
@@ -86,16 +93,17 @@ export function PushButton({
     const travel = reduceMotion ? 0 : interpolate(depth, [0, 1], [0, TRAVEL]);
     const faceColor = isToggle
       ? interpolateColor(Math.min(1, lit.value + press.value * 0.25), [0, 1], [FACE_OFF, FACE_LIT])
-      : interpolateColor(press.value, [0, 1], [FACE_LIT, FACE_PRESS]);
+      : isPrimary
+        ? interpolateColor(press.value, [0, 1], [FACE_LIT, FACE_PRESS])
+        : FACE_OFF;
     return {
       transform: [{ translateY: travel }],
       backgroundColor: faceColor,
     };
   });
 
-  const isCircle = shape === 'circle';
-  const iconColor = isToggle ? (toggled ? ICON_ON : ICON_OFF) : ICON_ON;
-  const labelColor = isToggle ? (toggled ? ICON_ON : ICON_OFF) : ICON_ON;
+  const isSquare = shape === 'square';
+  const iconColor = colors.brand.ink;
 
   return (
     <Pressable
@@ -119,34 +127,41 @@ export function PushButton({
       }}
       style={[
         styles.pressable,
-        !isCircle && styles.pressablePill,
+        !isSquare && styles.pressablePill,
         disabled && styles.disabled,
         style,
       ]}
     >
       <Animated.View
         pointerEvents="none"
-        style={[styles.halo, isCircle ? styles.haloCircle : styles.haloPill, haloStyle]}
+        style={[styles.halo, isSquare ? styles.haloSquare : styles.haloPill, haloStyle]}
       />
-      <View style={[styles.well, isCircle ? styles.wellCircle : styles.wellPill]}>
-        <Animated.View style={[styles.face, isCircle ? styles.faceCircle : styles.facePill, faceStyle]}>
-          <View pointerEvents="none" style={[styles.shine, isCircle && styles.shineCircle]} />
-          <View style={styles.content}>
-            {Icon ? <Icon size={iconSize} color={iconColor} strokeWidth={2.4} /> : null}
+      <Animated.View style={[styles.well, isSquare ? styles.wellSquare : styles.wellPill, wellStyle]}>
+        <Animated.View style={[styles.face, isSquare ? styles.faceSquare : styles.facePill, faceStyle]}>
+          <Animated.View pointerEvents="none" style={[styles.shine, isSquare && styles.shineSquare]} />
+          <Animated.View style={styles.content}>
+            {icon ? (
+              <BrandIcon
+                name={icon}
+                size={iconSize}
+                active={false}
+                color={iconColor}
+              />
+            ) : null}
             {label ? (
-              <Text style={[styles.label, { color: labelColor }]} numberOfLines={1}>
+              <Text style={styles.label}>
                 {label}
               </Text>
             ) : null}
-          </View>
+          </Animated.View>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Pressable>
   );
 }
 
-const WELL_CIRCLE = 52;
-const FACE_CIRCLE = 46;
+const WELL_SQUARE = 48;
+const FACE_SQUARE = 45;
 
 const styles = StyleSheet.create({
   pressable: {
@@ -163,37 +178,36 @@ const styles = StyleSheet.create({
   },
   halo: {
     position: 'absolute',
-    backgroundColor: 'rgba(124, 181, 24, 0.38)',
+    backgroundColor: 'rgba(124, 181, 24, 0.28)',
   },
-  haloCircle: {
-    top: -5,
-    left: -5,
-    width: WELL_CIRCLE + 10,
-    height: WELL_CIRCLE + 10,
-    borderRadius: (WELL_CIRCLE + 10) / 2,
+  haloSquare: {
+    top: -4,
+    left: -4,
+    width: WELL_SQUARE + 8,
+    height: WELL_SQUARE + 8,
+    borderRadius: CORNER + 4,
   },
   haloPill: {
-    top: -6,
-    right: -6,
-    bottom: -6,
-    left: -6,
-    borderRadius: borderRadius.full,
+    top: -4,
+    right: -4,
+    bottom: -4,
+    left: -4,
+    borderRadius: CORNER + 4,
   },
   well: {
-    backgroundColor: WELL,
     overflow: 'hidden',
     paddingBottom: TRAVEL,
   },
-  wellCircle: {
-    width: WELL_CIRCLE,
-    height: WELL_CIRCLE,
-    borderRadius: WELL_CIRCLE / 2,
+  wellSquare: {
+    width: WELL_SQUARE,
+    height: WELL_SQUARE,
+    borderRadius: CORNER,
     alignItems: 'center',
   },
   wellPill: {
-    minHeight: WELL_CIRCLE,
+    minHeight: WELL_SQUARE,
     minWidth: minimumTouchTarget,
-    borderRadius: borderRadius.full,
+    borderRadius: CORNER,
     paddingHorizontal: 2,
     alignSelf: 'stretch',
   },
@@ -206,16 +220,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(26, 51, 41, 0.22)',
   },
-  faceCircle: {
-    width: FACE_CIRCLE,
-    height: FACE_CIRCLE,
-    marginTop: 1,
-    borderRadius: FACE_CIRCLE / 2,
+  faceSquare: {
+    width: FACE_SQUARE,
+    height: FACE_SQUARE,
+    marginTop: 0,
+    borderRadius: CORNER - 1,
   },
   facePill: {
     alignSelf: 'stretch',
-    minHeight: FACE_CIRCLE,
-    borderRadius: borderRadius.full,
+    minHeight: FACE_SQUARE,
+    borderRadius: CORNER - 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -227,9 +241,9 @@ const styles = StyleSheet.create({
     height: '42%',
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
-  shineCircle: {
-    borderTopLeftRadius: FACE_CIRCLE / 2,
-    borderTopRightRadius: FACE_CIRCLE / 2,
+  shineSquare: {
+    borderTopLeftRadius: CORNER - 1,
+    borderTopRightRadius: CORNER - 1,
   },
   content: {
     flexDirection: 'row',
@@ -240,7 +254,10 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.bodySmall,
+    flexShrink: 1,
+    textAlign: 'center',
     fontWeight: '800',
     letterSpacing: 0.2,
+    color: colors.brand.ink,
   },
 });

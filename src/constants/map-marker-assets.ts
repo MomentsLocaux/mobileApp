@@ -1,5 +1,9 @@
 import type { ImageSourcePropType } from 'react-native';
-import { categoryMarkerImageKey, type CategoryVisualSlug } from './category-visuals';
+import {
+  categoryMarkerImageKey,
+  isCategoryVisualSlug,
+  type CategoryVisualSlug,
+} from './category-visuals';
 
 type MapMarkerAsset = {
   source: ImageSourcePropType;
@@ -55,6 +59,13 @@ export const CATEGORY_MAP_MARKER_ASSETS: Record<CategoryVisualSlug, MapMarkerAss
     primaryColor: '#a855f7',
   },
 };
+
+/** Same PNG as the map pin, for list/sheet chrome. Never tint these RGB assets. */
+export function getCategoryMapMarkerSource(slug?: string | null): ImageSourcePropType | null {
+  const key = slug?.trim().toLowerCase();
+  if (!isCategoryVisualSlug(key)) return null;
+  return CATEGORY_MAP_MARKER_ASSETS[key].source;
+}
 
 /** Shared textures, not one React view or texture per event. Never tint these RGB assets. */
 export const MAP_MARKER_IMAGES = Object.fromEntries(

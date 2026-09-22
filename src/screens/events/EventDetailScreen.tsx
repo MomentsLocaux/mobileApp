@@ -23,14 +23,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Heart,
-  MapPin,
-  MapPinned,
-  Calendar,
-  Share2,
   Flag,
   Edit,
-  ChevronLeft,
   ChevronRight,
   Star,
   Eye,
@@ -47,6 +41,7 @@ import {
   EventDetailSkeleton,
   PushButton,
   UserAvatar,
+  BrandIcon,
 } from '../../components/ui';
 import { features } from '@/config/features';
 import { getEventAppLink, getEventShareMessage } from '@/utils/event-share';
@@ -73,7 +68,6 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -94,6 +88,7 @@ import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { PlaceMediaGallery, type MediaImage } from '@/components/events/PlaceMediaGallery';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
+import { EventDetailSection } from '@/components/events/EventDetailSection';
 import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
 import { EventEchoesPreview } from '@/components/events/EventEchoesPreview';
 import { supabase } from '@/lib/supabase/client';
@@ -228,6 +223,8 @@ export default function EventDetailScreen() {
     views: 0,
   });
   const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [heartPending, setHeartPending] = useState(false);
+  const heartPendingRef = useRef(false);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -258,21 +255,6 @@ export default function EventDetailScreen() {
   const { events: similarEvents, loading: similarLoading } = useSimilarEvents(event, {
     ready: similarReady,
   });
-
-  const heartScale = useSharedValue(1);
-  const wasHeartedRef = useRef(isEventHearted);
-  useEffect(() => {
-    if (isEventHearted && !wasHeartedRef.current) {
-      heartScale.value = withSequence(
-        withSpring(1.3, Motion.spring.snappy),
-        withSpring(1, Motion.spring.soft)
-      );
-    }
-    wasHeartedRef.current = isEventHearted;
-  }, [isEventHearted, heartScale]);
-  const heartAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heartScale.value }],
-  }));
 
   const openGuestGate = (title: string) => setGuestGate({ visible: true, title });
   const closeGuestGate = () => setGuestGate({ visible: false, title: '' });
@@ -614,7 +596,9 @@ export default function EventDetailScreen() {
       openGuestGate('Aimer cet événement');
       return;
     }
-    if (!profile || !event) return;
+    if (!profile || !event || heartPendingRef.current) return;
+    heartPendingRef.current = true;
+    setHeartPending(true);
 
     haptics.light();
 
@@ -646,6 +630,9 @@ export default function EventDetailScreen() {
       await loadEventStats(event.id);
     } catch (error) {
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
+    } finally {
+      heartPendingRef.current = false;
+      setHeartPending(false);
     }
   };
 
@@ -1243,11 +1230,11 @@ export default function EventDetailScreen() {
           >
             <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
               <FloatingPressable style={styles.iconButton} onPress={handleBack} entranceDelay={0}>
-                <ChevronLeft size={22} color={colors.brand.text} />
+                <BrandIcon name="back" size={22} />
               </FloatingPressable>
               <View style={styles.headerActions}>
                 <FloatingPressable style={styles.iconButton} onPress={handleShare} entranceDelay={40}>
-                  <Share2 size={20} color={colors.brand.text} />
+                  <BrandIcon name="share" size={20} />
                 </FloatingPressable>
                 {event.status === 'published' ? (
                   <FloatingPressable
@@ -1289,6 +1276,8 @@ export default function EventDetailScreen() {
                   active={isEventHearted}
                   onPress={handleToggleHeart}
                   hapticsEnabled={false}
+                  disabled={heartPending}
+                  style={styles.heroHeart}
                 />
               </View>
             </View>
@@ -1322,7 +1311,12 @@ export default function EventDetailScreen() {
         <View style={styles.content}>
           <MotionReveal delay={Motion.stagger.content} enabled={!seededEvent}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{event.title}</Text>
+            <View style={styles.titleBlock}>
+              {event.city ? (
+                <Text style={styles.eventKicker}>{event.city}</Text>
+              ) : null}
+              <Text style={styles.title}>{event.title}</Text>
+            </View>
             {__DEV__ ? (
               <TouchableOpacity
                 style={styles.debugIdButton}
@@ -1372,10 +1366,10 @@ export default function EventDetailScreen() {
           ) : null}
 
           <MotionReveal delay={Motion.stagger.content * 2} enabled={!seededEvent}>
-          <Card padding="md" style={styles.infoCard}>
+          <EventDetailSection>
             <View style={styles.infoRowNoMargin}>
               <PushButton
-                icon={Calendar}
+                icon="calendar"
                 toggled={calendarExpanded}
                 onPress={() => setCalendarExpanded((prev) => !prev)}
                 accessibilityLabel={
@@ -1392,8 +1386,9 @@ export default function EventDetailScreen() {
               </View>
             </View>
             <PushButton
-              icon={Calendar}
-              iconSize={16}
+              icon="calendar"
+              iconSize={20}
+              tone="secondary"
               label={calendarBusy ? 'Ouverture de l’agenda…' : EVENT_CALENDAR_LABEL}
               disabled={calendarBusy}
               onPress={() => void handleAddToCalendar()}
@@ -1410,31 +1405,23 @@ export default function EventDetailScreen() {
                 ))}
               </View>
             ) : null}
-          </Card>
+          </EventDetailSection>
           </MotionReveal>
 
           <MotionReveal delay={Motion.stagger.content * 3} enabled={!seededEvent}>
-          <Card padding="md" style={[styles.infoCard, { marginTop: spacing.md }]}>
+          <EventDetailSection style={styles.locationSection}>
             <View style={styles.infoRowNoMargin}>
               <PushButton
-                icon={MapPin}
+                icon="pin"
                 toggled={locationExpanded}
                 onPress={() => setLocationExpanded((prev) => !prev)}
                 accessibilityLabel={locationExpanded ? 'Masquer la carte' : 'Afficher la carte'}
               />
               <View style={styles.infoContent}>
                 <Text style={styles.infoValue}>{locationLabel}</Text>
-                <Text style={styles.infoLabel}>{locationSubLabel}</Text>
-              </View>
-              <View style={styles.routeColumn}>
-                <PushButton
-                  icon={MapPinned}
-                  iconSize={16}
-                  label={EVENT_ITINERARY_LABEL}
-                  onPress={handleOpenNavigationOptions}
-                  accessibilityLabel={EVENT_ITINERARY_LABEL}
-                />
-                {distanceLabel ? <Text style={styles.routeDistanceText}>{distanceLabel}</Text> : null}
+                <Text style={styles.infoLabel}>
+                  {distanceLabel ? `${locationSubLabel} · ${distanceLabel}` : locationSubLabel}
+                </Text>
               </View>
             </View>
               {locationExpanded ? (
@@ -1466,7 +1453,15 @@ export default function EventDetailScreen() {
                   </View>
                 </View>
               ) : null}
-          </Card>
+            <PushButton
+              icon="navigation"
+              iconSize={20}
+              label={EVENT_ITINERARY_LABEL}
+              onPress={handleOpenNavigationOptions}
+              accessibilityLabel={EVENT_ITINERARY_LABEL}
+              style={styles.calendarCta}
+            />
+          </EventDetailSection>
           </MotionReveal>
 
           <View style={styles.statsGrid}>
@@ -1475,21 +1470,9 @@ export default function EventDetailScreen() {
               <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
             <View style={styles.statBox}>
-              <TouchableOpacity
-                onPress={handleToggleHeart}
-                accessibilityRole="button"
-                accessibilityLabel={isEventHearted ? 'Ne plus aimer' : 'Aimer'}
-                hitSlop={8}
-              >
-                <Animated.View style={heartAnimatedStyle}>
-                  <Heart
-                    size={20}
-                    color={colors.brand.secondary}
-                    fill={isEventHearted ? colors.brand.secondary : 'transparent'}
-                    style={{ marginBottom: 4 }}
-                  />
-                </Animated.View>
-              </TouchableOpacity>
+              <EventHeartButton active={isEventHearted} disabled={heartPending}
+                onPress={handleToggleHeart} hapticsEnabled={false} style={styles.statsHeart}
+                accessibilityLabel={isEventHearted ? 'Ne plus aimer' : 'Aimer'} />
               <TouchableOpacity
                 onPress={handleOpenLikers}
                 accessibilityRole="button"
@@ -1739,8 +1722,11 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     ...screenHeaderStyles.iconButton,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: 'rgba(244, 251, 246, 0.92)',
-    borderColor: 'rgba(26,51,41,0.12)',
+    borderColor: colors.neutral[200],
   },
   heroContainer: {
     position: 'relative',
@@ -1788,10 +1774,29 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eventKicker: {
+    ...typography.caption,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.brand.textSecondary,
+    marginBottom: 8,
+  },
   title: {
     ...typography.h2,
-    flex: 1,
     color: colors.brand.text,
+  },
+  heroHeart: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  locationSection: {
+    marginTop: spacing.md,
   },
   debugIdButton: {
     width: 24,
@@ -1808,9 +1813,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.textSecondary,
     fontWeight: '700',
-  },
-  infoCard: {
-    marginBottom: 0,
   },
   infoRowNoMargin: {
     flexDirection: 'row',
@@ -1884,22 +1886,11 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     lineHeight: 18,
   },
-  routeColumn: {
-    marginLeft: spacing.sm,
-    alignItems: 'flex-end',
-    gap: 4,
-    flexShrink: 0,
-  },
-  routeDistanceText: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    fontWeight: '600',
-  },
   locationExpandedWrap: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.15)',
+    borderTopColor: colors.neutral[200],
   },
   locationMapBox: {
     height: 150,
@@ -1917,8 +1908,9 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: colors.brand.secondary,
     borderWidth: 3,
-    borderColor: 'rgba(15,23,25,0.9)',
+    borderColor: colors.brand.ink,
   },
+  statsHeart: { width: 48, height: 48, borderRadius: 24, borderWidth: 0, backgroundColor: 'transparent' },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

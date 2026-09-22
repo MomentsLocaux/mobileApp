@@ -1,5 +1,7 @@
 export { Button } from './Button';
 export { PushButton } from './PushButton';
+export { BrandIcon } from './BrandIcon';
+export { UiReliefFixture } from './UiReliefFixture';
 export { Input } from './Input';
 export { Card } from './Card';
 export { AppBackground } from './AppBackground';

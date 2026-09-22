@@ -170,5 +170,64 @@ export function formatEventCardRangeLine(
   return `${formatDateTime(startDate, style)} → ${formatDateTime(endDate, style)}`;
 }
 
+const formatStampDate = (date: Date, withYear = false) =>
+  date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    ...(withYear ? { year: 'numeric' } : {}),
+  });
+
+/**
+ * Two-line stamp for map discovery cards.
+ * Same-day keeps the start time; multi-day shows the period like the home list
+ * (`15 août` / `→ 17 août`) so a long-running event is not mistaken for its start day.
+ */
+export type EventCardDateStamp = {
+  primary: string;
+  secondary: string | null;
+  label: string;
+  kind: 'time' | 'period' | 'plain';
+};
+
+export function getEventCardDateStamp(event: EventLike): EventCardDateStamp {
+  const startDate = parseDate(event.starts_at);
+  const endDate = parseDate(event.ends_at);
+  const label = formatEventCardRangeLine(event, 'compact', { includeTime: false });
+
+  if (!startDate) {
+    if (endDate) {
+      return { primary: 'Jusqu’au', secondary: formatStampDate(endDate), label, kind: 'period' };
+    }
+    return { primary: 'À confirmer', secondary: null, label, kind: 'plain' };
+  }
+
+  if (!endDate || endDate.getTime() < startDate.getTime()) {
+    return {
+      primary: formatStampDate(startDate),
+      secondary: formatTimeOnly(startDate),
+      label,
+      kind: 'time',
+    };
+  }
+
+  const sameDay = startOfDay(startDate).getTime() === startOfDay(endDate).getTime();
+  if (sameDay) {
+    return {
+      primary: formatStampDate(startDate),
+      secondary: formatTimeOnly(startDate),
+      label,
+      kind: 'time',
+    };
+  }
+
+  const withYear = startDate.getFullYear() !== endDate.getFullYear();
+  return {
+    primary: formatStampDate(startDate, withYear),
+    secondary: `→ ${formatStampDate(endDate, withYear)}`,
+    label,
+    kind: 'period',
+  };
+}
+
 export const formatEventCardStartLine = (schedule: EventCardSchedule) => `Début · ${schedule.start}`;
 export const formatEventCardEndLine = (schedule: EventCardSchedule) => `Fin · ${schedule.end}`;

@@ -43,6 +43,7 @@ interface Props {
   onOpenCreator?: (creatorId: string) => void;
   isHearted?: boolean;
   onToggleHeart?: (event: EventWithCreator) => void;
+  onShare?: (event: EventWithCreator) => void;
   listEntranceDelay?: number;
 }
 
@@ -77,6 +78,7 @@ const EventResultCardComponent: React.FC<Props> = ({
   onSelect,
   isHearted,
   onToggleHeart,
+  onShare,
   listEntranceDelay = 0,
 }) => {
   const reduceMotion = useReduceMotion();
@@ -154,6 +156,10 @@ const EventResultCardComponent: React.FC<Props> = ({
     () => (onToggleHeart ? () => onToggleHeart(event) : undefined),
     [event, onToggleHeart]
   );
+  const handleShare = useMemo(
+    () => (onShare ? () => onShare(event) : undefined),
+    [event, onShare]
+  );
 
   return (
     <View style={styles.wrapper}>
@@ -170,6 +176,7 @@ const EventResultCardComponent: React.FC<Props> = ({
           onPrimaryAction={handlePress}
           onNavigate={onNavigate}
           onHeartPress={handleHeartPress}
+          onShare={handleShare}
           isFavorite={isHearted}
           isLiked={isHearted}
           distanceKm={resolvedDistanceKm}
