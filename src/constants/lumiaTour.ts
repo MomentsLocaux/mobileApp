@@ -96,8 +96,8 @@ export function buildLumiaTourSteps(opts: BuildOpts): LumiaTourStep[] {
   if (!opts.isProfessionnel) {
     steps.push({
       id: 'favorites',
-      title: 'Tes favoris',
-      body: 'Ce que tu aimes atterrit ici. Un cœur, et tu le retrouves quand tu veux.',
+      title: 'Ton agenda',
+      body: 'Les moments que tu notes atterrissent ici, semaine par semaine. Un cœur, et tu les retrouves.',
       target: 'favorites',
       href: '/(tabs)/favorites',
     });

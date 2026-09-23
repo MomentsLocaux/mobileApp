@@ -356,19 +356,19 @@ export default function TabsLayout() {
             isProfessionnelAccount
               ? { href: null }
               : {
-                  title: 'Favoris',
+                  title: 'Agenda',
                   tabBarIcon: ({ focused, size }) =>
                     renderTabIconSlot(
                       focused,
                       <BrandIcon
-                        name="heart"
+                        name="calendar"
                         size={size}
                         active={focused && !isGuest}
                         color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
                       />,
                       'favorites',
                     ),
-                  tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à vos favoris'),
+                  tabBarButton: (props) => renderProtectedTabButton(props, 'Accéder à votre agenda'),
                 }
           }
         />
@@ -501,6 +501,16 @@ export default function TabsLayout() {
             />
             {features.socialPeers && (
               <DrawerLink
+                icon="mail"
+                label="Messages"
+                onPress={() => {
+                  toggleDrawer(false);
+                  router.push('/messages' as any);
+                }}
+              />
+            )}
+            {features.socialPeers && (
+              <DrawerLink
                 icon="users"
                 label="Membres"
                 onPress={() => {
@@ -548,8 +558,8 @@ export default function TabsLayout() {
             <Text style={styles.sectionTitle}>ACTIVITÉ</Text>
             {!isProfessionnelAccount ? (
               <DrawerLink
-                icon="heart"
-                label="Mes favoris"
+                icon="calendar"
+                label="Mon agenda"
                 onPress={() => {
                   toggleDrawer(false);
                   router.push('/(tabs)/favorites' as any);

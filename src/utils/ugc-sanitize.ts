@@ -7,6 +7,7 @@ export const UGC_LIMITS = {
   reportReason: 2000,
   bugReportUser: 4000,
   lumiaMessage: 800,
+  directMessage: 2000,
 } as const;
 
 export function stripNullBytes(value: string): string {

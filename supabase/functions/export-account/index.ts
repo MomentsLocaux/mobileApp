@@ -129,6 +129,7 @@ serve(async (req) => {
       followsIn,
       interests,
       checkins,
+      messages,
       comments,
       corrections,
       mediaSubmissions,
@@ -136,7 +137,7 @@ serve(async (req) => {
       selectMaybe(
         supabase,
         'profiles',
-        'id, display_name, city, bio, avatar_url, cover_url, created_at',
+        'id, display_name, city, bio, avatar_url, cover_url, created_at, profile_visibility',
         { column: 'id', value: user.id },
       ),
       selectMaybe(
@@ -155,6 +156,10 @@ serve(async (req) => {
       selectMaybe(supabase, 'follows', 'follower, created_at', { column: 'following', value: user.id }),
       selectMaybe(supabase, 'event_interests', 'event_id, created_at', { column: 'user_id', value: user.id }),
       selectMaybe(supabase, 'event_checkins', 'event_id, created_at', { column: 'user_id', value: user.id }),
+      selectMaybe(supabase, 'direct_messages', 'id, conversation_id, sender_id, body, created_at', {
+        column: 'sender_id',
+        value: user.id,
+      }),
       selectMaybe(supabase, 'event_comments', 'id, event_id, content, created_at', { column: 'user_id', value: user.id }),
       selectMaybe(supabase, 'event_correction_proposals', 'id, event_id, kind, status, created_at', {
         column: 'author_id',
@@ -199,6 +204,7 @@ serve(async (req) => {
       followers: followsIn,
       interests,
       checkins,
+      messages,
       comments,
       correction_proposals: corrections,
       media_submissions: mediaSubmissions,

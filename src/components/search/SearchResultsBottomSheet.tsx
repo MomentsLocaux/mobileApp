@@ -21,6 +21,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { SlidersHorizontal } from 'lucide-react-native';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import type { SortOption, SortOrder } from '@/types/filters';
@@ -111,6 +112,7 @@ interface Props {
   selectedCategories?: string[];
   hasViewportRefine?: boolean;
   onClearViewportFilters?: () => void;
+  onOpenFilters?: () => void;
   bottomContentInset?: number;
 }
 
@@ -215,6 +217,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       selectedCategories = [],
       hasViewportRefine: hasViewportRefineProp,
       onClearViewportFilters,
+      onOpenFilters,
       bottomContentInset = spacing.xl,
     },
     ref
@@ -776,20 +779,37 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                     </Text>
                   ) : null}
                 </View>
-                {onSortByChange ? (
-                  <SortControl
-                    value={sortBy}
-                    onChange={onSortByChange}
-                    onSelectionChange={onSortChange}
-                    sortOrder={sortOrder}
-                    onSortOrderChange={onSortOrderChange}
-                    hasLocation={hasLocation}
-                    options={sortOptions}
-                    mode="iconOnly"
-                    status={metaFilter}
-                  />
+                {onOpenFilters ? (
+                  <TouchableOpacity
+                    accessibilityLabel={
+                      hasViewportRefine
+                        ? 'Filtrer les événements, filtres actifs'
+                        : 'Filtrer les événements'
+                    }
+                    accessibilityRole="button"
+                    onPress={onOpenFilters}
+                    style={styles.filterButton}
+                  >
+                    <SlidersHorizontal size={18} color={colors.brand.text} />
+                    {hasViewportRefine ? <View style={styles.filterActiveDot} /> : null}
+                  </TouchableOpacity>
                 ) : null}
               </View>
+              {onSortByChange ? (
+                <SortControl
+                  value={sortBy}
+                  onChange={onSortByChange}
+                  onSelectionChange={onSortChange}
+                  sortOrder={sortOrder}
+                  onSortOrderChange={onSortOrderChange}
+                  hasLocation={hasLocation}
+                  options={sortOptions}
+                  mode="pill"
+                  status={metaFilter}
+                  style={styles.sortPill}
+                  testID="map-sheet-sort"
+                />
+              ) : null}
             </Animated.View>
           ) : null}
             </View>
@@ -884,7 +904,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                 <View onLayout={(event) => { listHeaderHeight.current = event.nativeEvent.layout.height; }}>
                   <MapDiscoveryHeader spotlight={spotlightEvents} stats={statsByEventId} pendingIds={pendingIds}
                     isHearted={isHearted} total={Math.max(peekCount, totalCount)} sortBy={sortBy} sortOrder={sortOrder}
-                    hasLocation={hasLocation} onSort={onSortChange ?? (onSortByChange ? (value) => onSortByChange(value) : undefined)}
+                    hasLocation={hasLocation}
                     onOpen={onOpenDetails} onToggleHeart={handleToggleHeart} onShare={shareEvent}
                     onShowAll={showAllEvents}
                     onResultsLayout={(y) => { resultsHeaderY.current = y; }} distanceFor={distanceFor} />
@@ -981,6 +1001,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     minHeight: VIEWPORT_PEEK_HEIGHT,
     justifyContent: 'center',
+    gap: spacing.sm,
   },
   headerRow: {
     flexDirection: 'row',
@@ -990,6 +1011,31 @@ const styles = StyleSheet.create({
   },
   headerTextBlock: {
     flex: 1,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.brand.secondary,
+    borderWidth: 1.5,
+    borderColor: colors.brand.surface,
+  },
+  sortPill: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   headerTitle: {
     ...typography.h4,

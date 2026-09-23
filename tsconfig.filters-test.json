@@ -16,6 +16,8 @@
     "src/utils/discovery-filters.test.ts",
     "src/utils/contextual-sort-labels.test.ts",
     "src/utils/favorite-events.test.ts",
+    "src/utils/agenda.test.ts",
+    "src/utils/messaging-access.test.ts",
     "src/utils/contribution-fab.test.ts",
     "src/utils/event-correction.test.ts",
     "src/utils/duplicate-candidates.test.ts",

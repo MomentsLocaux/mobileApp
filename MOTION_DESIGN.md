@@ -46,7 +46,7 @@ Helpers : `createEnterTiming`, `createExitTiming`, `createStandardTiming`.
 
 ## Overlays recherche
 
-`SearchBar` et `MapFiltersSheet` : expansion depuis l’ancre, durées alignées sur `Motion` (entrée emphasized, sortie exit).
+`SearchBar` : overlay fade + translateY. `MapFiltersSheet` : sheet plein écran, fade + translateY (pas de morph depuis le bouton), durées `Motion`.
 
 ## UI générique
 

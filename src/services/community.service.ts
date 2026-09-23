@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase/client';
 import { sanitizeIlikeFragment } from '@/utils/event-name-search';
 import { buildMemberSearchOrFilter } from '@/utils/member-place-search';
+import { isMissingSchemaError } from '@/utils/schema-missing';
+import { normalizeProfileVisibility } from '@/utils/messaging-access';
 import type { CommunityMember, LeaderboardEntry } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
 
@@ -164,14 +166,51 @@ export const CommunityService = {
     return (data || []) as LeaderboardEntry[];
   },
 
-  async getMember(userId: string): Promise<CommunityMember | null> {
+  async getProfileVisibility(userId: string): Promise<'public' | 'private'> {
+    if (!userId) return 'public';
     const { data, error } = await supabase
-      .from('community_profile_stats')
-      .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier, is_community_highlighted, community_highlighted_until')
-      .eq('user_id', userId)
+      .from('profiles')
+      .select('profile_visibility')
+      .eq('id', userId)
       .maybeSingle();
+    if (error) {
+      if (isMissingSchemaError(error) || error.code === 'PGRST116') return 'public';
+      throw error;
+    }
+    return normalizeProfileVisibility((data as { profile_visibility?: string } | null)?.profile_visibility);
+  },
+
+  async getSocialLink(targetId: string): Promise<{ isFollowing: boolean; theyFollowMe: boolean }> {
+    const currentUser = (await supabase.auth.getUser()).data.user?.id;
+    if (!currentUser || !targetId || currentUser === targetId) {
+      return { isFollowing: false, theyFollowMe: false };
+    }
+    const { data, error } = await supabase
+      .from('follows')
+      .select('follower, following')
+      .or(
+        `and(follower.eq.${currentUser},following.eq.${targetId}),and(follower.eq.${targetId},following.eq.${currentUser})`,
+      );
+    if (error) throw error;
+    const rows = (data || []) as Array<{ follower: string; following: string }>;
+    return {
+      isFollowing: rows.some((row) => row.follower === currentUser && row.following === targetId),
+      theyFollowMe: rows.some((row) => row.follower === targetId && row.following === currentUser),
+    };
+  },
+
+  async getMember(userId: string): Promise<CommunityMember | null> {
+    const [{ data, error }, visibility] = await Promise.all([
+      supabase
+        .from('community_profile_stats')
+        .select('user_id, display_name, avatar_url, cover_url, city, bio, events_created_count, lumo_total, followers_count, following_count, is_ambassadeur, local_tier, is_community_highlighted, community_highlighted_until')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      this.getProfileVisibility(userId).catch(() => 'public' as const),
+    ]);
     if (error && error.code !== 'PGRST116') throw error;
-    return (data as CommunityMember) || null;
+    if (!data) return null;
+    return { ...(data as CommunityMember), profile_visibility: visibility };
   },
 
   async getMyLeaderboardEntry(options: { period: 'monthly' | 'global'; city?: string | null; userId: string }) {

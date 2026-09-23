@@ -141,6 +141,15 @@ export default function RootLayout() {
         />
         <Stack.Screen name="bug-report" />
         <Stack.Screen name="contact" />
+        <Stack.Screen
+          name="agenda"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+        <Stack.Screen name="messages" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />

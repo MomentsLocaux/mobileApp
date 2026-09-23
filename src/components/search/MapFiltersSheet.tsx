@@ -1,73 +1,96 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Pressable,
   ScrollView,
-  useWindowDimensions,
+  Pressable,
 } from 'react-native';
 import Animated, {
-  Extrapolate,
+  cancelAnimation,
   interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { X } from 'lucide-react-native';
-import type { EventMetaFilter } from '@/utils/filter-events';
+import { Calendar, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
-import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
-import { filterColors } from '@/constants/filter-tokens';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { getCategoryColor } from '@/constants/categories';
+import { getCategoryLucideIcon } from '@/constants/category-visuals';
 import {
-  MAP_MODES,
-  type DatePreset,
-  type MapMode,
-} from '@/constants/filters';
-import {
-  activeFilterCount,
-  summarize,
-  type DiscoveryFilters,
-} from '@/utils/discovery-filters';
-import {
+  FilterChip,
   FilterChipRow,
-  FilterSection,
-  StatusFilterRow,
-  WhenPresets,
-  createFilterChipTone,
+  defaultFilterChipTone,
   type FilterChipRowOption,
 } from '@/components/filters';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { activeFilterCount, formatWhenDateRange, type DiscoveryFilters, type DiscoveryWhenFilter } from '@/utils/discovery-filters';
+import type { DiscoveryStatus } from '@/constants/filters';
+import {
+  defaultDiscoveryTemporalFilters,
+  filtersForCustomDateRange,
+  filtersForSearchTemporalChoice,
+  resolveSearchTemporalChoice,
+  SEARCH_TEMPORAL_CHOICES,
+  type SearchTemporalChoice,
+} from '@/utils/search-temporal-choice';
+import type { DateRangeValue } from '@/types/eventDate.model';
+
+export type MapViewportFilterDraft = {
+  status: DiscoveryStatus;
+  when: DiscoveryWhenFilter;
+  categories: string[];
+  subcategories: string[];
+};
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  anchorRef?: React.RefObject<View | null>;
-  metaFilter: EventMetaFilter;
-  onMetaFilterChange: (filter: EventMetaFilter) => void;
-  mapMode: MapMode;
-  onMapModeChange: (mode: MapMode) => void;
-  searchActive: boolean;
-  whenPreset?: DatePreset;
-  onWhenPresetChange: (preset?: DatePreset) => void;
-  selectedCategories: string[];
-  selectedSubcategories: string[];
-  onCategoriesChange: (categories: string[], subcategories: string[]) => void;
-  onReset: () => void;
-  resultCount: number;
-  isLoadingResults?: boolean;
-  filters: DiscoveryFilters;
+  onApply: (draft: MapViewportFilterDraft) => void;
+  value: MapViewportFilterDraft;
+  searchActive?: boolean;
 }
 
-function formatResultsButtonLabel(count: number, isLoading = false): string {
-  if (isLoading) return 'Chargement…';
-  if (count <= 0) return 'Afficher les 0 événements';
-  if (count === 1) return "Afficher l'événement";
-  return `Afficher les ${count} événements`;
+function cloneDraft(value: MapViewportFilterDraft): MapViewportFilterDraft {
+  return {
+    status: value.status,
+    when: { ...value.when },
+    categories: [...value.categories],
+    subcategories: [...value.subcategories],
+  };
+}
+
+function draftsEqual(a: MapViewportFilterDraft, b: MapViewportFilterDraft): boolean {
+  return (
+    a.status === b.status &&
+    a.when.preset === b.when.preset &&
+    (a.when.startDate || undefined) === (b.when.startDate || undefined) &&
+    (a.when.endDate || undefined) === (b.when.endDate || undefined) &&
+    Boolean(a.when.includePast) === Boolean(b.when.includePast) &&
+    a.categories.join('\0') === b.categories.join('\0') &&
+    a.subcategories.join('\0') === b.subcategories.join('\0')
+  );
+}
+
+function defaultViewportDraft(): MapViewportFilterDraft {
+  const next = defaultDiscoveryTemporalFilters();
+  return {
+    status: next.status,
+    when: { ...next.when },
+    categories: [],
+    subcategories: [],
+  };
+}
+
+function formatCustomDateLabel(when: DiscoveryWhenFilter): string {
+  return formatWhenDateRange(when) ?? 'Choisir les dates…';
 }
 
 /** `mapMode` is a display preference and never counts as an active content filter. */
@@ -78,79 +101,82 @@ export function hasMapActiveFilters(filters: DiscoveryFilters): boolean {
 export function MapFiltersSheet({
   visible,
   onClose,
-  anchorRef,
-  metaFilter,
-  onMetaFilterChange,
-  mapMode,
-  onMapModeChange,
-  searchActive,
-  whenPreset,
-  onWhenPresetChange,
-  selectedCategories,
-  selectedSubcategories,
-  onCategoriesChange,
-  onReset,
-  resultCount,
-  isLoadingResults = false,
-  filters,
+  onApply,
+  value,
+  searchActive = false,
 }: Props) {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const [overlayMounted, setOverlayMounted] = useState(false);
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
+  const [mounted, setMounted] = useState(false);
+  const [draft, setDraft] = useState<MapViewportFilterDraft>(() => cloneDraft(value));
+  const [showRangePicker, setShowRangePicker] = useState(false);
   const progress = useSharedValue(0);
-  const contentProgress = useSharedValue(0);
-  const fromX = useSharedValue(0);
-  const fromY = useSharedValue(0);
-  const fromW = useSharedValue(44);
-  const fromH = useSharedValue(44);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const mountedRef = useRef(false);
   const categories = useTaxonomyStore((s) => s.categories);
-  const subcategories = useTaxonomyStore((s) => s.subcategories);
+  const taxonomySubcategories = useTaxonomyStore((s) => s.subcategories);
+
+  const unmount = useCallback(() => {
+    mountedRef.current = false;
+    setMounted(false);
+    setShowRangePicker(false);
+  }, []);
+
+  useEffect(() => {
+    if (visible) {
+      setDraft(cloneDraft(valueRef.current));
+      mountedRef.current = true;
+      setMounted(true);
+      cancelAnimation(progress);
+      if (reduceMotion) {
+        progress.value = 1;
+        return;
+      }
+      progress.value = 0;
+      requestAnimationFrame(() => {
+        progress.value = withTiming(1, createEnterTiming(Motion.duration.slow));
+      });
+      return;
+    }
+    if (!mountedRef.current) return;
+    cancelAnimation(progress);
+    if (reduceMotion) {
+      progress.value = 0;
+      unmount();
+      return;
+    }
+    progress.value = withTiming(0, createExitTiming(Motion.duration.normal), (finished) => {
+      if (finished) runOnJS(unmount)();
+    });
+  }, [progress, reduceMotion, unmount, visible]);
 
   const visibleSubcategories = useMemo(
-    () => subcategories.filter((sub) => selectedCategories.includes(sub.category_id)),
-    [selectedCategories, subcategories]
+    () => taxonomySubcategories.filter((sub) => draft.categories.includes(sub.category_id)),
+    [draft.categories, taxonomySubcategories]
   );
 
-  const resultsButtonLabel = useMemo(
-    () => formatResultsButtonLabel(resultCount, isLoadingResults),
-    [isLoadingResults, resultCount]
+  const hasCustomDate = Boolean(draft.when.startDate || draft.when.endDate);
+  const temporalChoice = resolveSearchTemporalChoice(draft.status, draft.when);
+  const isDefaultDraft = draftsEqual(draft, defaultViewportDraft());
+  const hasPendingChanges = !draftsEqual(draft, value);
+
+  const temporalOptions = useMemo<FilterChipRowOption<SearchTemporalChoice>[]>(
+    () => SEARCH_TEMPORAL_CHOICES.map((item) => ({ key: item.key, label: item.label })),
+    []
   );
-
-  const categoryLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    categories.forEach((cat) => {
-      labels[cat.id] = cat.label;
-    });
-    subcategories.forEach((sub) => {
-      labels[sub.id] = sub.label;
-    });
-    return labels;
-  }, [categories, subcategories]);
-
-  const summaryLabel = useMemo(
-    () => summarize(filters, { categoryLabels, includeMapMode: true }),
-    [categoryLabels, filters]
-  );
-
-  const canReset = useMemo(
-    () => activeFilterCount(filters) > 0,
-    [filters]
-  );
-
-  const searchHint = useMemo(() => {
-    if (searchActive) return undefined;
-    return metaFilter !== 'all'
-      ? 'Les critères de recherche avancés sont actifs uniquement avec le statut « Tous ».'
-      : 'Pour lieu, dates précises ou texte libre, utilisez la barre de recherche.';
-  }, [metaFilter, searchActive]);
 
   const categoryOptions = useMemo<FilterChipRowOption<string>[]>(
     () =>
-      categories.map((cat) => ({
-        key: cat.id,
-        label: cat.label,
-        tone: createFilterChipTone(getCategoryColor(cat.id), getCategoryTextColor(cat.id)),
-      })),
+      categories.map((cat) => {
+        const Icon = getCategoryLucideIcon(cat.slug);
+        const iconColor = getCategoryColor(cat.id);
+        return {
+          key: cat.id,
+          label: cat.label,
+          icon: <Icon size={14} color={iconColor} />,
+        };
+      }),
     [categories]
   );
 
@@ -159,113 +185,73 @@ export function MapFiltersSheet({
       visibleSubcategories.map((sub) => ({
         key: sub.id,
         label: sub.label,
-        tone: createFilterChipTone(
-          getCategoryColor(sub.category_id),
-          getCategoryTextColor(sub.category_id)
-        ),
       })),
     [visibleSubcategories]
   );
 
-  const handleCategoriesChange = (nextCategories: string[]) => {
-    const nextSubcategories = selectedSubcategories.filter((subId) => {
-      const sub = subcategories.find((item) => item.id === subId);
-      return sub ? nextCategories.includes(sub.category_id) : false;
-    });
-    onCategoriesChange(nextCategories, nextSubcategories);
+  const allCategoryIds = useMemo(() => categoryOptions.map((item) => item.key), [categoryOptions]);
+  const allCategoriesSelected =
+    allCategoryIds.length > 0 && draft.categories.length === allCategoryIds.length;
+
+  const handleTemporalChoice = (choice: SearchTemporalChoice) => {
+    const next = filtersForSearchTemporalChoice(choice);
+    setDraft((current) => ({
+      ...current,
+      status: next.status,
+      when: { ...next.when },
+    }));
   };
 
-  useEffect(() => {
-    if (visible) {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
-      }
-      const open = () => {
-        setOverlayMounted(true);
-        progress.value = 0;
-        contentProgress.value = 0;
-        progress.value = withTiming(1, createEnterTiming(Motion.duration.slow));
-        contentProgress.value = withDelay(
-          Motion.duration.micro,
-          withTiming(1, createEnterTiming(Motion.duration.fast))
-        );
-      };
+  const handleCustomDateChange = (range: DateRangeValue) => {
+    const next = filtersForCustomDateRange(range);
+    setDraft((current) => ({
+      ...current,
+      status: next.status,
+      when: { ...next.when },
+    }));
+  };
 
-      if (anchorRef?.current) {
-        (anchorRef.current as View).measureInWindow((x, y, width, height) => {
-          fromX.value = x;
-          fromY.value = y;
-          fromW.value = width;
-          fromH.value = height;
-          open();
-        });
-      } else {
-        fromX.value = screenWidth - 60;
-        fromY.value = 80;
-        fromW.value = 44;
-        fromH.value = 44;
-        open();
-      }
+  const handleCategoriesChange = (nextCategories: string[]) => {
+    setDraft((current) => ({
+      ...current,
+      categories: nextCategories,
+      subcategories: current.subcategories.filter((subId) => {
+        const sub = taxonomySubcategories.find((item) => item.id === subId);
+        return sub ? nextCategories.includes(sub.category_id) : false;
+      }),
+    }));
+  };
+
+  const toggleAllCategories = () => {
+    if (allCategoriesSelected) {
+      setDraft((current) => ({ ...current, categories: [], subcategories: [] }));
       return;
     }
+    handleCategoriesChange(allCategoryIds);
+  };
 
-    progress.value = withTiming(0, createExitTiming(Motion.duration.fast));
-    contentProgress.value = withTiming(0, { duration: Motion.duration.micro });
-    closeTimeoutRef.current = setTimeout(() => {
-      setOverlayMounted(false);
-    }, Motion.duration.fast + 40);
-  }, [
-    anchorRef,
-    contentProgress,
-    fromH,
-    fromW,
-    fromX,
-    fromY,
-    progress,
-    screenHeight,
-    screenWidth,
-    visible,
-  ]);
+  const handleReset = () => {
+    setDraft(defaultViewportDraft());
+  };
 
-  useEffect(
-    () => () => {
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-    },
-    []
-  );
+  const handleSave = () => {
+    if (hasPendingChanges) onApply(draft);
+    onClose();
+  };
 
   const backdropStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolate.CLAMP),
+    opacity: interpolate(progress.value, [0, 0.4, 1], [0, 1, 1]),
   }));
 
-  const sheetStyle = useAnimatedStyle(() => {
-    const left = interpolate(progress.value, [0, 1], [fromX.value, 0], Extrapolate.CLAMP);
-    const top = interpolate(progress.value, [0, 1], [fromY.value, 0], Extrapolate.CLAMP);
-    const width = interpolate(progress.value, [0, 1], [fromW.value, screenWidth], Extrapolate.CLAMP);
-    const height = interpolate(progress.value, [0, 1], [fromH.value, screenHeight], Extrapolate.CLAMP);
-    const radius = interpolate(progress.value, [0, 1], [22, 0], Extrapolate.CLAMP);
-    return {
-      left,
-      top,
-      width,
-      height,
-      borderRadius: radius,
-    };
-  });
-
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(contentProgress.value, [0, 1], [0, 1], Extrapolate.CLAMP),
-    transform: [
-      {
-        translateY: interpolate(contentProgress.value, [0, 1], [12, 0], Extrapolate.CLAMP),
-      },
-    ],
+  const sheetStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.28, 1], [0, 1, 1]),
+    transform: [{ translateY: interpolate(progress.value, [0, 1], [40, 0]) }],
   }));
 
-  if (!overlayMounted) return null;
+  if (!mounted) return null;
 
   return (
+    <>
     <Modal
       visible
       transparent
@@ -275,189 +261,284 @@ export function MapFiltersSheet({
       presentationStyle="overFullScreen"
     >
       <View style={styles.overlayRoot}>
-        <Animated.View style={[styles.backdrop, backdropStyle]} />
-        <Pressable style={styles.backdropPressable} onPress={onClose} />
-        <Animated.View style={[styles.sheet, sheetStyle]}>
-          <Animated.View style={[styles.sheetInner, contentStyle]}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Filtres</Text>
-              <View style={styles.headerActions}>
-                {canReset ? (
-                  <TouchableOpacity
-                    style={styles.resetButton}
-                    onPress={onReset}
-                    accessibilityRole="button"
-                    accessibilityLabel="Réinitialiser les filtres"
-                  >
-                    <Text style={styles.resetText}>Tout effacer</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={onClose}
-                  accessibilityRole="button"
-                  accessibilityLabel="Fermer"
-                >
-                  <X size={20} color={colors.brand.textSecondary} />
-                </TouchableOpacity>
-              </View>
+        <Animated.View pointerEvents="none" style={[styles.backdrop, backdropStyle]} />
+        <Pressable
+          accessibilityLabel="Fermer les filtres"
+          accessibilityRole="button"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <Animated.View
+          style={[
+            styles.sheet,
+            { paddingTop: Math.max(insets.top, spacing.md) },
+            sheetStyle,
+          ]}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity
+              accessibilityLabel="Fermer"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onClose}
+              style={styles.closeButton}
+            >
+              <X size={18} color={colors.brand.text} />
+            </TouchableOpacity>
+            <Text accessibilityRole="header" style={styles.title}>
+              Filtrer les événements
+            </Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <Text style={styles.hint}>
+            {searchActive
+              ? 'Affine les événements affichés, sans changer la zone.'
+              : 'Ces filtres s’appliquent à la carte et à la liste, sans changer la zone.'}
+          </Text>
+
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            style={styles.scroll}
+          >
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Par date</Text>
+              <FilterChipRow
+                accessibilityLabel="Période"
+                options={temporalOptions}
+                scrollable={false}
+                size="sm"
+                testID="map-filters-temporal"
+                value={hasCustomDate ? null : temporalChoice}
+                onChange={(next) => {
+                  if (next) handleTemporalChoice(next);
+                }}
+              >
+                <FilterChip
+                  accessibilityLabel="Choisir une date précise"
+                  active={hasCustomDate}
+                  icon={
+                    <Calendar
+                      color={
+                        hasCustomDate
+                          ? defaultFilterChipTone.activeTextColor
+                          : defaultFilterChipTone.inactiveTextColor
+                      }
+                      size={14}
+                    />
+                  }
+                  label={formatCustomDateLabel(draft.when)}
+                  size="sm"
+                  testID="map-filters-custom-date"
+                  onPress={() => setShowRangePicker(true)}
+                />
+              </FilterChipRow>
             </View>
 
-            <Text style={styles.summary}>{summaryLabel}</Text>
-
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <FilterSection title="Statut des événements">
-                <StatusFilterRow
-                  value={metaFilter}
-                  onChange={onMetaFilterChange}
-                  scrollable={false}
-                />
-              </FilterSection>
-
-              <FilterSection title="Quand" hint={searchHint}>
-                <WhenPresets
-                  value={whenPreset ?? null}
-                  onChange={(next) => onWhenPresetChange(next ?? undefined)}
-                  status={metaFilter}
-                  scrollable={false}
-                />
-              </FilterSection>
-
-              <FilterSection title="Catégories">
+            {categoryOptions.length > 0 ? (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Par intérêts</Text>
+                  <TouchableOpacity
+                    accessibilityLabel={
+                      allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'
+                    }
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={toggleAllCategories}
+                  >
+                    <Text style={styles.selectAllText}>
+                      {allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
                 <FilterChipRow
+                  accessibilityLabel="Catégories"
                   mode="multi"
                   options={categoryOptions}
-                  values={selectedCategories}
+                  scrollable={false}
+                  size="sm"
+                  testID="map-filters-categories"
+                  values={draft.categories}
                   onChange={handleCategoriesChange}
-                  scrollable={false}
-                  accessibilityLabel="Catégories"
                 />
-              </FilterSection>
+              </View>
+            ) : null}
 
-              {subcategoryOptions.length > 0 ? (
-                <FilterSection title="Sous-catégories">
-                  <FilterChipRow
-                    mode="multi"
-                    options={subcategoryOptions}
-                    values={selectedSubcategories}
-                    onChange={(next) => onCategoriesChange(selectedCategories, next)}
-                    scrollable={false}
-                    accessibilityLabel="Sous-catégories"
-                  />
-                </FilterSection>
-              ) : null}
-
-              <FilterSection title="Style de carte" hint="Préférence d'affichage de la carte.">
+            {subcategoryOptions.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Préciser</Text>
                 <FilterChipRow
-                  options={MAP_MODES}
-                  value={mapMode}
-                  onChange={(next) => {
-                    if (next) onMapModeChange(next);
-                  }}
+                  accessibilityLabel="Sous-catégories"
+                  mode="multi"
+                  options={subcategoryOptions}
                   scrollable={false}
-                  accessibilityLabel="Style de carte"
+                  size="sm"
+                  values={draft.subcategories}
+                  onChange={(next) =>
+                    setDraft((current) => ({ ...current, subcategories: next }))
+                  }
                 />
-              </FilterSection>
-            </ScrollView>
+              </View>
+            ) : null}
+          </ScrollView>
 
-            <TouchableOpacity style={styles.doneButton} onPress={onClose} activeOpacity={0.9}>
-              <Text style={styles.doneButtonText}>{resultsButtonLabel}</Text>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+            <TouchableOpacity
+              accessibilityLabel="Réinitialiser les filtres"
+              accessibilityRole="button"
+              disabled={isDefaultDraft}
+              onPress={handleReset}
+              style={styles.resetButton}
+            >
+              <Text style={[styles.resetText, isDefaultDraft && styles.resetTextDisabled]}>
+                Réinitialiser
+              </Text>
             </TouchableOpacity>
-          </Animated.View>
+            <TouchableOpacity
+              accessibilityLabel="Enregistrer les filtres"
+              accessibilityRole="button"
+              activeOpacity={0.9}
+              onPress={handleSave}
+              style={styles.saveButton}
+            >
+              <Text style={styles.saveButtonText}>Enregistrer</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </View>
     </Modal>
+    <DateRangePicker
+      context="search"
+      mode="range"
+      open={showRangePicker}
+      value={{
+        startDate: draft.when.startDate || null,
+        endDate: draft.when.endDate || null,
+      }}
+      onChange={handleCustomDateChange}
+      onClose={() => setShowRangePicker(false)}
+    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   overlayRoot: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 200,
+    flex: 1,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  backdropPressable: {
-    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(26, 51, 41, 0.35)',
   },
   sheet: {
     position: 'absolute',
+    top: 8,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: colors.brand.page,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  sheetInner: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.h4,
-    color: colors.brand.text,
-  },
-  resetButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  resetText: {
-    ...typography.caption,
-    color: colors.brand.secondary,
-    fontWeight: '700',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
-  summary: {
+  headerSpacer: {
+    width: 44,
+    height: 44,
+  },
+  title: {
+    ...typography.subtitle,
+    color: colors.brand.text,
+    flex: 1,
+    textAlign: 'center',
+  },
+  hint: {
     ...typography.caption,
     color: colors.brand.textSecondary,
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    lineHeight: 18,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
+  },
+  section: {
     gap: spacing.sm,
   },
-  doneButton: {
-    marginTop: spacing.md,
-    backgroundColor: colors.brand.secondary,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.md,
+  sectionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
-  doneButtonText: {
+  sectionTitle: {
     ...typography.body,
-    color: filterColors.onAccent,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  selectAllText: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary[200],
+    backgroundColor: colors.brand.page,
+  },
+  resetButton: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  resetText: {
+    ...typography.body,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+  },
+  resetTextDisabled: {
+    opacity: 0.4,
+  },
+  saveButton: {
+    minHeight: 48,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    ...typography.body,
+    color: colors.brand.onAccent,
     fontWeight: '700',
   },
 });

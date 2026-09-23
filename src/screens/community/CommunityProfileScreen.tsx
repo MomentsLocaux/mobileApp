@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, Touchable
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Flag, MapPin, Users } from 'lucide-react-native';
+import { ArrowLeft, Flag, Lock, MapPin, MessageCircle, Users } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { AppBackground } from '@/components/ui';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -17,6 +17,9 @@ import { EventCard } from '@/components/events';
 import { useAuth } from '@/hooks';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { features } from '@/config/features';
+import { MessagingService } from '@/services/messaging.service';
+import { canMessageProfile, messagingBlockedCopy, normalizeProfileVisibility } from '@/utils/messaging-access';
+import Toast from 'react-native-toast-message';
 
 function memberFirstName(displayName: string) {
   const trimmed = displayName.trim();
@@ -36,6 +39,8 @@ export default function CommunityProfileScreen() {
   const [dateFilter, setDateFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'prive'>('all');
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
+  const [theyFollowMe, setTheyFollowMe] = useState(false);
+  const [messageBusy, setMessageBusy] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [isAmbassadeur, setIsAmbassadeur] = useState(false);
@@ -46,8 +51,9 @@ export default function CommunityProfileScreen() {
   const refreshFollowingState = React.useCallback(async () => {
     if (!id || !currentUserId) return;
     try {
-      const following = await CommunityService.isFollowing(id);
-      setIsFollowing(following);
+      const link = await CommunityService.getSocialLink(id);
+      setIsFollowing(link.isFollowing);
+      setTheyFollowMe(link.theyFollowMe);
     } catch (e) {
       console.warn('check following', e);
     }
@@ -151,11 +157,52 @@ export default function CommunityProfileScreen() {
   const isOwnProfile = currentUserId === member.user_id;
   const firstName = memberFirstName(member.display_name);
   const cityLabel = member.city?.trim() || null;
+  const visibility = normalizeProfileVisibility(member.profile_visibility);
+  const isPrivate = visibility === 'private';
+  const messageAccess = canMessageProfile({
+    viewerId: currentUserId,
+    targetId: member.user_id,
+    visibility,
+    viewerFollowsTarget: isFollowing,
+    targetFollowsViewer: theyFollowMe,
+  });
+  const isFriend = messageAccess.isFriend;
   const presenceCopy = isOwnProfile
-    ? 'C\'est votre profil public. Les autres membres voient votre nom, votre ville et peuvent vous suivre.'
-    : isFollowing
-      ? `Vous suivez ${firstName}. Ses coups de cœur apparaîtront près des événements que vous découvrez.`
-      : `Suivez ${firstName} pour voir ses coups de cœur dans votre fil.`;
+    ? isPrivate
+      ? 'C’est votre profil privé. Les autres membres doivent être amis (suivi mutuel) pour vous écrire.'
+      : 'C’est votre profil public. Les autres membres voient votre nom, votre ville et peuvent vous écrire.'
+    : isFriend
+      ? `Vous et ${firstName} êtes amis. Vous pouvez vous écrire.`
+      : isFollowing
+        ? `Vous suivez ${firstName}. Ses coups de cœur apparaîtront près des événements que vous découvrez.`
+        : `Suivez ${firstName} pour voir ses coups de cœur dans votre fil.`;
+
+  const openConversation = async () => {
+    if (!id || messageBusy) return;
+    if (!messageAccess.allowed) {
+      Toast.show({
+        type: 'info',
+        text1: 'Profil privé',
+        text2: messagingBlockedCopy({ firstName, viewerFollowsTarget: isFollowing }),
+      });
+      return;
+    }
+    setMessageBusy(true);
+    try {
+      const conversationId = await MessagingService.openConversation(id);
+      router.push(
+        `/messages/${conversationId}?name=${encodeURIComponent(member.display_name || firstName)}` as any,
+      );
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Message impossible',
+        text2: error instanceof Error ? error.message : 'Réessaie dans un instant.',
+      });
+    } finally {
+      setMessageBusy(false);
+    }
+  };
 
   const toggleFollow = async () => {
     if (!id || followLoading) return;
@@ -220,6 +267,12 @@ export default function CommunityProfileScreen() {
           />
           <Text style={styles.name}>{member.display_name}</Text>
           <Text style={styles.meta}>{cityLabel || 'Membre de la communauté'}</Text>
+          {isPrivate ? (
+            <View style={styles.privateBadge}>
+              <Lock size={12} color={colors.brand.ink} />
+              <Text style={styles.privateBadgeText}>Profil privé</Text>
+            </View>
+          ) : null}
           {isAmbassadeur ? (
             <View style={styles.ambassadorBadge}>
               <Text style={styles.ambassadorBadgeText}>Ambassadeur</Text>
@@ -237,14 +290,42 @@ export default function CommunityProfileScreen() {
                 accessibilityLabel={isFollowing ? 'Ne plus suivre' : 'Suivre'}
               >
                 <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
-                  {isFollowing ? 'Suivi' : 'Suivre'}
+                  {isFollowing ? (theyFollowMe ? 'Ami' : 'Suivi') : theyFollowMe ? 'Suivre aussi' : 'Suivre'}
                 </Text>
               </TouchableOpacity>
+              {features.socialPeers ? (
+                <TouchableOpacity
+                  style={[styles.messageButton, !messageAccess.allowed && styles.messageButtonDisabled]}
+                  onPress={() => void openConversation()}
+                  activeOpacity={0.8}
+                  disabled={messageBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Envoyer un message"
+                >
+                  <MessageCircle size={14} color={colors.brand.text} />
+                  <Text style={styles.messageText}>Message</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity style={styles.reportButton} onPress={() => setReportVisible(true)}>
                 <Flag size={14} color={colors.brand.textSecondary} />
                 <Text style={styles.reportText}>Signaler</Text>
               </TouchableOpacity>
             </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={() => router.push('/settings/privacy/profile' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Visibilité du profil"
+            >
+              <Lock size={14} color={colors.brand.text} />
+              <Text style={styles.messageText}>{isPrivate ? 'Profil privé' : 'Profil public'}</Text>
+            </TouchableOpacity>
+          )}
+          {!isOwnProfile && isPrivate && !messageAccess.allowed ? (
+            <Text style={styles.privateHint}>
+              {messagingBlockedCopy({ firstName, viewerFollowsTarget: isFollowing })}
+            </Text>
           ) : null}
         </View>
       </View>
@@ -530,6 +611,30 @@ const styles = StyleSheet.create({
     color: colors.brand.ink,
     fontWeight: '700',
   },
+  privateBadge: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surfaceMuted,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  privateBadgeText: {
+    ...typography.caption,
+    color: colors.brand.ink,
+    fontWeight: '700',
+  },
+  privateHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    lineHeight: 18,
+  },
   bio: {
     ...typography.body,
     color: colors.brand.textSecondary,
@@ -659,6 +764,7 @@ const styles = StyleSheet.create({
   },
   profileActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.sm,
     alignItems: 'center',
@@ -682,6 +788,25 @@ const styles = StyleSheet.create({
   },
   followTextActive: {
     color: colors.brand.textSecondary,
+  },
+  messageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  messageButtonDisabled: {
+    opacity: 0.7,
+  },
+  messageText: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '700',
   },
   reportButton: {
     flexDirection: 'row',

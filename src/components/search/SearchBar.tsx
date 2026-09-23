@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   Pressable,
   useWindowDimensions,
   Alert,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
   Extrapolate,
+  cancelAnimation,
   interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -25,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import type { SearchWhereState } from '@/store/searchStore';
 import { useDiscoveryFiltersStore } from '@/store/discoveryFiltersStore';
@@ -128,6 +132,11 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const [memberResults, setMemberResults] = useState<CommunityMember[]>([]);
   const [memberLoading, setMemberLoading] = useState(false);
   const barRef = useRef<View | null>(null);
+  const reduceMotion = useReduceMotion();
+  const motionPhase = useRef<'idle' | 'opening' | 'open' | 'closing'>('idle');
+  const motionGen = useRef(0);
+  const onExpandedChangeRef = useRef(onExpandedChange);
+  onExpandedChangeRef.current = onExpandedChange;
 
   useTaxonomy();
   const categories = useTaxonomyStore((s) => s.categories);
@@ -254,8 +263,6 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const contentProgress = useSharedValue(0);
   const fromX = useSharedValue(0);
   const fromY = useSharedValue(0);
-  const fromW = useSharedValue(0);
-  const fromH = useSharedValue(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -467,24 +474,49 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
       ? `Voir les ${searchCount} évènement${searchCount > 1 ? 's' : ''}`
       : 'Rechercher';
 
+  const markOpen = useCallback(() => {
+    if (motionPhase.current === 'opening') motionPhase.current = 'open';
+  }, []);
+
+  const hideOverlay = useCallback(() => {
+    motionPhase.current = 'idle';
+    setOverlayVisible(false);
+    onExpandedChangeRef.current?.(false);
+  }, []);
+
   const openExpanded = () => {
     if (!barRef.current) return;
+    if (motionPhase.current === 'opening' || motionPhase.current === 'open') return;
+    motionPhase.current = 'opening';
+    const gen = ++motionGen.current;
     setDraftFilters(appliedFilters);
     setSearchCountError(false);
-    (barRef.current as any).measureInWindow((x: number, y: number, width: number, height: number) => {
+    (barRef.current as any).measureInWindow((x: number, y: number) => {
+      if (gen !== motionGen.current) return;
       fromX.value = x;
       fromY.value = y;
-      fromW.value = width;
-      fromH.value = height;
-      setOverlayVisible(true);
-      onExpandedChange?.(true);
+      cancelAnimation(progress);
+      cancelAnimation(contentProgress);
       progress.value = 0;
       contentProgress.value = 0;
-      progress.value = withTiming(1, createEnterTiming(Motion.duration.normal));
-      contentProgress.value = withDelay(
-        Motion.duration.micro,
-        withTiming(1, createEnterTiming(Motion.duration.fast))
-      );
+      setOverlayVisible(true);
+      onExpandedChangeRef.current?.(true);
+      if (reduceMotion) {
+        progress.value = 1;
+        contentProgress.value = 1;
+        motionPhase.current = 'open';
+        return;
+      }
+      requestAnimationFrame(() => {
+        if (gen !== motionGen.current) return;
+        progress.value = withTiming(1, createEnterTiming(Motion.duration.slow), (finished) => {
+          if (finished) runOnJS(markOpen)();
+        });
+        contentProgress.value = withDelay(
+          Motion.stagger.content,
+          withTiming(1, createEnterTiming(Motion.duration.normal))
+        );
+      });
     });
   };
 
@@ -495,12 +527,25 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   }));
 
   const closeExpanded = () => {
-    progress.value = withTiming(0, createExitTiming(Motion.duration.fast));
-    contentProgress.value = withTiming(0, { duration: Motion.duration.micro });
-    setTimeout(() => {
-      setOverlayVisible(false);
-      onExpandedChange?.(false);
-    }, Motion.duration.fast);
+    if (motionPhase.current === 'idle' || motionPhase.current === 'closing') return;
+    motionPhase.current = 'closing';
+    motionGen.current += 1;
+    Keyboard.dismiss();
+    if (reduceMotion) {
+      cancelAnimation(progress);
+      cancelAnimation(contentProgress);
+      progress.value = 0;
+      contentProgress.value = 0;
+      hideOverlay();
+      return;
+    }
+    cancelAnimation(progress);
+    cancelAnimation(contentProgress);
+    const exit = createExitTiming(Motion.duration.normal);
+    contentProgress.value = withTiming(0, exit);
+    progress.value = withTiming(0, exit, (finished) => {
+      if (finished) runOnJS(hideOverlay)();
+    });
   };
 
   const currentIsSaved = isCurrentSaved(taxonomyLabels, surface, filters);
@@ -594,7 +639,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   }));
 
   const overlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolate.CLAMP),
+    opacity: interpolate(progress.value, [0, 0.45, 1], [0, 1, 1], Extrapolate.CLAMP),
   }));
 
   const overlayBoundsStyle = useAnimatedStyle(() => ({
@@ -605,24 +650,29 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   }));
 
   const containerStyle = useAnimatedStyle(() => {
-    const left = interpolate(progress.value, [0, 1], [0, -fromX.value], Extrapolate.CLAMP);
-    const top = interpolate(progress.value, [0, 1], [0, -fromY.value], Extrapolate.CLAMP);
-    const width = interpolate(progress.value, [0, 1], [fromW.value, screenWidth], Extrapolate.CLAMP);
-    const height = interpolate(progress.value, [0, 1], [fromH.value, screenHeight], Extrapolate.CLAMP);
-    const radius = interpolate(progress.value, [0, 1], [999, 6], Extrapolate.CLAMP);
+    const p = progress.value;
     return {
-      left,
-      top,
-      width,
-      height,
-      borderRadius: radius,
+      left: -fromX.value,
+      top: -fromY.value,
+      width: screenWidth,
+      height: screenHeight,
+      borderRadius: interpolate(p, [0, 1], [24, 0], Extrapolate.CLAMP),
+      opacity: interpolate(p, [0, 0.28, 1], [0, 1, 1], Extrapolate.CLAMP),
+      transform: [
+        { translateY: interpolate(p, [0, 1], [40, 0], Extrapolate.CLAMP) },
+      ],
     };
   });
 
   const sectionStyle0 = useAnimatedStyle(() => {
-    const start = 0.15;
+    const start = 0.08;
     const opacity = interpolate(contentProgress.value, [start, 1], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(contentProgress.value, [start, 1], [8, 0], Extrapolate.CLAMP);
+    const translateY = interpolate(
+      contentProgress.value,
+      [start, 1],
+      [Motion.distance.contentEnterY, 0],
+      Extrapolate.CLAMP
+    );
     return {
       opacity,
       transform: [{ translateY }],
@@ -630,9 +680,14 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   });
 
   const sectionStyle1 = useAnimatedStyle(() => {
-    const start = 0.23;
+    const start = 0.18;
     const opacity = interpolate(contentProgress.value, [start, 1], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(contentProgress.value, [start, 1], [8, 0], Extrapolate.CLAMP);
+    const translateY = interpolate(
+      contentProgress.value,
+      [start, 1],
+      [Motion.distance.contentEnterY, 0],
+      Extrapolate.CLAMP
+    );
     return {
       opacity,
       transform: [{ translateY }],
@@ -640,9 +695,14 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   });
 
   const sectionStyle2 = useAnimatedStyle(() => {
-    const start = 0.31;
+    const start = 0.28;
     const opacity = interpolate(contentProgress.value, [start, 1], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(contentProgress.value, [start, 1], [8, 0], Extrapolate.CLAMP);
+    const translateY = interpolate(
+      contentProgress.value,
+      [start, 1],
+      [Motion.distance.contentEnterY, 0],
+      Extrapolate.CLAMP
+    );
     return {
       opacity,
       transform: [{ translateY }],
@@ -656,7 +716,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
 
   return (
     <View style={styles.wrapper}>
-      <Animated.View style={[styles.collapsedRow, barAnimatedStyle]} ref={barRef}>
+      <Animated.View collapsable={false} style={[styles.collapsedRow, barAnimatedStyle]} ref={barRef}>
         <Pressable style={styles.searchPill} onPress={openExpanded}>
           <Search size={18} color={colors.brand.textSecondary} />
           <Text
@@ -670,9 +730,19 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
 
       {overlayVisible && (
         <Animated.View pointerEvents="auto" style={styles.overlayRoot}>
-          <Animated.View style={[styles.backdrop, overlayStyle, overlayBoundsStyle]} />
-          <Pressable style={[styles.backdropPressable, overlayBoundsStyle]} onPress={closeExpanded} />
-          <Animated.View style={[styles.expandedContainer, containerStyle]}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.backdrop, overlayStyle, overlayBoundsStyle]}
+          />
+          <Animated.View style={[styles.backdropPressable, overlayBoundsStyle]}>
+            <Pressable
+              accessibilityLabel="Fermer la recherche"
+              accessibilityRole="button"
+              onPress={closeExpanded}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+          <Animated.View style={[styles.expandedContainer, containerStyle]} pointerEvents="box-none">
             <View style={[styles.expandedHeader, { paddingTop: insets.top + spacing.md }]}>
               <View>
                 <Text style={styles.expandedTitle}>

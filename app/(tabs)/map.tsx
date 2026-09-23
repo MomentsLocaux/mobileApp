@@ -13,14 +13,10 @@ import {
   SHEET_JUNCTION_RADIUS,
   SHEET_LAYOUT_TIMING,
   VIEWPORT_PEEK_HEIGHT,
-  VIEWPORT_FULL_SNAP_INDEX,
-  VIEWPORT_PEEK_SNAP_INDEX,
   getSheetMaxSnapIndex,
   getSheetSnapHeights,
   MAP_CAMERA_ANIMATION_MS,
-  resolveEffectiveSheetSnapIndex,
   resolveMapTabBarProgress,
-  sheetSnapIndexWhenOpeningRefine,
   shouldFollowMapCameraForSheetIndex,
 } from '../../src/utils/map-sheet-layout';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
@@ -72,7 +68,7 @@ import {
 } from '@/constants/map-screen';
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import { SearchBar } from '../../src/components/search/SearchBar';
-import { MapViewportRefinePanel } from '../../src/components/search/MapViewportRefinePanel';
+import { MapFiltersSheet } from '../../src/components/search/MapFiltersSheet';
 import { hasSearchCriteria as checkSearchCriteria } from '../../src/utils/search-helpers';
 import {
   SearchResultsBottomSheet,
@@ -83,6 +79,7 @@ import { FloatingPressable } from '../../src/components/ui/FloatingPressable';
 import { NavigationOptionsSheet } from '../../src/components/search/NavigationOptionsSheet';
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground, BrandLogoSpinner } from '../../src/components/ui';
+import { MapChromeActions } from '../../src/components/map/MapChromeActions';
 import { useMapTabBarProgress } from '@/components/navigation/MapAwareTabBar';
 import { haptics } from '@/utils/haptics';
 import {
@@ -151,7 +148,7 @@ export default function MapScreen() {
   const setMapMode = useDiscoveryFiltersStore((s) => s.setMapMode);
   const setSearchApplied = useDiscoveryFiltersStore((s) => s.setSearchApplied);
   const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
-  const { profile } = useAuth();
+  const { profile, isAuthenticated } = useAuth();
   const favorites = useFavoritesStore((s) => s.favorites);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const likedEventIds = useLikesStore((s) => s.likedEventIds);
@@ -209,7 +206,6 @@ export default function MapScreen() {
   const mapReadyRef = useRef(false);
   const appliedHomeTransferIdRef = useRef<string | null>(null);
   const focusedSearchRevisionRef = useRef<number | null>(null);
-  const sheetSnapBeforeRefineRef = useRef<number | null>(null);
   const sheetSnapBeforeDetailRef = useRef<number | null>(null);
 
   const [navEvent, setNavEvent] = useState<EventWithCreator | null>(null);
@@ -441,7 +437,7 @@ export default function MapScreen() {
     snapshotShapeAppliedRef.current = true;
   }, [cacheEpoch, mapReady, mapSnapshot, useLastVisitCamera]);
 
-  const { handleCategoriesChange, handleTemporalChoice, handleCustomDateChange, handleClearViewportFilters } =
+  const { handleClearViewportFilters, handleApplyViewportFilters } =
     useMapFilterActions({
     userLocation,
     discoveryStatus,
@@ -1179,57 +1175,17 @@ export default function MapScreen() {
   const handleSearchExpandedChange = useCallback((expanded: boolean) => {
     setSearchExpanded(expanded);
     if (expanded) {
-      sheetSnapBeforeRefineRef.current = null;
       setRefineOpen(false);
     }
   }, []);
 
-  const closeRefinePanel = useCallback(
-    (options?: { restoreSheet?: boolean }) => {
-      setRefineOpen(false);
-      const savedSnap = sheetSnapBeforeRefineRef.current;
-      sheetSnapBeforeRefineRef.current = null;
-      if (options?.restoreSheet === false) return;
-      const ui = useMapResultsUIStore.getState();
-      if (
-        savedSnap != null &&
-        savedSnap >= VIEWPORT_FULL_SNAP_INDEX &&
-        sheetMode === 'viewport' &&
-        ui.sheetStatus !== 'singleEvent' &&
-        ui.bottomSheetIndex === VIEWPORT_PEEK_SNAP_INDEX
-      ) {
-        handleSheetIndexChange(savedSnap);
-      }
-    },
-    [handleSheetIndexChange, sheetMode]
-  );
+  const closeRefinePanel = useCallback(() => {
+    setRefineOpen(false);
+  }, []);
 
   const openRefinePanel = useCallback(() => {
-    const stored = useMapResultsUIStore.getState().bottomSheetIndex;
-    const idx = resolveEffectiveSheetSnapIndex({
-      storedIndex: stored,
-      visibleHeight: sheetVisibleHeight.value,
-      layoutHeight: mapColumnHeight,
-      mode: sheetMode,
-    });
-    const nextSnap = sheetSnapIndexWhenOpeningRefine(idx, sheetMode);
-    if (nextSnap !== stored) {
-      sheetSnapBeforeRefineRef.current = Math.max(stored, idx);
-      handleSheetIndexChange(nextSnap);
-    } else if (idx !== nextSnap) {
-      sheetSnapBeforeRefineRef.current = idx;
-      setSheetSnapIndex(nextSnap, true);
-    } else {
-      sheetSnapBeforeRefineRef.current = null;
-    }
     setRefineOpen(true);
-  }, [
-    handleSheetIndexChange,
-    mapColumnHeight,
-    setSheetSnapIndex,
-    sheetMode,
-    sheetVisibleHeight,
-  ]);
+  }, []);
 
   const toggleRefine = useCallback(() => {
     if (refineOpen) closeRefinePanel();
@@ -1324,12 +1280,16 @@ export default function MapScreen() {
               onPress={toggleRefine}
               accessibilityRole="button"
               accessibilityState={{ expanded: refineOpen }}
-              accessibilityLabel="Filtrer les événements, filtres actifs"
-              accessibilityHint="Ouvre les filtres de période et de catégorie sans lancer une recherche."
+              accessibilityLabel={
+                hasViewportRefine
+                  ? 'Filtrer les événements, filtres actifs'
+                  : 'Filtrer les événements'
+              }
+              accessibilityHint="Ouvre l’écran des filtres de période et de catégorie."
               animateEntrance={false}
             >
               <SlidersHorizontal size={20} color={colors.brand.text} />
-              <View style={styles.filterActiveDot} />
+              {hasViewportRefine ? <View style={styles.filterActiveDot} /> : null}
             </FloatingPressable>
           </View>
         </View>
@@ -1517,6 +1477,10 @@ export default function MapScreen() {
                 {mapMode === 'satellite' ? <View style={styles.mapModeActiveDot} /> : null}
               </FloatingPressable>
             ) : null}
+
+            {!searchExpanded && !unitCardEvent && !refineOpen ? (
+              <MapChromeActions isGuest={!isAuthenticated} top={spacing.sm} />
+            ) : null}
           </View>
 
           {unitCardEvent ? (
@@ -1538,20 +1502,18 @@ export default function MapScreen() {
             </Animated.View>
           ) : null}
 
-          <View style={styles.refineOverlay} pointerEvents="box-none">
-            <MapViewportRefinePanel
-              visible={refineOpen}
-              searchActive={searchActive}
-              metaFilter={metaFilter}
-              when={when}
-              selectedCategories={content.categories}
-              selectedSubcategories={content.subcategories}
-              onTemporalChoice={handleTemporalChoice}
-              onCustomDateChange={handleCustomDateChange}
-              onCategoriesChange={handleCategoriesChange}
-              onClear={handleClearViewportFilters}
-            />
-          </View>
+          <MapFiltersSheet
+            searchActive={searchActive}
+            value={{
+              status: metaFilter,
+              when,
+              categories: content.categories,
+              subcategories: content.subcategories,
+            }}
+            visible={refineOpen}
+            onApply={handleApplyViewportFilters}
+            onClose={closeRefinePanel}
+          />
 
           <Animated.View
             pointerEvents={unitCardEvent ? 'none' : 'auto'}
@@ -1595,6 +1557,7 @@ export default function MapScreen() {
               selectedCategories={content.categories}
               hasViewportRefine={hasViewportRefine}
               onClearViewportFilters={handleClearViewportFilters}
+              onOpenFilters={openRefinePanel}
               bottomContentInset={60 + Math.max(insets.bottom, 8) + spacing.xl}
             />
           </Animated.View>
@@ -1711,14 +1674,6 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: colors.brand.page,
-  },
-  refineOverlay: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 25,
-    elevation: 25,
   },
   mapLayer: {
     ...StyleSheet.absoluteFillObject,

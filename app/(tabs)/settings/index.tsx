@@ -168,6 +168,11 @@ export default function SettingsScreen() {
           noBorder
         />
         <SettingsRow
+          label="Visibilité du profil"
+          icon={Lock}
+          onPress={() => router.push('/settings/privacy/profile' as any)}
+        />
+        <SettingsRow
           label="Visibilité de ma position"
           icon={MapPin}
           onPress={() => router.push('/settings/privacy/location' as any)}

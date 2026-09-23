@@ -17,6 +17,7 @@ export type CommunityMember = {
   local_tier?: 'local' | 'habitue' | 'ambassadeur';
   is_community_highlighted?: boolean;
   community_highlighted_until?: string | null;
+  profile_visibility?: 'public' | 'private' | null;
 };
 
 export type LeaderboardEntry = {

@@ -273,6 +273,43 @@ export function useMapFilterActions({
     [clearFrozenViewport, discoveryStatus, reapplyFromStore, refreshIfNeeded, setStatus]
   );
 
+  const handleApplyViewportFilters = useCallback(
+    (draft: {
+      status: EventMetaFilter;
+      when: DiscoveryFilters['when'];
+      categories: string[];
+      subcategories: string[];
+    }) => {
+      const previous = discoveryStatus;
+      const isDatePreset = Boolean(draft.when.preset);
+      const hasCustomDates = Boolean(draft.when.startDate || draft.when.endDate);
+      clearFrozenViewport();
+      setContent({ categories: draft.categories, subcategories: draft.subcategories });
+      setWhen({
+        preset: draft.when.preset,
+        startDate: draft.when.startDate,
+        endDate: draft.when.endDate,
+        includePast: draft.when.includePast === true,
+      });
+      setStatus(draft.status);
+      const reapplied = reapplyFromStore({ metaFilter: draft.status });
+      refreshIfNeeded(reapplied, {
+        metaFilter: draft.status,
+        previousMetaFilter: previous,
+        forceRefresh: isDatePreset || hasCustomDates,
+      });
+    },
+    [
+      clearFrozenViewport,
+      discoveryStatus,
+      reapplyFromStore,
+      refreshIfNeeded,
+      setContent,
+      setStatus,
+      setWhen,
+    ]
+  );
+
   const handleClearViewportFilters = useCallback(() => {
     const previous = discoveryStatus;
     const next = defaultDiscoveryTemporalFilters();
@@ -329,6 +366,7 @@ export function useMapFilterActions({
     handleCustomDateChange,
     handleCategoriesChange,
     handleMetaFilterChange,
+    handleApplyViewportFilters,
     handleClearViewportFilters,
     handleResetFilters,
   };

@@ -9,7 +9,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SlidersHorizontal } from 'lucide-react-native';
+import { ArrowUpDown, ChevronDown } from 'lucide-react-native';
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 import {
@@ -217,12 +217,13 @@ export function SortControl({
         accessibilityLabel={`Tri actuel : ${triggerLabel}`}
         testID={testID}
       >
-        <SlidersHorizontal size={16} color={filterColors.text} />
+        <ArrowUpDown size={16} color={filterColors.text} />
         {showLabel ? (
           <Text style={styles.pillText} numberOfLines={1}>
             {triggerLabel}
           </Text>
         ) : null}
+        {showLabel ? <ChevronDown size={14} color={filterColors.textSecondary} /> : null}
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -267,6 +268,7 @@ const styles = StyleSheet.create({
     ...filterTypography.chip,
     color: filterColors.text,
     fontWeight: '600',
+    flexShrink: 1,
   },
   overlay: {
     flex: 1,

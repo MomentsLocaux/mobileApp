@@ -274,6 +274,8 @@ export interface Profile {
   ban_until?: string | null;
   legal_accepted_at?: string | null;
   legal_policy_version?: string | null;
+  /** public: anyone authenticated may DM. private: mutual follow required. */
+  profile_visibility?: 'public' | 'private' | null;
 }
 
 export interface Event {

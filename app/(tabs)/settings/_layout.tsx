@@ -16,6 +16,7 @@ export default function SettingsStackLayout() {
       <Stack.Screen name="privacy/delete" />
       <Stack.Screen name="privacy/export" />
       <Stack.Screen name="privacy/location" />
+      <Stack.Screen name="privacy/profile" />
       <Stack.Screen name="legal/cgu" />
       <Stack.Screen name="legal/mentions" />
       <Stack.Screen name="legal/cookies" />
