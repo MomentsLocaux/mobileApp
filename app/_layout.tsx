@@ -17,6 +17,7 @@ import { useProposalsStore } from '@/store/proposalsStore';
 import { hydrateDiscoveryCaches } from '@/store/hydrateDiscoveryCache';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LegalAcceptanceGate } from '@/components/legal/LegalAcceptanceGate';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -152,6 +153,7 @@ export default function RootLayout() {
         <Stack.Screen name="messages" />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <LegalAcceptanceGate />
       <StatusBar style="dark" />
       <Toast config={toastConfig} />
     </GestureHandlerRootView>

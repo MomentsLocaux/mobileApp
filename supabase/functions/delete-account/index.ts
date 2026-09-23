@@ -131,6 +131,37 @@ serve(async (req) => {
     }
   }
 
+  // SCRUM-277: Auth stays a soft-delete (`deleteUser(id, true)`). CASCADE FKs do not
+  // fire, so prefs / tokens / usage / exports must be purged explicitly.
+  const extraTables = [
+    'user_preferences',
+    'device_push_tokens',
+    'lumia_chat_usage',
+    'event_cover_generate_usage',
+    'event_poster_analyze_usage',
+    'event_suggest_usage',
+    'account_export_requests',
+  ] as const;
+  const { data: exportRows } = await supabase
+    .from('account_export_requests')
+    .select('storage_path')
+    .eq('user_id', user.id);
+  const exportPaths = (exportRows ?? [])
+    .map((row: { storage_path?: string | null }) => row.storage_path)
+    .filter((path: string | null | undefined): path is string => !!path);
+  if (exportPaths.length > 0) {
+    const { error: exportRemoveError } = await supabase.storage.from('account-exports').remove(exportPaths);
+    if (exportRemoveError) {
+      console.log('[delete-account] account-exports remove error', { exportRemoveError });
+    }
+  }
+  for (const table of extraTables) {
+    const { error: extraError } = await supabase.from(table).delete().eq('user_id', user.id);
+    if (extraError) {
+      console.log('[delete-account] extra purge error', { table, extraError });
+    }
+  }
+
   const { data: deletionResult, error: deletionError } = await supabase.rpc('process_account_deletion', {
     p_user_id: user.id,
   });

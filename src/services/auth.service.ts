@@ -252,16 +252,18 @@ export class AuthService {
     return request;
   }
 
-  static async recordLegalAcceptance(userId: string): Promise<void> {
+  static async recordLegalAcceptance(userId: string): Promise<boolean> {
     try {
       const profile = await dataProvider.getProfile(userId);
-      if (!shouldWriteLegalAcceptance(profile, LEGAL_POLICY_VERSION)) return;
+      if (!shouldWriteLegalAcceptance(profile, LEGAL_POLICY_VERSION)) return true;
       await dataProvider.updateProfile(userId, {
         legal_accepted_at: new Date().toISOString(),
         legal_policy_version: LEGAL_POLICY_VERSION,
       });
+      return true;
     } catch (error) {
       console.warn('[legal] persist acceptance skipped (migration pending?)', error);
+      return false;
     }
   }
 

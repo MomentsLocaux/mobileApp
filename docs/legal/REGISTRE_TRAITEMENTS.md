@@ -1,7 +1,7 @@
 # Registre des traitements — Alpha Moments Locaux
 
 Ticket : **SCRUM-207** (epic [SCRUM-200](https://moments-locaux.atlassian.net/browse/SCRUM-200)).
-Version alignée : `2026-09-09` (`LEGAL_POLICY_VERSION`).
+Version alignée : `2026-09-09` (app, `LEGAL_POLICY_VERSION`) / `2026-09-23` (site, `PRIVACY_POLICY_VERSION`).
 Responsable de traitement : **Romain Rauyer**, personne physique (pas de SAS / SIRET à ce stade).
 Contact : `hello@moments-locaux.com`.
 
@@ -17,6 +17,8 @@ Les traitements parkés (check-in, Lumo / IAP, Discovery Engine, Diffuseur B2B, 
 | Expo / EAS | Build, updates, notifications push | Tokens push, identifiants techniques d’app | Possible |
 | Mapbox | Cartographie | Position approximative / requêtes de tuiles | Possible |
 | OpenAI | Sous-traitant IA (processor) | Texte du chat Lumia (historique court) ; image d’affiche pour suggestion ; photo de cover pour génération / édition d’image | Possible (États-Unis) — durée de l’appel API |
+| Vercel | Hébergement du site, mesure d’audience (si consentement bandeau) | Journaux techniques, audience agrégée | Possible (États-Unis) — DPA / CCT |
+| Brevo | E-mails transactionnels (Auth, contact) | Adresse e-mail, contenu du message de contact | Possible — DPA / CCT |
 | Apple / Google | Stores, notifications, distribution | Compte développeur, métadonnées d’app, questionnaires privacy | Selon le store |
 
 Moments Locaux reste responsable de traitement pour les finalités produit. OpenAI n’entraîne pas de modèles à partir de ces contenus **si** le contrat et le paramétrage API l’excluent (à confirmer à chaque renouvellement de contrat).
@@ -98,7 +100,7 @@ Moments Locaux reste responsable de traitement pour les finalités produit. Open
 
 - **Finalité** : tracer l’acceptation CGU / privacy (RGPD / stores).
 - **Base légale** : obligation légale / preuve du contrat.
-- **Données** : `profiles.legal_accepted_at`, `profiles.legal_policy_version` (SCRUM-203 — colonnes à ajouter, migration non appliquée tant que non validée).
+- **Données** : `profiles.legal_accepted_at`, `profiles.legal_policy_version` (SCRUM-203 — migration dans Git ; apply UAT/PRD : SCRUM-256).
 - **Règle** : ne pas réécrire une date existante sans changement de version de politique.
 
 ### 11. Logs techniques

@@ -10,3 +10,6 @@ export function shouldWriteLegalAcceptance(
   if (!current?.legal_accepted_at) return true;
   return current.legal_policy_version !== nextVersion;
 }
+
+/** True when the user must accept (or re-accept) before using the app. */
+export const needsLegalAcceptance = shouldWriteLegalAcceptance;

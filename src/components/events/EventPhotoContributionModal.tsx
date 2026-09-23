@@ -54,12 +54,17 @@ export function EventPhotoContributionModal({
   const progress = useSharedValue(0);
   const [uploading, setUploading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageRightsAccepted, setImageRightsAccepted] = useState(false);
 
-  const canSubmit = useMemo(() => !!imageUri && !uploading, [imageUri, uploading]);
+  const canSubmit = useMemo(
+    () => !!imageUri && !uploading && imageRightsAccepted,
+    [imageUri, uploading, imageRightsAccepted],
+  );
 
   useEffect(() => {
     if (!visible) {
       progress.value = 0;
+      setImageRightsAccepted(false);
       return;
     }
     progress.value = reduceMotion ? 1 : withSpring(1, Motion.spring.sheet);
@@ -99,7 +104,7 @@ export function EventPhotoContributionModal({
   };
 
   const handleUpload = async () => {
-    if (!imageUri) return;
+    if (!imageUri || !imageRightsAccepted) return;
     setUploading(true);
     try {
       const response = await fetch(imageUri);
@@ -204,6 +209,8 @@ export function EventPhotoContributionModal({
 
           <Text style={styles.subtitle}>
             Les photos sont validées par l&apos;organisateur avant d&apos;apparaître publiquement.
+            En envoyant, vous confirmez avoir le droit de publier cette image (y compris visages ou
+            lieux identifiables).
           </Text>
 
           <View style={styles.preview}>
@@ -257,6 +264,19 @@ export function EventPhotoContributionModal({
               <ChevronRight size={18} color={colors.brand.textSecondary} />
             </FloatingPressable>
           </View>
+
+          <Pressable
+            style={styles.rightsRow}
+            onPress={() => setImageRightsAccepted((value) => !value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: imageRightsAccepted }}
+          >
+            <View style={[styles.rightsBox, imageRightsAccepted && styles.rightsBoxChecked]} />
+            <Text style={styles.rightsText}>
+              J’ai le droit de publier cette photo (accord des personnes identifiables, le cas
+              échéant).
+            </Text>
+          </Pressable>
 
           <FloatingPressable
             style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
@@ -466,6 +486,30 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  rightsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  rightsBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: colors.brand.textSecondary,
+    marginTop: 2,
+  },
+  rightsBoxChecked: {
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
+  },
+  rightsText: {
+    flex: 1,
+    ...typography.caption,
+    color: colors.brand.text,
+    lineHeight: 18,
   },
   submitButton: {
     minHeight: 52,
