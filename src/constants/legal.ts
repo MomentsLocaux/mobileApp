@@ -1,6 +1,8 @@
 /** Alpha legal copy — drafts pending human/legal validation (SCRUM-200). */
 
-export const LEGAL_POLICY_VERSION = '2026-09-09';
+import { WEBSITE_CANONICAL_ORIGIN } from '@/constants/website';
+
+export const LEGAL_POLICY_VERSION = '2026-09-23';
 
 export const LEGAL_MIN_AGE = 16;
 
@@ -17,3 +19,6 @@ export const LEGAL_DSA_EMAIL = 'hello@moments-locaux.com';
 export const LEGAL_SITE_PRIVACY_PATH = '/fr/privacy';
 export const LEGAL_SITE_TERMS_PATH = '/fr/terms';
 export const LEGAL_SITE_MENTIONS_PATH = '/fr/mentions';
+
+export const LEGAL_SITE_PRIVACY_URL = `${WEBSITE_CANONICAL_ORIGIN}${LEGAL_SITE_PRIVACY_PATH}`;
+export const LEGAL_SITE_TERMS_URL = `${WEBSITE_CANONICAL_ORIGIN}${LEGAL_SITE_TERMS_PATH}`;

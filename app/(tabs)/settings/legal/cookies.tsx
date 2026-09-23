@@ -16,7 +16,7 @@ const COOKIES_TEXT = [
   '',
   'La cartographie (Mapbox) et les notifications (Expo) peuvent envoyer des identifiants techniques à ces prestataires pour fournir la carte et les alertes. Ils ne servent pas à vous profiler à des fins publicitaires.',
   '',
-  'Le site marketing (moments-locaux.com) peut déposer des cookies strictement nécessaires au fonctionnement des pages. Il n’y a pas de bandeau publicitaire à ce jour.',
+  'Le site marketing (www.moments-locaux.com) peut déposer des cookies strictement nécessaires et, uniquement si vous l’acceptez via le bandeau, une mesure d’audience Vercel. Il n’y a pas de cookies publicitaires.',
   '',
   `Contact : ${LEGAL_CONTACT_EMAIL}`,
 ];
