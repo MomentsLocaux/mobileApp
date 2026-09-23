@@ -37,11 +37,14 @@ begin
   if to_regclass('public.account_export_requests') is not null then
     execute 'delete from public.account_export_requests where user_id = $1' using p_user_id;
   end if;
+  if to_regclass('public.ai_processing_notices') is not null then
+    execute 'delete from public.ai_processing_notices where user_id = $1' using p_user_id;
+  end if;
 end;
 $$;
 
-revoke all on function public.purge_account_pii_extras(uuid) from public;
+revoke all on function public.purge_account_pii_extras(uuid) from public, anon, authenticated;
 grant execute on function public.purge_account_pii_extras(uuid) to service_role;
 
 comment on function public.purge_account_pii_extras(uuid) is
-  'SCRUM-277 extras: prefs, push tokens, IA usage counters, account exports. Called from delete-account; not a substitute for process_account_deletion.';
+  'SCRUM-277 extras: prefs, push tokens, IA usage counters, account exports, AI notices. Called from delete-account; not a substitute for process_account_deletion.';

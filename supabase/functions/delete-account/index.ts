@@ -141,6 +141,7 @@ serve(async (req) => {
     'event_poster_analyze_usage',
     'event_suggest_usage',
     'account_export_requests',
+    'ai_processing_notices',
   ] as const;
   const { data: exportRows } = await supabase
     .from('account_export_requests')

@@ -10,7 +10,7 @@ Choix retenu : **soft delete Auth** (`auth.admin.deleteUser(id, true)`) + **purg
 2. Paramètres → Confidentialité → Supprimer le compte.
 3. Vérifier :
    - plus d’e-mail Auth actif (connexion refusée) ;
-   - plus de `user_preferences` / `device_push_tokens` / `lumia_chat_usage` / quotas / `account_export_requests` pour cet uid ;
+   - plus de `user_preferences` / `device_push_tokens` / `lumia_chat_usage` / quotas / `account_export_requests` / `ai_processing_notices` pour cet uid ;
    - bucket `account-exports` vide pour le préfixe uid ;
    - commentaires publics anonymisés (`Commentaire supprimé`) ;
    - `account_deletion_requests` conserve `user_id` (preuve, durée à cadrer).
