@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronDown, ChevronRight } from 'lucide-react-native';
 import { BrandIcon } from '@/components/ui';
 import type { BrandIconName } from '@/components/ui/BrandIcon';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
@@ -17,10 +17,12 @@ type Props = {
   bucket: AgendaBucketId;
   title: string;
   count: number;
+  expanded?: boolean;
   onPress: () => void;
 };
 
-export function AgendaBucketRow({ bucket, title, count, onPress }: Props) {
+export function AgendaBucketRow({ bucket, title, count, expanded = false, onPress }: Props) {
+  const Chevron = expanded ? ChevronDown : ChevronRight;
   return (
     <TouchableOpacity
       style={styles.row}
@@ -28,6 +30,8 @@ export function AgendaBucketRow({ bucket, title, count, onPress }: Props) {
       activeOpacity={0.82}
       accessibilityRole="button"
       accessibilityLabel={`${title} (${count})`}
+      accessibilityState={{ expanded }}
+      accessibilityHint={expanded ? 'Appuyer pour fermer' : 'Appuyer pour ouvrir'}
     >
       <View style={styles.iconWell}>
         <BrandIcon
@@ -40,7 +44,7 @@ export function AgendaBucketRow({ bucket, title, count, onPress }: Props) {
       <Text style={styles.title}>
         {title} ({count})
       </Text>
-      <ChevronRight size={18} color={colors.brand.textSecondary} />
+      <Chevron size={18} color={colors.brand.textSecondary} />
     </TouchableOpacity>
   );
 }

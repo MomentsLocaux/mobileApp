@@ -357,24 +357,10 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
             >
               <BrandIcon name="close" size={20} />
             </TouchableOpacity>
-          ) : selectedBucket ? (
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => {
-                setSelectedBucket(null);
-                setShowMap(false);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Retour à l’agenda"
-            >
-              <BrandIcon name="back" size={20} />
-            </TouchableOpacity>
           ) : (
             <View style={styles.iconButtonGhost} />
           )}
-          <Text style={styles.title}>
-            {selectedBucket ? AGENDA_BUCKET_COPY[selectedBucket].title : 'Mon agenda'}
-          </Text>
+          <Text style={styles.title}>Mon agenda</Text>
           <View style={styles.iconButtonGhost} />
         </View>
 
@@ -463,114 +449,116 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
             >
             <AgendaCountLabel count={dayCount} />
 
-            {selectedBucket ? (
-              <View style={styles.bucketDetail}>
-                {selectedBucket === 'interested' ? (
-                  <View style={styles.mapToggleRow}>
-                    <TouchableOpacity
-                      style={[styles.mapToggle, !showMap && styles.mapToggleActive]}
-                      onPress={() => setShowMap(false)}
-                    >
-                      <Text style={[styles.mapToggleText, !showMap && styles.mapToggleTextActive]}>Liste</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.mapToggle, showMap && styles.mapToggleActive]}
-                      onPress={() => setShowMap(true)}
-                    >
-                      <Text style={[styles.mapToggleText, showMap && styles.mapToggleTextActive]}>Carte</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-                {bucketEvents.length === 0 ? (
-                  <EmptyState
-                    title={AGENDA_BUCKET_COPY[selectedBucket].emptyTitle}
-                    subtitle={AGENDA_BUCKET_COPY[selectedBucket].emptySubtitle}
-                    ctaLabel="Découvrir les activités"
-                    onCtaPress={() => router.push('/(tabs)/map' as any)}
-                  />
-                ) : showMap && selectedBucket === 'interested' ? (
-                  <View style={styles.mapWrap}>
-                    <FavoritesMapView
-                      events={bucketEvents}
-                      selectedEvent={mapPreviewEvent}
-                      currentUserId={profile?.id}
-                      isHearted={
-                        mapPreviewEvent
-                          ? likesSet.has(mapPreviewEvent.id) || favoritesSet.has(mapPreviewEvent.id)
-                          : false
-                      }
-                      onSelectEvent={(event) => {
-                        setMapPreviewEvent(event);
-                        prefetchEventMedia(event);
-                      }}
-                      onClearSelection={() => setMapPreviewEvent(null)}
-                      onOpenDetails={openEvent}
-                      onNavigate={setNavEvent}
-                      onToggleHeart={handleToggleHeart}
-                    />
-                  </View>
-                ) : (
-                  groupedBucketEvents.map((group) => (
-                    <View key={group.key} style={styles.dayGroup}>
-                      <Text accessibilityRole="header" style={styles.dayLabel}>
-                        {group.label}
-                      </Text>
-                      {group.events.map((event) => (
-                        <AgendaEventRow
-                          key={event.id}
-                          event={event}
-                          stats={statsByEventId[event.id]}
-                          liked={likesSet.has(event.id) || favoritesSet.has(event.id)}
-                          pending={pendingHeartIds.has(event.id)}
-                          onOpen={openEvent}
-                          onToggleHeart={handleToggleHeart}
-                          onShare={handleShareEvent}
-                        />
-                      ))}
-                    </View>
-                  ))
-                )}
-              </View>
-            ) : (
-              <>
-                {buckets.map((bucket) => (
-                  <AgendaBucketRow
-                    key={bucket}
-                    bucket={bucket}
-                    title={AGENDA_BUCKET_COPY[bucket].title}
-                    count={bucketCounts[bucket] || 0}
-                    onPress={() => setSelectedBucket(bucket)}
-                  />
-                ))}
-                {emptyHub ? (
-                  <View style={styles.emptyHub}>
-                    <AgendaEmptyIllustration />
-                    <Text style={styles.emptyTitle}>Aucune activité</Text>
-                    <Text style={styles.emptySubtitle}>
-                      Elles apparaîtront ici dès que tu notes un moment, ou que tu y participes.
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.cta}
-                      onPress={() => router.push('/(tabs)/map' as any)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Découvrir les activités"
-                    >
-                      <Text style={styles.ctaText}>Découvrir les activités</Text>
-                    </TouchableOpacity>
-                    {features.eventCreate ? (
-                      <TouchableOpacity
-                        style={styles.secondaryCta}
-                        onPress={handleCreate}
-                        accessibilityRole="button"
-                        accessibilityLabel="Créer une activité"
-                      >
-                        <Text style={styles.secondaryCtaText}>Créer une activité</Text>
-                      </TouchableOpacity>
+            {buckets.map((bucket) => (
+              <View key={bucket}>
+                <AgendaBucketRow
+                  bucket={bucket}
+                  title={AGENDA_BUCKET_COPY[bucket].title}
+                  count={bucketCounts[bucket] || 0}
+                  expanded={selectedBucket === bucket}
+                  onPress={() => {
+                    setSelectedBucket((current) => (current === bucket ? null : bucket));
+                    setShowMap(false);
+                  }}
+                />
+                {selectedBucket === bucket ? (
+                  <View style={styles.bucketDetail}>
+                    {bucket === 'interested' ? (
+                      <View style={styles.mapToggleRow}>
+                        <TouchableOpacity
+                          style={[styles.mapToggle, !showMap && styles.mapToggleActive]}
+                          onPress={() => setShowMap(false)}
+                        >
+                          <Text style={[styles.mapToggleText, !showMap && styles.mapToggleTextActive]}>Liste</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.mapToggle, showMap && styles.mapToggleActive]}
+                          onPress={() => setShowMap(true)}
+                        >
+                          <Text style={[styles.mapToggleText, showMap && styles.mapToggleTextActive]}>Carte</Text>
+                        </TouchableOpacity>
+                      </View>
                     ) : null}
+                    {bucketEvents.length === 0 ? (
+                      <EmptyState
+                        title={AGENDA_BUCKET_COPY[bucket].emptyTitle}
+                        subtitle={AGENDA_BUCKET_COPY[bucket].emptySubtitle}
+                        ctaLabel="Découvrir les activités"
+                        onCtaPress={() => router.push('/(tabs)/map' as any)}
+                      />
+                    ) : showMap && bucket === 'interested' ? (
+                      <View style={styles.mapWrap}>
+                        <FavoritesMapView
+                          events={bucketEvents}
+                          selectedEvent={mapPreviewEvent}
+                          currentUserId={profile?.id}
+                          isHearted={
+                            mapPreviewEvent
+                              ? likesSet.has(mapPreviewEvent.id) || favoritesSet.has(mapPreviewEvent.id)
+                              : false
+                          }
+                          onSelectEvent={(event) => {
+                            setMapPreviewEvent(event);
+                            prefetchEventMedia(event);
+                          }}
+                          onClearSelection={() => setMapPreviewEvent(null)}
+                          onOpenDetails={openEvent}
+                          onNavigate={setNavEvent}
+                          onToggleHeart={handleToggleHeart}
+                        />
+                      </View>
+                    ) : (
+                      groupedBucketEvents.map((group) => (
+                        <View key={group.key} style={styles.dayGroup}>
+                          <Text accessibilityRole="header" style={styles.dayLabel}>
+                            {group.label}
+                          </Text>
+                          {group.events.map((event) => (
+                            <AgendaEventRow
+                              key={event.id}
+                              event={event}
+                              stats={statsByEventId[event.id]}
+                              liked={likesSet.has(event.id) || favoritesSet.has(event.id)}
+                              pending={pendingHeartIds.has(event.id)}
+                              onOpen={openEvent}
+                              onToggleHeart={handleToggleHeart}
+                              onShare={handleShareEvent}
+                            />
+                          ))}
+                        </View>
+                      ))
+                    )}
                   </View>
                 ) : null}
-              </>
-            )}
+              </View>
+            ))}
+            {emptyHub ? (
+              <View style={styles.emptyHub}>
+                <AgendaEmptyIllustration />
+                <Text style={styles.emptyTitle}>Aucune activité</Text>
+                <Text style={styles.emptySubtitle}>
+                  Elles apparaîtront ici dès que tu notes un moment, ou que tu y participes.
+                </Text>
+                <TouchableOpacity
+                  style={styles.cta}
+                  onPress={() => router.push('/(tabs)/map' as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Découvrir les activités"
+                >
+                  <Text style={styles.ctaText}>Découvrir les activités</Text>
+                </TouchableOpacity>
+                {features.eventCreate ? (
+                  <TouchableOpacity
+                    style={styles.secondaryCta}
+                    onPress={handleCreate}
+                    accessibilityRole="button"
+                    accessibilityLabel="Créer une activité"
+                  >
+                    <Text style={styles.secondaryCtaText}>Créer une activité</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : null}
           </ScrollView>
           </View>
         )}
@@ -632,7 +620,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   bucketDetail: {
-    gap: 0,
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
   },
   dayGroup: {
     gap: 0,

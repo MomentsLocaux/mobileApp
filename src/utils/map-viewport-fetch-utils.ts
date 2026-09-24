@@ -24,6 +24,16 @@ const KM_PER_LATITUDE_DEGREE = 111;
  * the same 111 km/degree convention as `getBoundsFromRadiusKm`, so a 150 km
  * radius produces a 300 km bbox and remains exactly on the accepted boundary.
  */
+export function getMapBoundsCenter(bounds: MapBounds): {
+  latitude: number;
+  longitude: number;
+} {
+  return {
+    latitude: (bounds.ne[1] + bounds.sw[1]) / 2,
+    longitude: (bounds.ne[0] + bounds.sw[0]) / 2,
+  };
+}
+
 export function getMapBoundsDiameterKm(bounds: MapBounds): number {
   const latitudeSpanKm = Math.abs(bounds.ne[1] - bounds.sw[1]) * KM_PER_LATITUDE_DEGREE;
   const middleLatitude = (bounds.ne[1] + bounds.sw[1]) / 2;

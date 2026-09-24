@@ -798,6 +798,9 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                     value={memberCity}
                     onChangeText={setMemberCity}
                     style={styles.inputFramed}
+                    autoCorrect={false}
+                    spellCheck={false}
+                    autoCapitalize="none"
                   />
 
                   {memberLoading ? <Text style={styles.meta}>Recherche...</Text> : null}
@@ -840,6 +843,9 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                         onChangeText={setQuery}
                         style={styles.inputFramed}
                         accessibilityLabel="Ville, adresse ou lieu"
+                        autoCorrect={false}
+                        spellCheck={false}
+                        autoCapitalize="none"
                       />
                       <View style={styles.row}>
                         <Chip

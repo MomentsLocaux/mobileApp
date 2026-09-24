@@ -29,7 +29,10 @@ import type { EventWithCreator } from '../../types/database';
 import type { EventMetaFilter } from '../../utils/filter-events';
 import { SortControl } from '@/components/filters';
 import { ALL_SORT_OPTIONS, SORT_OPTIONS } from '@/constants/filters';
-import { formatViewportPeekLabel } from '../../utils/map-peek-label';
+import {
+  formatViewportPeekHeading,
+  formatViewportPeekSubtitle,
+} from '../../utils/map-peek-label';
 import {
   SHEET_SPRING_CONFIG,
   VIEWPORT_HALF_SNAP_INDEX,
@@ -484,9 +487,20 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }));
 
     const showPeekLoading = isLoading && mode !== 'single';
-    const peekTitle = useMemo(
-      () => formatViewportPeekLabel(peekCount, metaFilter),
+    const peekHeading = useMemo(
+      () => formatViewportPeekHeading(peekCount, metaFilter),
       [metaFilter, peekCount]
+    );
+    const peekSubtitle = useMemo(
+      () => formatViewportPeekSubtitle(peekCount),
+      [peekCount]
+    );
+    const peekAccessibilityLabel = useMemo(
+      () =>
+        showPeekLoading
+          ? 'Recherche des événements dans cette zone'
+          : `${peekHeading}. ${peekSubtitle}`,
+      [peekHeading, peekSubtitle, showPeekLoading]
     );
 
     // Advanced search can still apply the otherwise API-only `created` sort:
@@ -729,18 +743,16 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
           <View style={styles.chromeContent}>
             <Animated.View
-              pointerEvents="none"
+              pointerEvents={isExpanded ? 'none' : 'auto'}
               style={[styles.peekHeader, styles.chromeOverlay, peekChromeStyle]}
             >
-              <View
-                style={styles.peekRow}
-                accessibilityRole={showPeekLoading ? 'progressbar' : undefined}
-                accessibilityLabel={
-                  showPeekLoading
-                    ? 'Recherche des événements dans cette zone'
-                    : peekTitle
-                }
+              <Pressable
+                style={styles.peekCopy}
+                accessibilityRole={showPeekLoading ? 'progressbar' : 'button'}
+                accessibilityLabel={peekAccessibilityLabel}
                 accessibilityLiveRegion="polite"
+                disabled={!isSheetExpandable}
+                onPress={() => openFromPeekRef.current()}
               >
                 {showPeekLoading ? (
                   <ActivityIndicator
@@ -750,11 +762,16 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
                     importantForAccessibility="no"
                   />
                 ) : (
-                  <Text style={styles.peekTitle} numberOfLines={1}>
-                    {peekTitle}
-                  </Text>
+                  <>
+                    <Text style={styles.peekTitle} numberOfLines={1}>
+                      {peekHeading}
+                    </Text>
+                    <Text style={styles.peekSubtitle} numberOfLines={1}>
+                      {peekSubtitle}
+                    </Text>
+                  </>
                 )}
-              </View>
+              </Pressable>
             </Animated.View>
 
           {mode !== 'single' ? (
@@ -977,23 +994,23 @@ const styles = StyleSheet.create({
   },
   peekHeader: {
     paddingHorizontal: spacing.lg,
-    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: spacing.sm,
     justifyContent: 'center',
-    minHeight: VIEWPORT_PEEK_HEIGHT,
   },
-  peekRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  peekCopy: {
     justifyContent: 'center',
-    gap: spacing.sm,
-    maxWidth: '100%',
+    gap: spacing.xs,
+    minHeight: 56,
   },
   peekTitle: {
-    ...typography.body,
+    ...typography.h4,
     color: colors.brand.text,
-    fontWeight: '600',
-    textAlign: 'center',
     flexShrink: 1,
+  },
+  peekSubtitle: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
   },
   header: {
     paddingHorizontal: spacing.lg,

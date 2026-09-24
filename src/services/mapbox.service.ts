@@ -8,6 +8,7 @@ if (!MAPBOX_TOKEN) {
 }
 
 export type MapboxFeature = {
+  text?: string;
   place_name: string;
   center: [number, number];
   context?: Array<{ id: string; text: string }>;
@@ -40,16 +41,23 @@ export const MapboxService = {
       label: f.place_name,
       latitude: f.center[1],
       longitude: f.center[0],
-      city: extractContext(f, 'place') || extractContext(f, 'locality') || f.place_name.split(',')[0] || '',
+      city: cityFromFeature(f),
       region: extractContext(f, 'region') || '',
       postalCode: extractContext(f, 'postcode') || '',
       country: 'FR',
     }));
   },
 
-  async reverse(lat: number, lon: number): Promise<GeocodeResult | null> {
+  async reverse(
+    lat: number,
+    lon: number,
+    options?: { types?: string; country?: string },
+  ): Promise<GeocodeResult | null> {
     if (!MAPBOX_TOKEN) return null;
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?access_token=${MAPBOX_TOKEN}&country=FR&types=address,place,locality&language=fr`;
+    const types = options?.types ?? 'address,place,locality';
+    const country = options?.country ?? 'FR';
+    const countryQuery = country ? `&country=${country}` : '';
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?access_token=${MAPBOX_TOKEN}${countryQuery}&types=${types}&language=fr`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -59,13 +67,20 @@ export const MapboxService = {
       label: feature.place_name,
       latitude: feature.center[1],
       longitude: feature.center[0],
-      city: extractContext(feature, 'place') || extractContext(feature, 'locality') || '',
+      city: cityFromFeature(feature),
       region: extractContext(feature, 'region') || '',
       postalCode: extractContext(feature, 'postcode') || '',
       country: 'FR',
     };
   },
 };
+
+const cityFromFeature = (feature: MapboxFeature): string =>
+  extractContext(feature, 'place') ||
+  extractContext(feature, 'locality') ||
+  feature.text ||
+  feature.place_name.split(',')[0] ||
+  '';
 
 const extractContext = (feature: MapboxFeature, key: string): string => {
   const item = feature.context?.find((c) => c.id.startsWith(key));

@@ -124,7 +124,8 @@ const styles = StyleSheet.create({
   stack: {
     position: 'absolute',
     right: spacing.md,
-    zIndex: 22,
+    zIndex: 8,
+    elevation: 0,
     gap: spacing.sm,
   },
   button: {

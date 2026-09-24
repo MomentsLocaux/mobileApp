@@ -34,7 +34,7 @@ export const TAB_BAR_HEIGHT = 76;
 /** Rounded junction between map slot and sheet slot. */
 export const SHEET_JUNCTION_RADIUS = 16;
 
-/** Airbnb-like peek: count strip only. */
+/** Closed sheet: handle + « X Moments dans la zone ». */
 export const VIEWPORT_PEEK_SNAP = String(VIEWPORT_PEEK_HEIGHT);
 
 /** Expanded snap: full list. */

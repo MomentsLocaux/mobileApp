@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   buildMapViewportCacheKey,
   createSerialAsyncGate,
+  getMapBoundsCenter,
   getMapBoundsDiameterKm,
   getViewportCacheDisposition,
   haveMapBoundsMeaningfullyChanged,
@@ -81,6 +82,16 @@ describe('map viewport fetch helpers', () => {
     assert.equal(first, 'a');
     assert.equal(second, 'b');
     assert.deepEqual(order, [1, 2]);
+  });
+
+  it('takes the geometric center of a north-up bbox', () => {
+    assert.deepEqual(
+      getMapBoundsCenter({
+        sw: [5.0, 49.0],
+        ne: [6.0, 50.0],
+      }),
+      { latitude: 49.5, longitude: 5.5 },
+    );
   });
 
   it('accepts a 300 km bbox and blocks a wider viewport', () => {
