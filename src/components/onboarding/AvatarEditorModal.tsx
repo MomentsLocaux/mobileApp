@@ -105,8 +105,8 @@ export function AvatarEditorModal({ initialUrl, onApply, onClose }: Props) {
         <View style={styles.frame}>
           <View style={styles.header}>
             <View style={styles.heading}>
-              <Text style={styles.title} accessibilityRole="header">Votre avatar</Text>
-              {!compact && <Text style={styles.subtitle}>Un portrait qui vous ressemble.</Text>}
+              <Text style={styles.title} accessibilityRole="header">Ton avatar</Text>
+              {!compact && <Text style={styles.subtitle}>Un portrait qui te ressemble.</Text>}
             </View>
             <TouchableOpacity onPress={onClose} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Fermer sans appliquer">
               <X size={22} color={colors.brand.text} />
@@ -114,7 +114,7 @@ export function AvatarEditorModal({ initialUrl, onApply, onClose }: Props) {
           </View>
 
           <View style={[styles.preview, compact && styles.previewCompact]}>
-            <View accessible accessibilityRole="image" accessibilityLabel="Aperçu de votre avatar personnalisé">
+            <View accessible accessibilityRole="image" accessibilityLabel="Aperçu de ton avatar personnalisé">
               <PresetAvatarArt preset={portrait(draft)} size={compact ? 96 : 144} />
             </View>
             <View style={styles.tools}>
@@ -163,7 +163,7 @@ export function AvatarEditorModal({ initialUrl, onApply, onClose }: Props) {
             <Text style={styles.sectionTitle} accessibilityRole="header">{selectedTab.label}</Text>
             {tab === 'models' ? (
               <>
-                <Text style={styles.hint}>Choisissez une base, puis personnalisez chaque détail.</Text>
+                <Text style={styles.hint}>Choisis une base, puis ajuste chaque détail.</Text>
                 <View style={styles.grid}>
                   {AVATAR_PRESETS.map((preset) => {
                     const config = createAvatarConfig(preset);
@@ -212,8 +212,8 @@ export function AvatarEditorModal({ initialUrl, onApply, onClose }: Props) {
                   })}
                 </View>
                 {contextualColor && renderColors(contextualColor)}
-                {tab === 'eyes' && draft.eyes === 'smiling' && <Text style={styles.hint}>La couleur des iris apparaît lorsque les yeux sont ouverts.</Text>}
-                {tab === 'accessory' && draft.accessory === 'none' && <Text style={styles.hint}>Choisissez un accessoire pour voir sa couleur.</Text>}
+                {tab === 'eyes' && draft.eyes === 'smiling' && <Text style={styles.hint}>La couleur des iris apparaît quand les yeux sont ouverts.</Text>}
+                {tab === 'accessory' && draft.accessory === 'none' && <Text style={styles.hint}>Choisis un accessoire pour voir sa couleur.</Text>}
               </>
             )}
           </ScrollView>
@@ -221,7 +221,7 @@ export function AvatarEditorModal({ initialUrl, onApply, onClose }: Props) {
           <View style={styles.footer}>
             <Button title="Annuler" variant="secondary" onPress={onClose} style={styles.cancel} />
             <Button
-              title="Utiliser cet avatar"
+              title="Utiliser ce portrait"
               onPress={() => { haptics.success(); onApply(encodeCustomAvatar(draft)); }}
               style={styles.apply}
             />

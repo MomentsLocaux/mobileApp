@@ -8,11 +8,11 @@ export function OnboardingModeHintStep() {
   return (
     <View style={styles.wrap}>
       <Shuffle size={28} color={colors.brand.secondary} strokeWidth={2.2} />
-      <Text style={styles.title}>Deux modes, un seul compte</Text>
+      <Text style={styles.title}>Découvrir, et publier si tu veux</Text>
       <Text style={styles.body}>
-        Tu restes toujours découvreur. Quand tu veux gérer tes publications, bascule en mode
-        Créateur (couleurs dédiées). Habitué / Lumo, c’est pour sortir dans le quartier — pas un
-        pack « organisateur ».
+        Tu restes toujours sur la découverte. Pour gérer tes publications, tu bascules vers cet
+        espace, avec ses couleurs. Les offres payantes servent à sortir davantage, pas à devenir
+        organisateur.
       </Text>
     </View>
   );

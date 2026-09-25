@@ -19,7 +19,7 @@ Menu profil (bas droite) → voir son profil public.
 Sections principales :
 
 - **Compte** — modifier le profil (pas l’email), rejouer l’onboarding.
-- **Notifications** — Gérer les notifications (fréquence, thèmes, proximité, activité sociale…).
+- **Notifications & préférences** — Gérer les notifications et les thèmes (fréquence, types d’événements, proximité, activité sociale…).
 - **Autorisations** — Gérer les autorisations de l’application (localisation, notifications push, etc.).
 - **Confidentialité & données** — politique de confidentialité, suppression de compte.
 - **Informations légales** — CGU, mentions légales, politique des cookies.

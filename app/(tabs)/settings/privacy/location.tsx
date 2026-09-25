@@ -74,7 +74,7 @@ export default function LocationVisibilityScreen() {
       <SettingsSectionCard
         title="Qui peut voir ma position"
         icon={MapPin}
-        description="Cela concerne uniquement le partage social de votre position. Les alertes d’événements près de chez vous restent un réglage séparé, dans Notifications."
+        description="Cela concerne uniquement le partage social de votre position. Les alertes d’événements près de chez vous restent un réglage séparé, dans Notifications et préférences."
       >
         <View style={styles.stack}>
           {OPTIONS.map((option, index) => (

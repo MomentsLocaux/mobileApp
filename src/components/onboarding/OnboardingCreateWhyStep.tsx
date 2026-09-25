@@ -15,19 +15,19 @@ const OPTIONS: {
   {
     value: 'talent',
     label: 'Partager mon talent',
-    description: 'Atelier, concert, démo… sans en tirer de bénéfice plateforme.',
+    description: 'Atelier, concert, démo… sans vente dans l’app.',
     Icon: HandHeart,
   },
   {
     value: 'micro_vente',
-    label: 'Micro-vente / fait maison',
-    description: 'Deux-trois produits, pop-up, marché — hors marketplace in-app.',
+    label: 'Vendre en petit',
+    description: 'Quelques produits, un stand ou un marché. Pas de boutique dans l’app.',
     Icon: Package,
   },
   {
     value: 'regulier',
     label: 'Activité régulière',
-    description: 'Cours, dates récurrentes, public fidèle — toujours en Particulier.',
+    description: 'Cours ou rendez-vous qui reviennent, avec un compte particulier.',
     Icon: Repeat,
   },
 ];
@@ -41,10 +41,9 @@ type Props = {
 export function OnboardingCreateWhyStep({ value, onChange }: Props) {
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>Tu crées pour quoi ?</Text>
+      <Text style={styles.title}>Pourquoi proposer des moments ?</Text>
       <Text style={styles.subtitle}>
-        Pas besoin d’être « Pro » : publier reste gratuit. Habitué, c’est si tu sors aussi dans le
-        quartier.
+        Publier reste gratuit. Dis juste ce que tu comptes partager.
       </Text>
       <View style={styles.list}>
         {OPTIONS.map((opt) => {
@@ -94,11 +93,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.surface,
   },
   cardActive: {
     borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
   },
   copy: { flex: 1, gap: 4 },
   label: { ...typography.body, color: colors.brand.text, fontWeight: '600' },

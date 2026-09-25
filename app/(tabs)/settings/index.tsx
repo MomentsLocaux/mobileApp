@@ -138,9 +138,9 @@ export default function SettingsScreen() {
         />
       </SettingsSectionCard>
 
-      <SettingsSectionCard title="Notifications" icon={Bell}>
+      <SettingsSectionCard title="Notifications & préférences" icon={Bell}>
         <SettingsRow
-          label="Gérer les notifications"
+          label="Gérer les notifications et les thèmes"
           icon={Bell}
           onPress={() => router.push('/settings/notifications' as any)}
           noBorder

@@ -29,8 +29,8 @@ export function OnboardingThemesStep({
   selected,
   onToggle,
   onSelectAll,
-  title = 'Qu’est-ce qui te tente ?',
-  subtitle = 'Choisis quelques thèmes pour démarrer. Tu pourras les modifier dans Paramètres → Notifications. Tu peux aussi passer cette étape.',
+  title = 'Qu’est-ce qui t’attire ?',
+  subtitle = 'Choisis quelques thèmes pour démarrer. Tu les retrouves dans Paramètres → Notifications et préférences. Tu peux aussi passer cette étape.',
 }: Props) {
   useTaxonomy();
   const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     color: colors.brand.secondary,
   },
   selectAllTextActive: {
-    color: colors.brand.primary,
+    color: colors.brand.onAccent,
   },
   categoryList: {
     gap: spacing.sm,

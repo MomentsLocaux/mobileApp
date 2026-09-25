@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   CheckCircle2,
   Compass,
@@ -17,23 +16,23 @@ import { ActivityLogService } from '@/services/activity-log.service';
 const BENEFITS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Sparkles,
-    title: 'Idées maintenant',
-    body: 'Des moments à rejoindre tout de suite, près de vous.',
+    title: 'Idées pour tout de suite',
+    body: 'Des moments à rejoindre maintenant, près de toi.',
   },
   {
     icon: MapPinned,
-    title: 'Carte de votre zone',
-    body: 'Voyez où vous sortez et les coins à explorer à proximité.',
+    title: 'La carte de tes sorties',
+    body: 'Vois où tu sors, et les coins à explorer à côté.',
   },
   {
     icon: Compass,
-    title: 'Recommandations adaptées',
-    body: 'Des propositions calées sur vos sorties passées.',
+    title: 'Des suggestions pour toi',
+    body: 'Des idées calées sur tes sorties passées.',
   },
   {
     icon: CheckCircle2,
-    title: 'Routine & bilans',
-    body: 'Idées hors habitudes + résumé de vos découvertes. Inclut tout Habitué.',
+    title: 'Sortir de tes habitudes',
+    body: 'Des idées nouvelles, et un résumé de ce que tu as découvert. Inclut l’offre Habitué.',
   },
 ];
 
@@ -50,22 +49,9 @@ export function OnboardingEclaireurCtaStep({ onUnlock }: Props) {
 
   return (
     <MotionReveal style={styles.wrap}>
-      <Text style={styles.brand}>Éclaireur</Text>
-      <Text style={styles.headline}>
-        <Text style={styles.headlineCyan}>Débloquez </Text>
-        <Text style={styles.headlineGold}>une découverte locale plus profonde</Text>
-      </Text>
-
-      <View style={styles.proofCard}>
-        <LinearGradient
-          colors={['rgba(124, 181, 24,0.18)', 'rgba(212,175,55,0.14)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <Compass size={18} color={colors.brand.secondary} />
-        <Text style={styles.proofText}>Explore ton quartier → découvre autrement</Text>
-      </View>
+      <Text style={styles.brand}>Offre Éclaireur</Text>
+      <Text style={styles.headline}>Va plus loin dans ce qui se passe près de toi</Text>
+      <Text style={styles.proofText}>D’abord ton quartier, ensuite des idées plus précises.</Text>
 
       <View style={styles.benefits}>
         {BENEFITS.map((item, index) => {
@@ -91,7 +77,7 @@ export function OnboardingEclaireurCtaStep({ onUnlock }: Props) {
       <View style={styles.pricing}>
         <Text style={styles.priceAnnual}>
           {PREMIUM_PLANS.annual.priceLabel}/an
-          <Text style={styles.priceSave}> · Économisez vs mensuel</Text>
+          <Text style={styles.priceSave}> · tu économises par rapport au mois</Text>
         </Text>
         <Text style={styles.priceMonthly}>
           <Text style={styles.priceStrike}>
@@ -134,7 +120,7 @@ export function OnboardingEclaireurCtaStep({ onUnlock }: Props) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.legal}>Sans engagement. Annulez à tout moment. Achats in-app bientôt.</Text>
+      <Text style={styles.legal}>Sans engagement. Tu peux annuler quand tu veux. Les achats dans l’app arrivent bientôt.</Text>
     </MotionReveal>
   );
 }
@@ -146,38 +132,19 @@ const styles = StyleSheet.create({
   },
   brand: {
     ...typography.h6,
-    color: colors.brand.premiumLight,
+    color: colors.brand.secondary,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
   headline: {
     ...typography.h2,
+    color: colors.brand.text,
     lineHeight: 34,
   },
-  headlineCyan: {
-    color: colors.brand.secondary,
-    fontWeight: '800',
-  },
-  headlineGold: {
-    color: colors.brand.premiumLight,
-    fontWeight: '800',
-  },
-  proofCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
   proofText: {
-    ...typography.bodySmall,
-    color: colors.brand.text,
-    fontWeight: '600',
-    flex: 1,
+    ...typography.body,
+    color: colors.brand.textSecondary,
+    lineHeight: 22,
   },
   benefits: {
     gap: spacing.md,
@@ -242,16 +209,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.neutral[200],
     gap: 2,
     minHeight: 56,
     justifyContent: 'center',
   },
   planChipActive: {
-    backgroundColor: colors.brand.premiumMuted,
-    borderColor: colors.brand.premiumBorder,
+    backgroundColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
   },
   planChipLabel: {
     ...typography.caption,
@@ -259,7 +226,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   planChipLabelActive: {
-    color: colors.brand.premiumLight,
+    color: colors.brand.onAccent,
   },
   planChipPrice: {
     ...typography.bodySmall,
@@ -267,7 +234,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   planChipPriceActive: {
-    color: colors.brand.text,
+    color: colors.brand.onAccent,
   },
   legal: {
     ...typography.caption,

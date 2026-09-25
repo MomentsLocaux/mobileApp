@@ -41,11 +41,10 @@ export function OnboardingConnectorStep({ proSubtype, value, onChange }: Props) 
     const pending = value.status === 'sit_pending' || value.status === 'sit_connected';
     return (
       <View style={styles.wrap}>
-        <Text style={styles.titleFormal}>Connecter votre SIT</Text>
+        <Text style={styles.titleFormal}>Relier ton agenda touristique</Text>
         <Text style={styles.subtitleFormal}>
-          Reliez votre système d’information touristique (ex. Apidae). Moments Locaux synchronise
-          l’agenda et mesure la présence réelle — sans double saisie. La connexion technique peut
-          être finalisée plus tard.
+          Si tu as déjà un outil, par exemple Apidae, on reprend tes dates sans les ressaisir. La
+          liaison technique peut attendre.
         </Text>
         <TouchableOpacity
           style={[styles.primaryBtn, pending && styles.primaryBtnActive]}
@@ -58,14 +57,13 @@ export function OnboardingConnectorStep({ proSubtype, value, onChange }: Props) 
           }}
           accessibilityRole="button"
         >
-          <Plug size={18} color={colors.brand.primary} />
+          <Plug size={18} color={colors.brand.secondary} />
           <Text style={styles.primaryBtnText}>
-            {pending ? 'SIT en attente de connexion' : 'Connecter mon SIT (Apidae)'}
+            {pending ? 'Agenda en attente de liaison' : 'Relier mon agenda (Apidae)'}
           </Text>
         </TouchableOpacity>
         <Text style={styles.noteFormal}>
-          Vous pourrez reprendre cette étape depuis le tableau de bord. Passer cette étape n’empêche
-          pas d’accéder à Moments Diffuseur.
+          Tu pourras reprendre cette étape plus tard. La passer ne bloque pas l’accès.
         </Text>
       </View>
     );
@@ -75,8 +73,8 @@ export function OnboardingConnectorStep({ proSubtype, value, onChange }: Props) 
     <View style={styles.wrap}>
       <Text style={styles.titleFormal}>Éviter de publier deux fois</Text>
       <Text style={styles.subtitleFormal}>
-        Moments Locaux est votre tableau de bord de présence et d’interactions temps réel. Demandez
-        un connecteur sur mesure (site, billetterie, CRM, ICS…) : une saisie en amont suffit.
+        Si tes dates sont déjà sur un site, une billetterie ou un calendrier, demande une liaison.
+        Une seule saisie suffit.
       </Text>
       <View style={styles.field}>
         <Text style={styles.label}>Outil / source actuelle</Text>
@@ -123,16 +121,15 @@ export function OnboardingConnectorStep({ proSubtype, value, onChange }: Props) 
         }}
         accessibilityRole="button"
       >
-        <Link2 size={18} color={colors.brand.primary} />
+        <Link2 size={18} color={colors.brand.secondary} />
         <Text style={styles.primaryBtnText}>
           {value.status === 'custom_requested'
             ? 'Demande enregistrée'
-            : 'Envoyer la demande de connecteur'}
+            : 'Envoyer la demande de liaison'}
         </Text>
       </TouchableOpacity>
       <Text style={styles.noteFormal}>
-        Demande accessible dès Diffuseur Gratuit ; la priorisation d’intégration est renforcée avec
-        Diffuseur Pro. Vous pouvez passer et publier manuellement en attendant.
+        Tu peux passer cette étape et publier à la main en attendant.
       </Text>
     </View>
   );
@@ -161,12 +158,13 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     fontWeight: typography.body.fontWeight,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: borderRadius.md,
+    backgroundColor: colors.brand.surface,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm + 4,
-    paddingBottom: spacing.md,
-    minHeight: 52,
+    paddingTop: 14,
+    paddingBottom: 18,
+    minHeight: 56,
     color: colors.brand.text,
     overflow: 'visible',
     ...(Platform.OS === 'android'
@@ -180,14 +178,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.brand.primary,
+    borderColor: colors.brand.secondary,
+    backgroundColor: colors.brand.surface,
   },
   primaryBtnActive: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
   primaryBtnText: {
     ...typography.body,
-    color: colors.brand.primary,
+    color: colors.brand.secondary,
     fontWeight: '600',
     flex: 1,
   },
