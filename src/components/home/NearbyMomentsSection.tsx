@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DiscoveryLoadingState } from '@/components/ui/DiscoveryLoadingState';
 import { BrandIcon } from '@/components/ui/BrandIcon';
+import { DISCOVERY_MIN_RADIUS_KM, DISCOVERY_RADIUS_STEP_KM, HOME_NEARBY_MAX_RADIUS_KM } from '@/constants/filters';
 import { colors, spacing, typography } from '@/constants/theme';
 import type { EventWithCreator } from '@/types/database';
 import { emptyHomeSlotCopy, mapMomentsCta, type HomeTimeSlot } from '@/utils/home-feed';
@@ -16,6 +17,8 @@ type Props = {
   loading: boolean;
   error: string | null;
   zoneLabel: string;
+  radiusKm: number;
+  onRadiusChange: (radiusKm: number) => void;
   reasonFor: (event: EventWithCreator) => string | null;
   pendingHearts: ReadonlySet<string>;
   onRetry: () => void;
@@ -34,7 +37,7 @@ type Props = {
 export function NearbyMomentsSection({
   slot,
   events,
-  totalCount, complete, loading, error, zoneLabel, reasonFor, pendingHearts, onRetry,
+  totalCount, complete, loading, error, zoneLabel, radiusKm, onRadiusChange, reasonFor, pendingHearts, onRetry,
   distanceLabelFor,
   isHearted,
   canWiden,
@@ -49,7 +52,30 @@ export function NearbyMomentsSection({
   return (
     <View style={styles.section}>
       <Text style={styles.title}>Autour de toi</Text>
-      <Text style={styles.zone}>{zoneLabel}</Text>
+      <View style={styles.radiusRow}>
+        <Text style={styles.zone}>{zoneLabel}</Text>
+        <View style={styles.radiusControls}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Réduire le rayon"
+            disabled={radiusKm <= DISCOVERY_MIN_RADIUS_KM}
+            onPress={() => onRadiusChange(radiusKm - DISCOVERY_RADIUS_STEP_KM)}
+            style={[styles.radiusButton, radiusKm <= DISCOVERY_MIN_RADIUS_KM && styles.radiusButtonDisabled]}
+          >
+            <Text style={styles.radiusButtonLabel}>−</Text>
+          </Pressable>
+          <Text style={styles.radiusValue}>{radiusKm} km</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Augmenter le rayon"
+            disabled={radiusKm >= HOME_NEARBY_MAX_RADIUS_KM}
+            onPress={() => onRadiusChange(radiusKm + DISCOVERY_RADIUS_STEP_KM)}
+            style={[styles.radiusButton, radiusKm >= HOME_NEARBY_MAX_RADIUS_KM && styles.radiusButtonDisabled]}
+          >
+            <Text style={styles.radiusButtonLabel}>+</Text>
+          </Pressable>
+        </View>
+      </View>
       <HomeTimeSelector value={slot} onChange={onSlotChange} />
       {error ? <View style={styles.empty}><Text style={styles.zone}>{error}</Text><Pressable accessibilityRole="button" onPress={onRetry} style={styles.secondary}><Text style={styles.secondaryLabel}>Réessayer</Text></Pressable></View> : null}
       {loading && events.length === 0 ? <DiscoveryLoadingState title="On regarde autour de toi" subtitle="On prépare quelques idées de sortie." /> : events.length > 0 ? (
@@ -105,7 +131,39 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingLeft: spacing.lg,
   },
-  zone: { ...typography.caption, color: colors.brand.textSecondary },
+  zone: { ...typography.caption, color: colors.brand.textSecondary, flex: 1 },
+  radiusRow: {
+    marginRight: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  radiusControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  radiusButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.brand.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radiusButtonDisabled: { opacity: 0.4 },
+  radiusButtonLabel: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '700',
+  },
+  radiusValue: {
+    ...typography.caption,
+    color: colors.brand.text,
+    fontWeight: '700',
+    minWidth: 52,
+    textAlign: 'center',
+  },
   title: {
     ...typography.h4,
     color: colors.brand.text,

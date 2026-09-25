@@ -79,7 +79,9 @@ export default function HomeScreen() {
             complete={feed.complete}
             loading={feed.poolLoading}
             error={feed.poolError}
-            zoneLabel={`${feed.zoneLabel} · ${feed.browseRadiusKm} km`}
+            zoneLabel={feed.zoneLabel}
+            radiusKm={feed.browseRadiusKm}
+            onRadiusChange={feed.setBrowseRadius}
             reasonFor={feed.reasonFor}
             pendingHearts={feed.pendingHearts}
             onRetry={feed.retry}
