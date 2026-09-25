@@ -274,7 +274,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
   );
 
   return (
-    <View style={[styles.card, noBottomMargin && styles.cardNoMargin, style]}>
+    <View style={[styles.card, variant === 'map-preview' && styles.cardFloating, noBottomMargin && styles.cardNoMargin, style]}>
       <Pressable onPress={handleCardPress} onPressIn={handleCardPressIn}>
         <View style={[styles.mediaWrap, { height: mediaHeight }]}>
           {mediaSection}
@@ -516,13 +516,17 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: EVENT_CARD_RADIUS,
     overflow: 'hidden',
-    backgroundColor: colors.brand.surfaceMuted,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: 'transparent',
+    marginBottom: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   cardNoMargin: {
     marginBottom: 0,
+  },
+  cardFloating: {
+    backgroundColor: colors.brand.page,
+    borderBottomWidth: 0,
   },
   mediaWrap: {
     position: 'relative',

@@ -42,7 +42,6 @@ import {
   type MapSheetMode,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
-import { EventResultCard } from './EventResultCard';
 import { MapDiscoveryEventCard } from './MapDiscoveryEventCard';
 import { MapDiscoveryHeader } from './MapDiscoveryHeader';
 import { BrandIcon } from '@/components/ui/BrandIcon';
@@ -52,6 +51,7 @@ import type { MapHeartToggleResult } from '@/hooks/map/useMapSocialActions';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { MapResultsSkeleton } from './MapResultsSkeleton';
+import { useAuth } from '@/hooks';
 import { haptics } from '@/utils/haptics';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { sortEvents, getDistanceText } from '@/utils/sort-events';
@@ -225,6 +225,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     },
     ref
   ) => {
+    const { profile } = useAuth();
     const listRef = useRef<FlatList<EventWithCreator>>(null);
     const listHeaderHeight = useRef(0);
     const resultsHeaderY = useRef(0);
@@ -233,7 +234,6 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     const scrollTarget = useRef<number | null>(null);
     const pendingHeartIds = useRef(new Set<string>());
     const [pendingIds, setPendingIds] = React.useState<ReadonlySet<string>>(new Set());
-    const spotlightEvents = useMemo(() => selectMapSpotlight(events, sortCenter), [events, sortCenter]);
     const distanceFor = useCallback((event: EventWithCreator) => {
       const coordinates = typeof event.location === 'object' ? event.location?.coordinates : undefined;
       const latitude = coordinates?.[1] ?? event.latitude;
@@ -337,6 +337,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       hasViewportRefineProp ?? selectedCategories.length > 0;
 
     const [statsByEventId, setStatsByEventId] = React.useState<Record<string, EventCardStats>>({});
+    const spotlightEvents = useMemo(
+      () => selectMapSpotlight(
+        events,
+        sortCenter,
+        Object.fromEntries(Object.entries(statsByEventId).map(([id, stats]) => [id, stats.likesCount])),
+      ),
+      [events, sortCenter, statsByEventId],
+    );
 
     const eventIds = React.useMemo(
       () => Array.from(new Set([...visibleItems, ...spotlightEvents].map((event) => event.id).filter(Boolean))),
@@ -421,7 +429,14 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         try {
           const result = await onToggleHeart(event);
           if (!result) return;
-          const self = currentUserId ? { id: currentUserId, display_name: 'Moi', avatar_url: null, is_followed: false } : null;
+          const self = currentUserId
+            ? {
+                id: currentUserId,
+                display_name: profile?.display_name || 'Moi',
+                avatar_url: profile?.avatar_url || null,
+                is_followed: false,
+              }
+            : null;
           setStatsByEventId((prev) => ({
             ...prev,
             [event.id]: EventCardStatsService.applyLikeToggle(
@@ -434,7 +449,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           setPendingIds(new Set(pendingHeartIds.current));
         }
       },
-      [currentUserId, onToggleHeart],
+      [currentUserId, onToggleHeart, profile?.avatar_url, profile?.display_name],
     );
 
     const expandedChromeStyle = useAnimatedStyle(() => {
@@ -719,7 +734,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
         const heading = mapEventDateHeading(item, sortedEvents[index - 1], sortBy);
         return <View style={styles.rowWrap}>
           {heading ? <Text accessibilityRole="header" style={styles.dateHeading}>{heading}</Text> : null}
-          <MapDiscoveryEventCard event={item} stats={statsByEventId[item.id]}
+          <MapDiscoveryEventCard event={item} variant="feed" stats={statsByEventId[item.id]}
             liked={Boolean(isHearted?.(item.id))} pending={pendingIds.has(item.id)}
             active={item.id === activeEventId} distance={distanceFor(item)}
             onOpen={onOpenDetails} onHighlight={(event) => onHighlightEvent(event, { focusMap: false })}
@@ -835,20 +850,15 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
 
         {showSingleDetail && (
           <View style={[styles.singleContainer, { paddingBottom: bottomContentInset }]}>
-            <EventResultCard
+            <MapDiscoveryEventCard
               event={events[0]}
-              viewsCount={statsByEventId[events[0].id]?.viewsCount ?? 0}
-              friendsGoingCount={statsByEventId[events[0].id]?.friendsGoingCount ?? 0}
-              likesCount={statsByEventId[events[0].id]?.likesCount ?? events[0].likes_count ?? 0}
-              likers={statsByEventId[events[0].id]?.likers ?? []}
-              active
-              onPress={() => onOpenDetails(events[0])}
-              onSelect={() => onSelectEvent(events[0])}
-              onNavigate={() => onNavigate(events[0])}
-              onOpenCreator={onOpenCreator}
+              variant="feed"
+              stats={statsByEventId[events[0].id]}
+              liked={Boolean(isHearted?.(events[0].id))}
+              onOpen={onOpenDetails}
               onToggleHeart={handleToggleHeart}
               onShare={shareEvent}
-              isHearted={isHearted ? isHearted(events[0].id) : undefined}
+              distance={distanceFor(events[0])}
             />
           </View>
         )}

@@ -207,14 +207,7 @@ export function ProposalWizard({
                       haptics.selection();
                       onToggleCategory(category.id);
                     }}
-                    style={[
-                      styles.categoryChip,
-                      { borderColor: active ? categoryColor : `${categoryColor}80` },
-                      active && {
-                        backgroundColor: `${categoryColor}26`,
-                        borderColor: categoryColor,
-                      },
-                    ]}
+                    style={styles.categoryChip}
                   >
                     <View style={styles.categoryCopy}>
                       <Text
@@ -460,8 +453,8 @@ const styles = StyleSheet.create({
   selectAllText: { ...typography.label, color: colors.brand.secondary },
   selectAllTextActive: { color: colors.brand.primary },
   chipGrid: { gap: spacing.sm },
-  categoryChip: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
-  categoryChipActive: { backgroundColor: colors.brand.secondary, borderColor: colors.brand.secondary },
+  categoryChip: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
+  categoryChipActive: {},
   categoryCopy: { flex: 1 },
   categoryLabel: { ...typography.h6, color: colors.brand.text },
   categoryLabelActive: { color: colors.brand.primary },
@@ -469,10 +462,10 @@ const styles = StyleSheet.create({
   categoryHintActive: { color: colors.brand.primary },
   categoryCheck: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.neutral[300] },
   categoryCheckActive: { borderColor: colors.brand.primary, backgroundColor: 'rgba(15, 23, 25, 0.08)' },
-  infoCard: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.brand.surfaceMuted },
+  infoCard: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.brand.line },
   infoText: { ...typography.bodySmall, color: colors.brand.textSecondary },
-  locationButton: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
-  locationButtonActive: { borderColor: colors.brand.secondary, backgroundColor: colors.brand.surfaceMuted },
+  locationButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
+  locationButtonActive: { borderBottomColor: colors.brand.secondary },
   locationButtonCopy: { flex: 1, marginLeft: spacing.md },
   locationButtonTitle: { ...typography.h6, color: colors.brand.text },
   locationButtonSubtitle: { ...typography.bodySmall, color: colors.brand.textSecondary },
@@ -483,18 +476,18 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, marginLeft: spacing.sm, ...typography.body, color: colors.brand.text },
   searchResult: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.neutral[200] },
   searchResultText: { flex: 1, ...typography.bodySmall, color: colors.brand.text },
-  anchorCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.brand.surfaceMuted, borderWidth: 1, borderColor: 'rgba(124, 181, 24, 0.35)' },
+  anchorCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.brand.line },
   anchorCopy: { flex: 1, marginLeft: spacing.sm },
   anchorLabel: { ...typography.label, fontSize: 11, color: colors.brand.secondary },
   anchorValue: { ...typography.body, color: colors.brand.text },
   sectionLabel: { ...typography.h6, color: colors.brand.text, marginTop: spacing.xl, marginBottom: spacing.md },
   radiusRow: { flexDirection: 'row', gap: spacing.sm },
-  radiusChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
-  radiusChipActive: { backgroundColor: colors.brand.secondary, borderColor: colors.brand.secondary },
+  radiusChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
+  radiusChipActive: { borderBottomWidth: 2, borderBottomColor: colors.brand.secondary },
   radiusText: { ...typography.label, color: colors.brand.text },
-  radiusTextActive: { color: colors.brand.onAccent },
-  dateOption: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.neutral[200], backgroundColor: colors.brand.surface },
-  dateOptionActive: { borderColor: colors.brand.secondary, backgroundColor: colors.brand.surfaceMuted },
+  radiusTextActive: { color: colors.brand.secondary },
+  dateOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
+  dateOptionActive: { borderBottomColor: colors.brand.secondary },
   dateIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.surfaceMuted },
   dateIconActive: { backgroundColor: colors.brand.secondary },
   dateCopy: { flex: 1, marginLeft: spacing.md },

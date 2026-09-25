@@ -183,7 +183,7 @@ export function ProposalSwipeDeck({
               <ProposalCardContent event={event} anchor={anchor} categoryMap={categoryMap} />
             </Pressable>
             <Animated.View pointerEvents="none" style={[styles.decisionStamp, styles.likeStamp, likeStyle]}>
-              <Heart size={22} color="#052d21" fill="#052d21" />
+              <Heart size={22} color={colors.brand.error} fill={colors.brand.error} />
               <Text style={styles.likeStampText}>J’AIME</Text>
             </Animated.View>
             <Animated.View pointerEvents="none" style={[styles.decisionStamp, styles.passStamp, passStyle]}>
@@ -214,7 +214,7 @@ export function ProposalSwipeDeck({
           accessibilityLabel="J’aime cet événement"
           accessibilityHint="Même action qu’un glissement vers la droite"
         >
-          <Heart size={30} color="#34d399" fill="#34d399" />
+          <Heart size={30} color={colors.brand.error} fill={colors.brand.error} />
         </TouchableOpacity>
       </View>
     </View>

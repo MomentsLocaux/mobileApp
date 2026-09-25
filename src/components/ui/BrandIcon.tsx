@@ -16,6 +16,7 @@ export type BrandIconProps = {
 const MINT = colors.primary[200];
 const LEAF = colors.brand.secondary;
 const INK = colors.brand.ink;
+const HEART = colors.brand.error;
 
 /** Duo végétal: mint (or leaf) fill, ink stroke. No gradient, filter or 3D. */
 export const BrandIcon = React.memo(function BrandIcon({
@@ -26,11 +27,11 @@ export const BrandIcon = React.memo(function BrandIcon({
   fillColor,
 }: BrandIconProps) {
   const glyph = brandIconArtwork[name];
-  const stroke = color || INK;
   const isHeart = name === 'heart';
+  const stroke = color || (isHeart ? HEART : INK);
   const fill =
     fillColor ??
-    (isHeart ? (active ? LEAF : 'transparent') : active ? LEAF : MINT);
+    (isHeart ? (active ? HEART : 'transparent') : active ? LEAF : MINT);
 
   return (
     <Svg width={size} height={size} viewBox="-1 -1 26 26" accessible={false}>

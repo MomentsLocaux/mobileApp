@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { BrandIcon } from '@/components/ui/BrandIcon';
 import type { LocalPulse } from '@/utils/home-feed';
 
@@ -32,9 +32,9 @@ export function LocalPulseCard({ pulse, complete, onExplore }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surfaceMuted,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

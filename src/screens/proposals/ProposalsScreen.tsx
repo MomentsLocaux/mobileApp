@@ -648,7 +648,7 @@ function ProposalSummary({
                   {heartBusyId === event.id ? (
                     <ActivityIndicator size="small" color={colors.brand.secondary} />
                   ) : (
-                    <Heart size={20} color={hearted ? colors.brand.primary : colors.brand.secondary} fill={hearted ? colors.brand.secondary : 'transparent'} />
+                    <Heart size={20} color={colors.brand.error} fill={hearted ? colors.brand.error : 'transparent'} />
                   )}
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -665,7 +665,7 @@ function ProposalSummary({
           <Text style={styles.secondaryActionText}>Modifier mes envies</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.textAction} onPress={onFavorites}>
-          <Heart size={17} color={colors.brand.secondary} />
+          <Heart size={17} color={colors.brand.error} />
           <Text style={styles.textActionText}>Voir mes favoris</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.textAction} onPress={onHistory}>
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   summaryTitle: { ...typography.h2, color: colors.brand.text, textAlign: 'center', marginTop: spacing.sm },
   summarySubtitle: { ...typography.body, color: colors.brand.textSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 500 },
   summaryList: { width: '100%', maxWidth: 520, marginTop: spacing.xl, gap: spacing.sm },
-  summaryCard: { minHeight: 84, flexDirection: 'row', alignItems: 'center', padding: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  summaryCard: { minHeight: 84, flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
   summaryImage: { width: 68, height: 68, borderRadius: borderRadius.md, backgroundColor: '#243136' },
   summaryImageFallback: { alignItems: 'center', justifyContent: 'center' },
   summaryCardCopy: { flex: 1, marginHorizontal: spacing.md },

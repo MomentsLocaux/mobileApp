@@ -302,12 +302,10 @@ const styles = StyleSheet.create({
     color: colors.warning[700],
   },
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(26, 51, 41, 0.08)',
-    backgroundColor: colors.brand.surface,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     gap: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   kindRow: {
     flexDirection: 'row',
@@ -347,19 +345,15 @@ const styles = StyleSheet.create({
   },
   noteBox: {
     marginTop: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
     gap: 4,
-    borderWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   noteBoxDanger: {
-    backgroundColor: colors.error[0],
-    borderColor: 'rgba(230, 57, 70, 0.2)',
+    borderTopColor: 'rgba(230, 57, 70, 0.45)',
   },
-  noteBoxMuted: {
-    backgroundColor: colors.brand.surfaceMuted,
-    borderColor: 'rgba(26, 51, 41, 0.08)',
-  },
+  noteBoxMuted: {},
   noteLabel: {
     ...typography.caption,
     fontWeight: '700',

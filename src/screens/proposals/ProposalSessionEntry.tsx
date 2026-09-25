@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.label, fontSize: 11, letterSpacing: 1.3, color: colors.brand.secondary },
   title: { ...typography.h2, color: colors.brand.text, textAlign: 'center', marginTop: spacing.sm },
   subtitle: { ...typography.body, color: colors.brand.textSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 460 },
-  resumeCard: { width: '100%', maxWidth: 520, marginTop: spacing.xl, padding: spacing.lg, borderRadius: borderRadius.xl, borderWidth: 1, borderColor: '#365867', backgroundColor: colors.brand.surface },
+  resumeCard: { width: '100%', maxWidth: 520, marginTop: spacing.xl, paddingVertical: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.brand.line },
   resumeHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   resumeIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124, 181, 24, 0.1)' },
   resumeCopy: { flex: 1 },

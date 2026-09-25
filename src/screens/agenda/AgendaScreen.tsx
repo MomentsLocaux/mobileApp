@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Compass } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Compass } from 'lucide-react-native';
 import { AppBackground, BrandIcon, DiscoveryLoadingState, EmptyState, SlidingSegmentedControl, UserAvatar } from '@/components/ui';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AgendaBucketRow } from '@/components/agenda/AgendaBucketRow';
@@ -19,7 +19,7 @@ import { AgendaEmptyIllustration } from '@/components/agenda/AgendaEmptyIllustra
 import { AgendaEventRow } from '@/components/agenda/AgendaEventRow';
 import { AgendaLikedRangeModal } from '@/components/agenda/AgendaLikedRangeModal';
 import { AgendaMonthGrid } from '@/components/agenda/AgendaMonthGrid';
-import { AgendaCountLabel } from '@/components/agenda/AgendaWeekStrip';
+import { AgendaCountLabel, AgendaWeekStrip } from '@/components/agenda/AgendaWeekStrip';
 import { FavoritesMapView } from '@/components/favorites/FavoritesMapView';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { features } from '@/config/features';
@@ -41,6 +41,7 @@ import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import {
   AGENDA_BUCKET_COPY,
   buildMonthGrid,
+  buildWeekDays,
   countAgendaDayActivities,
   eventOverlapsLocalRange,
   filterAgendaBucketEvents,
@@ -80,6 +81,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const [hubTab, setHubTab] = useState<HubTab>('agenda');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(() => new Date());
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
   const [likedModalOpen, setLikedModalOpen] = useState(false);
@@ -116,6 +118,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   );
   const buckets = useMemo(() => visibleAgendaBuckets(flags), [flags]);
   const monthDays = useMemo(() => buildMonthGrid(anchor), [anchor]);
+  const weekDays = useMemo(() => buildWeekDays(selectedDay), [selectedDay]);
 
   const membership = useMemo(
     () => ({
@@ -200,11 +203,12 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   );
   const markedKeys = useMemo(() => {
     const marked = new Set<string>();
-    for (const day of monthDays) {
+    const days = calendarExpanded ? monthDays : weekDays;
+    for (const day of days) {
       if (interestedEvents.some((event) => eventOverlapsLocalRange(event, day, day))) marked.add(toLocalDateKey(day));
     }
     return marked;
-  }, [interestedEvents, monthDays]);
+  }, [calendarExpanded, interestedEvents, monthDays, weekDays]);
   const likedRangeEvents = useMemo(
     () => (rangeStart ? likedEventsInRange(interestedEvents, rangeStart, rangeEnd ?? rangeStart) : []),
     [interestedEvents, rangeEnd, rangeStart],
@@ -444,33 +448,71 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
           </ScrollView>
         ) : (
           <View style={styles.agendaBody}>
-            <AgendaMonthGrid
-              days={monthDays}
-              month={anchor}
-              today={now}
-              rangeStart={rangeStart}
-              rangeEnd={rangeEnd}
-              markedKeys={markedKeys}
-              onSelect={(day) => {
-                setSelectedDay(day);
-                setSelectedBucket(null);
-                setShowMap(false);
-                const extending = rangeStart && !rangeEnd && !isSameLocalDay(rangeStart, day);
-                if (extending && rangeStart) {
-                  const forward = rangeStart.getTime() <= day.getTime();
-                  setRangeStart(forward ? rangeStart : day);
-                  setRangeEnd(forward ? day : rangeStart);
-                } else if (rangeStart && rangeEnd && !isSameLocalDay(rangeStart, rangeEnd)) {
-                  setRangeStart(day);
-                  setRangeEnd(null);
-                } else {
-                  setRangeStart(day);
-                  setRangeEnd(null);
-                }
-                setLikedModalOpen(true);
+            {calendarExpanded ? (
+              <AgendaMonthGrid
+                days={monthDays}
+                month={anchor}
+                today={now}
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+                markedKeys={markedKeys}
+                onSelect={(day) => {
+                  setSelectedDay(day);
+                  setAnchor(day);
+                  setSelectedBucket(null);
+                  setShowMap(false);
+                  const extending = rangeStart && !rangeEnd && !isSameLocalDay(rangeStart, day);
+                  if (extending && rangeStart) {
+                    const forward = rangeStart.getTime() <= day.getTime();
+                    setRangeStart(forward ? rangeStart : day);
+                    setRangeEnd(forward ? day : rangeStart);
+                  } else if (rangeStart && rangeEnd && !isSameLocalDay(rangeStart, rangeEnd)) {
+                    setRangeStart(day);
+                    setRangeEnd(null);
+                  } else {
+                    setRangeStart(day);
+                    setRangeEnd(null);
+                  }
+                  setLikedModalOpen(true);
+                }}
+                onShiftMonth={(delta) => setAnchor(shiftMonth(anchor, delta))}
+              />
+            ) : (
+              <AgendaWeekStrip
+                days={weekDays}
+                selected={selectedDay}
+                today={now}
+                markedKeys={markedKeys}
+                onSelect={(day) => {
+                  setSelectedDay(day);
+                  setAnchor(day);
+                  setSelectedBucket(null);
+                  setShowMap(false);
+                }}
+                onShiftWeek={(delta) => {
+                  const next = new Date(selectedDay);
+                  next.setDate(selectedDay.getDate() + delta * 7);
+                  setSelectedDay(next);
+                  setAnchor(next);
+                }}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.calendarToggle}
+              onPress={() => {
+                if (!calendarExpanded) setAnchor(selectedDay);
+                setCalendarExpanded((open) => !open);
               }}
-              onShiftMonth={(delta) => setAnchor(shiftMonth(anchor, delta))}
-            />
+              accessibilityRole="button"
+              accessibilityLabel={calendarExpanded ? 'Réduire le calendrier à la semaine' : 'Ouvrir le calendrier du mois'}
+            >
+              {calendarExpanded ? (
+                <ChevronUp size={18} color={colors.brand.textSecondary} />
+              ) : (
+                <ChevronDown size={18} color={colors.brand.textSecondary} />
+              )}
+              <Text style={styles.calendarToggleLabel}>{calendarExpanded ? 'Semaine' : 'Mois'}</Text>
+            </TouchableOpacity>
             <ScrollView
               style={styles.agendaScroll}
               contentContainerStyle={styles.listContent}
@@ -666,6 +708,19 @@ const styles = StyleSheet.create({
   agendaBody: {
     flex: 1,
   },
+  calendarToggle: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+  },
+  calendarToggleLabel: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '700',
+  },
   agendaScroll: {
     flex: 1,
   },
@@ -764,11 +819,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   memberBody: {
     flex: 1,

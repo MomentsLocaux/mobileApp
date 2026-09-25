@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Calendar, MapPin, Euro } from 'lucide-react-native';
-import { colors, typography, spacing, borderRadius } from '@/constants/theme';
+import { colors, typography, spacing } from '@/constants/theme';
 import { EventPreviewMiniMap } from '@/components/events/EventPreviewMiniMap';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { getCategoryLabel } from '@/constants/categories';
@@ -86,11 +86,9 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
     },
     previewCard: {
-        borderRadius: borderRadius.lg,
         overflow: 'hidden',
-        backgroundColor: colors.brand.surface,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: colors.brand.line,
     },
     cardContent: {
         padding: spacing.md,

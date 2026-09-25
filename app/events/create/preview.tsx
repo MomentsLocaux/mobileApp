@@ -501,11 +501,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   previewCard: {
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.xl,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   hero: {
     height: 220,

@@ -94,13 +94,7 @@ export function OnboardingThemesStep({
               key={slug}
               onPress={() => onToggle(slug)}
               activeOpacity={0.75}
-              style={[
-                styles.categoryCard,
-                active && {
-                  backgroundColor: `${categoryColor}26`,
-                  borderColor: categoryColor,
-                },
-              ]}
+              style={styles.categoryCard}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: active }}
               accessibilityLabel={`Catégorie ${label}. ${hint}`}
@@ -188,15 +182,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   categoryCard: {
-    minHeight: 92,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.brand.surface,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   categoryIcon: {
     width: 42,

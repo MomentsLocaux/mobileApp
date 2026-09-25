@@ -144,16 +144,13 @@ const styles = StyleSheet.create({
   subCard: {
     width: 128,
     minHeight: 76,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: colors.brand.surface,
-    padding: spacing.sm,
+    paddingVertical: spacing.sm,
     justifyContent: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   subCardActive: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(124, 181, 24, 0.12)',
+    borderBottomColor: colors.brand.secondary,
   },
   subCardText: {
     ...typography.bodySmall,

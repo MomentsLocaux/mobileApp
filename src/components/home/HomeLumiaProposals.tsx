@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 
 type Props = {
   onPress: () => void;
@@ -28,9 +28,9 @@ export function HomeLumiaProposals({ onPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surfaceMuted,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

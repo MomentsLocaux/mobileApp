@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Briefcase, Compass } from 'lucide-react-native';
 import type { AccountKind } from '@/constants/accountIdentity';
 import { LUMIA_INTRO } from '@/constants/lumiaTour';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
 type Props = {
@@ -140,25 +140,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   panel: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
+    paddingVertical: spacing.md,
     gap: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
-  panelFun: {
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.brand.surface,
-  },
-  panelFormal: {
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.brand.surface,
-  },
-  panelActive: {
-    borderColor: colors.brand.secondary,
-  },
-  panelActiveFormal: {
-    borderColor: colors.brand.secondary,
-  },
+  panelFun: {},
+  panelFormal: {},
+  panelActive: {},
+  panelActiveFormal: {},
   panelHeader: {
     flexDirection: 'row',
     alignItems: 'center',

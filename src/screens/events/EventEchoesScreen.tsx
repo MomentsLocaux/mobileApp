@@ -314,8 +314,8 @@ export default function EventEchoesScreen() {
                       >
                         <Heart
                           size={14}
-                          color={likedCommentIds.has(comment.id) ? colors.error[500] : colors.brand.textSecondary}
-                          fill={likedCommentIds.has(comment.id) ? colors.error[500] : 'transparent'}
+                          color={colors.brand.error}
+                          fill={likedCommentIds.has(comment.id) ? colors.brand.error : 'transparent'}
                         />
                         <Text
                           style={[
@@ -385,8 +385,8 @@ export default function EventEchoesScreen() {
                               >
                                 <Heart
                                   size={13}
-                                  color={likedCommentIds.has(reply.id) ? colors.error[500] : colors.brand.textSecondary}
-                                  fill={likedCommentIds.has(reply.id) ? colors.error[500] : 'transparent'}
+                                  color={colors.brand.error}
+                                  fill={likedCommentIds.has(reply.id) ? colors.brand.error : 'transparent'}
                                 />
                                 <Text
                                   style={[
@@ -619,12 +619,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    backgroundColor: 'rgba(124, 181, 24,0.12)',
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24,0.4)',
-    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   replyContextText: {
     ...typography.bodySmall,

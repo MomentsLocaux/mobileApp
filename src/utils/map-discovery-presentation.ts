@@ -2,14 +2,23 @@ import type { EventWithCreator } from '../types/database';
 import type { SortOption } from '../types/filters';
 import { sortEvents } from './sort-events';
 
-/** Spotlight is a small preview of the same filtered viewport, never a separate feed. */
-export function selectMapSpotlight(events: EventWithCreator[], center?: { latitude: number; longitude: number } | null) {
+/** Spotlight is a small preview of the same filtered viewport, never a separate feed. Most-liked events come first. */
+export function selectMapSpotlight(
+  events: EventWithCreator[],
+  center?: { latitude: number; longitude: number } | null,
+  likesById?: Record<string, number>,
+) {
   const seen = new Set<string>();
-  return sortEvents(events, 'triage', center).filter((event) => {
+  const unique = sortEvents(events, 'triage', center).filter((event) => {
     if (event.status !== 'published' || seen.has(event.id)) return false;
     seen.add(event.id);
     return true;
-  }).slice(0, 3);
+  });
+  const likes = (event: EventWithCreator) => {
+    const counted = likesById?.[event.id];
+    return typeof counted === 'number' && Number.isFinite(counted) ? counted : event.likes_count || 0;
+  };
+  return unique.sort((left, right) => likes(right) - likes(left)).slice(0, 3);
 }
 
 /** Date headings only accompany a chronological sort; other orders stay intact. */

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { EventWithCreator } from '@/types/database';
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventCardStats } from '@/services/event-card-stats.service';
 import { colors, spacing, typography } from '@/constants/theme';
-import { BrandIcon } from '@/components/ui/BrandIcon';
+import { LUMIA_AVATAR_LOCAL } from '@/constants/lumia';
 import { MapDiscoveryEventCard } from './MapDiscoveryEventCard';
 
 type Props = {
@@ -29,6 +29,8 @@ export function MapDiscoveryHeader({
   spotlight, stats, pendingIds, isHearted, total, sortBy, sortOrder, hasLocation, onSort,
   onOpen, onToggleHeart, onShare, onShowAll, onResultsLayout, distanceFor,
 }: Props) {
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.min(320, Math.max(240, width - 72));
   const sorts: { label: string; key: SortOption; order?: SortOrder; disabled?: boolean }[] = [
     { label: 'Tous', key: 'triage' },
     { label: 'Nouveautés', key: 'created', order: 'desc' },
@@ -38,11 +40,15 @@ export function MapDiscoveryHeader({
     <View>
       {spotlight.length > 0 ? <>
         <View style={styles.sectionHeading}>
-          <View style={styles.headingLabel}><BrandIcon name="sparkles" size={23} /><Text accessibilityRole="header" style={styles.title}>Les moments à découvrir</Text></View>
+          <View style={styles.headingLabel}><Image source={LUMIA_AVATAR_LOCAL} style={styles.lumia} accessibilityIgnoresInvertColors /><Text accessibilityRole="header" style={styles.title}>Les recos de Lumia</Text></View>
           <Pressable accessibilityRole="button" accessibilityLabel="Voir tous les événements" onPress={onShowAll} style={styles.seeAll}><Text style={styles.link}>Voir tout</Text></Pressable>
         </View>
-        <ScrollView horizontal nestedScrollEnabled directionalLockEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carousel} accessibilityLabel="Les moments à découvrir">
-          {spotlight.map((event) => <MapDiscoveryEventCard key={event.id} event={event} variant="spotlight" stats={stats[event.id]} liked={Boolean(isHearted?.(event.id))} pending={pendingIds.has(event.id)} onOpen={onOpen} onToggleHeart={onToggleHeart} onShare={onShare} distance={distanceFor(event)} />)}
+        <ScrollView horizontal nestedScrollEnabled directionalLockEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carousel} accessibilityLabel="Les recos de Lumia">
+          {spotlight.map((event) => (
+            <View key={event.id} style={{ width: cardWidth }}>
+              <MapDiscoveryEventCard event={event} variant="feed" carousel stats={stats[event.id]} liked={Boolean(isHearted?.(event.id))} pending={pendingIds.has(event.id)} onOpen={onOpen} onToggleHeart={onToggleHeart} onShare={onShare} distance={distanceFor(event)} />
+            </View>
+          ))}
         </ScrollView>
       </> : null}
       <View style={styles.results} onLayout={(event) => onResultsLayout(event.nativeEvent.layout.y)}>
@@ -61,6 +67,7 @@ export function MapDiscoveryHeader({
 const styles = StyleSheet.create({
   sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, gap: 8 },
   headingLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  lumia: { width: 28, height: 28, borderRadius: 14 },
   title: { ...typography.body, fontWeight: '700', color: colors.brand.text, flexShrink: 1 },
   seeAll: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
   link: { ...typography.caption, color: colors.brand.text, fontWeight: '700', textDecorationLine: 'underline' },

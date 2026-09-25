@@ -8,7 +8,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { colors, spacing, borderRadius } from '@/constants/theme';
-import { EVENT_CARD_MEDIA_HEIGHT, EVENT_CARD_RADIUS } from '@/constants/event-card-variants';
+import { EVENT_CARD_MEDIA_HEIGHT } from '@/constants/event-card-variants';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 
 type Props = {
@@ -109,11 +109,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.page,
   },
   card: {
-    borderRadius: EVENT_CARD_RADIUS,
     overflow: 'hidden',
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: 'transparent',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   body: {
     padding: spacing.md,

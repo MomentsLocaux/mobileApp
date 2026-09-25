@@ -288,7 +288,28 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused, size }) => renderTabIconSlot(focused, <BrandIcon name="home" size={size} active={focused} color={colors.brand.ink} />, 'home'),
           }}
         />
-        <Tabs.Screen name="proposals" options={{ href: null }} />
+        <Tabs.Screen
+          name="proposals"
+          options={
+            isProfessionnelAccount
+              ? { href: null }
+              : {
+                  title: 'Propositions',
+                  tabBarIcon: ({ focused, size }) =>
+                    renderTabIconSlot(
+                      focused,
+                      <BrandIcon
+                        name="sparkles"
+                        size={size}
+                        active={focused && !isGuest}
+                        color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
+                      />,
+                      'proposals',
+                    ),
+                  tabBarButton: (props) => renderProtectedTabButton(props, 'Créer vos propositions'),
+                }
+          }
+        />
         <Tabs.Screen
           name="map"
           options={{
