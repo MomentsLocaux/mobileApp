@@ -54,7 +54,7 @@ export function useMapMarkerPress({
       const present = (event: EventWithCreator) => {
         eventCacheRef.current.set(id, event);
         useEventPreviewStore.getState().rememberEvent(event);
-        prefetchEventMedia(event);
+        prefetchEventMedia(event, { priority: 'visible' });
         highlightViewportEvent(event);
         setUnitCardEvent(event);
         collapseSheetToPeek?.();

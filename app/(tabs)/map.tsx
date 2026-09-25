@@ -1241,7 +1241,7 @@ export default function MapScreen() {
       targetCardRect: null,
     });
     useEventPreviewStore.getState().prepareEventDetail(unitCardEvent);
-    prefetchEventMedia(unitCardEvent, { includeGallery: true });
+    prefetchEventMedia(unitCardEvent, { includeGallery: true, priority: 'visible' });
     router.push(`/map-event/${unitCardEvent.id}?origin=map-unit` as any);
   }, [router, unitCardEvent]);
 
@@ -1256,7 +1256,7 @@ export default function MapScreen() {
         targetCardRect: null,
       });
       useEventPreviewStore.getState().prepareEventDetail(event);
-      prefetchEventMedia(event, { includeGallery: true });
+      prefetchEventMedia(event, { includeGallery: true, priority: 'visible' });
       router.push(`/map-event/${event.id}?origin=map-sheet` as any);
     },
     [router],

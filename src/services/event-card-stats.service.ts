@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { shouldFetchEventViewsFallback } from '@/utils/event-card-stats-plan';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 
 export type EventCardLikerPreview = {
@@ -138,9 +139,22 @@ export const EventCardStatsService = {
         fetched[id] = emptyStats();
       });
 
-      const { data: publicStats, error: publicStatsError } = await supabase.rpc('get_event_public_stats', {
-        event_ids: missingEventIds,
-      });
+      const emptyRpc = { data: null, error: null as unknown };
+      const [publicStatsResponse, friendsResponse, likersResponse] = await Promise.all([
+        supabase.rpc('get_event_public_stats', { event_ids: missingEventIds }),
+        currentUserId
+          ? supabase.rpc('get_event_friend_favorite_counts', { event_ids: missingEventIds })
+          : Promise.resolve(emptyRpc),
+        currentUserId
+          ? supabase.rpc('get_event_liker_previews' as never, {
+              p_event_ids: missingEventIds,
+              p_limit_per_event: EVENT_CARD_LIKER_PREVIEW_LIMIT,
+            } as never)
+          : Promise.resolve(emptyRpc),
+      ]);
+
+      const publicStatsError = publicStatsResponse.error;
+      const publicStats = publicStatsResponse.data;
       if (!publicStatsError && Array.isArray(publicStats)) {
         publicStats.forEach((row: { event_id?: string; likes_count?: number; views_count?: number }) => {
           const eventId = row?.event_id;
@@ -150,52 +164,45 @@ export const EventCardStatsService = {
         });
       }
 
-      const { data: viewCountRows, error: viewCountRowsError } = await supabase.rpc('get_event_views_counts', {
-        event_ids: missingEventIds,
-      });
-      if (!viewCountRowsError && Array.isArray(viewCountRows)) {
-        viewCountRows.forEach((row: { event_id?: string; views_count?: number }) => {
+      if (shouldFetchEventViewsFallback(publicStatsError)) {
+        const { data: viewCountRows, error: viewCountRowsError } = await supabase.rpc(
+          'get_event_views_counts',
+          { event_ids: missingEventIds },
+        );
+        if (!viewCountRowsError && Array.isArray(viewCountRows)) {
+          viewCountRows.forEach((row: { event_id?: string; views_count?: number }) => {
+            const eventId = row?.event_id;
+            if (!eventId || !fetched[eventId]) return;
+            fetched[eventId].viewsCount = Number(row?.views_count || 0);
+          });
+        }
+      }
+
+      const friendsError = friendsResponse.error;
+      if (!friendsError && Array.isArray(friendsResponse.data)) {
+        friendsResponse.data.forEach((row: { event_id?: string; friends_count?: number }) => {
           const eventId = row?.event_id;
           if (!eventId || !fetched[eventId]) return;
-          fetched[eventId].viewsCount = Number(row?.views_count || 0);
+          fetched[eventId].friendsGoingCount = Number(row?.friends_count || 0);
         });
       }
 
-      let friendsError: unknown = null;
-      if (currentUserId) {
-        const friendsResponse = await supabase.rpc('get_event_friend_favorite_counts', {
-          event_ids: missingEventIds,
+      const likersCode = String((likersResponse.error as { code?: string } | null)?.code || '');
+      if (likersResponse.error && likersCode !== 'PGRST202' && likersCode !== '42883') {
+        console.warn('get_event_liker_previews', likersResponse.error);
+      }
+      if (!likersResponse.error && Array.isArray(likersResponse.data)) {
+        (likersResponse.data as LikerPreviewRow[]).forEach((row) => {
+          const eventId = row?.event_id;
+          const userId = row?.user_id;
+          if (!eventId || !userId || !fetched[eventId]) return;
+          fetched[eventId].likers.push({
+            id: userId,
+            display_name: row.display_name || 'Membre',
+            avatar_url: row.avatar_url || null,
+            is_followed: Boolean(row.is_followed),
+          });
         });
-        friendsError = friendsResponse.error;
-        if (!friendsResponse.error && Array.isArray(friendsResponse.data)) {
-          friendsResponse.data.forEach((row: { event_id?: string; friends_count?: number }) => {
-            const eventId = row?.event_id;
-            if (!eventId || !fetched[eventId]) return;
-            fetched[eventId].friendsGoingCount = Number(row?.friends_count || 0);
-          });
-        }
-
-        const likersResponse = await supabase.rpc('get_event_liker_previews' as never, {
-          p_event_ids: missingEventIds,
-          p_limit_per_event: EVENT_CARD_LIKER_PREVIEW_LIMIT,
-        } as never);
-        const likersCode = String((likersResponse.error as { code?: string } | null)?.code || '');
-        if (likersResponse.error && likersCode !== 'PGRST202' && likersCode !== '42883') {
-          console.warn('get_event_liker_previews', likersResponse.error);
-        }
-        if (!likersResponse.error && Array.isArray(likersResponse.data)) {
-          (likersResponse.data as LikerPreviewRow[]).forEach((row) => {
-            const eventId = row?.event_id;
-            const userId = row?.user_id;
-            if (!eventId || !userId || !fetched[eventId]) return;
-            fetched[eventId].likers.push({
-              id: userId,
-              display_name: row.display_name || 'Membre',
-              avatar_url: row.avatar_url || null,
-              is_followed: Boolean(row.is_followed),
-            });
-          });
-        }
       }
 
       const viewsOk = !publicStatsError;

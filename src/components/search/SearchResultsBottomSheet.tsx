@@ -53,6 +53,8 @@ import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import { MapResultsSkeleton } from './MapResultsSkeleton';
 import { useAuth } from '@/hooks';
 import { haptics } from '@/utils/haptics';
+import { COVER_PREFETCH_AHEAD_LIMIT, bumpCoverPrefetchGeneration } from '@/utils/cover-prefetch-queue';
+import { splitDiscoveryEnrichmentIds } from '@/utils/discovery-enrichment';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { sortEvents, getDistanceText } from '@/utils/sort-events';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
@@ -252,7 +254,9 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       listRef.current?.scrollToOffset({ offset: resultsHeaderY.current, animated: false });
     }, []);
     const prefetchSheetPage = useCallback((pageItems: EventWithCreator[]) => {
-      pageItems.forEach((event) => prefetchEventMedia(event));
+      pageItems.slice(0, COVER_PREFETCH_AHEAD_LIMIT).forEach((event) =>
+        prefetchEventMedia(event, { priority: 'ahead' }),
+      );
     }, []);
     const sortedEvents = useMemo(
       () => sortEvents(events, sortBy, sortCenter, sortOrder),
@@ -283,7 +287,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           'map-sheet',
           visible.map((event) => event.id),
         );
-        visible.forEach((event) => prefetchEventMedia(event));
+        visible.forEach((event) => prefetchEventMedia(event, { priority: 'visible' }));
         const indexes = viewableItems
           .map((entry) => entry.index)
           .filter((index): index is number => index != null);
@@ -346,11 +350,16 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       [events, sortCenter, statsByEventId],
     );
 
-    const eventIds = React.useMemo(
-      () => Array.from(new Set([...visibleItems, ...spotlightEvents].map((event) => event.id).filter(Boolean))),
-      [visibleItems, spotlightEvents]
+    const { immediate: immediateStatIds, deferred: deferredStatIds } = React.useMemo(
+      () =>
+        splitDiscoveryEnrichmentIds({
+          windowIds: visibleItems.map((event) => event.id).filter(Boolean),
+          spotlightIds: spotlightEvents.map((event) => event.id).filter(Boolean),
+        }),
+      [visibleItems, spotlightEvents],
     );
-    const eventIdsKey = React.useMemo(() => eventIds.join(','), [eventIds]);
+    const immediateStatKey = immediateStatIds.join(',');
+    const deferredStatKey = deferredStatIds.join(',');
 
     const requestSnapIndex = useCallback(
       (nextIndex: number) => {
@@ -394,6 +403,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     );
 
     React.useEffect(() => {
+      bumpCoverPrefetchGeneration();
       if (scrollRetry.current) clearTimeout(scrollRetry.current);
       scrollTarget.current = null;
       scrollYRef.current = 0;
@@ -402,24 +412,36 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
     }, [orderKey, listScrollY]);
 
     React.useEffect(() => {
+      setStatsByEventId({});
+    }, [orderKey]);
+
+    React.useEffect(() => {
       let cancelled = false;
-      if (!eventIds.length) {
+      const immediateIds = immediateStatKey.split(',').filter(Boolean);
+      const deferredIds = deferredStatKey.split(',').filter(Boolean);
+      if (!immediateIds.length && !deferredIds.length) {
         setStatsByEventId({});
         return;
       }
-      const load = async () => {
+      const load = async (ids: string[], merge: boolean) => {
+        if (!ids.length) return;
         try {
-          const stats = await EventCardStatsService.getStatsForEvents(eventIds, currentUserId);
-          if (!cancelled) setStatsByEventId(stats);
+          const stats = await EventCardStatsService.getStatsForEvents(ids, currentUserId);
+          if (cancelled) return;
+          setStatsByEventId((current) => (merge ? { ...current, ...stats } : stats));
         } catch {
-          if (!cancelled) setStatsByEventId({});
+          if (!cancelled && !merge) setStatsByEventId({});
         }
       };
-      void load();
+      void load(immediateIds, true);
+      const deferredTask = InteractionManager.runAfterInteractions(() => {
+        void load(deferredIds, true);
+      });
       return () => {
         cancelled = true;
+        deferredTask.cancel?.();
       };
-    }, [eventIds, eventIdsKey, currentUserId]);
+    }, [immediateStatKey, deferredStatKey, currentUserId]);
 
     const handleToggleHeart = useCallback(
       async (event: EventWithCreator) => {

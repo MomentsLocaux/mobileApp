@@ -233,7 +233,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
   const handleCardPressIn = () => {
     useEventPreviewStore.getState().prepareEventDetail(event);
-    prefetchEventMedia(event);
+    prefetchEventMedia(event, { priority: 'visible' });
   };
 
   const handleCardPress = () => {

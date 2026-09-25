@@ -476,7 +476,7 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     if (!event) return;
-    prefetchEventMedia(event, { includeGallery: true });
+    prefetchEventMedia(event, { includeGallery: true, priority: 'visible' });
   }, [event]);
 
   useFocusEffect(
@@ -652,7 +652,7 @@ export default function EventDetailScreen() {
 
   const handlePressSimilarEvent = (item: EventWithCreator) => {
     useEventPreviewStore.getState().prepareEventDetail(item);
-    prefetchEventMedia(item);
+    prefetchEventMedia(item, { priority: 'visible' });
     router.push(`/events/${item.id}` as any);
   };
 
