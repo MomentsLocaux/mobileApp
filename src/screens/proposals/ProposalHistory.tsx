@@ -234,7 +234,7 @@ function SessionDetails({
                     {busy ? (
                       <ActivityIndicator size="small" color={colors.brand.secondary} />
                     ) : (
-                      <Heart size={18} color={decision === 'like' ? '#052d21' : '#34d399'} fill={decision === 'like' ? '#052d21' : 'transparent'} />
+                      <Heart size={18} color={colors.brand.error} fill={decision === 'like' ? colors.brand.error : 'transparent'} />
                     )}
                     <Text style={[styles.decisionText, decision === 'like' && styles.likeTextActive]}>Coup de cœur</Text>
                   </TouchableOpacity>
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   headerTitle: { ...typography.h4, color: colors.brand.text },
   sessionsContent: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
   introText: { ...typography.body, color: colors.brand.textSecondary, marginBottom: spacing.sm },
-  sessionCard: { flexDirection: 'row', alignItems: 'center', borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  sessionCard: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
   sessionMain: { flex: 1, padding: spacing.lg },
   sessionDeleteButton: { width: 48, height: 48, marginRight: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.full, backgroundColor: 'rgba(251, 113, 133, 0.10)' },
   sessionTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   deleteSessionButton: { minHeight: 48, marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: 'rgba(251, 113, 133, 0.45)' },
   deleteSessionText: { ...typography.bodyBold, color: '#fb7185' },
   eventList: { gap: spacing.md, marginTop: spacing.lg },
-  eventCard: { overflow: 'hidden', borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#334155', backgroundColor: colors.brand.surface },
+  eventCard: { overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brand.line },
   eventCardPending: { opacity: 0.66 },
   eventMain: { flexDirection: 'row', alignItems: 'center', padding: spacing.sm },
   eventImage: { width: 72, height: 72, borderRadius: borderRadius.md, backgroundColor: '#243136' },

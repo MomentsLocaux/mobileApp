@@ -142,12 +142,10 @@ const styles = StyleSheet.create({
     },
     togglesContainer: {
         gap: spacing.md,
-        backgroundColor: colors.brand.surface,
-        padding: spacing.md,
-        borderRadius: 24,
+        paddingVertical: spacing.md,
         marginTop: spacing.sm,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: colors.brand.line,
     },
     toggleRow: {
         flexDirection: 'row',

@@ -60,7 +60,10 @@ export default function HomeScreen() {
             <NextMomentCard
               event={feed.nextEvent}
               distanceLabel={feed.distanceLabelFor(feed.nextEvent)}
+              hearted={feed.isHearted(feed.nextEvent.id)}
+              pending={feed.pendingHearts.has(feed.nextEvent.id)}
               onPress={() => feed.openEvent(feed.nextEvent!)}
+              onToggleHeart={() => { if (feed.nextEvent) void feed.toggleHeart(feed.nextEvent); }}
               onOpenAgenda={feed.openAgenda}
             />
           ) : null}

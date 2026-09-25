@@ -10,10 +10,10 @@ import Animated, {
 import { X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing } from '@/constants/theme';
-import { EventCard } from '@/components/events/EventCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
-import { EventHeartButton } from '@/components/events/EventHeartButton';
+import { MapDiscoveryEventCard } from '@/components/search/MapDiscoveryEventCard';
+import { sharePublishedEvent } from '@/utils/event-share';
 
 interface Props {
   event: EventWithCreator;
@@ -34,7 +34,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   isHearted,
   onToggleHeart,
   onPress,
-  onNavigate,
+  onNavigate: _onNavigate,
   onClose,
   bottomInset = spacing.md,
 }) => {
@@ -67,6 +67,8 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
     },
   );
 
+  void _onNavigate;
+
   const cardStyle = useAnimatedStyle(() => {
     const reveal = Math.min(Math.max(progress.value, 0), 1);
     return {
@@ -85,14 +87,19 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
       style={[styles.wrapper, { bottom: bottomInset }, cardStyle]}
     >
       <View collapsable={false} style={styles.cardShell}>
+        <MapDiscoveryEventCard
+          event={event}
+          variant="feed"
+          carousel
+          framed
+          stats={cardStats ?? undefined}
+          liked={Boolean(isHearted)}
+          onOpen={() => onPress()}
+          onToggleHeart={(item) => onToggleHeart?.(item)}
+          onShare={(item) => { void sharePublishedEvent(item); }}
+          heartStyle={styles.cardHeart}
+        />
         <Animated.View style={[styles.topActions, chromeEnterStyle]}>
-          {onToggleHeart ? (
-            <EventHeartButton
-              appearance="overlay"
-              active={Boolean(isHearted)}
-              onPress={() => onToggleHeart(event)}
-            />
-          ) : null}
           <FloatingPressable
             style={styles.chromePressable}
             onPress={onClose}
@@ -104,21 +111,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
             <X size={17} color={colors.brand.text} />
           </FloatingPressable>
         </Animated.View>
-
-        <EventCard
-          event={event}
-          variant="map-preview"
-          showCarousel={false}
-          noBottomMargin
-          viewsCount={cardStats?.viewsCount ?? 0}
-          friendsGoingCount={cardStats?.friendsGoingCount ?? 0}
-          likesCount={cardStats?.likesCount ?? event.likes_count ?? 0}
-          likers={cardStats?.likers ?? []}
-          onPress={onPress}
-          onNavigate={onNavigate}
-          isLiked={isHearted}
-          isFavorite={isHearted}
-        />
       </View>
     </Animated.View>
   );
@@ -138,11 +130,15 @@ const styles = StyleSheet.create({
   },
   cardShell: {
     position: 'relative',
+    backgroundColor: colors.brand.page,
+    borderRadius: 22,
+    overflow: 'hidden',
   },
+  cardHeart: { top: 8, right: 46 },
   topActions: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
+    top: 18,
+    right: 18,
     zIndex: 40,
     flexDirection: 'row',
     alignItems: 'center',

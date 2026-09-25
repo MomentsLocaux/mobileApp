@@ -359,12 +359,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   formPanel: {
-    padding: spacing.lg,
+    paddingVertical: spacing.lg,
     gap: spacing.md,
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   formPanelDisabled: {
     opacity: 0.55,

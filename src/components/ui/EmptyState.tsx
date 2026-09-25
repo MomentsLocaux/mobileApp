@@ -71,9 +71,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(124, 181, 24, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.28)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     marginBottom: spacing.xs,
   },
   title: {

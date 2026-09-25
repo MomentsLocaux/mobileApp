@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { BrandIcon, type BrandIconName } from '@/components/ui/BrandIcon';
 import { colors, spacing, typography } from '@/constants/theme';
-import { relief } from '@/constants/relief';
 
 export function EventDetailSection({
   title,
@@ -30,15 +29,9 @@ export function EventDetailSection({
 
 const styles = StyleSheet.create({
   section: {
-    ...relief.shadow,
-    padding: spacing.md,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: relief.border,
-    borderTopColor: relief.shine,
-    borderBottomWidth: 3,
-    borderBottomColor: relief.edge,
-    backgroundColor: colors.brand.surfaceMuted,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
   title: { ...typography.bodySmall, fontWeight: '800', color: colors.brand.text, flexShrink: 1 },

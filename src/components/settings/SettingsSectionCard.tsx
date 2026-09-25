@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 
 type CardProps = {
   title: string;
@@ -79,17 +79,12 @@ export const SettingsRow: React.FC<RowProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.xl,
+    backgroundColor: 'transparent',
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
-  cardAccent: {
-    borderWidth: 1,
-    borderColor: colors.brand.secondary,
-  },
+  cardAccent: {},
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -117,7 +112,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: colors.brand.line,
   },
   rowNoBorder: {
     borderTopWidth: 0,

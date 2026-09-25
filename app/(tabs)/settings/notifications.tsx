@@ -435,10 +435,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(124, 181, 24,0.08)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.sm,
+    paddingVertical: spacing.sm,
     marginTop: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   infoText: {
     ...typography.caption,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { DiscoveryLoadingState } from '@/components/ui/DiscoveryLoadingState';
 import { BrandIcon } from '@/components/ui/BrandIcon';
 import { DISCOVERY_MIN_RADIUS_KM, DISCOVERY_RADIUS_STEP_KM, HOME_NEARBY_MAX_RADIUS_KM } from '@/constants/filters';
@@ -49,6 +49,8 @@ export function NearbyMomentsSection({
   onWiden,
   onNextDays,
 }: Props) {
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.min(320, Math.max(240, width - 72));
   return (
     <View style={styles.section}>
       <Text style={styles.title}>Autour de toi</Text>
@@ -79,12 +81,12 @@ export function NearbyMomentsSection({
       <HomeTimeSelector value={slot} onChange={onSlotChange} />
       {error ? <View style={styles.empty}><Text style={styles.zone}>{error}</Text><Pressable accessibilityRole="button" onPress={onRetry} style={styles.secondary}><Text style={styles.secondaryLabel}>Réessayer</Text></Pressable></View> : null}
       {loading && events.length === 0 ? <DiscoveryLoadingState title="On regarde autour de toi" subtitle="On prépare quelques idées de sortie." /> : events.length > 0 ? (
-        <View>
-          <ScrollView key={slot} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-            {events.map((event) => (
+        <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carousel}>
+          {events.map((event) => (
+            <View key={event.id} style={{ width: cardWidth }}>
               <HomeEventCard
-                key={event.id}
                 event={event}
+                carousel
                 reason={reasonFor(event)}
                 pending={pendingHearts.has(event.id)}
                 distanceLabel={distanceLabelFor(event)}
@@ -92,10 +94,9 @@ export function NearbyMomentsSection({
                 onPress={() => onPressEvent(event)}
                 onToggleHeart={() => onToggleHeart(event)}
               />
-            ))}
-          </ScrollView>
-
-        </View>
+            </View>
+          ))}
+        </ScrollView>
       ) : !error ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>{totalCount > 0 ? 'Ton moment pour cette période est dans ton agenda, juste au-dessus.' : emptyHomeSlotCopy(slot, complete)}</Text>
@@ -168,8 +169,8 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.brand.text,
   },
-  row: {
-    gap: spacing.sm,
+  carousel: {
+    gap: 12,
     paddingRight: spacing.lg,
     paddingTop: spacing.xs,
     paddingBottom: spacing.xs,

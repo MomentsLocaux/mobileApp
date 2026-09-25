@@ -524,6 +524,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   itemUnread: {
     backgroundColor: UNREAD_FILL,

@@ -535,11 +535,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   infoBox: {
-    padding: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
     marginBottom: spacing.md,
   },
   infoLabel: {

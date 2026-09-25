@@ -140,30 +140,22 @@ export function EventHeartButton({
     const tone = washScroll ? Math.min(Math.max(washScroll.value / end, 0), 1) : 0;
     return { opacity: tone };
   });
-  const glyph = overlay ? (
+  const heartIcon = (key: string, stroke: string, fill: string) => (
+    <BrandIcon
+      key={key}
+      name="heart"
+      size={overlay ? 22 : 19}
+      color={stroke}
+      fillColor={fill}
+    />
+  );
+  const glyph = (
     <View style={styles.overlayGlyph}>
-      <Animated.View pointerEvents="none" style={[styles.overlayShadow, lightGlyphStyle]}>
-        <BrandIcon
-          name="heart"
-          size={22}
-          color={colors.brand.ink}
-          fillColor={active ? colors.brand.ink : 'transparent'}
-        />
-      </Animated.View>
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.overlayGlyph, lightGlyphStyle]}>
-        <BrandIcon
-          name="heart"
-          size={22}
-          color="#FFFFFF"
-          fillColor={active ? '#FFFFFF' : 'transparent'}
-        />
-      </Animated.View>
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.overlayGlyph, inkGlyphStyle]}>
-        <BrandIcon name="heart" size={22} active={active} />
-      </Animated.View>
+      <View pointerEvents="none" style={styles.overlayShadow}>
+        {heartIcon('shadow', 'rgba(26, 51, 41, 0.85)', 'transparent')}
+      </View>
+      {heartIcon('glyph', '#FFFFFF', active ? colors.brand.error : 'rgba(26, 51, 41, 0.42)')}
     </View>
-  ) : (
-    <BrandIcon name="heart" size={19} active={active} />
   );
 
   return (
@@ -223,10 +215,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 1,
     left: 1,
-    opacity: 0.55,
   },
   overlayRing: {
-    borderColor: '#FFFFFF',
+    borderColor: colors.brand.error,
   },
   withCount: {
     width: 'auto',
@@ -237,7 +228,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: colors.brand.secondary,
+    borderColor: colors.brand.error,
   },
   count: { ...typography.caption, fontWeight: '700', color: colors.brand.text },
   overlayCount: {
@@ -258,7 +249,7 @@ const styles = StyleSheet.create({
     marginLeft: -2,
     marginTop: -2,
     borderRadius: 2,
-    backgroundColor: colors.brand.secondary,
+    backgroundColor: colors.brand.error,
     left: '50%',
     top: '50%',
   },

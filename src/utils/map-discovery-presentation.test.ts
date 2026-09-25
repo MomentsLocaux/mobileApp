@@ -19,6 +19,18 @@ describe('map discovery presentation', () => {
     assert.deepEqual(input, before);
     assert.deepEqual(selectMapSpotlight([]), []);
   });
+  it('puts the most liked events first in Lumia recommendations', () => {
+    const input = [
+      event('quiet', { likes_count: 1 }),
+      event('loved', { likes_count: 12 }),
+      event('warm', { likes_count: 4 }),
+    ];
+    assert.deepEqual(selectMapSpotlight(input).map((item) => item.id), ['loved', 'warm', 'quiet']);
+    assert.deepEqual(
+      selectMapSpotlight(input, null, { quiet: 20, loved: 3 }).map((item) => item.id),
+      ['quiet', 'warm', 'loved'],
+    );
+  });
   it('keeps relevance, distance and newest orders free of misleading date groupings', () => {
     for (const sort of ['triage', 'distance', 'created', 'popularity', 'endDate'] as const) {
       assert.equal(mapEventDateHeading(event('a'), undefined, sort), null);

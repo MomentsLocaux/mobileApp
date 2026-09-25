@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Search, Flame, Clock, MapPin } from 'lucide-react-native';
-import { EventCard, EventFilters } from '../../components/events';
+import { EventFilters } from '../../components/events';
+import { MapDiscoveryEventCard } from '@/components/search/MapDiscoveryEventCard';
+import { sharePublishedEvent } from '@/utils/event-share';
 import { AppBackground } from '@/components/ui';
 import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
 import { useAuth } from '../../hooks';
@@ -103,13 +105,13 @@ export default function EventsListScreen() {
   };
 
   const renderEventCard = ({ item }: { item: EventWithCreator }) => (
-    <EventCard
+    <MapDiscoveryEventCard
       event={item}
-      variant="map-preview"
-      onPress={() => handleEventPress(item.id)}
-      onHeartPress={() => handleHeartPress(item)}
-      isLiked={likesSet.has(item.id) || favoritesSet.has(item.id)}
-      isFavorite={likesSet.has(item.id) || favoritesSet.has(item.id)}
+      variant="feed"
+      liked={likesSet.has(item.id) || favoritesSet.has(item.id)}
+      onOpen={() => handleEventPress(item.id)}
+      onToggleHeart={() => { void handleHeartPress(item); }}
+      onShare={(event) => { void sharePublishedEvent(event); }}
     />
   );
 

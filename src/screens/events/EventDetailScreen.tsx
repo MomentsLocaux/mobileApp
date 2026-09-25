@@ -1569,7 +1569,7 @@ export default function EventDetailScreen() {
               }
             >
               <View style={styles.statIcon}>
-                <BrandIcon name="heart" size={20} color={colors.brand.textSecondary} />
+                <BrandIcon name="heart" size={20} color={colors.brand.error} fillColor={eventStats.likes > 0 ? colors.brand.error : 'transparent'} />
               </View>
               <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
             </TouchableOpacity>
@@ -2190,13 +2190,9 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     minWidth: (width - spacing.lg * 2 - spacing.sm * 2) / 3,
-    backgroundColor: colors.brand.surfaceMuted,
-    borderRadius: 16,
     padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.22)',
   },
   statBoxValue: {
     color: colors.brand.text,

@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { Button } from '@/components/ui/Button';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { AuthService } from '@/services/auth.service';
 import { useAuthStore } from '@/state/auth';
 
@@ -74,12 +74,10 @@ export default function DeleteAccountScreen() {
 const styles = StyleSheet.create({
   dangerBlock: {
     marginTop: spacing.sm,
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.32)',
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(239,68,68,0.45)',
   },
   dangerTitle: {
     ...typography.h4,

@@ -155,12 +155,10 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
   },
   privateBox: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: colors.brand.surface,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   privateHeader: {
     flexDirection: 'row',

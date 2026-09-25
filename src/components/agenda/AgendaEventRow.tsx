@@ -4,7 +4,7 @@ import {
   type MapDiscoveryEventCardProps,
 } from '@/components/search/MapDiscoveryEventCard';
 
-/** Agenda bucket lists reuse the map bottom-sheet row card. */
+/** Agenda lists reuse the map bottom-sheet feed card. */
 export function AgendaEventRow(props: Omit<MapDiscoveryEventCardProps, 'variant' | 'active' | 'distance' | 'onHighlight'>) {
-  return <MapDiscoveryEventCard {...props} variant="row" />;
+  return <MapDiscoveryEventCard {...props} variant="feed" />;
 }

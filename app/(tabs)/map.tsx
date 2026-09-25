@@ -80,7 +80,7 @@ import { NavigationOptionsSheet } from '../../src/components/search/NavigationOp
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground, BrandLogoSpinner } from '../../src/components/ui';
 import { MapChromeActions } from '../../src/components/map/MapChromeActions';
-import { useMapTabBarProgress } from '@/components/navigation/MapAwareTabBar';
+import { TAB_BAR_ICONS_HEIGHT, useMapTabBarProgress } from '@/components/navigation/MapAwareTabBar';
 import { haptics } from '@/utils/haptics';
 import {
   includesPast,
@@ -1527,7 +1527,7 @@ export default function MapScreen() {
                 onPress={openUnitEventDetails}
                 onNavigate={() => setNavEvent(unitCardEvent)}
                 onClose={() => beginUnitCardDismissal(true)}
-                bottomInset={insets.bottom + spacing.sm}
+                bottomInset={TAB_BAR_ICONS_HEIGHT + Math.max(insets.bottom, 8) + spacing.sm}
               />
             </Animated.View>
           ) : null}

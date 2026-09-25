@@ -300,12 +300,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: colors.brand.surface,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     gap: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -339,12 +337,10 @@ const styles = StyleSheet.create({
   },
   refusalBox: {
     marginTop: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingVertical: spacing.sm,
     gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(239, 68, 68, 0.45)',
   },
   refusalLabel: {
     ...typography.caption,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, type ViewProps, type PressableProps } from 'react-native';
-import { colors, spacing, borderRadius, shadows } from '../../constants/theme';
+import { colors, spacing } from '../../constants/theme';
 import { Motion } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import Animated, {
@@ -24,7 +24,7 @@ interface CardProps extends ViewProps {
 export const Card: React.FC<CardProps> = ({
   children,
   padding = 'md',
-  elevation = 'md',
+  elevation: _elevation = 'md',
   style,
   onPress,
   onLongPress,
@@ -34,6 +34,7 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const isInteractive = !!onPress || !!onLongPress;
   const reduceMotion = useReduceMotion();
+  void _elevation;
   const pressed = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pressed.value }],
@@ -46,7 +47,6 @@ export const Card: React.FC<CardProps> = ({
           animatedStyle,
           styles.card,
           { padding: spacing[padding] },
-          shadows[elevation],
           style,
         ]}
         onPress={onPress}
@@ -74,7 +74,6 @@ export const Card: React.FC<CardProps> = ({
       style={[
         styles.card,
         { padding: spacing[padding] },
-        shadows[elevation],
         style,
       ]}
       {...props}
@@ -86,9 +85,8 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'transparent',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
 });

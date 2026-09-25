@@ -87,11 +87,9 @@ export const OptionalInfoSection = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: colors.brand.surface,
     overflow: 'hidden',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   header: {
     flexDirection: 'row',

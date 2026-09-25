@@ -13,7 +13,9 @@ import { ReportService } from '@/services/report.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import type { CommunityMember } from '../../types/community';
 import type { EventWithCreator } from '@/types/database';
-import { EventCard } from '@/components/events';
+import { MapDiscoveryEventCard } from '@/components/search/MapDiscoveryEventCard';
+import { sharePublishedEvent } from '@/utils/event-share';
+import { SocialService } from '@/services/social.service';
 import { useAuth } from '@/hooks';
 import { GAMIFICATION_ENABLED } from '@/config/gamification.flags';
 import { features } from '@/config/features';
@@ -35,6 +37,7 @@ export default function CommunityProfileScreen() {
   const [member, setMember] = useState<CommunityMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
+  const [heartedIds, setHeartedIds] = useState<ReadonlySet<string>>(new Set());
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [dateFilter, setDateFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'prive'>('all');
@@ -424,12 +427,24 @@ export default function CommunityProfileScreen() {
             </View>
           ) : (
             events.map((event) => (
-              <EventCard
+              <MapDiscoveryEventCard
                 key={event.id}
                 event={event}
-                variant="map-preview"
-                showCarousel={false}
-                onPress={() => router.push(`/events/${event.id}`)}
+                variant="feed"
+                liked={heartedIds.has(event.id)}
+                onOpen={() => router.push(`/events/${event.id}`)}
+                onToggleHeart={(item) => {
+                  const liked = heartedIds.has(item.id);
+                  setHeartedIds((current) => {
+                    const next = new Set(current);
+                    if (liked) next.delete(item.id);
+                    else next.add(item.id);
+                    return next;
+                  });
+                  if (!profile?.id) return;
+                  void (liked ? SocialService.unlike(profile.id, item.id) : SocialService.like(profile.id, item.id));
+                }}
+                onShare={(item) => { void sharePublishedEvent(item); }}
               />
             ))
           )}
@@ -648,15 +663,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     backgroundColor: 'transparent',
     gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   statBox: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
   },
   statValue: {
     ...typography.h4,
@@ -668,12 +681,10 @@ const styles = StyleSheet.create({
   },
   presenceCard: {
     marginHorizontal: spacing.md,
-    backgroundColor: colors.brand.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    padding: spacing.lg,
+    paddingVertical: spacing.lg,
     gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   presenceHeader: {
     flexDirection: 'row',

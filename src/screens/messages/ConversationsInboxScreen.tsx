@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppBackground, EmptyState, ScreenHeader, UserAvatar } from '@/components/ui';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
-import { colors, spacing, typography, borderRadius } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { MessagingService, type DirectConversationPreview } from '@/services/messaging.service';
 import { formatTimeAgo } from '@/utils/relative-time';
@@ -135,11 +135,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
   body: { flex: 1, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

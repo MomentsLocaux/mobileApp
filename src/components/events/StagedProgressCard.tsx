@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { BrandLogoSpinner } from '@/components/ui';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import {
   stagedProgressEase,
@@ -121,12 +121,9 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     gap: spacing.md,
-    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   percent: {
     ...typography.h2,

@@ -172,6 +172,8 @@ export const colors: Record<string, ColorScale> = {
     premiumBorder: 'rgba(212, 175, 55, 0.55)',
     /** Dark forest for rare inverted chips / phone chrome. */
     forest: FOREST,
+    /** Soft separator on the mint page. Prefer this to a boxed card. */
+    line: 'rgba(26, 51, 41, 0.12)',
   },
 };
 

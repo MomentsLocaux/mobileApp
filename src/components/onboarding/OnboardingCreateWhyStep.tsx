@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { HandHeart, Package, Repeat } from 'lucide-react-native';
-import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
 export type CreateIntent = 'talent' | 'micro_vente' | 'regulier';
@@ -90,16 +90,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     alignItems: 'flex-start',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.brand.surface,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
-  cardActive: {
-    borderColor: colors.brand.secondary,
-    backgroundColor: 'rgba(124, 181, 24, 0.12)',
-  },
+  cardActive: {},
   copy: { flex: 1, gap: 4 },
   label: { ...typography.body, color: colors.brand.text, fontWeight: '600' },
   labelActive: { color: colors.brand.primary },

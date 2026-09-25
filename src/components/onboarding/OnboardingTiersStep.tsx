@@ -204,24 +204,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   card: {
-    padding: spacing.md,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.brand.line,
   },
-  cardExpanded: {
-    backgroundColor: colors.brand.surfaceMuted,
-  },
-  cardExpandedLocal: {
-    borderColor: 'rgba(124, 181, 24, 0.35)',
-  },
-  cardExpandedHabitue: {
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  cardExpandedPremium: {
-    borderColor: colors.brand.premiumBorder,
-  },
+  cardExpanded: {},
+  cardExpandedLocal: {},
+  cardExpandedHabitue: {},
+  cardExpandedPremium: {},
   cardTop: {
     flexDirection: 'row',
     gap: spacing.md,
