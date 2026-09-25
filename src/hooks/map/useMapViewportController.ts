@@ -295,15 +295,24 @@ export function useMapViewportController({
       latitude: number,
       longitude: number,
       radiusKm: number,
-      options?: { refreshAfter?: boolean }
+      options?: { refreshAfter?: boolean; paddingBottom?: number }
     ) => {
       const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
       const coords = [
         { latitude: bounds.sw[1], longitude: bounds.sw[0] },
         { latitude: bounds.ne[1], longitude: bounds.ne[0] },
       ];
+      const padding =
+        typeof options?.paddingBottom === 'number'
+          ? [
+              MAP_FIT_PADDING,
+              MAP_FIT_PADDING,
+              Math.max(MAP_FIT_PADDING, Math.round(options.paddingBottom)),
+              MAP_FIT_PADDING,
+            ]
+          : MAP_FIT_PADDING;
       withProgrammaticMove(
-        () => mapRef.current?.fitToCoordinates(coords, MAP_FIT_PADDING),
+        () => mapRef.current?.fitToCoordinates(coords, padding),
         {
           refreshAfter: options?.refreshAfter === true,
           durationMs: MAP_CAMERA_ANIMATION_MS,

@@ -3,6 +3,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  View,
   type GestureResponderEvent,
   type StyleProp,
   type ViewStyle,
@@ -42,6 +43,11 @@ interface EventHeartButtonProps {
   accessibilityLabel?: string;
   count?: number;
   compactCount?: boolean;
+  /** Heart drawn on a photo: no disc, light glyph with a shadow. */
+  appearance?: 'default' | 'overlay';
+  /** 0 on the photo, 1 on the page-colored bar. Same glyph box, color only. */
+  washScroll?: SharedValue<number>;
+  washEnd?: SharedValue<number>;
 }
 
 function HeartSpeck({
@@ -73,6 +79,9 @@ export function EventHeartButton({
   style,
   count,
   compactCount = false,
+  appearance = 'default',
+  washScroll,
+  washEnd,
   accessibilityLabel = active
     ? 'Retirer des favoris'
     : 'Aimer et enregistrer',
@@ -120,9 +129,46 @@ export function EventHeartButton({
     onPress();
   };
 
+  const overlay = appearance === 'overlay';
+  const lightGlyphStyle = useAnimatedStyle(() => {
+    const end = Math.max(washEnd?.value ?? 1, 1);
+    const tone = washScroll ? Math.min(Math.max(washScroll.value / end, 0), 1) : 0;
+    return { opacity: 1 - tone };
+  });
+  const inkGlyphStyle = useAnimatedStyle(() => {
+    const end = Math.max(washEnd?.value ?? 1, 1);
+    const tone = washScroll ? Math.min(Math.max(washScroll.value / end, 0), 1) : 0;
+    return { opacity: tone };
+  });
+  const glyph = overlay ? (
+    <View style={styles.overlayGlyph}>
+      <Animated.View pointerEvents="none" style={[styles.overlayShadow, lightGlyphStyle]}>
+        <BrandIcon
+          name="heart"
+          size={22}
+          color={colors.brand.ink}
+          fillColor={active ? colors.brand.ink : 'transparent'}
+        />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.overlayGlyph, lightGlyphStyle]}>
+        <BrandIcon
+          name="heart"
+          size={22}
+          color="#FFFFFF"
+          fillColor={active ? '#FFFFFF' : 'transparent'}
+        />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.overlayGlyph, inkGlyphStyle]}>
+        <BrandIcon name="heart" size={22} active={active} />
+      </Animated.View>
+    </View>
+  ) : (
+    <BrandIcon name="heart" size={19} active={active} />
+  );
+
   return (
     <TouchableOpacity
-      style={[styles.button, typeof count === 'number' && styles.withCount, style]}
+      style={[styles.button, typeof count === 'number' && styles.withCount, overlay && styles.overlay, style]}
       onPress={handlePress}
       hitSlop={8}
       accessibilityRole="button"
@@ -131,32 +177,56 @@ export function EventHeartButton({
       disabled={disabled}
       activeOpacity={0.86}
     >
-      <Animated.View pointerEvents="none" style={[styles.ring, ringStyle]} />
+      <Animated.View pointerEvents="none" style={[styles.ring, overlay && styles.overlayRing, ringStyle]} />
       {SPECK_OFFSETS.map((offset) => (
         <HeartSpeck key={`${offset.x}:${offset.y}`} progress={burst} x={offset.x} y={offset.y} />
       ))}
-      <Animated.View style={iconStyle}>
-        <BrandIcon name="heart" size={19} active={active} />
-      </Animated.View>
-      {typeof count === 'number' ? <Text style={styles.count} maxFontSizeMultiplier={compactCount ? 1.3 : undefined}>{compactCount ? new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(count) : count}</Text> : null}
+      <Animated.View style={iconStyle}>{glyph}</Animated.View>
+      {typeof count === 'number' && washScroll ? (
+        <View>
+          <Animated.Text style={[styles.count, styles.overlayCount, lightGlyphStyle]} maxFontSizeMultiplier={compactCount ? 1.3 : undefined}>{compactCount ? new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(count) : count}</Animated.Text>
+          <Animated.Text style={[styles.count, styles.washCount, inkGlyphStyle]} maxFontSizeMultiplier={compactCount ? 1.3 : undefined}>{compactCount ? new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(count) : count}</Animated.Text>
+        </View>
+      ) : typeof count === 'number' ? <Text style={[styles.count, overlay && styles.overlayCount]} maxFontSizeMultiplier={compactCount ? 1.3 : undefined}>{compactCount ? new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(count) : count}</Text> : null}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.brand.page,
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: 4,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     flexDirection: 'row',
     gap: 5,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderWidth: 0,
     flexShrink: 0,
     overflow: 'visible',
+  },
+  overlay: {
+    width: 44,
+    height: 44,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  overlayGlyph: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayShadow: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    opacity: 0.55,
+  },
+  overlayRing: {
+    borderColor: '#FFFFFF',
   },
   withCount: {
     width: 'auto',
@@ -170,6 +240,17 @@ const styles = StyleSheet.create({
     borderColor: colors.brand.secondary,
   },
   count: { ...typography.caption, fontWeight: '700', color: colors.brand.text },
+  overlayCount: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(26, 51, 41, 0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  washCount: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
   speck: {
     position: 'absolute',
     width: 4,

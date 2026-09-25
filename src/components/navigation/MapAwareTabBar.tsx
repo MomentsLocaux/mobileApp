@@ -77,7 +77,7 @@ export function MapAwareTabBar({
       : progress;
 
     return {
-      opacity: interpolate(resolvedProgress, [0, 0.2, 1], [0, 0.35, 1], Extrapolation.CLAMP),
+      opacity: resolvedProgress > 0 ? 1 : 0,
       transform: [
         {
           translateY: interpolate(

@@ -23,7 +23,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { X, MapPin, Calendar, Tag, ChevronRight, Search, Bookmark, Clock } from 'lucide-react-native';
+import { X, MapPin, Calendar, Tag, ChevronDown, ChevronRight, Search, Bookmark, Clock } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
@@ -131,6 +131,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const [memberCity, setMemberCity] = useState('');
   const [memberResults, setMemberResults] = useState<CommunityMember[]>([]);
   const [memberLoading, setMemberLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const barRef = useRef<View | null>(null);
   const reduceMotion = useReduceMotion();
   const motionPhase = useRef<'idle' | 'opening' | 'open' | 'closing'>('idle');
@@ -913,96 +914,115 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                           <Text style={styles.resultText}>{item.label}</Text>
                         </TouchableOpacity>
                       ))}
-                      {!query.trim() && (recentSearches.length > 0 || savedSearches.length > 0) ? (
+                      {!query.trim() &&
+                      (recentSearches.length > 0 || savedSearches.length > 0 || where.history.length > 0) ? (
                         <View style={styles.history}>
-                          {savedSearches.length > 0 ? (
-                            <>
-                              <Text style={styles.meta}>Enregistrées</Text>
-                              {savedSearches.map((item) => (
-                                <View key={item.id} style={styles.savedRow}>
-                                  <TouchableOpacity
-                                    style={styles.savedRowMain}
-                                    onPress={() => applySnapshot(item)}
-                                    onLongPress={() => confirmRemove(item)}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`Appliquer ${item.title}`}
-                                  >
-                                    <Bookmark size={16} color={colors.brand.secondary} />
-                                    <Text style={styles.resultText} numberOfLines={2}>
-                                      {item.title}
-                                    </Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={styles.historyRemoveButton}
-                                    onPress={() => confirmRemove(item)}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`Supprimer ${item.title}`}
-                                  >
-                                    <X size={16} color={colors.brand.textSecondary} />
-                                  </TouchableOpacity>
-                                </View>
-                              ))}
-                            </>
-                          ) : null}
-                          {recentSearches.length > 0 ? (
-                            <>
-                              <Text style={[styles.meta, savedSearches.length > 0 && styles.metaSpaced]}>
-                                Récents
-                              </Text>
-                              {recentSearches.map((item) => (
-                                <View key={item.id} style={styles.savedRow}>
-                                  <TouchableOpacity
-                                    style={styles.savedRowMain}
-                                    onPress={() => applySnapshot(item)}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`Appliquer ${item.title}`}
-                                  >
-                                    <Clock size={16} color={colors.brand.textSecondary} />
-                                    <Text style={styles.resultText} numberOfLines={2}>
-                                      {item.title}
-                                    </Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={styles.historyRemoveButton}
-                                    onPress={() => void removeSavedSearch(item.id)}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`Supprimer ${item.title}`}
-                                  >
-                                    <X size={16} color={colors.brand.textSecondary} />
-                                  </TouchableOpacity>
-                                </View>
-                              ))}
-                            </>
-                          ) : null}
-                        </View>
-                      ) : null}
-                      {where.history.length > 0 && query.trim().length === 0 && recentSearches.length === 0 ? (
-                        <View style={styles.history}>
-                          <Text style={styles.meta}>Lieux récents</Text>
-                          {where.history.map((h) => (
-                            <View key={h} style={styles.savedRow}>
-                              <TouchableOpacity
-                                style={styles.savedRowMain}
-                                onPress={() => {
-                                  setWhere({ location: undefined });
-                                  setQuery(h);
-                                }}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Rechercher ${h}`}
-                              >
-                                <Clock size={16} color={colors.brand.textSecondary} />
-                                <Text style={styles.resultText}>{h}</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.historyRemoveButton}
-                                onPress={() => removePlaceHistory(h)}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Supprimer ${h}`}
-                              >
-                                <X size={16} color={colors.brand.textSecondary} />
-                              </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.historyToggle}
+                            onPress={() => setHistoryOpen((open) => !open)}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: historyOpen }}
+                            accessibilityLabel={historyOpen ? 'Masquer l’historique' : 'Afficher l’historique'}
+                          >
+                            <Text style={styles.historyToggleLabel}>Historique</Text>
+                            <View style={{ transform: [{ rotate: historyOpen ? '180deg' : '0deg' }] }}>
+                              <ChevronDown size={18} color={colors.brand.textSecondary} />
                             </View>
-                          ))}
+                          </TouchableOpacity>
+                          {historyOpen ? (
+                            <>
+                              {savedSearches.length > 0 ? (
+                                <>
+                                  <Text style={styles.meta}>Enregistrées</Text>
+                                  {savedSearches.map((item) => (
+                                    <View key={item.id} style={styles.savedRow}>
+                                      <TouchableOpacity
+                                        style={styles.savedRowMain}
+                                        onPress={() => applySnapshot(item)}
+                                        onLongPress={() => confirmRemove(item)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Appliquer ${item.title}`}
+                                      >
+                                        <Bookmark size={16} color={colors.brand.secondary} />
+                                        <Text style={styles.resultText} numberOfLines={2}>
+                                          {item.title}
+                                        </Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        style={styles.historyRemoveButton}
+                                        onPress={() => confirmRemove(item)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Supprimer ${item.title}`}
+                                      >
+                                        <X size={16} color={colors.brand.textSecondary} />
+                                      </TouchableOpacity>
+                                    </View>
+                                  ))}
+                                </>
+                              ) : null}
+                              {recentSearches.length > 0 ? (
+                                <>
+                                  <Text style={[styles.meta, savedSearches.length > 0 && styles.metaSpaced]}>
+                                    Récents
+                                  </Text>
+                                  {recentSearches.map((item) => (
+                                    <View key={item.id} style={styles.savedRow}>
+                                      <TouchableOpacity
+                                        style={styles.savedRowMain}
+                                        onPress={() => applySnapshot(item)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Appliquer ${item.title}`}
+                                      >
+                                        <Clock size={16} color={colors.brand.textSecondary} />
+                                        <Text style={styles.resultText} numberOfLines={2}>
+                                          {item.title}
+                                        </Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        style={styles.historyRemoveButton}
+                                        onPress={() => void removeSavedSearch(item.id)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Supprimer ${item.title}`}
+                                      >
+                                        <X size={16} color={colors.brand.textSecondary} />
+                                      </TouchableOpacity>
+                                    </View>
+                                  ))}
+                                </>
+                              ) : null}
+                              {where.history.length > 0 && recentSearches.length === 0 ? (
+                                <>
+                                  <Text style={[styles.meta, savedSearches.length > 0 && styles.metaSpaced]}>
+                                    Lieux récents
+                                  </Text>
+                                  {where.history.map((h) => (
+                                    <View key={h} style={styles.savedRow}>
+                                      <TouchableOpacity
+                                        style={styles.savedRowMain}
+                                        onPress={() => {
+                                          setWhere({ location: undefined });
+                                          setQuery(h);
+                                        }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Rechercher ${h}`}
+                                      >
+                                        <Clock size={16} color={colors.brand.textSecondary} />
+                                        <Text style={styles.resultText}>{h}</Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        style={styles.historyRemoveButton}
+                                        onPress={() => removePlaceHistory(h)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Supprimer ${h}`}
+                                      >
+                                        <X size={16} color={colors.brand.textSecondary} />
+                                      </TouchableOpacity>
+                                    </View>
+                                  ))}
+                                </>
+                              ) : null}
+                            </>
+                          ) : null}
                         </View>
                       ) : null}
                     </SectionCard>
@@ -1637,6 +1657,17 @@ const styles = StyleSheet.create({
   history: {
     marginTop: spacing.sm,
     gap: spacing.xs,
+  },
+  historyToggle: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  historyToggleLabel: {
+    ...typography.label,
+    color: colors.brand.text,
   },
   savedRow: {
     flexDirection: 'row',

@@ -187,7 +187,7 @@ export function useMapFilterActions({
       const previous = discoveryStatus;
       const next = filtersForSearchTemporalChoice(choice);
       const isDatePreset =
-        choice === 'today' || choice === 'tomorrow' || choice === 'weekend';
+        choice === 'today' || choice === 'tonight' || choice === 'tomorrow' || choice === 'weekend';
       clearFrozenViewport();
       setStatus(next.status);
       if (next.when.preset) {

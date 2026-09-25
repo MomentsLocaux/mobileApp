@@ -15,7 +15,7 @@ function matchesTimeFilter(
   timeFilter: TimeFilter,
   now: Date
 ): boolean {
-  if (timeFilter === 'weekend' || timeFilter === 'today' || timeFilter === 'tomorrow') {
+  if (timeFilter === 'tonight' || timeFilter === 'weekend' || timeFilter === 'today' || timeFilter === 'tomorrow') {
     return eventMatchesDatePreset(event, timeFilter, now);
   }
 

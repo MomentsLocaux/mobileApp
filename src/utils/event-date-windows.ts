@@ -1,7 +1,7 @@
 import { getEffectiveEventEnd } from './event-status';
 import type { EventWithCreator } from '@/types/database';
 
-export type DatePreset = 'today' | 'tomorrow' | 'weekend';
+export type DatePreset = 'today' | 'tonight' | 'tomorrow' | 'weekend';
 
 const endOfDay = (date: Date) => {
   const value = new Date(date);
@@ -70,6 +70,11 @@ export function eventMatchesDatePreset(
   preset: DatePreset,
   now: Date = new Date()
 ): boolean {
+  if (preset === 'tonight') {
+    const start = startOfDay(now);
+    start.setHours(17, 0, 0, 0);
+    return eventOverlapsWindow(event, start, endOfDay(now), now);
+  }
   if (preset === 'today') {
     const { start, end } = getTodayWindow(now);
     return eventOverlapsWindow(event, start, end, now);

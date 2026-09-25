@@ -50,6 +50,45 @@ export function shiftWeek(date: Date, deltaWeeks: number): Date {
   return value;
 }
 
+export function shiftMonth(date: Date, deltaMonths: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + deltaMonths, 1);
+}
+
+/** Full month, Monday-first, including the leading and trailing days of adjacent months. */
+export function buildMonthGrid(anchor: Date): Date[] {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const start = startOfWeekMonday(first);
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+export function eventOverlapsLocalRange(
+  event: Pick<EventWithCreator, 'starts_at' | 'ends_at'>,
+  start: Date,
+  end: Date,
+): boolean {
+  const eventStart = event.starts_at ? new Date(event.starts_at) : null;
+  if (!eventStart || Number.isNaN(eventStart.getTime())) return false;
+  const parsedEnd = event.ends_at ? new Date(event.ends_at) : null;
+  const eventEnd = parsedEnd && !Number.isNaN(parsedEnd.getTime()) ? parsedEnd : eventStart;
+  const rangeStart = startOfLocalDay(start.getTime() <= end.getTime() ? start : end);
+  const rangeEnd = endOfLocalDay(start.getTime() <= end.getTime() ? end : start);
+  return eventStart.getTime() <= rangeEnd.getTime() && eventEnd.getTime() >= rangeStart.getTime();
+}
+
+export function likedEventsInRange(
+  events: EventWithCreator[],
+  start: Date,
+  end: Date,
+): EventWithCreator[] {
+  return events
+    .filter((event) => eventOverlapsLocalRange(event, start, end))
+    .sort((left, right) => Date.parse(left.starts_at || '') - Date.parse(right.starts_at || ''));
+}
+
 export function buildWeekDays(anchor: Date): Date[] {
   const monday = startOfWeekMonday(anchor);
   return Array.from({ length: 7 }, (_, index) => {

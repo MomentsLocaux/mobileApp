@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { InteractionManager, View, StyleSheet } from 'react-native';
 import Animated, {
   type SharedValue,
+  interpolate,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -9,12 +10,10 @@ import Animated, {
 import { X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { colors, spacing } from '@/constants/theme';
-import { Motion } from '@/constants/motion';
 import { EventCard } from '@/components/events/EventCard';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
-import { unitCycleCardReveal } from '@/utils/map-unit-cycle';
 
 interface Props {
   event: EventWithCreator;
@@ -60,7 +59,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   }, [currentUserId, event.id]);
 
   useAnimatedReaction(
-    () => unitCycleCardReveal(progress.value) > 0.05,
+    () => progress.value > 0.08,
     (next, previous) => {
       if (next !== previous) {
         runOnJS(setInteractive)(next);
@@ -69,20 +68,16 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   );
 
   const cardStyle = useAnimatedStyle(() => {
-    const reveal = unitCycleCardReveal(progress.value);
+    const reveal = Math.min(Math.max(progress.value, 0), 1);
     return {
-      opacity: reveal,
-      transform: [{ translateY: (1 - reveal) * Motion.distance.listEnterY }],
+      opacity: interpolate(reveal, [0, 0.35, 1], [0, 1, 1]),
+      transform: [{ translateY: (1 - reveal) * 120 }],
     };
   });
 
-  const chromeEnterStyle = useAnimatedStyle(() => {
-    const reveal = unitCycleCardReveal(progress.value);
-    return {
-      opacity: reveal,
-      transform: [{ scale: 0.85 + reveal * 0.15 }],
-    };
-  });
+  const chromeEnterStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(Math.max(progress.value, 0), 1),
+  }));
 
   return (
     <Animated.View
@@ -93,6 +88,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
         <Animated.View style={[styles.topActions, chromeEnterStyle]}>
           {onToggleHeart ? (
             <EventHeartButton
+              appearance="overlay"
               active={Boolean(isHearted)}
               onPress={() => onToggleHeart(event)}
             />

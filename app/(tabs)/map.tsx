@@ -66,8 +66,8 @@ import {
   MAP_VIEW_PADDING,
   SIM_FALLBACK_COORDS,
 } from '@/constants/map-screen';
-import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
-import { SearchBar } from '../../src/components/search/SearchBar';
+import { MAP_USER_RECENTER_RADIUS_KM } from '@/constants/filters';
+import { SearchBar, type SearchBarHandle } from '../../src/components/search/SearchBar';
 import { MapFiltersSheet } from '../../src/components/search/MapFiltersSheet';
 import { hasSearchCriteria as checkSearchCriteria } from '../../src/utils/search-helpers';
 import {
@@ -124,6 +124,8 @@ import {
   UNIT_CARD_CYCLE_SHEET_END,
   unitCycleSheetReveal,
 } from '@/utils/map-unit-cycle';
+
+const UNIT_CARD_TIMING = { duration: 320, easing: Motion.easing.emphasized };
 
 const MAP_BOOTSTRAP_REVEAL_MAX_MS = 1800;
 
@@ -205,6 +207,7 @@ export default function MapScreen() {
   const zoomRef = useRef(12);
   const mapReadyRef = useRef(false);
   const appliedHomeTransferIdRef = useRef<string | null>(null);
+  const mapSearchBarRef = useRef<SearchBarHandle>(null);
   const focusedSearchRevisionRef = useRef<number | null>(null);
   const sheetSnapBeforeDetailRef = useRef<number | null>(null);
 
@@ -224,6 +227,9 @@ export default function MapScreen() {
   );
   const [initialMapPresentationReady, setInitialMapPresentationReady] = useState(hasMapSnapshot);
   const unitCardModeProgress = useSharedValue(0);
+  const unitCardTravel = useSharedValue(0);
+  const unitCardEventRef = useRef<EventWithCreator | null>(null);
+  unitCardEventRef.current = unitCardEvent;
   const returningEventId = useMapDetailTransitionStore((state) => state.returningEventId);
 
   const handleZoomChange = useCallback((nextZoom: number) => {
@@ -693,30 +699,49 @@ export default function MapScreen() {
     [commitUnitSheetHidden],
   );
 
+  const showUnitCard = useCallback((event: EventWithCreator) => {
+    unitCardEventRef.current = event;
+    setUnitCardEvent(event);
+    unitCardTravel.value = withTiming(1, UNIT_CARD_TIMING);
+  }, [unitCardTravel]);
+
   const beginUnitCardPresentation = useCallback(
     (event: EventWithCreator | null) => {
       if (!event) return;
-      unitCycleGenerationRef.current += 1;
-      setUnitCardEvent(event);
+      const generation = unitCycleGenerationRef.current + 1;
+      unitCycleGenerationRef.current = generation;
 
       if (reduceMotion) {
         cancelAnimation(unitCardModeProgress);
+        cancelAnimation(unitCardTravel);
         unitCardModeProgress.value = 1;
+        unitCardTravel.value = 1;
+        unitCardEventRef.current = event;
+        setUnitCardEvent(event);
         commitUnitSheetHidden();
         return;
       }
 
       cancelAnimation(unitCardModeProgress);
-      if (unitCardModeProgress.value >= 0.99) {
-        unitCardModeProgress.value = 1;
+      cancelAnimation(unitCardTravel);
+      const current = unitCardEventRef.current;
+      if (current && current.id !== event.id && unitCardTravel.value > 0.02) {
+        unitCardTravel.value = withTiming(0, UNIT_CARD_TIMING, (finished) => {
+          'worklet';
+          if (!finished || generation !== unitCycleGenerationRef.current) return;
+          runOnJS(showUnitCard)(event);
+        });
         return;
       }
-      unitCardModeProgress.value = withTiming(1, {
-        duration: Motion.duration.normal,
-        easing: Motion.easing.exit,
-      });
+
+      unitCardEventRef.current = event;
+      setUnitCardEvent(event);
+      if (unitCardModeProgress.value < 0.99) {
+        unitCardModeProgress.value = withTiming(1, UNIT_CARD_TIMING);
+      }
+      unitCardTravel.value = withTiming(1, UNIT_CARD_TIMING);
     },
-    [commitUnitSheetHidden, reduceMotion, unitCardModeProgress],
+    [commitUnitSheetHidden, reduceMotion, showUnitCard, unitCardModeProgress, unitCardTravel],
   );
 
   const finishUnitCardExit = useCallback((generation: number) => {
@@ -753,24 +778,21 @@ export default function MapScreen() {
 
     if (reduceMotion) {
       cancelAnimation(unitCardModeProgress);
+      cancelAnimation(unitCardTravel);
       unitCardModeProgress.value = 0;
+      unitCardTravel.value = 0;
       finishUnitCardExit(generation);
       return;
     }
 
     cancelAnimation(unitCardModeProgress);
-    unitCardModeProgress.value = withTiming(
-      0,
-      {
-        duration: Motion.duration.fast,
-        easing: Motion.easing.exit,
-      },
-      (finished) => {
-        'worklet';
-        if (finished) runOnJS(finishUnitCardExit)(generation);
-      },
-    );
-  }, [finishUnitCardExit, reduceMotion, unitCardEvent, unitCardModeProgress]);
+    cancelAnimation(unitCardTravel);
+    unitCardTravel.value = withTiming(0, UNIT_CARD_TIMING);
+    unitCardModeProgress.value = withTiming(0, UNIT_CARD_TIMING, (finished) => {
+      'worklet';
+      if (finished) runOnJS(finishUnitCardExit)(generation);
+    });
+  }, [finishUnitCardExit, reduceMotion, unitCardEvent, unitCardModeProgress, unitCardTravel]);
 
   dismissUnitCardRef.current = beginUnitCardDismissal;
 
@@ -966,23 +988,30 @@ export default function MapScreen() {
         searchApplied: latest.searchApplied,
         hasSearchCriteria: latestHasSearchCriteria,
       });
-      const target = resolveHomeMapRadiusTarget({
-        searchActive: handoffMode === 'search',
-        place: latest.place,
-        userLocation,
-      });
+      const target = transfer?.focus
+        ? {
+            latitude: transfer.focus.latitude,
+            longitude: transfer.focus.longitude,
+            radiusKm: transfer.focus.radiusKm,
+          }
+        : resolveHomeMapRadiusTarget({
+            searchActive: handoffMode === 'search',
+            place: latest.place,
+            userLocation,
+          });
       InteractionManager.runAfterInteractions(() => {
         if (target) {
           frozenViewportBoundsRef.current = fitToRadius(
             target.latitude,
             target.longitude,
             target.radiusKm,
-            { refreshAfter: true }
+            { refreshAfter: true, paddingBottom: VIEWPORT_PEEK_HEIGHT + 24 }
           );
         } else {
           void refreshBoundsRef.current();
         }
       });
+      if (transfer?.openSearch) mapSearchBarRef.current?.open();
       transferState.clearHomeTransfer();
       return;
     }
@@ -1040,7 +1069,7 @@ export default function MapScreen() {
     if (searchApplied) {
       setSearchApplied(false);
     }
-    fitToRadius(userLocation.latitude, userLocation.longitude, DISCOVERY_DEFAULT_RADIUS_KM, {
+    fitToRadius(userLocation.latitude, userLocation.longitude, MAP_USER_RECENTER_RADIUS_KM, {
       refreshAfter: true,
     });
   }, [clearHomeTransfer, fitToRadius, searchApplied, setSearchApplied, userLocation]);
@@ -1268,6 +1297,7 @@ export default function MapScreen() {
             </FloatingPressable>
             <View style={styles.searchBarWrap}>
               <SearchBar
+                ref={mapSearchBarRef}
                 onApply={handleApplyMapSearch}
                 hasLocation={!!userLocation}
                 applied={searchApplied}
@@ -1490,7 +1520,7 @@ export default function MapScreen() {
             >
               <MapEventUnitOverlay
                 event={unitCardEvent}
-                progress={unitCardModeProgress}
+                progress={unitCardTravel}
                 currentUserId={profile?.id}
                 isHearted={likesSet.has(unitCardEvent.id) || favoritesSet.has(unitCardEvent.id)}
                 onToggleHeart={handleToggleHeart}

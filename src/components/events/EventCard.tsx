@@ -300,6 +300,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
 
             {showHeart ? (
               <EventHeartButton
+                appearance="overlay"
                 active={heartActive}
                 onPress={() => onHeartPress?.()}
                 disabled={!onHeartPress}

@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Compass } from 'lucide-react-native';
@@ -17,7 +17,9 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AgendaBucketRow } from '@/components/agenda/AgendaBucketRow';
 import { AgendaEmptyIllustration } from '@/components/agenda/AgendaEmptyIllustration';
 import { AgendaEventRow } from '@/components/agenda/AgendaEventRow';
-import { AgendaCountLabel, AgendaWeekStrip } from '@/components/agenda/AgendaWeekStrip';
+import { AgendaLikedRangeModal } from '@/components/agenda/AgendaLikedRangeModal';
+import { AgendaMonthGrid } from '@/components/agenda/AgendaMonthGrid';
+import { AgendaCountLabel } from '@/components/agenda/AgendaWeekStrip';
 import { FavoritesMapView } from '@/components/favorites/FavoritesMapView';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { features } from '@/config/features';
@@ -38,12 +40,15 @@ import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import {
   AGENDA_BUCKET_COPY,
-  buildWeekDays,
+  buildMonthGrid,
   countAgendaDayActivities,
-  daysWithAgendaActivity,
+  eventOverlapsLocalRange,
   filterAgendaBucketEvents,
   groupAgendaEventsByDay,
-  shiftWeek,
+  isSameLocalDay,
+  likedEventsInRange,
+  shiftMonth,
+  toLocalDateKey,
   type AgendaBucketId,
   visibleAgendaBuckets,
 } from '@/utils/agenda';
@@ -61,6 +66,8 @@ const HUB_TABS = [
 
 export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const router = useRouter();
+  const { day: dayParam } = useLocalSearchParams<{ day?: string }>();
+  const appliedDayRef = useRef<string | null>(null);
   const insets = useSafeAreaInsets();
   const { profile, user, session, isLoading } = useAuth();
   const publishSurfaces = useEventPublishSurfaces();
@@ -73,7 +80,21 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const [hubTab, setHubTab] = useState<HubTab>('agenda');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(() => new Date());
+  const [rangeStart, setRangeStart] = useState<Date | null>(null);
+  const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
+  const [likedModalOpen, setLikedModalOpen] = useState(false);
   const [now] = useState(() => new Date());
+  const dayKey = typeof dayParam === 'string' ? dayParam : undefined;
+  useEffect(() => {
+    if (!dayKey || appliedDayRef.current === dayKey) return;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey);
+    if (!match) return;
+    const parsed = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    if (Number.isNaN(parsed.getTime())) return;
+    appliedDayRef.current = dayKey;
+    setAnchor(parsed);
+    setSelectedDay(parsed);
+  }, [dayKey]);
   const [selectedBucket, setSelectedBucket] = useState<AgendaBucketId | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<EventWithCreator[]>([]);
@@ -94,7 +115,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     [],
   );
   const buckets = useMemo(() => visibleAgendaBuckets(flags), [flags]);
-  const weekDays = useMemo(() => buildWeekDays(anchor), [anchor]);
+  const monthDays = useMemo(() => buildMonthGrid(anchor), [anchor]);
 
   const membership = useMemo(
     () => ({
@@ -177,9 +198,16 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     () => countAgendaDayActivities(allEvents, selectedDay, membership, flags, now),
     [allEvents, flags, membership, now, selectedDay],
   );
-  const markedKeys = useMemo(
-    () => daysWithAgendaActivity(allEvents, weekDays, membership, flags, now),
-    [allEvents, flags, membership, now, weekDays],
+  const markedKeys = useMemo(() => {
+    const marked = new Set<string>();
+    for (const day of monthDays) {
+      if (interestedEvents.some((event) => eventOverlapsLocalRange(event, day, day))) marked.add(toLocalDateKey(day));
+    }
+    return marked;
+  }, [interestedEvents, monthDays]);
+  const likedRangeEvents = useMemo(
+    () => (rangeStart ? likedEventsInRange(interestedEvents, rangeStart, rangeEnd ?? rangeStart) : []),
+    [interestedEvents, rangeEnd, rangeStart],
   );
 
   const bucketCounts = useMemo(() => {
@@ -416,22 +444,32 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
           </ScrollView>
         ) : (
           <View style={styles.agendaBody}>
-            <AgendaWeekStrip
-              days={weekDays}
-              selected={selectedDay}
+            <AgendaMonthGrid
+              days={monthDays}
+              month={anchor}
               today={now}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
               markedKeys={markedKeys}
               onSelect={(day) => {
                 setSelectedDay(day);
                 setSelectedBucket(null);
                 setShowMap(false);
+                const extending = rangeStart && !rangeEnd && !isSameLocalDay(rangeStart, day);
+                if (extending && rangeStart) {
+                  const forward = rangeStart.getTime() <= day.getTime();
+                  setRangeStart(forward ? rangeStart : day);
+                  setRangeEnd(forward ? day : rangeStart);
+                } else if (rangeStart && rangeEnd && !isSameLocalDay(rangeStart, rangeEnd)) {
+                  setRangeStart(day);
+                  setRangeEnd(null);
+                } else {
+                  setRangeStart(day);
+                  setRangeEnd(null);
+                }
+                setLikedModalOpen(true);
               }}
-              onShiftWeek={(delta) => {
-                const next = shiftWeek(anchor, delta);
-                setAnchor(next);
-                setSelectedDay(next);
-                setSelectedBucket(null);
-              }}
+              onShiftMonth={(delta) => setAnchor(shiftMonth(anchor, delta))}
             />
             <ScrollView
               style={styles.agendaScroll}
@@ -563,6 +601,22 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
           </View>
         )}
       </View>
+      <AgendaLikedRangeModal
+        visible={likedModalOpen}
+        start={rangeStart}
+        end={rangeEnd}
+        events={likedRangeEvents}
+        statsByEventId={statsByEventId}
+        likedIds={new Set([...likesSet, ...favoritesSet])}
+        pendingIds={pendingHeartIds}
+        onClose={() => setLikedModalOpen(false)}
+        onOpen={(event) => {
+          setLikedModalOpen(false);
+          openEvent(event);
+        }}
+        onToggleHeart={handleToggleHeart}
+        onShare={handleShareEvent}
+      />
       <NavigationOptionsSheet event={navEvent} visible={!!navEvent} onClose={() => setNavEvent(null)} />
     </View>
   );

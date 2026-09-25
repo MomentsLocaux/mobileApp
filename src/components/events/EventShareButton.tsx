@@ -10,7 +10,7 @@ type Props = {
   compact?: boolean;
 };
 
-/** Outline pill matching `EventHeartButton` (34 px, page fill, grey ring). */
+/** Outline pill for share. The heart is a glyph, not this disc. */
 export const EventShareButton = React.memo(function EventShareButton({
   onPress,
   accessibilityLabel,

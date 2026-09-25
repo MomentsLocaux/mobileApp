@@ -285,47 +285,10 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Accueil',
-            tabBarIcon: ({ focused, size }) =>
-              renderTabIconSlot(
-                focused,
-                <BrandIcon
-                  name="home"
-                  size={size}
-                  active={focused && !isGuest}
-                  color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
-                />,
-                'home',
-              ),
-            tabBarButton: (props) =>
-              renderProtectedTabButton(
-                props,
-                "Accéder à l'accueil",
-              ),
+            tabBarIcon: ({ focused, size }) => renderTabIconSlot(focused, <BrandIcon name="home" size={size} active={focused} color={colors.brand.ink} />, 'home'),
           }}
         />
-        <Tabs.Screen
-          name="proposals"
-          options={
-            isProfessionnelAccount
-              ? { href: null }
-              : {
-                  title: 'Propositions',
-                  tabBarIcon: ({ focused, size }) =>
-                    renderTabIconSlot(
-                      focused,
-                      <BrandIcon
-                        name="sparkles"
-                        size={size}
-                        active={focused && !isGuest}
-                        color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
-                      />,
-                      'proposals',
-                    ),
-                  tabBarButton: (props) =>
-                    renderProtectedTabButton(props, 'Créer vos propositions'),
-                }
-          }
-        />
+        <Tabs.Screen name="proposals" options={{ href: null }} />
         <Tabs.Screen
           name="map"
           options={{
@@ -566,6 +529,11 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
+            {!isProfessionnelAccount ? <DrawerLink icon="sparkles" label="Mes propositions" onPress={() => {
+              toggleDrawer(false);
+              if (isGuest) { openGuestGate('Créer vos propositions'); return; }
+              router.push('/(tabs)/proposals' as any);
+            }} /> : null}
             {publishSurfaces.showMySuggestions ? (
               <DrawerLink
                 icon="bulb"

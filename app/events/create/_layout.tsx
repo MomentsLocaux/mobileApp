@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 import { EventFormLayoutGate } from '@/components/identity/EventFormLayoutGate';
+import { stackPushOptions } from '@/constants/navigation';
 
 export default function EventCreateLayout() {
   return (
     <EventFormLayoutGate>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, ...stackPushOptions }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="step-1" />
         <Stack.Screen name="step-2" />

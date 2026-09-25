@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import type { EventWithCreator } from '../types/database';
 import {
   AGENDA_BUCKET_COPY,
+  buildMonthGrid,
   buildWeekDays,
   countAgendaDayActivities,
   eventOverlapsLocalDay,
   filterAgendaBucketEvents,
   formatActivityCount,
   groupAgendaEventsByDay,
+  likedEventsInRange,
   resolveAgendaBucket,
   startOfWeekMonday,
   toLocalDateKey,
@@ -25,6 +27,17 @@ const event = (id: string, startsAt: string, endsAt: string): EventWithCreator =
 
 const tuesday = new Date(2026, 8, 22, 12, 0, 0);
 const now = new Date('2026-09-22T09:00:00.000Z');
+
+test('month grid covers every day of the month and liked events in a range', () => {
+  const grid = buildMonthGrid(new Date(2026, 8, 15));
+  assert.equal(grid.length, 42);
+  assert.equal(toLocalDateKey(grid[0]), '2026-08-31');
+  assert.ok(grid.some((day) => toLocalDateKey(day) === '2026-09-30'));
+  const concert = event('c1', '2026-09-22T17:30:00.000+02:00', '2026-09-24T19:00:00.000+02:00');
+  const later = event('c2', '2026-09-28T17:30:00.000+02:00', '2026-09-28T19:00:00.000+02:00');
+  const found = likedEventsInRange([later, concert], new Date(2026, 8, 22), new Date(2026, 8, 24));
+  assert.deepEqual(found.map((item) => item.id), ['c1']);
+});
 
 test('week starts on Monday even when the anchor is Tuesday', () => {
   const monday = startOfWeekMonday(tuesday);

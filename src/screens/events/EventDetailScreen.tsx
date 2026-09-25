@@ -65,6 +65,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  type SharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -85,7 +86,7 @@ import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
 import { PlaceMediaGallery, type MediaImage, type PlaceMediaGalleryHandle } from '@/components/events/PlaceMediaGallery';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
-import { EventShareButton } from '@/components/events/EventShareButton';
+import type { BrandIconName } from '@/components/ui/BrandIcon';
 import { EventDetailSection } from '@/components/events/EventDetailSection';
 import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
 import { EventEchoesPreview } from '@/components/events/EventEchoesPreview';
@@ -159,6 +160,65 @@ const formatDateLong = (value: string) =>
     }),
   );
 
+function PhotoGlyphButton({
+  name,
+  label,
+  onPress,
+  color,
+  fillColor = 'transparent',
+  washScroll,
+  washEnd,
+}: {
+  name: BrandIconName;
+  label: string;
+  onPress: () => void;
+  color?: string;
+  fillColor?: string;
+  washScroll?: SharedValue<number>;
+  washEnd?: SharedValue<number>;
+}) {
+  const reported = Boolean(color);
+  const lightStyle = useAnimatedStyle(() => {
+    const end = Math.max(washEnd?.value ?? 1, 1);
+    const tone = washScroll ? Math.min(Math.max(washScroll.value / end, 0), 1) : 0;
+    return { opacity: reported ? 1 : 1 - tone };
+  });
+  const inkStyle = useAnimatedStyle(() => {
+    const end = Math.max(washEnd?.value ?? 1, 1);
+    const tone = washScroll ? Math.min(Math.max(washScroll.value / end, 0), 1) : 0;
+    return { opacity: reported ? 0 : tone };
+  });
+  const shadowStyle = useAnimatedStyle(() => {
+    const end = Math.max(washEnd?.value ?? 1, 1);
+    const tone = washScroll ? Math.min(Math.max(washScroll.value / end, 0), 1) : 0;
+    return { opacity: 0.55 * (1 - tone) };
+  });
+  const glyphColor = color ?? '#FFFFFF';
+  const shadowFill = fillColor === 'transparent' ? 'transparent' : colors.brand.ink;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={6}
+      activeOpacity={0.86}
+      style={styles.photoGlyph}
+    >
+      <Animated.View pointerEvents="none" style={[styles.photoGlyphShadow, shadowStyle]}>
+        <BrandIcon name={name} size={22} color={colors.brand.ink} fillColor={shadowFill} />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[styles.photoGlyphLayer, lightStyle]}>
+        <BrandIcon name={name} size={22} color={glyphColor} fillColor={fillColor} />
+      </Animated.View>
+      {reported ? null : (
+        <Animated.View pointerEvents="none" style={[styles.photoGlyphLayer, inkStyle]}>
+          <BrandIcon name={name} size={22} color={colors.brand.ink} fillColor={fillColor} />
+        </Animated.View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function EventDetailScreen() {
   const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
   const router = useRouter();
@@ -194,6 +254,9 @@ export default function EventDetailScreen() {
   const canAnimateSurface = canAnimateMapSurface || canAnimateListSurface;
   const surfaceProgress = useSharedValue(canAnimateSurface ? 0 : 1);
   const [scrollAtTop, setScrollAtTop] = useState(true);
+  const [sheetCoversPhoto, setSheetCoversPhoto] = useState(false);
+  const [photoWashed, setPhotoWashed] = useState(false);
+  const [addPhotoGone, setAddPhotoGone] = useState(false);
   const [entryMotionComplete, setEntryMotionComplete] = useState(
     !canAnimateSurface,
   );
@@ -203,7 +266,6 @@ export default function EventDetailScreen() {
   const scrollY = useSharedValue(0);
   const photoHeight = Math.round(windowDimensions.height * 0.56);
   const photoPeek = Math.round(windowDimensions.height * 0.46);
-  const compactShare = windowDimensions.width < 360;
   const finishEntryMotion = useCallback(() => {
     requestAnimationFrame(() => {
       setEntryMotionComplete(true);
@@ -1186,6 +1248,25 @@ export default function EventDetailScreen() {
     ],
   }));
 
+  const bannerHeight = insets.top + spacing.sm + 44;
+  const drawerMeetsBanner = Math.max(photoPeek - bannerHeight, 1);
+  const washEnd = useSharedValue(drawerMeetsBanner);
+  useEffect(() => {
+    washEnd.value = drawerMeetsBanner;
+  }, [drawerMeetsBanner, washEnd]);
+  const addPhotoStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [40, 64], [1, 0], Extrapolation.CLAMP),
+  }));
+  const topBannerStyle = useAnimatedStyle(() => {
+    const end = Math.max(washEnd.value, 1);
+    return {
+      opacity: interpolate(scrollY.value, [end - 1, end], [0, 1], Extrapolation.CLAMP),
+    };
+  });
+  const photoWashStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, Math.max(washEnd.value, 1)], [0, 1], Extrapolation.CLAMP),
+  }));
+
   if (loading && !event) {
     return (
       <View style={{ flex: 1 }}>
@@ -1218,18 +1299,18 @@ export default function EventDetailScreen() {
               },
             ]}
           >
-          <Animated.View
-            pointerEvents="box-none"
-            style={[styles.photoLayer, { height: photoHeight }, photoParallaxStyle]}
-          >
-            <PlaceMediaGallery
-              ref={galleryRef}
-              images={mediaImages}
-              communityImages={communityMediaImages}
-              heroHeight={photoHeight}
-            />
-          </Animated.View>
-          <StatusBar barStyle="light-content" />
+          <View pointerEvents="box-none" style={[styles.photoLayer, { height: photoHeight }]}>
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, photoParallaxStyle]}>
+              <PlaceMediaGallery
+                ref={galleryRef}
+                images={mediaImages}
+                communityImages={communityMediaImages}
+                heroHeight={photoHeight}
+              />
+            </Animated.View>
+            <Animated.View pointerEvents="none" style={[styles.photoWash, photoWashStyle]} />
+          </View>
+          <StatusBar barStyle={sheetCoversPhoto || photoWashed ? 'dark-content' : 'light-content'} />
           <GestureDetector gesture={detailScrollGesture}>
             <ScrollView
               style={styles.container}
@@ -1242,6 +1323,12 @@ export default function EventDetailScreen() {
                 scrollY.value = y;
                 const nextAtTop = y <= 1;
                 setScrollAtTop((current) => (current === nextAtTop ? current : nextAtTop));
+                const covered = y >= drawerMeetsBanner;
+                setSheetCoversPhoto((current) => (current === covered ? current : covered));
+                const washed = y >= drawerMeetsBanner * 0.45;
+                setPhotoWashed((current) => (current === washed ? current : washed));
+                const addGone = y >= 48;
+                setAddPhotoGone((current) => (current === addGone ? current : addGone));
               }}
             >
         <Pressable
@@ -1301,55 +1388,8 @@ export default function EventDetailScreen() {
               ))}
             </View>
           ) : null}
+          {canEditEvent || canDeleteEvent ? (
           <View style={styles.socialRow}>
-            <EventHeartButton
-              active={isEventHearted}
-              onPress={handleToggleHeart}
-              hapticsEnabled={false}
-              disabled={heartPending}
-              count={eventStats.likes}
-              compactCount
-              accessibilityLabel={`${isEventHearted ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${eventStats.likes} j’aime`}
-            />
-            <EventShareButton
-              compact={compactShare}
-              onPress={() => void handleShare()}
-              accessibilityLabel={`Partager ${event.title}`}
-            />
-            {event.status === 'published' ? (
-              <TouchableOpacity
-                onPress={handleOpenEventCorrection}
-                accessibilityRole="button"
-                accessibilityLabel="Proposer une correction"
-                style={styles.iconAction}
-                hitSlop={8}
-              >
-                <BrandIcon name="pen" size={18} />
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              onPress={handleAddPhoto}
-              accessibilityRole="button"
-              accessibilityLabel="Ajouter une photo"
-              style={styles.iconAction}
-              hitSlop={8}
-            >
-              <BrandIcon name="plus" size={18} fillColor={colors.brand.page} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleOpenEventReport}
-              accessibilityRole="button"
-              accessibilityLabel={eventReported ? 'Déjà signalé' : 'Signaler cet événement'}
-              style={styles.iconAction}
-              hitSlop={8}
-            >
-              <BrandIcon
-                name="flag"
-                size={18}
-                fillColor={eventReported ? colors.error[500] : 'transparent'}
-                color={eventReported ? colors.error[500] : colors.brand.ink}
-              />
-            </TouchableOpacity>
             {canEditEvent ? (
               <TouchableOpacity
                 onPress={() => router.push(`/events/create?edit=${event.id}` as any)}
@@ -1373,6 +1413,7 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
+          ) : null}
           </MotionReveal>
 
           {event.description ? (
@@ -1511,24 +1552,29 @@ export default function EventDetailScreen() {
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
-              <Eye size={20} color={colors.brand.textSecondary} style={{ marginBottom: 4 }} />
+              <Eye size={20} color={colors.brand.textSecondary} style={styles.statIcon} />
               <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
-            <View style={styles.statBox}>
-              <EventHeartButton active={isEventHearted} disabled={heartPending}
-                onPress={handleToggleHeart} hapticsEnabled={false} style={styles.statsHeart}
-                accessibilityLabel={isEventHearted ? 'Ne plus aimer' : 'Aimer'} />
-              <TouchableOpacity
-                onPress={handleOpenLikers}
-                accessibilityRole="button"
-                accessibilityLabel={`${eventStats.likes} personnes ont aimé`}
-                hitSlop={8}
-              >
-                <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={handleOpenLikers}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={
+                eventStats.likes === 0
+                  ? 'Aucune personne n’a aimé. Voir la liste'
+                  : eventStats.likes === 1
+                    ? '1 personne a aimé. Voir qui'
+                    : `${eventStats.likes} personnes ont aimé. Voir qui`
+              }
+            >
+              <View style={styles.statIcon}>
+                <BrandIcon name="heart" size={20} color={colors.brand.textSecondary} />
+              </View>
+              <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.statBox} onPress={handleGoToEchoes} activeOpacity={0.85}>
-              <Star size={20} color="#FBBF24" fill="#FBBF24" style={{ marginBottom: 4 }} />
+              <Star size={20} color="#FBBF24" fill="#FBBF24" style={styles.statIcon} />
               <Text style={styles.statBoxValue}>{ratingAvg.toFixed(1)}</Text>
               <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
             </TouchableOpacity>
@@ -1647,22 +1693,76 @@ export default function EventDetailScreen() {
         </View>
             </ScrollView>
           </GestureDetector>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.topBanner, { height: bannerHeight }, topBannerStyle]}
+          />
+          <View pointerEvents="box-none" style={styles.photoChrome}>
           <View pointerEvents="box-none" style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
-            <FloatingPressable
-              style={styles.iconButton}
-              onPress={handleBack}
-              entranceDelay={0}
-              accessibilityLabel="Fermer"
-            >
-              <BrandIcon name="close" size={18} />
-            </FloatingPressable>
-            {mediaImages.length > 1 ? (
-              <View style={styles.photoCount} pointerEvents="none">
-                <Text style={styles.photoCountText}>{mediaImages.length} photos</Text>
-              </View>
-            ) : (
-              <View />
-            )}
+            <View style={styles.chromeLeft} pointerEvents="box-none">
+              <FloatingPressable
+                style={styles.iconButton}
+                onPress={handleBack}
+                entranceDelay={0}
+                accessibilityLabel="Fermer"
+              >
+                <BrandIcon name="close" size={18} />
+              </FloatingPressable>
+              {mediaImages.length > 1 ? (
+                <View style={styles.photoCount} pointerEvents="none">
+                  <Text style={styles.photoCountText}>{mediaImages.length} photos</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+          <View pointerEvents="box-none" style={[styles.heroActions, { top: insets.top + spacing.sm }]}>
+            <EventHeartButton
+              appearance="overlay"
+              active={isEventHearted}
+              onPress={handleToggleHeart}
+              hapticsEnabled={false}
+              disabled={heartPending}
+              count={eventStats.likes}
+              compactCount
+              washScroll={scrollY}
+              washEnd={washEnd}
+              accessibilityLabel={`${isEventHearted ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${eventStats.likes} j’aime`}
+            />
+            <PhotoGlyphButton
+              name="share"
+              label={`Partager ${event.title}`}
+              onPress={() => void handleShare()}
+              washScroll={scrollY}
+              washEnd={washEnd}
+            />
+            {event.status === 'published' ? (
+              <PhotoGlyphButton
+                name="pen"
+                label="Proposer une correction"
+                onPress={handleOpenEventCorrection}
+                washScroll={scrollY}
+                washEnd={washEnd}
+              />
+            ) : null}
+            <PhotoGlyphButton
+              name="flag"
+              label={eventReported ? 'Déjà signalé' : 'Signaler cet événement'}
+              onPress={handleOpenEventReport}
+              color={eventReported ? colors.error[500] : undefined}
+              fillColor={eventReported ? colors.error[500] : 'transparent'}
+              washScroll={scrollY}
+              washEnd={washEnd}
+            />
+          </View>
+          <View pointerEvents={addPhotoGone ? 'none' : 'box-none'} style={[styles.heroAddPhoto, { top: photoPeek - 56 }]}>
+            <Animated.View style={addPhotoStyle} pointerEvents="box-none">
+              <PhotoGlyphButton
+                name="plus"
+                label="Ajouter une photo"
+                onPress={handleAddPhoto}
+              />
+            </Animated.View>
+          </View>
           </View>
           </View>
         </Animated.View>
@@ -1775,6 +1875,37 @@ const styles = StyleSheet.create({
     zIndex: 0,
     overflow: 'hidden',
   },
+  photoWash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.brand.page,
+  },
+  photoChrome: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 21,
+  },
+  topBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    backgroundColor: colors.brand.page,
+  },
+  topBannerRow: {
+    minHeight: 52,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topBannerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   chrome: {
     position: 'absolute',
     top: 0,
@@ -1784,7 +1915,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  chromeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  heroActions: {
+    position: 'absolute',
+    right: spacing.sm,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroAddPhoto: {
+    position: 'absolute',
+    right: spacing.sm,
+    zIndex: 20,
+  },
+  photoGlyph: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoGlyphShadow: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+  },
+  photoGlyphLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconButton: {
     ...screenHeaderStyles.iconButton,
@@ -2016,7 +2179,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.brand.ink,
   },
-  statsHeart: { width: 48, height: 48, borderRadius: 24, borderWidth: 0, backgroundColor: 'transparent' },
+  statIcon: { marginBottom: 4 },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

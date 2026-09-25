@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-25",
+  "runtime": "Chrome / React Native Web — real HomeScreen, useHomeFeed, stores, glyphs; synthetic services; static tab chrome",
+  "widths": [
+    320,
+    390,
+    430
+  ],
+  "checks": [
+    "3 cards maximum",
+    "local segment changes",
+    "evening map transfer",
+    "agenda date transfer",
+    "map search launcher",
+    "duplicate like guard",
+    "failed like",
+    "guest private data hidden",
+    "snapshot before response",
+    "offline cache preserved",
+    "late zone response ignored",
+    "empty/offline/no-location",
+    "valid and broken cover",
+    "no horizontal page overflow",
+    "less than 2 screen heights"
+  ],
+  "pageErrors": []
+}

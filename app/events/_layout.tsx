@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../src/constants/theme';
+import { stackModalOptions, stackPushOptions } from '@/constants/navigation';
 
 export default function EventsLayout() {
   return (
@@ -15,24 +16,21 @@ export default function EventsLayout() {
         },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.brand.page },
+        ...stackPushOptions,
       }}
     >
       <Stack.Screen
         name="[id]"
         options={{
           headerShown: false,
-          presentation: 'modal',
-          gestureEnabled: true,
-          animation: 'slide_from_bottom',
+          ...stackModalOptions,
         }}
       />
       <Stack.Screen
         name="echoes"
         options={{
           headerShown: false,
-          presentation: 'modal',
-          gestureEnabled: true,
-          animation: 'slide_from_bottom',
+          ...stackModalOptions,
         }}
       />
       {/* Nested folder app/events/create — declare the group, not create/step-* */}
@@ -40,16 +38,14 @@ export default function EventsLayout() {
         name="create"
         options={{
           headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
+          ...stackModalOptions,
         }}
       />
       <Stack.Screen
         name="suggest-from-poster/index"
         options={{
           title: 'Depuis une affiche',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
+          ...stackModalOptions,
         }}
       />
     </Stack>

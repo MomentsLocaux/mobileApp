@@ -1,7 +1,7 @@
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { EventMetaFilter } from '@/utils/filter-events';
 
-export type DatePreset = 'today' | 'tomorrow' | 'weekend';
+export type DatePreset = 'today' | 'tonight' | 'tomorrow' | 'weekend';
 
 export type DiscoveryStatus = EventMetaFilter;
 
@@ -9,6 +9,8 @@ export type MapMode = 'standard' | 'satellite';
 
 /** Default discovery browse radius (Home nearby feed + search fallback). */
 export const DISCOVERY_DEFAULT_RADIUS_KM = 20;
+/** GPS recenter sits closer than the default browse circle. */
+export const MAP_USER_RECENTER_RADIUS_KM = 12;
 
 /**
  * Default temporal package: calendar day ("Aujourd'hui"), not "En cours".
@@ -38,6 +40,7 @@ export const META_FILTERS: readonly FilterOption<DiscoveryStatus>[] = [
 
 export const DATE_PRESETS: readonly FilterOption<DatePreset>[] = [
   { key: 'today', label: "Aujourd'hui" },
+  { key: 'tonight', label: 'Ce soir' },
   { key: 'tomorrow', label: 'Demain' },
   { key: 'weekend', label: 'Ce week-end' },
 ];

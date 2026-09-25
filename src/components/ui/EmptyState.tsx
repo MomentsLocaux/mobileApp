@@ -1,11 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { MotionReveal } from './MotionReveal';
 
 type Props = {
-  icon?: LucideIcon;
+  icon?: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   title: string;
   subtitle?: string;
   ctaLabel?: string;

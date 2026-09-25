@@ -5,6 +5,7 @@ export const brandIconArtwork = {
     body: 'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5Z',
     detail: 'M9 21v-7h6v7',
   },
+  search: { body: 'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z', detail: 'm15 15 6 6M6 10a4 4 0 0 1 4-4' },
   map: { body: 'm3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z', detail: 'M9 3v16M15 5v16' },
   sparkles: {
     body: 'm11 3 2.4 6.6L20 12l-6.6 2.4L11 21l-2.4-6.6L2 12l6.6-2.4Z',

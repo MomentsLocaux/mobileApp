@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../src/constants/theme';
+import { stackPushOptions } from '@/constants/navigation';
 
 export default function ProfileLayout() {
   return (
@@ -15,6 +16,7 @@ export default function ProfileLayout() {
         },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.brand.page },
+        ...stackPushOptions,
       }}
     >
       <Stack.Screen

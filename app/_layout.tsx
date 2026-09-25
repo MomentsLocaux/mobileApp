@@ -17,7 +17,9 @@ import { useProposalsStore } from '@/store/proposalsStore';
 import { hydrateDiscoveryCaches } from '@/store/hydrateDiscoveryCache';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { LegalAcceptanceGate } from '@/components/legal/LegalAcceptanceGate';
+import { stackModalOptions, stackPushOptions } from '@/constants/navigation';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -121,12 +123,16 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
       <AppBackground />
-      <Stack screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: 'transparent' },
-        animation: 'slide_from_right',
-      }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+          animation: stackPushOptions.animation,
+          animationDuration: stackPushOptions.animationDuration,
+        }}
+      >
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
@@ -145,8 +151,7 @@ export default function RootLayout() {
         <Stack.Screen
           name="agenda"
           options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
+            ...stackModalOptions,
             contentStyle: { backgroundColor: 'transparent' },
           }}
         />
@@ -156,6 +161,7 @@ export default function RootLayout() {
       <LegalAcceptanceGate />
       <StatusBar style="dark" />
       <Toast config={toastConfig} />
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }

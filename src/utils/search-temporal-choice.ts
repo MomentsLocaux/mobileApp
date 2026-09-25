@@ -5,6 +5,7 @@ import type { DiscoveryWhenFilter } from './discovery-filters';
 export type SearchTemporalChoice =
   | 'all'
   | 'live'
+  | 'tonight'
   | 'today'
   | 'tomorrow'
   | 'weekend'
@@ -18,6 +19,7 @@ export const SEARCH_TEMPORAL_CHOICES: readonly {
   { key: 'all', label: 'Tous' },
   { key: 'live', label: 'En cours' },
   { key: 'today', label: "Aujourd'hui" },
+  { key: 'tonight', label: 'Ce soir' },
   { key: 'tomorrow', label: 'Demain' },
   { key: 'weekend', label: 'Ce week-end' },
   { key: 'upcoming', label: 'À venir' },
@@ -41,7 +43,7 @@ export function isDefaultDiscoveryTemporal(
   return resolveSearchTemporalChoice(status, when) === DEFAULT_SEARCH_TEMPORAL_CHOICE;
 }
 
-const DATE_PRESET_CHOICES: readonly DatePreset[] = ['today', 'tomorrow', 'weekend'];
+const DATE_PRESET_CHOICES: readonly DatePreset[] = ['today', 'tonight', 'tomorrow', 'weekend'];
 
 export function resolveSearchTemporalChoice(
   status: DiscoveryStatus,
@@ -59,7 +61,7 @@ export function filtersForSearchTemporalChoice(choice: SearchTemporalChoice): {
   status: DiscoveryStatus;
   when: DiscoveryWhenFilter;
 } {
-  if (choice === 'today' || choice === 'tomorrow' || choice === 'weekend') {
+  if (choice === 'tonight' || choice === 'today' || choice === 'tomorrow' || choice === 'weekend') {
     return {
       status: 'all',
       when: { preset: choice, includePast: false },

@@ -1,4 +1,4 @@
-export type TimeFilter = 'today' | 'tomorrow' | 'weekend' | 'live';
+export type TimeFilter = 'today' | 'tonight' | 'tomorrow' | 'weekend' | 'live';
 export type PopularityFilter = 'trending' | 'popular' | 'top';
 export type SortOption = 'triage' | 'distance' | 'popularity' | 'date' | 'endDate' | 'created';
 export type SortOrder = 'asc' | 'desc';

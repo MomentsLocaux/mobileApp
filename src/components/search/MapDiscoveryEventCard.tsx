@@ -66,22 +66,32 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
   </View>;
   const open = () => onOpen(event);
   const media = (
-    <Pressable
-      onPress={open}
-      onPressIn={() => prefetchEventMedia(event)}
-      onLongPress={onHighlight ? () => onHighlight(event) : undefined}
-      accessibilityRole="button"
-      accessibilityLabel={`Voir ${event.title}`}
-      style={[styles.media, spotlight ? styles.spotlightMedia : [styles.rowMedia, { width: rowSize, height: rowSize }], { backgroundColor: `${categoryColor}18` }]}
-    >
-      {cover && failedCover !== cover ? (
-        <EventCoverImage uri={cover} recyclingKey={`${event.id}:${cover}`} variant="list" style={styles.cover} onError={() => setFailedCover(cover)} />
-      ) : <BrandIcon name="sparkles" size={36} fillColor={categoryColor} />}
-      {spotlight ? dateStamp : null}
-      {spotlight && isMeaningfulPriceLabel(price) ? (
-        <View style={styles.coverPrice}><Text style={styles.price}>{price}</Text></View>
-      ) : null}
-    </Pressable>
+    <View style={[spotlight ? styles.spotlightMedia : [styles.rowMedia, { width: rowSize, height: rowSize }], { backgroundColor: `${categoryColor}18` }]}>
+      <Pressable
+        onPress={open}
+        onPressIn={() => prefetchEventMedia(event)}
+        onLongPress={onHighlight ? () => onHighlight(event) : undefined}
+        accessibilityRole="button"
+        accessibilityLabel={`Voir ${event.title}`}
+        style={styles.mediaFill}
+      >
+        {cover && failedCover !== cover ? (
+          <EventCoverImage uri={cover} recyclingKey={`${event.id}:${cover}`} variant="list" style={styles.cover} onError={() => setFailedCover(cover)} />
+        ) : <BrandIcon name="sparkles" size={36} fillColor={categoryColor} />}
+        {spotlight ? dateStamp : null}
+        {spotlight && isMeaningfulPriceLabel(price) ? (
+          <View style={styles.coverPrice}><Text style={styles.price}>{price}</Text></View>
+        ) : null}
+      </Pressable>
+      <EventHeartButton
+        appearance="overlay"
+        active={liked}
+        disabled={pending}
+        onPress={() => onToggleHeart(event)}
+        style={spotlight ? styles.coverHeartLeft : styles.coverHeart}
+        accessibilityLabel={`${liked ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${count} j’aime`}
+      />
+    </View>
   );
   return (
     <View testID={`map-event-${variant}-${event.id}`} style={[styles.card, spotlight ? styles.spotlight : styles.row, active && { borderColor: categoryColor }]}>
@@ -111,7 +121,6 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
             )}
           </View>
           <View style={styles.actionSpacer} />
-          <EventHeartButton active={liked} disabled={pending} count={count} compactCount onPress={() => onToggleHeart(event)} accessibilityLabel={`${liked ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${count} j’aime`} />
           <EventShareButton compact={!spotlight && compact} onPress={() => onShare(event)} accessibilityLabel={`Partager ${event.title}`} />
         </View>
       </View>
@@ -129,9 +138,9 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   spotlight: { width: 235 },
-  media: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  rowMedia: { flexShrink: 0 },
-  spotlightMedia: { width: '100%', aspectRatio: 1, flexShrink: 0 },
+  mediaFill: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  rowMedia: { flexShrink: 0, position: 'relative', overflow: 'hidden' },
+  spotlightMedia: { width: '100%', aspectRatio: 1, flexShrink: 0, position: 'relative', overflow: 'hidden' },
   cover: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   coverPrice: { position: 'absolute', bottom: 8, right: 8, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: colors.brand.page },
   body: { flex: 1, minWidth: 0, justifyContent: 'space-between' },
@@ -142,6 +151,8 @@ const styles = StyleSheet.create({
   title: { ...typography.bodySmall, fontSize: 12, lineHeight: 16, fontWeight: '700', color: colors.brand.text },
   dateStamp: { flexDirection: 'column', flexShrink: 0, maxWidth: 92, paddingHorizontal: 5, paddingVertical: 5, borderRadius: 9, backgroundColor: colors.brand.page, alignItems: 'center' },
   coverDate: { position: 'absolute', top: 8, right: 8, padding: 7, borderRadius: 10, backgroundColor: colors.brand.page },
+  coverHeart: { position: 'absolute', top: 2, right: 2, zIndex: 2 },
+  coverHeartLeft: { position: 'absolute', top: 2, left: 2, zIndex: 2 },
   stampDate: { ...typography.caption, fontSize: 9, lineHeight: 12, color: colors.brand.text },
   stampTime: { ...typography.caption, fontSize: 12, lineHeight: 16, fontWeight: '700', color: colors.brand.text },
   spotlightTime: { fontSize: 14, lineHeight: 18 },

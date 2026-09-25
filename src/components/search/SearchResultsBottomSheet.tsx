@@ -943,7 +943,7 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
           </GestureDetector>
         )}
         {showViewportList && isExpanded ? (
-          <Pressable onPress={() => requestSnapIndex(0)} accessibilityRole="button" accessibilityLabel="Revenir à la carte" style={[styles.mapButton, { bottom: Math.max(16, bottomContentInset - 48) }]}>
+          <Pressable onPress={() => requestSnapIndex(0)} accessibilityRole="button" accessibilityLabel="Revenir à la carte" style={[styles.mapButton, { bottom: Math.max(16, bottomContentInset - 48) + 16 }]}>
             <BrandIcon name="map" size={21} /><Text style={styles.mapButtonText}>Carte</Text>
           </Pressable>
         ) : null}
@@ -994,23 +994,25 @@ const styles = StyleSheet.create({
   },
   peekHeader: {
     paddingHorizontal: spacing.lg,
-    paddingTop: 24,
-    paddingBottom: spacing.sm,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   peekCopy: {
+    alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    minHeight: 56,
+    width: '100%',
   },
   peekTitle: {
     ...typography.h4,
     color: colors.brand.text,
     flexShrink: 1,
+    textAlign: 'center',
   },
   peekSubtitle: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+    textAlign: 'center',
   },
   header: {
     paddingHorizontal: spacing.lg,

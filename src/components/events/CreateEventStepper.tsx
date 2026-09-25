@@ -325,7 +325,7 @@ export const CreateEventStepper = () => {
     const getTitle = () => {
         switch (currentStep) {
             case 0:
-                return isSuggest ? 'Proposer un événement' : 'Créer un événement';
+                return isSuggest ? 'Suggérer un événement' : 'Créer un événement';
             case 1:
                 return isSuggest ? "Détails de l'événement repéré" : "Détails de l'événement";
             case 2:
@@ -333,7 +333,7 @@ export const CreateEventStepper = () => {
             case 3:
                 return 'Prévisualisation';
             default:
-                return isSuggest ? 'Proposer un événement' : 'Créer un événement';
+                return isSuggest ? 'Suggérer un événement' : 'Créer un événement';
         }
     };
 

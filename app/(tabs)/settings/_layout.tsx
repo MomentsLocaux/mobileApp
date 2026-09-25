@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { stackPushOptions } from '@/constants/navigation';
 
 export default function SettingsStackLayout() {
   return (
@@ -6,7 +7,7 @@ export default function SettingsStackLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: 'transparent' },
-        animation: 'slide_from_right',
+        ...stackPushOptions,
       }}
     >
       <Stack.Screen name="index" />

@@ -33,7 +33,9 @@ export const buildFiltersFromSearch = (
 
   if (!includePast) {
     if (search.when.preset) {
-      if (search.when.preset === 'weekend') {
+      if (search.when.preset === 'tonight') {
+        filters.time = 'tonight';
+      } else if (search.when.preset === 'weekend') {
         filters.time = 'weekend';
       } else if (search.when.preset === 'today') {
         filters.time = 'today';

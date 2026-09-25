@@ -106,7 +106,7 @@ export function EventContributeSheet({
   };
 
   const goPoster = (source: EventSubmissionSource) => {
-    if (!ensureAuth(source === 'community_suggest' ? 'Proposer un événement' : 'Créer un événement')) {
+    if (!ensureAuth(source === 'community_suggest' ? 'Suggérer un événement' : 'Créer un événement')) {
       return;
     }
     if (!eventSuggest) {
@@ -130,7 +130,7 @@ export function EventContributeSheet({
   };
 
   const goManual = (source: EventSubmissionSource) => {
-    if (!ensureAuth(source === 'community_suggest' ? 'Proposer un événement' : 'Créer un événement')) {
+    if (!ensureAuth(source === 'community_suggest' ? 'Suggérer un événement' : 'Créer un événement')) {
       return;
     }
     haptics.selection();
@@ -161,7 +161,7 @@ export function EventContributeSheet({
     : step === 'intent'
       ? 'Que souhaitez-vous faire ?'
       : intent === 'community_suggest'
-        ? 'Proposer un événement'
+        ? 'Suggérer un événement'
         : 'Créer un événement';
 
   const subtitle = assistanceOnly
@@ -226,7 +226,7 @@ export function EventContributeSheet({
               />
               <OptionRow
                 icon={Sparkles}
-                title="Je propose un événement"
+                title="Je suggère un événement"
                 subtitle="Événement repéré (affiche, flyer…)"
                 onPress={() => chooseIntent('community_suggest')}
               />

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { SortOption, SortOrder } from '../types/filters';
-type Preset = 'today' | 'tomorrow' | 'weekend';
+type Preset = 'today' | 'tonight' | 'tomorrow' | 'weekend';
 
 export interface SearchWhereState {
   location?: {
