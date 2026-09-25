@@ -16,6 +16,7 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventWithCreator } from '@/types/database';
 import { toLocalDateKey } from '@/utils/agenda';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
+import { bumpCoverPrefetchGeneration } from '@/utils/cover-prefetch-queue';
 import { formatDistanceLabel } from '@/utils/event-card-display';
 import { ensureEventHearted, removeEventHeart, syncHeartStores } from '@/utils/event-heart';
 import { filterEvents } from '@/utils/filter-events';
@@ -85,6 +86,9 @@ export function useHomeFeed() {
   );
   const key = zoneKey(browseCenter, browseRadiusKm);
   const currentKey = useRef(key); currentKey.current = key;
+  useEffect(() => {
+    bumpCoverPrefetchGeneration();
+  }, [key]);
   const dayKey = toLocalDateKey(now);
   const poolEvents = useMemo(() => pool.key === key ? pool.events.filter(event => isHomeEventEligible(event, now)) : [], [key, now, pool]);
   const complete = pool.key === key && pool.complete;
@@ -201,13 +205,13 @@ export function useHomeFeed() {
   const isHearted = useCallback((id: string) => Boolean(userId && privateData.userId === userId && privateData.interestedIds.includes(id)), [privateData, userId]);
 
   const openEvent = useCallback((event: EventWithCreator) => {
-    useEventPreviewStore.getState().prepareEventDetail(event); prefetchEventMedia(event);
+    useEventPreviewStore.getState().prepareEventDetail(event); prefetchEventMedia(event, { priority: 'visible' });
     router.push(`/map-event/${event.id}?origin=home-list` as never);
   }, [router]);
   useEffect(() => {
     const visible = [...rankedEvents, ...(nextEvent ? [nextEvent] : [])];
     useEventPreviewStore.getState().pinVisibleEvents('home', visible.map(event => event.id));
-    visible.forEach(event => prefetchEventMedia(event));
+    visible.forEach(event => prefetchEventMedia(event, { priority: 'visible' }));
   }, [rankedEvents, nextEvent]);
 
   const applySlotToMap = useCallback((target: HomeTimeSlot, options?: {

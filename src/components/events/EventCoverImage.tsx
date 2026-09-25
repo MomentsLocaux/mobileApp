@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Image as RNImage,
-  NativeModules,
   type ImageStyle,
   type StyleProp,
 } from 'react-native';
@@ -9,6 +8,15 @@ import {
   getEventCoverImageSource,
   type EventCoverVariant,
 } from '@/utils/event-card-display';
+import {
+  detectCoverImageEngine,
+  type CoverImageEngine,
+} from '@/utils/cover-image-engine';
+import {
+  configureCoverPrefetch,
+  enqueueCoverPrefetch,
+  type CoverPrefetchPriority,
+} from '@/utils/cover-prefetch-queue';
 
 type ContentFit = 'cover' | 'contain';
 
@@ -26,21 +34,47 @@ type ExpoImageComponent = React.ComponentType<{
 };
 
 let expoImageModule: { Image?: ExpoImageComponent } | null | undefined;
+let coverImageEngine: CoverImageEngine | undefined;
+let engineLogged = false;
 
-function getExpoImage(): ExpoImageComponent | null {
-  const native = NativeModules as { ExpoImage?: unknown };
-  if (!native?.ExpoImage) return null;
-  if (expoImageModule === undefined) {
-    try {
-      // Optional until the native binary is rebuilt with expo-image.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      expoImageModule = require('expo-image') as { Image?: ExpoImageComponent };
-    } catch {
-      expoImageModule = null;
+function loadExpoImageModule(): { Image?: ExpoImageComponent } | null {
+  if (expoImageModule !== undefined) return expoImageModule;
+  try {
+    // Optional until the native binary is rebuilt with expo-image.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    expoImageModule = require('expo-image') as { Image?: ExpoImageComponent };
+  } catch {
+    expoImageModule = null;
+  }
+  return expoImageModule;
+}
+
+function getCoverImageEngine(): CoverImageEngine {
+  if (!coverImageEngine) {
+    coverImageEngine = detectCoverImageEngine(loadExpoImageModule);
+    if (__DEV__ && !engineLogged) {
+      engineLogged = true;
+      console.info('[cover-image] engine=', coverImageEngine);
     }
   }
-  return expoImageModule?.Image ?? null;
+  return coverImageEngine;
 }
+
+function getExpoImage(): ExpoImageComponent | null {
+  if (getCoverImageEngine() !== 'expo-image') return null;
+  return loadExpoImageModule()?.Image ?? null;
+}
+
+async function prefetchOneCover(uri: string): Promise<void> {
+  const ExpoImage = getExpoImage();
+  if (ExpoImage?.prefetch) {
+    await ExpoImage.prefetch(uri, 'memory-disk');
+    return;
+  }
+  await RNImage.prefetch(uri);
+}
+
+configureCoverPrefetch(prefetchOneCover);
 
 export type EventCoverImageProps = {
   uri: string;
@@ -90,15 +124,9 @@ export function EventCoverImage({
   );
 }
 
-export function prefetchCoverUris(uris: string[]): void {
-  const unique = uris.filter(Boolean);
-  if (!unique.length) return;
-  const ExpoImage = getExpoImage();
-  if (ExpoImage?.prefetch) {
-    void ExpoImage.prefetch(unique, 'memory-disk').catch(() => undefined);
-    return;
-  }
-  unique.forEach((uri) => {
-    void RNImage.prefetch(uri).catch(() => undefined);
-  });
+export function prefetchCoverUris(
+  uris: string[],
+  priority: CoverPrefetchPriority = 'ahead',
+): void {
+  enqueueCoverPrefetch(uris, priority);
 }

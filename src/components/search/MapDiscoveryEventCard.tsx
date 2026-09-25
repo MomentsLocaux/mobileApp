@@ -89,7 +89,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
         <View style={[styles.listingMedia, framed && styles.listingMediaFramed, { backgroundColor: `${categoryColor}18` }, active && { borderColor: categoryColor, borderWidth: 2 }]}>
           <Pressable
             onPress={open}
-            onPressIn={() => prefetchEventMedia(event)}
+            onPressIn={() => prefetchEventMedia(event, { priority: 'visible' })}
             onLongPress={onHighlight ? () => onHighlight(event) : undefined}
             accessibilityRole="button"
             accessibilityLabel={`Voir ${event.title}`}
@@ -112,7 +112,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
           </View>
           {badge && !framed ? <View style={styles.listingBadge} pointerEvents="none"><Text style={styles.listingBadgeText} numberOfLines={1}>{badge}</Text></View> : null}
         </View>
-        <Pressable onPress={open} onPressIn={() => prefetchEventMedia(event)} accessibilityRole="button" accessibilityLabel={`Détails : ${event.title}`} accessibilityHint={stamp.label} style={[styles.listingCopy, framed && styles.listingCopyFramed]}>
+        <Pressable onPress={open} onPressIn={() => prefetchEventMedia(event, { priority: 'visible' })} accessibilityRole="button" accessibilityLabel={`Détails : ${event.title}`} accessibilityHint={stamp.label} style={[styles.listingCopy, framed && styles.listingCopyFramed]}>
           <View style={styles.listingTop}>
             <Text style={styles.listingKicker} numberOfLines={1} maxFontSizeMultiplier={1.3}>{kicker}</Text>
             {(likers.length > 0 || extraLikes > 0) ? (
@@ -146,7 +146,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
     <View style={[spotlight ? styles.spotlightMedia : [styles.rowMedia, { width: rowSize, height: rowSize }], { backgroundColor: `${categoryColor}18` }]}>
       <Pressable
         onPress={open}
-        onPressIn={() => prefetchEventMedia(event)}
+        onPressIn={() => prefetchEventMedia(event, { priority: 'visible' })}
         onLongPress={onHighlight ? () => onHighlight(event) : undefined}
         accessibilityRole="button"
         accessibilityLabel={`Voir ${event.title}`}
@@ -175,7 +175,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
       {media}
       <View testID="event-card-body" style={[styles.body, spotlight ? styles.spotlightBody : { height: rowSize }]}>
         <View style={styles.heading}>
-          <Pressable onPress={open} onPressIn={() => prefetchEventMedia(event)} accessibilityRole="button" accessibilityLabel={`Détails : ${event.title}`} accessibilityHint={stamp.label} style={styles.titleTarget}>
+          <Pressable onPress={open} onPressIn={() => prefetchEventMedia(event, { priority: 'visible' })} accessibilityRole="button" accessibilityLabel={`Détails : ${event.title}`} accessibilityHint={stamp.label} style={styles.titleTarget}>
             <Text style={styles.location} numberOfLines={1} maxFontSizeMultiplier={1.3}>{location}</Text>
             <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={1.3}>{event.title}</Text>
           </Pressable>
