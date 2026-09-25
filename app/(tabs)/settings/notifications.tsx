@@ -144,7 +144,7 @@ export default function NotificationsSettingsScreen() {
 
   if (loading) {
     return (
-      <SettingsLayout title="Notifications">
+      <SettingsLayout title="Notifications & préférences">
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand.secondary} />
         </View>
@@ -154,7 +154,7 @@ export default function NotificationsSettingsScreen() {
 
   if (!prefs) {
     return (
-      <SettingsLayout title="Notifications">
+      <SettingsLayout title="Notifications & préférences">
         <View style={styles.helper}>
           <Text style={styles.helperText}>Connectez-vous pour gérer vos notifications.</Text>
         </View>
@@ -171,7 +171,7 @@ export default function NotificationsSettingsScreen() {
   const showSocial = features.socialPeers;
 
   return (
-    <SettingsLayout title="Notifications">
+    <SettingsLayout title="Notifications & préférences">
       {/* 1. Push master + budget + quiet */}
       <SettingsSectionCard
         title="Notifications push"
@@ -363,11 +363,11 @@ export default function NotificationsSettingsScreen() {
 
       {/* 4. Themes */}
       <SettingsSectionCard
-        title="Mes thèmes"
-        description="Priorisez les bons moments près de vous. Sans choix, tout le rayon est proposé."
+        title="Types d’événements"
+        description="Les thèmes choisis à l’inscription. Sans choix, tout le rayon est proposé."
         icon={Sparkles}
       >
-        <ChoiceGroup label="Centres d’intérêt" noBorder>
+        <ChoiceGroup label="Thèmes qui vous intéressent" noBorder>
           {CATEGORY_VISUAL_SLUGS.map((slug) => (
             <Chip
               key={slug}

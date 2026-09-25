@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Briefcase, Compass, Heart, Sparkles } from 'lucide-react-native';
+import { Briefcase, Compass } from 'lucide-react-native';
 import type { AccountKind } from '@/constants/accountIdentity';
 import { LUMIA_INTRO } from '@/constants/lumiaTour';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
@@ -14,25 +14,26 @@ type Props = {
 };
 
 const MVP_NEXT = [
-  'Choisir où tu traines',
-  'Dire ce que tu aimes',
-  'Explorer les moments près de toi',
+  'Dire comment t’appeler',
+  'Choisir ton quartier',
+  'Indiquer ce qui t’attire',
+  'Ajouter un portrait, si tu veux',
 ];
 
 const PARTICULIER_NEXT = [
-  'Choisir où tu traines',
-  'Dire ce que tu aimes (et ce que tu proposes)',
-  'Explorer — Habitué si tu sors vraiment',
+  'Choisir ton quartier et tes thèmes',
+  'Ajouter un portrait pour les autres membres',
+  'Proposer des moments, seulement si tu le souhaites',
 ];
 
 const PROFESSIONNEL_NEXT = [
-  'Préciser votre typologie d’organisation',
-  'Connecter votre SIT ou demander un connecteur',
-  'Accéder à votre tableau de bord de présence',
+  'Préciser ton type d’activité',
+  'Relier ton agenda existant, si tu en as un',
+  'Suivre les réactions à tes moments',
 ];
 
 export const MVP_PROMISE =
-  'Ici, on crée du lien avec le monde qui nous entoure.';
+  'Quelques étapes pour voir les moments près de chez toi.';
 
 /**
  * Welcome — dual door when Diffuseur is on; single discovery pitch otherwise (MVP).
@@ -52,25 +53,14 @@ export function OnboardingWelcomeStep({
   if (!showProfessionnel) {
     return (
       <View style={styles.wrap}>
-        <View style={[styles.panel, styles.panelFun, styles.panelActive]}>
-          <Text style={styles.lumiaIntro}>{LUMIA_INTRO}</Text>
-          <View style={styles.bullets}>
-            {MVP_NEXT.map((line) => (
-              <View key={line} style={styles.bulletRow}>
-                <Sparkles size={14} color={colors.brand.secondary} />
-                <Text style={styles.bulletFun}>{line}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.chipRow}>
-            <View style={styles.miniChip}>
-              <Heart size={12} color={colors.brand.primary} />
-              <Text style={styles.miniChipText}>Découvrir</Text>
+        <Text style={styles.lumiaIntro}>{LUMIA_INTRO}</Text>
+        <View style={styles.bullets}>
+          {MVP_NEXT.map((line, index) => (
+            <View key={line} style={styles.bulletRow}>
+              <Text style={styles.stepMark}>{index + 1}</Text>
+              <Text style={styles.bulletFun}>{line}</Text>
             </View>
-            <View style={styles.miniChip}>
-              <Text style={styles.miniChipText}>Participer</Text>
-            </View>
-          </View>
+          ))}
         </View>
       </View>
     );
@@ -78,8 +68,7 @@ export function OnboardingWelcomeStep({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.hero}>Moments Locaux</Text>
-      <Text style={styles.lead}>Deux portes d’entrée — choisis celle qui te ressemble.</Text>
+      <Text style={styles.lead}>Deux portes — choisis celle qui te correspond.</Text>
 
       <TouchableOpacity
         style={[styles.panel, styles.panelFun, preferredKind === 'particulier' && styles.panelActive]}
@@ -94,27 +83,17 @@ export function OnboardingWelcomeStep({
           <Compass size={22} color={colors.brand.secondary} strokeWidth={2.2} />
           <Text style={styles.panelTitleFun}>Particulier</Text>
         </View>
-        <Text style={styles.panelPromiseFun}>{MVP_PROMISE}</Text>
+        <Text style={styles.panelPromiseFun}>
+          Tu explores les moments près de chez toi, et tu peux en proposer si tu veux.
+        </Text>
         <Text style={styles.lumiaIntro}>{LUMIA_INTRO}</Text>
         <View style={styles.bullets}>
-          {PARTICULIER_NEXT.map((line) => (
+          {PARTICULIER_NEXT.map((line, index) => (
             <View key={line} style={styles.bulletRow}>
-              <Sparkles size={14} color={colors.brand.secondary} />
+              <Text style={styles.stepMark}>{index + 1}</Text>
               <Text style={styles.bulletFun}>{line}</Text>
             </View>
           ))}
-        </View>
-        <View style={styles.chipRow}>
-          <View style={styles.miniChip}>
-            <Heart size={12} color={colors.brand.primary} />
-            <Text style={styles.miniChipText}>Découvrir</Text>
-          </View>
-          <View style={styles.miniChip}>
-            <Text style={styles.miniChipText}>Participer</Text>
-          </View>
-          <View style={styles.miniChip}>
-            <Text style={styles.miniChipText}>Créer (optionnel)</Text>
-          </View>
         </View>
       </TouchableOpacity>
 
@@ -136,13 +115,12 @@ export function OnboardingWelcomeStep({
           <Text style={styles.panelTitleFormal}>Professionnel</Text>
         </View>
         <Text style={styles.panelPromiseFormal}>
-          Diffusez une fois — Moments Locaux devient votre tableau de bord de présence réelle et
-          d’interactions temps réel.
+          Tu publies tes moments une fois, puis tu suis les réactions sur ton territoire.
         </Text>
         <View style={styles.bullets}>
-          {PROFESSIONNEL_NEXT.map((line) => (
+          {PROFESSIONNEL_NEXT.map((line, index) => (
             <View key={line} style={styles.bulletRow}>
-              <Text style={styles.bulletFormalMark}>—</Text>
+              <Text style={styles.stepMark}>{index + 1}</Text>
               <Text style={styles.bulletFormal}>{line}</Text>
             </View>
           ))}
@@ -156,10 +134,6 @@ const styles = StyleSheet.create({
   wrap: {
     gap: spacing.lg,
   },
-  hero: {
-    ...typography.h1,
-    color: colors.brand.text,
-  },
   lead: {
     ...typography.body,
     color: colors.brand.textSecondary,
@@ -172,18 +146,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   panelFun: {
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.surface,
   },
   panelFormal: {
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.brand.surface,
   },
   panelActive: {
     borderColor: colors.brand.secondary,
   },
   panelActiveFormal: {
-    borderColor: colors.brand.primary,
+    borderColor: colors.brand.secondary,
   },
   panelHeader: {
     flexDirection: 'row',
@@ -234,27 +208,11 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 18,
   },
-  bulletFormalMark: {
+  stepMark: {
     ...typography.caption,
-    color: colors.brand.primary,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  miniChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  miniChipText: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    fontSize: 11,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+    width: 16,
+    lineHeight: 18,
   },
 });

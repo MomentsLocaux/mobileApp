@@ -3,7 +3,7 @@ import { Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { features } from '@/config/features';
-import { DISCOVERY_DEFAULT_RADIUS_KM, DISCOVERY_MAX_RADIUS_KM } from '@/constants/filters';
+import { DISCOVERY_DEFAULT_RADIUS_KM, DISCOVERY_MIN_RADIUS_KM, HOME_NEARBY_MAX_RADIUS_KM } from '@/constants/filters';
 import { useAuth, useLocation } from '@/hooks';
 import { AgendaService } from '@/services/agenda.service';
 import { PreferencesService } from '@/services/preferences.service';
@@ -79,7 +79,10 @@ export function useHomeFeed() {
   const latitude = place.center?.latitude ?? currentLocation?.coords.latitude ?? snapshot?.center?.latitude;
   const longitude = place.center?.longitude ?? currentLocation?.coords.longitude ?? snapshot?.center?.longitude;
   const browseCenter = useMemo(() => latitude != null && longitude != null ? { latitude, longitude } : null, [latitude, longitude]);
-  const browseRadiusKm = place.radiusKm ?? DISCOVERY_DEFAULT_RADIUS_KM;
+  const browseRadiusKm = Math.min(
+    HOME_NEARBY_MAX_RADIUS_KM,
+    Math.max(DISCOVERY_MIN_RADIUS_KM, place.radiusKm ?? DISCOVERY_DEFAULT_RADIUS_KM),
+  );
   const key = zoneKey(browseCenter, browseRadiusKm);
   const currentKey = useRef(key); currentKey.current = key;
   const dayKey = toLocalDateKey(now);
@@ -281,7 +284,10 @@ export function useHomeFeed() {
     rankedEvents, slotCount, complete, hero, pulse, socialSignal, nextEvent, reasonFor, pendingHearts,
     poolLoading: poolLoading || !hydrated, poolError, poolEvents, refreshing, browseCenter, browseRadiusKm, locationLoading, locationError, requestPermission,
     zoneLabel: place.label || (snapshot?.center && !currentLocation ? 'Dernière zone consultée' : 'Position actuelle'),
-    canWiden: browseRadiusKm < DISCOVERY_MAX_RADIUS_KM,
+    canWiden: browseRadiusKm < HOME_NEARBY_MAX_RADIUS_KM,
+    setBrowseRadius: (radiusKm: number) => useDiscoveryFiltersStore.getState().setRadiusKm(
+      Math.min(HOME_NEARBY_MAX_RADIUS_KM, Math.max(DISCOVERY_MIN_RADIUS_KM, radiusKm)),
+    ),
     distanceLabelFor, isHearted, openEvent,
     openMapForSlot: () => {
       const events = poolEvents.filter((event) => eventMatchesHomeSlot(event, slot, now));
@@ -300,7 +306,7 @@ export function useHomeFeed() {
       const camera = focusForHomeEvents(events, { ...pulse.center, radiusKm: Math.min(pulse.radiusKm, 8) });
       applySlotToMap(pulse.slot, { camera, placeCenter: pulse.center, placeRadiusKm: camera.radiusKm, label: pulse.city });
     },
-    openAgenda, toggleHeart, widen: () => useDiscoveryFiltersStore.getState().setRadiusKm(Math.min(browseRadiusKm + 20, DISCOVERY_MAX_RADIUS_KM)),
+    openAgenda, toggleHeart, widen: () => useDiscoveryFiltersStore.getState().setRadiusKm(Math.min(browseRadiusKm + 20, HOME_NEARBY_MAX_RADIUS_KM)),
     showNextDays: () => { manualSlot.current = true; setSlot(nextHomeTimeSlot(slot) ?? 'tomorrow'); },
     refresh, guestGateOpen: Boolean(guestGate), guestGateTitle: guestGate ?? '', closeGuestGate: () => setGuestGate(null), retry: () => void loadPool(true),
   };

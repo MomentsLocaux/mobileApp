@@ -46,7 +46,7 @@ export function AvatarPresetPicker({ selectedUrl, onSelectPreset, onPressPhoto, 
         )}
         <View style={styles.customizeCopy}>
           <Text style={styles.customizeTitle}>{customSelected ? 'Modifier mon avatar' : illustrated ? 'Personnaliser ce portrait' : 'Créer mon avatar'}</Text>
-          <Text style={styles.customizeHint}>Visage, coiffure, couleurs… à votre image.</Text>
+          <Text style={styles.customizeHint}>Visage, coiffure, couleurs… à ton image.</Text>
         </View>
         <ChevronRight size={20} color={colors.brand.text} />
       </TouchableOpacity>

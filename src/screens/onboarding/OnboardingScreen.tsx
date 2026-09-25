@@ -27,7 +27,7 @@ import {
   X,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { AppBackground, Button, MotionReveal, UserAvatar } from '../../components/ui';
+import { AppBackground, Button, UserAvatar } from '../../components/ui';
 import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
 import { isRemoteAvatarUrl } from '@/constants/avatar-presets';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
@@ -43,6 +43,10 @@ import {
   type ConnectorDraft,
 } from '@/components/onboarding/OnboardingConnectorStep';
 import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
+import { OnboardingStepFrame } from '@/components/onboarding/OnboardingStepFrame';
+import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
+import { useDiscoveryFiltersStore } from '@/store';
+import { useSharedValue } from 'react-native-reanimated';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import {
   ACCOUNT_KIND_OPTIONS,
@@ -105,6 +109,7 @@ export default function OnboardingScreen() {
   }, [profile?.display_name, profile?.email, user?.email]);
 
   const [stepIndex, setStepIndex] = useState(0);
+  const stepDirection = useSharedValue(1);
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
   const [bio, setBio] = useState(profile?.bio || '');
   const [accountKind, setAccountKind] = useState<AccountKind>(() => {
@@ -310,7 +315,7 @@ export default function OnboardingScreen() {
   const uploadImage = useCallback(
     async (target: 'avatar' | 'cover', source: 'library' | 'camera' = 'library') => {
       if (!user?.id) {
-        setError('Connexion requise pour téléverser une image.');
+        setError('Connecte-toi pour envoyer une image.');
         return;
       }
 
@@ -346,7 +351,7 @@ export default function OnboardingScreen() {
         else setCoverUrl(data.publicUrl);
         haptics.light();
       } catch {
-        setError("Échec de l'upload, réessayez.");
+        setError("L'image n'a pas pu être envoyée. Réessaie.");
       } finally {
         setUploadTarget(null);
       }
@@ -355,7 +360,7 @@ export default function OnboardingScreen() {
   );
 
   const chooseAvatarPhoto = useCallback(() => {
-    Alert.alert('Photo de profil', 'Choisissez une option', [
+    Alert.alert('Photo de profil', 'Choisis une option', [
       { text: 'Galerie', onPress: () => void uploadImage('avatar', 'library') },
       { text: 'Prendre une photo', onPress: () => void uploadImage('avatar', 'camera') },
       { text: 'Annuler', style: 'cancel' },
@@ -364,6 +369,22 @@ export default function OnboardingScreen() {
 
   const finishToHome = () => {
     haptics.success();
+    if (selectedAddress) {
+      const label =
+        selectedAddress.city ||
+        selectedAddress.label.split(',')[0]?.trim() ||
+        selectedAddress.label;
+      useDiscoveryFiltersStore.getState().setPlace({
+        center: {
+          latitude: selectedAddress.latitude,
+          longitude: selectedAddress.longitude,
+        },
+        radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
+        label,
+        city: selectedAddress.city,
+      });
+      useDiscoveryFiltersStore.getState().addPlaceHistory(label);
+    }
     router.replace('/(tabs)');
   };
 
@@ -487,6 +508,7 @@ export default function OnboardingScreen() {
         return;
       }
       haptics.light();
+      stepDirection.value = 1;
       setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
       return;
     }
@@ -494,6 +516,7 @@ export default function OnboardingScreen() {
     if (stepId === 'eclairer' || stepId === 'mode_hint') {
       if (stepId === 'eclairer' && particulierAlsoCreates) {
         haptics.light();
+        stepDirection.value = 1;
         setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
         return;
       }
@@ -507,12 +530,14 @@ export default function OnboardingScreen() {
     }
 
     haptics.light();
+    stepDirection.value = 1;
     setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
   };
 
   const goBack = () => {
     if (stepIndex <= 0) return;
     haptics.selection();
+    stepDirection.value = -1;
     setStepIndex((prev) => Math.max(0, prev - 1));
   };
 
@@ -537,10 +562,12 @@ export default function OnboardingScreen() {
       } catch (err) {
         console.warn('preferred_category_slugs clear failed', err);
       }
+      stepDirection.value = 1;
       setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
       return;
     }
     if (stepId === 'create_themes') {
+      stepDirection.value = 1;
       setStepIndex((prev) => Math.min(prev + 1, totalSteps - 1));
       return;
     }
@@ -557,6 +584,7 @@ export default function OnboardingScreen() {
       return;
     }
     const tiersIndex = steps.indexOf('tiers');
+    stepDirection.value = 1;
     setStepIndex(tiersIndex >= 0 ? tiersIndex : totalSteps - 1);
   };
 
@@ -573,27 +601,27 @@ export default function OnboardingScreen() {
     haptics.light();
     Toast.show({
       type: 'info',
-      text1: 'Achats in-app bientôt disponibles',
-      text2: `Offre Éclaireur ${PREMIUM_PLANS[plan].label} — intégration store en cours.`,
+      text1: 'Les achats dans l’app arrivent bientôt',
+      text2: `Offre Éclaireur ${PREMIUM_PLANS[plan].label} — le paiement store n’est pas encore branché.`,
     });
     finishToHome();
   };
 
   const primaryTitle =
     stepId === 'welcome'
-      ? 'Continuer'
+      ? 'Commencer'
       : stepId === 'connector'
         ? connectorDraft.status === 'none'
-          ? 'Continuer sans connecteur'
+          ? 'Continuer sans relier d’agenda'
           : 'Terminer'
         : stepId === 'mode_hint'
-          ? 'Entrer dans Moments Locaux'
+          ? 'Voir les moments'
           : stepId === 'tiers'
             ? 'Voir l’offre Éclaireur'
             : stepId === 'eclairer'
-              ? 'Déverrouiller Éclaireur'
+              ? 'Choisir l’offre annuelle'
               : isLastStep
-                ? 'C’est parti'
+                ? 'Voir les moments'
                 : 'Continuer';
 
   const showSkip =
@@ -650,18 +678,18 @@ export default function OnboardingScreen() {
         ) : null}
 
         {stepId === 'welcome' ? (
-          <MotionReveal style={styles.welcomeHeader}>
+          <View style={styles.welcomeHeader}>
             <Text style={styles.welcomeTitle}>
-              {isReplay ? 'Revoir Moments Locaux' : 'Bienvenue sur\nMoments Locaux'}
+              {isReplay ? 'Revoir ton profil' : 'Bienvenue sur\nMoments Locaux'}
             </Text>
             <Text style={styles.welcomeSubtitle}>
               {isReplay
-                ? 'Reprenez les étapes de configuration de votre profil'
+                ? 'Reprends les étapes : ton nom, ton quartier, tes thèmes et ton portrait.'
                 : features.diffuseur
-                  ? 'Pour vous montrer ce qui se passe près de vous'
+                  ? 'Pour te montrer ce qui se passe près de toi.'
                   : MVP_PROMISE}
             </Text>
-          </MotionReveal>
+          </View>
         ) : isMarketingStep ? (
           <View style={styles.stepHeader}>
             <View style={styles.stepHeaderRow}>
@@ -678,7 +706,7 @@ export default function OnboardingScreen() {
                 style={styles.closeButton}
                 onPress={continueFree}
                 accessibilityRole="button"
-                accessibilityLabel="Continuer gratuitement"
+                accessibilityLabel="Rester sur l'offre gratuite"
                 hitSlop={12}
               >
                 <X size={20} color={colors.brand.text} />
@@ -715,8 +743,9 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        <OnboardingStepFrame stepKey={stepId} direction={stepDirection}>
         {stepId === 'welcome' && (
-          <MotionReveal key="welcome" style={styles.stepContainer}>
+          <View key="welcome" style={styles.stepContainer}>
             <OnboardingWelcomeStep
               preferredKind={accountKind}
               onSelectKind={(kind) => {
@@ -730,25 +759,25 @@ export default function OnboardingScreen() {
               }}
               showProfessionnel={features.diffuseur}
             />
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'identity' && (
-          <MotionReveal key="identity" style={styles.stepContainer}>
+          <View key="identity" style={styles.stepContainer}>
             <Text style={styles.stepTitle}>
-              {features.diffuseur ? 'Qui êtes-vous ?' : 'Comment vous appeler ?'}
+              {features.diffuseur ? 'Qui es-tu ici ?' : 'Comment t’appeler ?'}
             </Text>
             <Text style={styles.helper}>
               {features.diffuseur
-                ? 'Particulier ou Professionnel — puis, si besoin, votre typologie.'
-                : 'Ce nom apparaît auprès des autres membres.'}
+                ? 'Particulier pour découvrir, professionnel pour publier au nom d’une activité.'
+                : 'Ce nom s’affiche auprès des autres membres.'}
             </Text>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nom d&apos;affichage</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Comment voulez-vous être appelé ?"
+                placeholder="Ton prénom ou un pseudo"
                 placeholderTextColor={colors.brand.textSecondary}
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -835,7 +864,7 @@ export default function OnboardingScreen() {
                       Découvrir uniquement
                     </Text>
                     <Text style={styles.roleHint}>
-                      Carte, fil, favoris — sans créer d&apos;événements.
+                      Carte et favoris, sans publier de moments.
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -866,22 +895,22 @@ export default function OnboardingScreen() {
                         particulierAlsoCreates && styles.intentTitleActive,
                       ]}
                     >
-                      Découvrir et créer
+                      Découvrir et proposer
                     </Text>
                     <Text style={styles.roleHint}>
-                      Vous restez découvreur, avec la possibilité de publier des moments.
+                      Tu restes sur la découverte, et tu peux aussi publier des moments.
                     </Text>
                   </View>
                 </TouchableOpacity>
                 <Text style={styles.roleNote}>
-                  Pas de profil « créateur seul » : la découverte reste toujours disponible.
+                  La découverte reste toujours disponible.
                 </Text>
               </View>
             ) : null}
 
             {features.diffuseur && accountKind === 'professionnel' ? (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Type de professionnel</Text>
+                <Text style={styles.label}>Ton activité</Text>
                 <View style={styles.roleChips}>
                   {PRO_SUBTYPE_OPTIONS.map((option) => {
                     const active = proSubtype === option.value;
@@ -915,29 +944,29 @@ export default function OnboardingScreen() {
                   <Text style={styles.roleHint}>{activeSubtypeDescription}</Text>
                 ) : null}
                 <Text style={styles.roleNote}>
-                  Pour découvrir et check-in en tant que participant, créez un compte
-                  Particulier séparé. Ce compte Professionnel sert à diffuser.
+                  Pour participer comme particulier, utilise un autre compte. Celui-ci sert à
+                  publier tes moments.
                 </Text>
               </View>
             ) : null}
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'create_why' && (
-          <MotionReveal key="create_why" style={styles.stepContainer}>
+          <View key="create_why" style={styles.stepContainer}>
             <OnboardingCreateWhyStep value={createIntent} onChange={setCreateIntent} />
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'location' && (
-          <MotionReveal key="location" style={styles.stepContainer}>
+          <View key="location" style={styles.stepContainer}>
             <Text style={styles.stepTitle}>
-              {isProfessionnel ? 'Où êtes-vous basé ?' : 'Où voulez-vous explorer ?'}
+              {isProfessionnel ? 'Où es-tu basé ?' : 'Où veux-tu explorer ?'}
             </Text>
             <Text style={styles.helper}>
               {isProfessionnel
-                ? 'Pour ancrer vos publications sur le territoire.'
-                : 'Pour afficher les moments autour de vous.'}
+                ? 'Tes publications s’ancrent sur ce territoire.'
+                : 'On affiche les moments autour de ce lieu.'}
             </Text>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Ville ou quartier</Text>
@@ -979,7 +1008,7 @@ export default function OnboardingScreen() {
             {showNoResults ? (
               <View style={styles.searchStatus}>
                 <SearchX size={16} color={colors.brand.textSecondary} />
-                <Text style={styles.meta}>Aucun lieu trouvé, essayez une autre orthographe.</Text>
+                <Text style={styles.meta}>Aucun lieu trouvé. Essaie une autre orthographe.</Text>
               </View>
             ) : null}
             {selectedAddress ? (
@@ -991,38 +1020,38 @@ export default function OnboardingScreen() {
                 </View>
               </View>
             ) : null}
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'themes' && (
-          <MotionReveal key="themes" style={styles.stepContainer}>
+          <View key="themes" style={styles.stepContainer}>
             <OnboardingThemesStep
               selected={themeSlugs}
               onToggle={toggleThemeSlug}
               onSelectAll={(slugs) => setThemeSlugs(slugs)}
-              title="Ce que tu aimes découvrir"
-              subtitle="Ces thèmes nourrissent ton fil et tes notifs. Tu pourras les modifier plus tard. Tu peux passer."
+              title="Qu’est-ce qui t’attire ?"
+              subtitle="Ces thèmes nourrissent ton fil. Tu les retrouves dans Paramètres → Notifications et préférences. Tu peux aussi passer cette étape."
             />
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'create_themes' && (
-          <MotionReveal key="create_themes" style={styles.stepContainer}>
+          <View key="create_themes" style={styles.stepContainer}>
             <OnboardingThemesStep
               selected={createThemeSlugs}
               onToggle={toggleCreateThemeSlug}
               onSelectAll={(slugs) => setCreateThemeSlugs(slugs)}
-              title="Ce que tu vas proposer"
-              subtitle="Catégories de tes futurs moments (préremplies depuis ce que tu aimes découvrir). Différent de tes goûts perso — tu peux ajuster ou passer."
+              title="Qu’est-ce que tu vas proposer ?"
+              subtitle="Les types de moments que tu comptes publier. C’est distinct de tes goûts : tu peux ajuster ou passer."
             />
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'avatar' && (
-          <MotionReveal key="avatar" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Choisissez un portrait</Text>
+          <View key="avatar" style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Choisis un portrait</Text>
             <Text style={styles.helper}>
-              Optionnel — créez votre avatar, choisissez un portrait ou une photo. Vous pourrez le modifier plus tard.
+              Optionnel. Un avatar, un portrait ou une photo, pour que les autres te reconnaissent. Tu pourras le changer plus tard.
             </Text>
             <View style={styles.avatarPreviewWrap}>
               <UserAvatar uri={avatarUrl || null} name={displayName} size={96} />
@@ -1036,18 +1065,18 @@ export default function OnboardingScreen() {
             {avatarUrl && uploadTarget !== 'avatar' ? (
               <Text style={styles.avatarHint}>
                 {isRemoteAvatarUrl(avatarUrl)
-                  ? 'Touchez Photo pour remplacer l’image.'
-                  : 'Personnalisez votre avatar, choisissez un autre portrait ou une photo.'}
+                  ? 'Touche Photo pour remplacer l’image.'
+                  : 'Personnalise ce portrait, ou choisis-en un autre, ou une photo.'}
               </Text>
             ) : null}
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'creator' && (
-          <MotionReveal key="creator" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Profil créateur</Text>
+          <View key="creator" style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Ton profil quand tu publies</Text>
             <Text style={styles.helper}>
-              Optionnel — complétez maintenant ou plus tard depuis votre profil.
+              Optionnel. Tu peux compléter maintenant, ou plus tard depuis ton profil.
             </Text>
 
             <TouchableOpacity
@@ -1064,7 +1093,7 @@ export default function OnboardingScreen() {
               ) : (
                 <View style={styles.coverPlaceholder}>
                   <ImagePlus size={20} color={colors.brand.secondary} />
-                  <Text style={styles.uploadText}>Ajouter une cover</Text>
+                  <Text style={styles.uploadText}>Ajouter une image de couverture</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -1073,7 +1102,7 @@ export default function OnboardingScreen() {
               <Text style={styles.label}>Bio</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Présentez votre activité en quelques mots…"
+                placeholder="En quelques mots, ce que tu proposes…"
                 placeholderTextColor={colors.brand.textSecondary}
                 value={bio}
                 onChangeText={setBio}
@@ -1130,17 +1159,17 @@ export default function OnboardingScreen() {
                 onFocus={() => handleInputFocus('facebook')}
               />
             </View>
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'connector' && (
-          <MotionReveal key="connector" style={styles.stepContainer}>
+          <View key="connector" style={styles.stepContainer}>
             <OnboardingConnectorStep
               proSubtype={proSubtype}
               value={connectorDraft}
               onChange={setConnectorDraft}
             />
-          </MotionReveal>
+          </View>
         )}
 
         {stepId === 'tiers' ? <OnboardingTiersStep /> : null}
@@ -1150,10 +1179,11 @@ export default function OnboardingScreen() {
         ) : null}
 
         {stepId === 'mode_hint' && (
-          <MotionReveal key="mode_hint" style={styles.stepContainer}>
+          <View key="mode_hint" style={styles.stepContainer}>
             <OnboardingModeHintStep />
-          </MotionReveal>
+          </View>
         )}
+        </OnboardingStepFrame>
 
         {error ? (
           <Text style={styles.errorText} accessibilityRole="alert">
@@ -1164,24 +1194,24 @@ export default function OnboardingScreen() {
         <View style={styles.buttonGroup}>
           {showSkip ? (
             <Button
-              title="Passer"
+              title="Passer cette étape"
               onPress={skipOptionalToTiers}
               variant="outline"
               size="sm"
               style={styles.footerButton}
               disabled={isLoading || isUploading}
-              accessibilityLabel="Passer et continuer"
+              accessibilityLabel="Passer cette étape"
             />
           ) : null}
           {showContinueFree ? (
             <Button
-              title="Continuer gratuitement"
+              title="Rester sur l'offre gratuite"
               onPress={continueFree}
               variant="outline"
               size="sm"
               style={styles.footerButton}
               disabled={isLoading}
-              accessibilityLabel="Continuer gratuitement"
+              accessibilityLabel="Rester sur l'offre gratuite"
             />
           ) : null}
           <Button
@@ -1234,8 +1264,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   welcomeHeader: {
-    marginTop: spacing.xl,
-    marginBottom: spacing.xl,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
     gap: spacing.sm,
   },
   welcomeTitle: {
@@ -1249,8 +1279,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   stepHeader: {
-    marginBottom: spacing.lg,
-    gap: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -1279,7 +1309,7 @@ const styles = StyleSheet.create({
   progressStep: {
     flex: 1,
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.neutral[200],
     borderRadius: 2,
   },
   progressStepActive: {
@@ -1287,10 +1317,10 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     gap: spacing.md,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   stepTitle: {
-    ...typography.h3,
+    ...typography.h2,
     color: colors.brand.text,
   },
   inputGroup: {
@@ -1441,7 +1471,6 @@ const styles = StyleSheet.create({
   footerButton: {
     flex: 1,
     minHeight: 48,
-    maxHeight: 48,
   },
   premiumCta: {
     backgroundColor: colors.brand.premium,

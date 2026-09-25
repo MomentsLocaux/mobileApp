@@ -12,7 +12,7 @@ Cloche en haut de l’**accueil** → liste des notifications reçues.
 
 ## Paramètres
 
-**Paramètres → Gérer les notifications** :
+**Paramètres → Notifications et préférences → Gérer les notifications et les thèmes** :
 
 - Moments **à proximité** et rayon
 - Rythme / budget (éviter le spam)

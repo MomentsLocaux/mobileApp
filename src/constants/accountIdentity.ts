@@ -23,12 +23,12 @@ export const ACCOUNT_KIND_OPTIONS: {
   {
     value: 'particulier',
     label: 'Particulier',
-    description: 'Vous explorez (et éventuellement créez) des moments près de chez vous.',
+    description: 'Tu explores les moments près de chez toi, et tu peux en proposer.',
   },
   {
     value: 'professionnel',
     label: 'Professionnel',
-    description: 'Vous diffusez des moments pour votre activité ou structure (offre Diffuseur).',
+    description: 'Tu publies des moments pour ton activité ou ta structure.',
   },
 ];
 
@@ -40,27 +40,27 @@ export const PRO_SUBTYPE_OPTIONS: {
   {
     value: 'independant',
     label: 'Indépendant',
-    description: 'Coach, artisan, DJ, créateur solo…',
+    description: 'Coach, artisan, artiste ou activité solo.',
   },
   {
     value: 'association',
     label: 'Association',
-    description: 'Club, asso de quartier…',
+    description: 'Club ou association de quartier.',
   },
   {
     value: 'lieu',
     label: 'Lieu',
-    description: 'Salle, café-concert, musée, médiathèque…',
+    description: 'Salle, café, musée ou médiathèque.',
   },
   {
     value: 'office_tourisme',
     label: 'Office de tourisme',
-    description: 'OT, CDT…',
+    description: 'Tu publies l’agenda de ton territoire.',
   },
   {
     value: 'collectivite',
     label: 'Collectivité',
-    description: 'Mairie, CCAS, EPCI…',
+    description: 'Mairie ou autre collectivité.',
   },
 ];
 

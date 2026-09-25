@@ -24,6 +24,8 @@ export const DISCOVERY_PROXIMITY_RADIUS_KM = 40;
 
 export const DISCOVERY_MIN_RADIUS_KM = 5;
 export const DISCOVERY_MAX_RADIUS_KM = 100;
+/** User-facing cap for the Home « Autour de toi » circle. */
+export const HOME_NEARBY_MAX_RADIUS_KM = 80;
 export const DISCOVERY_RADIUS_STEP_KM = 5;
 
 export interface FilterOption<T extends string> {

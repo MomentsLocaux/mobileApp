@@ -28,36 +28,60 @@ const TIERS: Tier[] = [
     id: 'local',
     icon: Compass,
     name: 'Local',
-    tagline: 'Explore ton quartier',
-    body: 'Carte, moments, création et social — la base gratuite.',
+    tagline: 'L’offre gratuite',
+    body: 'Carte, moments et favoris, pour explorer près de chez toi.',
     badge: 'Gratuit',
   },
   {
     id: 'habitue',
     icon: Sparkles,
     name: 'Habitué',
-    tagline: 'Plus tu sors, plus tu débloques',
-    body: `Local + check-in, Lumo, boutique, missions, Pass. ${HABITUE_PLANS.monthly.priceLabel}/mois · ${HABITUE_PLANS.annual.priceLabel}/an.`,
-    badge: 'Abo',
+    tagline: 'Pour sortir souvent',
+    body: `L’offre gratuite, plus des avantages quand tu participes sur place. ${HABITUE_PLANS.monthly.priceLabel}/mois · ${HABITUE_PLANS.annual.priceLabel}/an.`,
+    badge: 'Abonnement',
   },
   {
     id: 'eclaireur',
     icon: Crown,
     name: 'Éclaireur',
-    tagline: 'Découvre autrement',
-    body: `Habitué + idées maintenant, carte de zone, recommandations. ${ECLAIREUR_PLANS.monthly.priceLabel}/mois · ${ECLAIREUR_PLANS.annual.priceLabel}/an.`,
-    badge: 'Abo',
+    tagline: 'Pour aller plus loin',
+    body: `L’offre Habitué, plus des idées précises selon tes sorties. ${ECLAIREUR_PLANS.monthly.priceLabel}/mois · ${ECLAIREUR_PLANS.annual.priceLabel}/an.`,
+    badge: 'Abonnement',
   },
 ];
 
+const PLAIN_DETAILS: Record<string, string> = {
+  map: 'Carte, fil et recherche',
+  create: 'Proposer un moment',
+  social: 'Favoris, j’aime et membres',
+  notifs: 'Notifications',
+  report: 'Signaler un contenu',
+  checkin: 'Pointer ta présence sur place',
+  lumo: 'Gagner des points en sortant',
+  shop: 'Boutique de petits plus',
+  missions: 'Défis à accomplir',
+  pass: 'Avantages chez des partenaires',
+  early: 'Voir certains moments en avant-première',
+  ambassador: 'Un badge visible sur ton profil',
+  boost: 'Mettre en avant un moment que tu publies',
+  right_now: 'Idées de moments à rejoindre tout de suite',
+  radius: 'Carte des endroits où tu sors',
+  reco: 'Suggestions selon tes sorties passées',
+  loop: 'Idées en dehors de tes habitudes',
+  insights: 'Un résumé de ce que tu as découvert',
+  premium_badge: 'Un badge sur ton portrait',
+};
+
 function toneColor(tone: TierTone) {
-  if (tone === 'eclaireur') return colors.brand.premiumLight;
+  if (tone === 'eclaireur') return colors.warning[700];
   if (tone === 'habitue') return colors.brand.success;
   return colors.brand.secondary;
 }
 
 function detailsFor(tier: TierTone): string[] {
-  return OFFER_FEATURE_MATRIX.filter((row) => row[tier]).map((row) => row.label);
+  return OFFER_FEATURE_MATRIX.filter((row) => row[tier]).map(
+    (row) => PLAIN_DETAILS[row.id] ?? row.label,
+  );
 }
 
 export function OnboardingTiersStep() {
@@ -71,10 +95,10 @@ export function OnboardingTiersStep() {
 
   return (
     <MotionReveal style={styles.wrap}>
-      <Text style={styles.title}>Trois façons de vivre Moments Locaux</Text>
+      <Text style={styles.title}>Trois façons d’utiliser l’app</Text>
       <Text style={styles.subtitle}>
-        Offres incrémentales : Habitué inclut Local, Éclaireur inclut Habitué. Touchez une carte pour
-        le détail.
+        Chaque offre inclut la précédente. Touche une carte pour le détail. Tu peux rester sur
+        l’offre gratuite.
       </Text>
 
       <View style={styles.list}>
@@ -167,13 +191,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.h3,
+    ...typography.h2,
     color: colors.brand.text,
   },
   subtitle: {
-    ...typography.bodySmall,
+    ...typography.body,
     color: colors.brand.textSecondary,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   list: {
     gap: spacing.sm,
@@ -182,12 +206,12 @@ const styles = StyleSheet.create({
   card: {
     padding: spacing.md,
     borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.neutral[200],
   },
   cardExpanded: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.brand.surfaceMuted,
   },
   cardExpandedLocal: {
     borderColor: 'rgba(124, 181, 24, 0.35)',
@@ -256,10 +280,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   badgeTextPremium: {
-    color: colors.brand.premiumLight,
+    color: colors.brand.text,
   },
   badgeTextSoon: {
-    color: '#6EE7B7',
+    color: colors.brand.text,
   },
   tagline: {
     ...typography.bodySmall,
@@ -277,17 +301,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.brand.surfaceMuted,
     marginTop: 8,
   },
   chevronWrapOpen: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.brand.surface,
   },
   details: {
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: colors.neutral[200],
     gap: spacing.sm,
   },
   detailsLabel: {
@@ -310,7 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.brand.surface,
     marginTop: 1,
   },
   detailText: {
