@@ -496,16 +496,17 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
           onMapReady?.();
         }}
         onPress={(feature) => {
-          if (consumeBooleanFlag(suppressNextBackgroundPressRef)) {
-            return;
-          }
           const properties = feature.properties as Record<string, unknown> | undefined;
           const hitEventMarker = Boolean(
             properties?.id || properties?.cluster || properties?.point_count != null
           );
-          if (!hitEventMarker) {
+          if (hitEventMarker) return;
+          // ShapeSource.onPress may run after MapView.onPress. Wait one frame so a
+          // marker tap can suppress this, instead of closing the open card.
+          requestAnimationFrame(() => {
+            if (consumeBooleanFlag(suppressNextBackgroundPressRef)) return;
             onMapBackgroundPress?.();
-          }
+          });
         }}
         onCameraChanged={(state) => {
           const center = state.properties?.center;

@@ -203,7 +203,7 @@ export default function MapScreen() {
   const restoreCameraOnUnitExitRef = useRef(true);
   const unitCardOpenedViaFocusRef = useRef(false);
   const dismissUnitCardRef = useRef<(restoreCamera?: boolean) => void>(() => {});
-  const unitCycleGenerationRef = useRef(0);
+  const unitCycleGeneration = useSharedValue(0);
   const zoomRef = useRef(12);
   const mapReadyRef = useRef(false);
   const appliedHomeTransferIdRef = useRef<string | null>(null);
@@ -708,8 +708,8 @@ export default function MapScreen() {
   const beginUnitCardPresentation = useCallback(
     (event: EventWithCreator | null) => {
       if (!event) return;
-      const generation = unitCycleGenerationRef.current + 1;
-      unitCycleGenerationRef.current = generation;
+      const generation = unitCycleGeneration.value + 1;
+      unitCycleGeneration.value = generation;
 
       if (reduceMotion) {
         cancelAnimation(unitCardModeProgress);
@@ -728,7 +728,7 @@ export default function MapScreen() {
       if (current && current.id !== event.id && unitCardTravel.value > 0.02) {
         unitCardTravel.value = withTiming(0, UNIT_CARD_TIMING, (finished) => {
           'worklet';
-          if (!finished || generation !== unitCycleGenerationRef.current) return;
+          if (!finished || generation !== unitCycleGeneration.value) return;
           runOnJS(showUnitCard)(event);
         });
         return;
@@ -741,11 +741,11 @@ export default function MapScreen() {
       }
       unitCardTravel.value = withTiming(1, UNIT_CARD_TIMING);
     },
-    [commitUnitSheetHidden, reduceMotion, showUnitCard, unitCardModeProgress, unitCardTravel],
+    [commitUnitSheetHidden, reduceMotion, showUnitCard, unitCardModeProgress, unitCardTravel, unitCycleGeneration],
   );
 
   const finishUnitCardExit = useCallback((generation: number) => {
-    if (generation !== unitCycleGenerationRef.current) return;
+    if (generation !== unitCycleGeneration.value) return;
     setUnitCardEvent(null);
     useMapDetailTransitionStore.getState().clear();
     closeSheet();
@@ -768,13 +768,13 @@ export default function MapScreen() {
     if (cameraAction === 'keep-and-refresh') {
       void refreshBounds();
     }
-  }, [closeSheet, refreshBounds, unlockViewportForSheet]);
+  }, [closeSheet, refreshBounds, unlockViewportForSheet, unitCycleGeneration]);
 
   const beginUnitCardDismissal = useCallback((restoreCamera = true) => {
     if (!unitCardEvent) return;
     restoreCameraOnUnitExitRef.current = restoreCamera;
-    const generation = unitCycleGenerationRef.current + 1;
-    unitCycleGenerationRef.current = generation;
+    const generation = unitCycleGeneration.value + 1;
+    unitCycleGeneration.value = generation;
 
     if (reduceMotion) {
       cancelAnimation(unitCardModeProgress);
@@ -792,7 +792,7 @@ export default function MapScreen() {
       'worklet';
       if (finished) runOnJS(finishUnitCardExit)(generation);
     });
-  }, [finishUnitCardExit, reduceMotion, unitCardEvent, unitCardModeProgress, unitCardTravel]);
+  }, [finishUnitCardExit, reduceMotion, unitCardEvent, unitCardModeProgress, unitCardTravel, unitCycleGeneration]);
 
   dismissUnitCardRef.current = beginUnitCardDismissal;
 
