@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Pressable, Text, ScrollView } from 'react-native';
 import { BrandIcon, BrandLogoSpinner, UserAvatar } from '@/components/ui';
 import type { BrandIconName } from '@/components/ui/BrandIcon';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   interpolate,
@@ -415,7 +414,7 @@ export default function TabsLayout() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => toggleDrawer(false)} />
         </Animated.View>
       ) : null}
-      <Animated.View style={[styles.drawer, drawerStyle]}>
+      <Animated.View pointerEvents={drawerOpen ? 'auto' : 'none'} style={[styles.drawer, drawerStyle]}>
         {/* User Header Section */}
         <View style={styles.drawerHeader}>
           <View style={styles.drawerUserRow}>
@@ -632,7 +631,7 @@ export default function TabsLayout() {
       </Animated.View>
 
       {showContributionFab && !onSettings ? (
-        <GestureHandlerRootView
+        <View
           pointerEvents={drawerOpen || lumiaTourVisible ? 'none' : 'box-none'}
           style={styles.fabLayer}
         >
@@ -650,7 +649,7 @@ export default function TabsLayout() {
               setContributeOpen(true);
             }}
           />
-        </GestureHandlerRootView>
+        </View>
       ) : null}
 
       <EventContributeSheet

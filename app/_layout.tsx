@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
@@ -28,9 +29,16 @@ void hydrateDiscoveryCaches().finally(() => {
   void useTaxonomyStore.getState().load();
 });
 
+function hideNativeSplash() {
+  // Prefer the sync hide used by Expo SDK 54; hideAsync is kept for older callers.
+  SplashScreen.hide();
+  void SplashScreen.hideAsync().catch(() => undefined);
+}
+
 export default function RootLayout() {
   useFrameworkReady();
-  const [fontsLoaded] = useFonts(brandFontAssets);
+  const [fontsLoaded, fontError] = useFonts(brandFontAssets);
+  const fontsReady = fontsLoaded || !!fontError;
 
   const { setUser, setSession, setProfile, setLoading, initialized, setInitialized } = useAuthStore();
   const userId = useAuthStore((state) => state.user?.id);
@@ -43,10 +51,24 @@ export default function RootLayout() {
   }, [userId]);
 
   useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => undefined);
-    }
-  }, [fontsLoaded]);
+    if (!fontsReady) return;
+    hideNativeSplash();
+  }, [fontsReady]);
+
+  // Android 12+ can show the splash again when the activity resumes. iOS stays on the first hide.
+  useEffect(() => {
+    if (!fontsReady || Platform.OS !== 'android') return;
+
+    const frame = requestAnimationFrame(hideNativeSplash);
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') hideNativeSplash();
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      subscription.remove();
+    };
+  }, [fontsReady]);
 
   useEffect(() => {
     let mounted = true;
@@ -117,12 +139,15 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!fontsLoaded) {
+  if (!fontsReady) {
     return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView
+      style={{ flex: 1 }}
+      onLayout={Platform.OS === 'android' ? hideNativeSplash : undefined}
+    >
       <BottomSheetModalProvider>
       <AppBackground />
       <Stack
