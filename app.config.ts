@@ -160,7 +160,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-font',
-    'expo-image',
     'expo-web-browser',
     '@rnmapbox/maps',
     'expo-notifications',
