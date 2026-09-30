@@ -1,0 +1,289 @@
+<!--
+  Email alpha — personnes qui ont laissé leur email sur le site
+  (intérêt au lancement, pas un cercle d’amis séparé)
+
+  Expéditeur : Moments Locaux <hello@moments-locaux.com>
+  Coller ce HTML dans Brevo (Campagnes → Email → Éditeur HTML / code).
+
+  Liens d’install (builds EAS preview-device, 26 sept. 2026, base DEV) :
+    - iPhone  https://expo.dev/accounts/roystok/projects/moments-locaux/builds/e8531267-6be9-4ddd-b310-d1974e0aa4c2
+    - Android https://expo.dev/accounts/roystok/projects/moments-locaux/builds/e5b3c735-7d1a-4ee7-95cb-65aee517ceab
+  Un iPhone jamais enregistré sur ce profil devra s’enregistrer depuis la page,
+  puis il faudra un nouveau build iOS. Pas TestFlight.
+
+  Roadmap : https://www.moments-locaux.com/fr/roadmap
+
+  Le bouton + de CE build ouvre directement « Suggérer un événement »
+  (création organisateur désactivée). L’écran est redessiné dans l’email
+  avec les libellés réels. Pour de vraies captures : les héberger en URL
+  publique (Supabase / Brevo) et remplacer le bloc « L’écran du bouton + ».
+
+  Objet :
+    Moments Locaux — tu avais laissé ton email, je t’embarque
+
+  Préheader :
+    Merci pour ton intérêt sur le site. La première version est prête, sur iPhone et Android.
+
+  --- Texte brut ---
+
+  Objet : Moments Locaux — tu avais laissé ton email, je t’embarque
+
+  Salut,
+
+  Tu avais laissé ton email sur moments-locaux.com pour être prévenu de la sortie.
+  Merci. C’est grâce à cet intérêt que je t’écris aujourd’hui : une première version
+  est prête, et je veux t’embarquer avant les stores. Il y aura des bugs.
+
+  Ce que je te demande : ~15 minutes aujourd’hui, puis d’ouvrir l’app
+  quelques fois cette semaine, comme si tu cherchais vraiment une sortie.
+
+  Pour revoir les fonctionnalités et la suite :
+  https://www.moments-locaux.com/fr/roadmap
+
+  Installer (téléphone réel, pas un ordi)
+  • iPhone : https://expo.dev/accounts/roystok/projects/moments-locaux/builds/e8531267-6be9-4ddd-b310-d1974e0aa4c2
+    Ouvre le lien dans Safari. Si iOS demande le mode développeur, active-le dans Réglages, puis relance l’app.
+  • Android : https://expo.dev/accounts/roystok/projects/moments-locaux/builds/e5b3c735-7d1a-4ee7-95cb-65aee517ceab
+    Autorise l’install depuis cette source si le téléphone le demande.
+
+  Crée un compte (ton email suffit), termine l’accueil, choisis ta vraie ville.
+
+  Le bouton + (rond, en bas de l’écran ; s’il est à moitié sur le bord, glisse-le vers le centre)
+  ouvre « Suggérer un événement » :
+  • Scanner une affiche — l’IA préremplit, tu vérifies
+  • Saisie manuelle
+  • Reporter un bug / Suggérer une amélioration
+
+  À faire en priorité
+  1. Accueil et Carte, 2–3 fiches, une en favori.
+  2. Membres : suivre les autres testeurs du groupe. Like ou commente un même moment.
+  3. Un soir : une affiche via le bouton +, ou une question à Lumia
+     (« qu’est-ce qu’il y a ce week-end ? »).
+
+  Tu peux ignorer : créer un événement pro, QR, boutique, missions, concours.
+  La suite est sur la roadmap.
+
+  Si ça coince : bouton + → Reporter un bug (une phrase + une capture).
+  Compte bloqué : hello@moments-locaux.com.
+
+  Merci — même un « je n’ai rien compris » m’aide.
+
+  Romain
+-->
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Moments Locaux — alpha</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#F4FBF6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4FBF6;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid #D5E6DA;">
+            <tr>
+              <td align="center" style="padding:36px 32px 24px 32px;background-color:#E8F5E9;">
+                <img
+                  src="https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/moments-locaux-organizer.png"
+                  width="72"
+                  height="72"
+                  alt="Moments Locaux"
+                  style="display:block;border:0;border-radius:16px;margin:0 auto 16px auto;"
+                />
+                <p style="margin:0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Moments Locaux · Alpha
+                </p>
+                <h1 style="margin:10px 0 0 0;font-size:26px;line-height:1.25;color:#1A3329;font-weight:700;font-family:Georgia,'Times New Roman',serif;">
+                  Merci d’avoir levé la main
+                </h1>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:28px 32px 8px 32px;color:#1A3329;">
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Salut,
+                </p>
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Tu avais laissé ton email sur <a href="https://www.moments-locaux.com/fr" style="color:#557C10;text-decoration:underline;">moments-locaux.com</a> pour être prévenu de la sortie. Merci. C’est grâce à cet intérêt que je t’écris aujourd’hui : une première version de <strong>Moments Locaux</strong> est prête, et je veux t’embarquer avant les stores.
+                </p>
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#5B7A6A;">
+                  Il y aura des aspérités. Environ 15 minutes aujourd’hui, puis quelques ouvertures cette semaine, comme si tu cherchais vraiment une sortie. Tes impressions à chaud valent plus qu’une checklist.
+                </p>
+                <p style="margin:0 0 28px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Pour revoir les fonctionnalités et la suite :
+                  <a href="https://www.moments-locaux.com/fr/roadmap" style="color:#557C10;text-decoration:underline;">la roadmap sur le site</a>.
+                </p>
+
+                <p style="margin:0 0 12px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Installer sur le téléphone
+                </p>
+                <p style="margin:0 0 16px 0;font-size:15px;line-height:1.55;color:#5B7A6A;">
+                  Un vrai téléphone, pas un ordinateur. Crée un compte (ton email suffit), termine l’accueil, choisis <strong style="color:#1A3329;">ta vraie ville</strong>.
+                </p>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px 0;">
+                  <tr>
+                    <td align="center" bgcolor="#7CB518" style="border-radius:999px;">
+                      <a
+                        href="https://expo.dev/accounts/roystok/projects/moments-locaux/builds/e8531267-6be9-4ddd-b310-d1974e0aa4c2"
+                        style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#1A3329;text-decoration:none;border-radius:999px;"
+                      >
+                        Installer sur iPhone
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 20px 0;font-size:13px;line-height:1.5;color:#5B7A6A;text-align:center;">
+                  Ouvre ce lien dans Safari. Si iOS demande le mode développeur, active-le dans Réglages, puis relance l’app.
+                </p>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px 0;">
+                  <tr>
+                    <td align="center" bgcolor="#1A3329" style="border-radius:999px;">
+                      <a
+                        href="https://expo.dev/accounts/roystok/projects/moments-locaux/builds/e5b3c735-7d1a-4ee7-95cb-65aee517ceab"
+                        style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#F4FBF6;text-decoration:none;border-radius:999px;"
+                      >
+                        Installer sur Android
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 28px 0;font-size:13px;line-height:1.5;color:#5B7A6A;text-align:center;">
+                  Le téléphone peut demander d’autoriser cette source. C’est normal.
+                </p>
+
+                <p style="margin:0 0 12px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Le bouton +
+                </p>
+                <p style="margin:0 0 16px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Le rond en bas de l’écran. S’il est à moitié caché sur le bord, glisse-le vers le centre. Il ouvre cet écran :
+                </p>
+
+                <!-- Écran réel de ce build : suggest only, pas le choix organisateur. -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px 0;background-color:#243F34;border-radius:16px;">
+                  <tr>
+                    <td style="padding:28px 16px 0 16px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4FBF6;border-radius:20px 20px 0 0;">
+                        <tr>
+                          <td style="padding:14px 16px 6px 16px;" align="center">
+                            <div style="width:36px;height:4px;border-radius:999px;background-color:#D5E6DA;margin:0 auto;"></div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 18px 4px 18px;">
+                            <p style="margin:0;font-size:18px;line-height:1.3;font-weight:700;color:#1A3329;">Suggérer un événement</p>
+                            <p style="margin:6px 0 0 0;font-size:13px;line-height:1.45;color:#5B7A6A;">Préremplir avec une affiche, ou saisir vous-même.</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:12px 14px 8px 14px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#FFFFFF;border:1px solid #D5E6DA;border-radius:14px;">
+                              <tr>
+                                <td style="padding:12px 14px;">
+                                  <p style="margin:0;font-size:15px;font-weight:700;color:#1A3329;">Scanner une affiche</p>
+                                  <p style="margin:2px 0 0 0;font-size:13px;color:#5B7A6A;">L’IA préremplit le formulaire</p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:0 14px 8px 14px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#FFFFFF;border:1px solid #D5E6DA;border-radius:14px;">
+                              <tr>
+                                <td style="padding:12px 14px;">
+                                  <p style="margin:0;font-size:15px;font-weight:700;color:#1A3329;">Saisie manuelle</p>
+                                  <p style="margin:2px 0 0 0;font-size:13px;color:#5B7A6A;">Remplir le formulaire soi-même</p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:4px 18px 2px 18px;">
+                            <p style="margin:0;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#5B7A6A;font-weight:600;">Assistance</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 14px 18px 14px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#FFFFFF;border:1px solid #D5E6DA;border-radius:14px;">
+                              <tr>
+                                <td style="padding:12px 14px;">
+                                  <p style="margin:0;font-size:15px;font-weight:700;color:#1A3329;">Reporter un bug / Suggérer une amélioration</p>
+                                  <p style="margin:2px 0 0 0;font-size:13px;color:#5B7A6A;">Ouvre le formulaire de signalement</p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 20px 0;font-size:13px;line-height:1.5;color:#5B7A6A;text-align:center;">
+                  L’écran du bouton + dans cette version.
+                </p>
+
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  <strong>Scanner une affiche.</strong> Tu photographies une affiche ou un flyer. L’IA préremplit la suggestion, tu vérifies, l’équipe valide avant publication.
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  <strong>Saisie manuelle.</strong> Tu remplis le formulaire toi-même, si tu n’as pas d’affiche sous la main.
+                </p>
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  <strong>Un bug.</strong> Même bouton, ligne Assistance : une phrase et une capture suffisent.
+                </p>
+
+                <p style="margin:0 0 12px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  En priorité
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  1. Parcourir Accueil et Carte, ouvrir 2–3 fiches, en mettre une en favori.
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  2. Dans Membres, suivre les autres personnes du groupe. Like ou commente un même moment.
+                </p>
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  3. Un soir : une affiche via le bouton <strong>+</strong>, ou une question à Lumia « qu’est-ce qu’il y a ce week-end ? ».
+                </p>
+
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#5B7A6A;">
+                  Créer un événement pro, QR, boutique, missions et concours arrivent ensuite. Le détail est sur
+                  <a href="https://www.moments-locaux.com/fr/roadmap" style="color:#557C10;text-decoration:underline;">la roadmap</a>.
+                </p>
+
+                <p style="margin:0 0 8px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Si ça coince
+                </p>
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Bouton <strong>+</strong> → Reporter un bug. Compte bloqué :
+                  <a href="mailto:hello@moments-locaux.com" style="color:#557C10;text-decoration:underline;">hello@moments-locaux.com</a>.
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Merci encore pour ton intérêt — même un « je n’ai rien compris » ou « j’ai trouvé un concert samedi » m’aide.
+                </p>
+                <p style="margin:0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Romain
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px 32px 28px 32px;border-top:1px solid #D5E6DA;">
+                <p style="margin:0;font-size:12px;line-height:1.5;color:#5B7A6A;text-align:center;">
+                  Version alpha, hors stores. Tes commentaires, photos d’affiches et ta position restent dans un environnement de test. Tu peux supprimer le compte dans Paramètres → Confidentialité.<br /><br />
+                  <a href="https://www.moments-locaux.com/fr/roadmap" style="color:#557C10;text-decoration:underline;">moments-locaux.com/fr/roadmap</a><br />
+                  Moments Locaux · hello@moments-locaux.com
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
