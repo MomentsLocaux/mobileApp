@@ -152,9 +152,7 @@ export default function MapScreen() {
   const setPlace = useDiscoveryFiltersStore((s) => s.setPlace);
   const { profile, isAuthenticated } = useAuth();
   const favorites = useFavoritesStore((s) => s.favorites);
-  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const likedEventIds = useLikesStore((s) => s.likedEventIds);
-  const toggleLike = useLikesStore((s) => s.toggleLike);
   const bottomSheetIndex = useMapResultsUIStore((s) => s.bottomSheetIndex);
   const setBottomSheetIndex = useMapResultsUIStore((s) => s.setBottomSheetIndex);
   const sheetStatus = useMapResultsUIStore((s) => s.sheetStatus);
@@ -498,8 +496,6 @@ export default function MapScreen() {
     profileId: profile?.id,
     likesSet,
     favoritesSet,
-    toggleLike,
-    toggleFavorite,
   });
 
   const applySheetSideEffectsAfterSnap = useCallback(

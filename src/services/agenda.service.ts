@@ -21,12 +21,16 @@ async function listEventIds(
 }
 
 export const AgendaService = {
-  async listInterestedEventIds(userId: string): Promise<string[]> {
+  async listHeartMembership(userId: string) {
     const [favorites, likes] = await Promise.all([
       listEventIds('favorites', 'profile_id', userId),
       listEventIds('event_likes', 'user_id', userId),
     ]);
-    return uniqueIds([...favorites, ...likes]);
+    return { favoriteIds: favorites, likedIds: likes, interestedIds: uniqueIds([...favorites, ...likes]) };
+  },
+
+  async listInterestedEventIds(userId: string): Promise<string[]> {
+    return (await AgendaService.listHeartMembership(userId)).interestedIds;
   },
 
   async listParticipatingEventIds(userId: string): Promise<string[]> {

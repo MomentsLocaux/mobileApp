@@ -1,7 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import type { EventWithCreator } from '@/types/database';
-import { isEventHearted, syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { isEventHearted, toggleEventHeart } from '@/utils/event-heart';
+import { useAuthStore } from '@/state/auth';
+import { useLikesStore } from '@/store/likesStore';
 
 export type MapHeartToggleResult = { beforeLiked: boolean; afterLiked: boolean };
 
@@ -9,23 +11,22 @@ type Params = {
   profileId?: string;
   likesSet: Set<string>;
   favoritesSet: Set<string>;
-  toggleLike: (eventId: string) => void;
-  toggleFavorite: (event: EventWithCreator) => void;
 };
 
 export function useMapSocialActions({
   profileId,
   likesSet,
   favoritesSet,
-  toggleLike,
-  toggleFavorite,
 }: Params) {
+  const pending = useRef(new Set<string>());
   const handleToggleHeart = useCallback(
     async (event: EventWithCreator): Promise<MapHeartToggleResult | null> => {
       if (!profileId) {
         Alert.alert('Connexion nécessaire', 'Connectez-vous pour aimer et enregistrer un événement.');
         return null;
       }
+      if (pending.current.has(event.id)) return null;
+      pending.current.add(event.id);
 
       const before = {
         isLiked: likesSet.has(event.id),
@@ -34,15 +35,19 @@ export function useMapSocialActions({
 
       try {
         const after = await toggleEventHeart(profileId, event, before);
-        syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+
         return { beforeLiked: before.isLiked, afterLiked: after.isLiked };
       } catch (error) {
         console.warn('toggle heart error', error);
+        if (useAuthStore.getState().session?.user.id !== profileId) return null;
         Alert.alert('Erreur', 'Impossible d’enregistrer pour le moment.');
-        return null;
+        // The shared helper has reconciled any partial write; update card counts too.
+        return { beforeLiked: before.isLiked, afterLiked: useLikesStore.getState().isLiked(event.id) };
+      } finally {
+        pending.current.delete(event.id);
       }
     },
-    [favoritesSet, likesSet, profileId, toggleFavorite, toggleLike]
+    [favoritesSet, likesSet, profileId]
   );
 
   return { handleToggleHeart };

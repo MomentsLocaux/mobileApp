@@ -110,7 +110,7 @@ import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useSimilarEvents } from '@/hooks/useSimilarEvents';
 import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { openDiffuseurContact } from '@/utils/open-website';
-import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { toggleEventHeart } from '@/utils/event-heart';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { getDistanceText } from '@/utils/sort-events';
@@ -227,8 +227,8 @@ export default function EventDetailScreen() {
   const { currentLocation } = useLocationStore();
   const insets = useSafeAreaInsets();
   const { comments } = useComments(id || '');
-  const { toggleFavorite: toggleFavoriteStore, isFavorite } = useFavoritesStore();
-  const { toggleLike: toggleLikeStore, isLiked } = useLikesStore();
+  const { isFavorite } = useFavoritesStore();
+  const { isLiked } = useLikesStore();
   useTaxonomy();
   const tagsMap = useTaxonomyStore((s) => s.tagsMap);
 
@@ -674,10 +674,7 @@ export default function EventDetailScreen() {
 
     try {
       const after = await toggleEventHeart(profile.id, event, before);
-      syncHeartStores(event, before, after, {
-        toggleLike: toggleLikeStore,
-        toggleFavorite: toggleFavoriteStore,
-      });
+
       setEvent((prev) =>
         prev
           ? {
@@ -694,6 +691,7 @@ export default function EventDetailScreen() {
       }));
       await loadEventStats(event.id);
     } catch (error) {
+      await loadEventStats(event.id);
       Alert.alert('Erreur', "Impossible d'enregistrer pour le moment.");
     } finally {
       heartPendingRef.current = false;
