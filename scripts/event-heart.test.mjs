@@ -79,6 +79,25 @@ test('two simultaneous taps share one mutation and do not toggle stores twice', 
   assert.deepEqual(f.local(), off);
 });
 
+test('explicit swipe removal stays a removal even when the local heart is already inactive', async () => {
+  const f = fixture(on);
+  assert.deepEqual(f.local(), off);
+  await f.heart.removeEventHeart('alice', event);
+  assert.deepEqual(f.server, off);
+  assert.deepEqual(f.local(), off);
+  assert.deepEqual(f.calls.map(([name]) => name), ['unlike', 'removeFavorite']);
+});
+
+test('swipe removal and heart activation share the same pending operation', async () => {
+  const f = fixture(on);
+  const removal = f.heart.removeEventHeart('alice', event);
+  const heart = f.heart.toggleEventHeart('alice', event, on);
+  assert.equal(removal, heart);
+  await Promise.all([removal, heart]);
+  assert.deepEqual(f.server, off);
+  assert.deepEqual(f.calls.map(([name]) => name), ['unlike', 'removeFavorite']);
+});
+
 for (const failed of ['unlike', 'removeFavorite']) {
   test(`partial failure (${failed}) reconciles before allowing a retry`, async () => {
     const f = fixture(on);

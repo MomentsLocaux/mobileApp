@@ -16,6 +16,7 @@ import { AppBackground, BrandIcon, DiscoveryLoadingState, EmptyState, SlidingSeg
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AgendaBucketRow } from '@/components/agenda/AgendaBucketRow';
 import { AgendaEmptyIllustration } from '@/components/agenda/AgendaEmptyIllustration';
+import { useAgendaSwipeActions } from '@/components/agenda/AgendaSwipeAction';
 import { AgendaEventRow } from '@/components/agenda/AgendaEventRow';
 import { AgendaLikedRangeModal } from '@/components/agenda/AgendaLikedRangeModal';
 import { AgendaMonthGrid } from '@/components/agenda/AgendaMonthGrid';
@@ -34,7 +35,7 @@ import { useLikesStore } from '@/store/likesStore';
 import { useAuthStore } from '@/state/auth';
 import type { CommunityMember } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
-import { isEventHearted, toggleEventHeart } from '@/utils/event-heart';
+import { isEventHearted, removeEventHeart, toggleEventHeart } from '@/utils/event-heart';
 import { sharePublishedEvent } from '@/utils/event-share';
 import { withUpdatedLikeCount } from '@/utils/likes-count';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
@@ -112,6 +113,12 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const [pendingHeartIds, setPendingHeartIds] = useState<Set<string>>(() => new Set());
   const pendingHeartRef = useRef(new Set<string>());
   const loadVersion = useRef(0);
+  const { closeSwipe, handleSwipeStart } = useAgendaSwipeActions();
+
+  useEffect(() => {
+    closeSwipe();
+  }, [selectedDay, hubTab, selectedBucket, showMap, calendarExpanded, likedModalOpen, rangeStart, rangeEnd, closeSwipe]);
+  useFocusEffect(useCallback(() => closeSwipe, [closeSwipe]));
 
   const ownerId = profile?.id || user?.id || session?.user?.id || null;
   const flags = useMemo(
@@ -284,8 +291,8 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     }
   }, []);
 
-  const handleToggleHeart = useCallback(
-    async (event: EventWithCreator) => {
+  const handleChangeHeart = useCallback(
+    async (event: EventWithCreator, remove: boolean) => {
       if (!ownerId || pendingHeartRef.current.has(event.id)) return;
       pendingHeartRef.current.add(event.id);
       loadVersion.current += 1;
@@ -319,7 +326,9 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
         }));
       };
       try {
-        const after = await toggleEventHeart(ownerId, event, before);
+        const after = await (remove
+          ? removeEventHeart(ownerId, event)
+          : toggleEventHeart(ownerId, event, before));
         loadVersion.current += 1;
         updateStats(after.isLiked);
 
@@ -361,6 +370,9 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
       profile?.display_name,
     ],
   );
+
+  const handleToggleHeart = useCallback((event: EventWithCreator) => handleChangeHeart(event, false), [handleChangeHeart]);
+  const handleRemoveHeart = useCallback((event: EventWithCreator) => handleChangeHeart(event, true), [handleChangeHeart]);
 
   const handleCreate = () => {
     if (!features.eventCreate) return;
@@ -545,6 +557,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={() => {
+                    closeSwipe();
                     setRefreshing(true);
                     void load();
                   }}
@@ -626,6 +639,8 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                               liked={likesSet.has(event.id) || favoritesSet.has(event.id)}
                               pending={pendingHeartIds.has(event.id)}
                               onOpen={openEvent}
+                              onRemove={handleRemoveHeart}
+                              onSwipeStart={handleSwipeStart}
                               onToggleHeart={handleToggleHeart}
                               onShare={handleShareEvent}
                             />
@@ -681,6 +696,8 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
           setLikedModalOpen(false);
           openEvent(event);
         }}
+        onRemove={handleRemoveHeart}
+        onSwipeStart={handleSwipeStart}
         onToggleHeart={handleToggleHeart}
         onShare={handleShareEvent}
       />
