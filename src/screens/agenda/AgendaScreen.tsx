@@ -98,7 +98,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     setAnchor(parsed);
     setSelectedDay(parsed);
   }, [dayKey]);
-  const [selectedBucket, setSelectedBucket] = useState<AgendaBucketId | null>(null);
+  const [selectedBucket, setSelectedBucket] = useState<AgendaBucketId | null>('interested');
   const [showMap, setShowMap] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<EventWithCreator[]>([]);
   const [participatingEvents, setParticipatingEvents] = useState<EventWithCreator[]>([]);
@@ -512,7 +512,6 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                 onSelect={(day) => {
                   setSelectedDay(day);
                   setAnchor(day);
-                  setSelectedBucket(null);
                   setShowMap(false);
                 }}
                 onShiftWeek={(delta) => {
