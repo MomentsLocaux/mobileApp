@@ -19,6 +19,7 @@ import {
   resolveMapTabBarProgress,
   shouldFollowMapCameraForSheetIndex,
 } from '../../src/utils/map-sheet-layout';
+import { MapSearchAreaControls } from '@/components/map/MapSearchAreaControls';
 import { traceMapSheetPerf } from '@/utils/map-sheet-perf-trace';
 import {
   cloneMapBounds,
@@ -41,7 +42,7 @@ import {
   useMapFilterActions,
 } from '@/hooks/map';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Layers, Navigation, SlidersHorizontal, ZoomIn } from 'lucide-react-native';
+import { ArrowLeft, Layers, Navigation, SlidersHorizontal } from 'lucide-react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -216,6 +217,8 @@ export default function MapScreen() {
   const [refineOpen, setRefineOpen] = useState(false);
   const [mapColumnHeight, setMapColumnHeight] = useState(0);
   const [pendingSearchAreaBounds, setPendingSearchAreaBounds] = useState<MapBounds | null>(null);
+  const [launchingAreaSearch, setLaunchingAreaSearch] = useState(false);
+  const launchingAreaSearchRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const mapSnapshot = useDiscoverySnapshotStore((state) => state.map);
   const discoveryHydrated = useDiscoverySnapshotStore((state) => state.hydrated);
@@ -1126,12 +1129,19 @@ export default function MapScreen() {
     [applySearch, clearHomeTransfer, setViewportAreaWarning]
   );
 
-  const handleSearchPendingArea = useCallback(() => {
-    if (!pendingSearchAreaBounds || isMapBoundsTooLarge(pendingSearchAreaBounds)) return;
+  const handleSearchPendingArea = useCallback(async () => {
+    if (
+      !pendingSearchAreaBounds ||
+      isMapBoundsTooLarge(pendingSearchAreaBounds) ||
+      launchingAreaSearchRef.current ||
+      useMapResultsUIStore.getState().sheetStatus === 'loading'
+    ) return;
+    // Lock immediately, including the native bounds lookup before fetching starts.
+    launchingAreaSearchRef.current = true;
+    setLaunchingAreaSearch(true);
     clearHomeTransfer();
     appliedHomeTransferIdRef.current = null;
     focusedSearchRevisionRef.current = null;
-    setPendingSearchAreaBounds(null);
     setViewportAreaWarning(null);
     setPlace({ center: undefined, label: undefined, radiusKm: undefined });
     const remaining = useDiscoveryFiltersStore.getState();
@@ -1145,7 +1155,16 @@ export default function MapScreen() {
     }
     viewportFrozenRef.current = false;
     clearFrozenViewport();
-    void refreshBounds();
+    try {
+      await refreshBounds();
+      // Keep a newer pending area if the map moved during the native lookup.
+      setPendingSearchAreaBounds((current) => current === pendingSearchAreaBounds ? null : current);
+    } catch {
+      setViewportFetchError('Impossible de rechercher cette zone. Réessayez.');
+    } finally {
+      launchingAreaSearchRef.current = false;
+      setLaunchingAreaSearch(false);
+    }
   }, [
     clearFrozenViewport,
     clearHomeTransfer,
@@ -1154,6 +1173,7 @@ export default function MapScreen() {
     setPlace,
     setSearchApplied,
     setViewportAreaWarning,
+    setViewportFetchError,
     viewportFrozenRef,
   ]);
 
@@ -1421,51 +1441,15 @@ export default function MapScreen() {
               </View>
             ) : null}
 
-            {viewportAreaWarning || pendingSearchAreaTooLarge ? (
-              <TouchableOpacity
-                style={[
-                  styles.mapAreaWarning,
-                  pendingSearchAreaBounds ? styles.mapAreaWarningBelowSearchButton : null,
-                ]}
-                onPress={handleTightenTooLargeArea}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLiveRegion="polite"
-                accessibilityLabel="Zone trop large. Touchez pour vous rapprocher et afficher les événements."
-              >
-                <View style={styles.mapAreaWarningRow}>
-                  <ZoomIn size={18} color={colors.brand.text} />
-                  <View style={styles.mapAreaWarningCopy}>
-                    <Text style={styles.mapAreaWarningTitle}>Zone trop large</Text>
-                    <Text style={styles.mapAreaWarningText}>
-                      Touchez pour vous rapprocher et afficher les événements.
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ) : null}
-
-            {pendingSearchAreaBounds && !searchExpanded ? (
-              <View style={styles.searchAreaButtonSlot} pointerEvents="box-none">
-                <TouchableOpacity
-                  style={[
-                    styles.searchAreaButton,
-                    pendingSearchAreaTooLarge && styles.searchAreaButtonDisabled,
-                  ]}
-                  onPress={handleSearchPendingArea}
-                  disabled={pendingSearchAreaTooLarge}
-                  activeOpacity={0.9}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: pendingSearchAreaTooLarge }}
-                  accessibilityLabel="Rechercher les événements dans la zone visible. Les filtres quoi et quand sont conservés."
-                  accessibilityHint="La recherche par lieu est remplacée par la zone actuellement affichée."
-                >
-                  <Text style={styles.searchAreaButtonTitle}>Rechercher dans cette zone</Text>
-                  <Text style={styles.searchAreaButtonHint}>
-                    Les filtres quoi et quand sont conservés
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            {!searchExpanded && !viewportFetchError ? (
+              <MapSearchAreaControls
+                pending={!!pendingSearchAreaBounds}
+                loading={launchingAreaSearch || sheetStatus === 'loading'}
+                tooLarge={pendingSearchAreaTooLarge}
+                showWarning={!!viewportAreaWarning || pendingSearchAreaTooLarge}
+                onSearch={handleSearchPendingArea}
+                onTighten={handleTightenTooLargeArea}
+              />
             ) : null}
 
             {userLocation && !searchExpanded && !unitCardEvent ? (
@@ -1830,81 +1814,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     textDecorationLine: 'underline',
-  },
-  searchAreaButtonSlot: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 27,
-    alignItems: 'center',
-  },
-  searchAreaButton: {
-    maxWidth: 340,
-    minHeight: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.brand.secondary,
-    borderWidth: 1,
-    borderColor: colors.primary[600],
-    shadowColor: colors.neutral[900],
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  searchAreaButtonDisabled: {
-    opacity: 0.55,
-  },
-  searchAreaButtonTitle: {
-    color: colors.brand.onAccent,
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  searchAreaButtonHint: {
-    color: colors.brand.onAccent,
-    fontSize: 11,
-    lineHeight: 15,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  mapAreaWarning: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 26,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.warning[50],
-    borderWidth: 1,
-    borderColor: colors.warning[500],
-  },
-  mapAreaWarningBelowSearchButton: {
-    top: 82,
-  },
-  mapAreaWarningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  mapAreaWarningCopy: {
-    flex: 1,
-  },
-  mapAreaWarningTitle: {
-    color: colors.brand.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  mapAreaWarningText: {
-    color: colors.brand.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
   },
   recenterTopButton: {
     position: 'absolute',
