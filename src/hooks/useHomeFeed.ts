@@ -9,7 +9,7 @@ import { AgendaService } from '@/services/agenda.service';
 import { PreferencesService } from '@/services/preferences.service';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { NotificationsService } from '@/services/notifications.service';
-import { useDiscoveryFiltersStore, useFavoritesStore, useLikesStore, useMapTransferStore } from '@/store';
+import { useDiscoveryFiltersStore, useMapTransferStore } from '@/store';
 import { useDiscoverySnapshotStore } from '@/store/discoverySnapshotStore';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
@@ -18,7 +18,7 @@ import { toLocalDateKey } from '@/utils/agenda';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { bumpCoverPrefetchGeneration } from '@/utils/cover-prefetch-queue';
 import { formatDistanceLabel } from '@/utils/event-card-display';
-import { ensureEventHearted, removeEventHeart, syncHeartStores } from '@/utils/event-heart';
+import { ensureEventHearted, removeEventHeart } from '@/utils/event-heart';
 import { filterEvents } from '@/utils/filter-events';
 import {
   buildHomeHero, countHomeSlotEvents, defaultHomeTimeSlot, eventMatchesHomeSlot, filtersForHomeTimeSlot,
@@ -246,14 +246,13 @@ export function useHomeFeed() {
     if (!userId) { setGuestGate('Connecte-toi pour enregistrer un moment'); return; }
     if (pendingRef.current.has(event.id)) return;
     pendingRef.current.add(event.id); setPendingHearts(new Set(pendingRef.current));
-    const before = { isLiked: useLikesStore.getState().isLiked(event.id), isFavorite: useFavoritesStore.getState().isFavorite(event.id) };
     try {
       // Agenda membership belongs to this account; persisted global heart stores may be stale.
       const after = isHearted(event.id)
-        ? await removeEventHeart(userId, event.id)
+        ? await removeEventHeart(userId, event)
         : await ensureEventHearted(userId, event, { isLiked: false, isFavorite: false });
       if (!mounted.current || userRef.current !== userId) return;
-      syncHeartStores(event, before, after, { toggleLike: useLikesStore.getState().toggleLike, toggleFavorite: useFavoritesStore.getState().toggleFavorite });
+
       agendaMutation.current += 1;
       setPrivateData(previous => {
         const owned = previous.userId === userId ? previous : { userId, agenda: [], interestedIds: [], themes: [], agendaLoaded: false };
@@ -264,12 +263,15 @@ export function useHomeFeed() {
         };
       });
     } catch {
-      if (mounted.current && userRef.current === userId) Alert.alert('Enregistrement impossible', 'Réessaie dans un instant.');
+      if (mounted.current && userRef.current === userId) {
+        await loadPrivate();
+        Alert.alert('Enregistrement impossible', 'Réessaie dans un instant.');
+      }
     } finally {
       pendingRef.current.delete(event.id);
       if (mounted.current) setPendingHearts(new Set(pendingRef.current));
     }
-  }, [userId, isHearted]);
+  }, [userId, isHearted, loadPrivate]);
   const refresh = useCallback(async () => {
     setRefreshing(true); setNow(new Date());
     try { await Promise.all([loadPool(true), loadPrivate()]); }

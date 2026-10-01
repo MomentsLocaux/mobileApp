@@ -7,6 +7,7 @@ import {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { OnAgendaSwipeStart } from '@/components/agenda/AgendaSwipeAction';
 import { AgendaEventRow } from '@/components/agenda/AgendaEventRow';
 import { colors, spacing, typography } from '@/constants/theme';
 import type { EventCardStats } from '@/services/event-card-stats.service';
@@ -23,6 +24,8 @@ type Props = {
   pendingIds: Set<string>;
   onClose: () => void;
   onOpen: (event: EventWithCreator) => void;
+  onRemove: (event: EventWithCreator) => void;
+  onSwipeStart: OnAgendaSwipeStart;
   onToggleHeart: (event: EventWithCreator) => void;
   onShare: (event: EventWithCreator) => void;
 };
@@ -44,6 +47,8 @@ export function AgendaLikedRangeModal({
   pendingIds,
   onClose,
   onOpen,
+  onRemove,
+  onSwipeStart,
   onToggleHeart,
   onShare,
 }: Props) {
@@ -108,6 +113,8 @@ export function AgendaLikedRangeModal({
             liked={likedIds.has(event.id)}
             pending={pendingIds.has(event.id)}
             onOpen={onOpen}
+            onRemove={onRemove}
+            onSwipeStart={onSwipeStart}
             onToggleHeart={onToggleHeart}
             onShare={onShare}
           />

@@ -5,6 +5,8 @@ import { persistStorage } from './persistStorage';
 interface LikesState {
   likedEventIds: string[];
   toggleLike: (eventId: string) => void;
+  setLiked: (eventId: string, liked: boolean) => void;
+  replaceLikes: (eventIds: string[]) => void;
   isLiked: (eventId: string) => boolean;
   clearLikes: () => void;
 }
@@ -13,6 +15,12 @@ export const useLikesStore = create<LikesState>()(
   persist(
     (set, get) => ({
       likedEventIds: [],
+      setLiked: (eventId, liked) => set((state) => ({
+        likedEventIds: liked
+          ? Array.from(new Set([eventId, ...state.likedEventIds]))
+          : state.likedEventIds.filter((id) => id !== eventId),
+      })),
+      replaceLikes: (eventIds) => set({ likedEventIds: Array.from(new Set(eventIds)) }),
       toggleLike: (eventId) =>
         set((state) => {
           const exists = state.likedEventIds.includes(eventId);
@@ -32,4 +40,3 @@ export const useLikesStore = create<LikesState>()(
     }
   )
 );
-

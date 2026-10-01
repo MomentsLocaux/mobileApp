@@ -16,6 +16,7 @@ import { AppBackground, BrandIcon, DiscoveryLoadingState, EmptyState, SlidingSeg
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AgendaBucketRow } from '@/components/agenda/AgendaBucketRow';
 import { AgendaEmptyIllustration } from '@/components/agenda/AgendaEmptyIllustration';
+import { useAgendaSwipeActions } from '@/components/agenda/AgendaSwipeAction';
 import { AgendaEventRow } from '@/components/agenda/AgendaEventRow';
 import { AgendaLikedRangeModal } from '@/components/agenda/AgendaLikedRangeModal';
 import { AgendaMonthGrid } from '@/components/agenda/AgendaMonthGrid';
@@ -31,9 +32,10 @@ import { EventCardStatsService, type EventCardStats } from '@/services/event-car
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useLikesStore } from '@/store/likesStore';
+import { useAuthStore } from '@/state/auth';
 import type { CommunityMember } from '@/types/community';
 import type { EventWithCreator } from '@/types/database';
-import { isEventHearted, syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { isEventHearted, removeEventHeart, toggleEventHeart } from '@/utils/event-heart';
 import { sharePublishedEvent } from '@/utils/event-share';
 import { withUpdatedLikeCount } from '@/utils/likes-count';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
@@ -73,9 +75,9 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const { profile, user, session, isLoading } = useAuth();
   const publishSurfaces = useEventPublishSurfaces();
   const replaceFavorites = useFavoritesStore((state) => state.replaceFavorites);
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
+  const replaceLikes = useLikesStore((state) => state.replaceLikes);
   const favorites = useFavoritesStore((state) => state.favorites);
-  const { likedEventIds, toggleLike } = useLikesStore();
+  const { likedEventIds } = useLikesStore();
   const isModal = presentation === 'modal';
 
   const [hubTab, setHubTab] = useState<HubTab>('agenda');
@@ -97,7 +99,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     setAnchor(parsed);
     setSelectedDay(parsed);
   }, [dayKey]);
-  const [selectedBucket, setSelectedBucket] = useState<AgendaBucketId | null>(null);
+  const [selectedBucket, setSelectedBucket] = useState<AgendaBucketId | null>('interested');
   const [showMap, setShowMap] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<EventWithCreator[]>([]);
   const [participatingEvents, setParticipatingEvents] = useState<EventWithCreator[]>([]);
@@ -110,6 +112,13 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const [statsByEventId, setStatsByEventId] = useState<Record<string, EventCardStats>>({});
   const [pendingHeartIds, setPendingHeartIds] = useState<Set<string>>(() => new Set());
   const pendingHeartRef = useRef(new Set<string>());
+  const loadVersion = useRef(0);
+  const { closeSwipe, handleSwipeStart } = useAgendaSwipeActions();
+
+  useEffect(() => {
+    closeSwipe();
+  }, [selectedDay, hubTab, selectedBucket, showMap, calendarExpanded, likedModalOpen, rangeStart, rangeEnd, closeSwipe]);
+  useFocusEffect(useCallback(() => closeSwipe, [closeSwipe]));
 
   const ownerId = profile?.id || user?.id || session?.user?.id || null;
   const flags = useMemo(
@@ -138,8 +147,11 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
   }, [interestedEvents, organizingEvents, participatingEvents]);
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current;
+    const isCurrent = () => version === loadVersion.current && useAuthStore.getState().session?.user.id === ownerId;
     if (!session || !ownerId) {
       replaceFavorites([]);
+      replaceLikes([]);
       setInterestedEvents([]);
       setParticipatingEvents([]);
       setOrganizingEvents([]);
@@ -149,14 +161,16 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
       return;
     }
     try {
-      const [interestedIds, participatingIds, organizing, follows] = await Promise.all([
-        AgendaService.listInterestedEventIds(ownerId),
+      const [hearts, participatingIds, organizing, follows] = await Promise.all([
+        AgendaService.listHeartMembership(ownerId),
         flags.checkin ? AgendaService.listParticipatingEventIds(ownerId) : Promise.resolve([] as string[]),
         flags.eventCreate ? AgendaService.listOrganizingEvents(ownerId) : Promise.resolve([] as EventWithCreator[]),
         AgendaService.listFollowedMembers(ownerId).catch(() => []),
       ]);
+      const { interestedIds, favoriteIds, likedIds } = hearts;
       const neededIds = Array.from(new Set([...interestedIds, ...participatingIds, ...organizing.map((event) => event.id)]));
       const fetched = await AgendaService.getEventsByIds(neededIds);
+      if (!isCurrent()) return;
       const byId = new Map(fetched.map((event) => [event.id, event]));
       for (const event of organizing) {
         if (!byId.has(event.id)) byId.set(event.id, event);
@@ -166,7 +180,10 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
       setInterestedEvents(interested);
       setParticipatingEvents(participating);
       setOrganizingEvents(organizing);
-      replaceFavorites(interested);
+      const favoriteSet = new Set(favoriteIds);
+      replaceFavorites(interested.filter((event) => favoriteSet.has(event.id)));
+      replaceLikes(likedIds);
+      setMapPreviewEvent((current) => current ? interested.find((event) => event.id === current.id) ?? null : null);
       setFollowedMembers(
         follows.map((row) => ({
           user_id: row.user_id,
@@ -180,14 +197,17 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     } catch (error) {
       console.warn('load agenda', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isCurrent()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [flags.checkin, flags.eventCreate, ownerId, replaceFavorites, session]);
+  }, [flags.checkin, flags.eventCreate, ownerId, replaceFavorites, replaceLikes, session]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
+      return () => { loadVersion.current += 1; };
     }, [load]),
   );
 
@@ -271,18 +291,47 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     }
   }, []);
 
-  const handleToggleHeart = useCallback(
-    async (event: EventWithCreator) => {
+  const handleChangeHeart = useCallback(
+    async (event: EventWithCreator, remove: boolean) => {
       if (!ownerId || pendingHeartRef.current.has(event.id)) return;
       pendingHeartRef.current.add(event.id);
+      loadVersion.current += 1;
       setPendingHeartIds(new Set(pendingHeartRef.current));
       const before = {
         isLiked: likesSet.has(event.id),
         isFavorite: favoritesSet.has(event.id),
       };
+      const self = {
+        id: ownerId,
+        display_name: profile?.display_name || 'Moi',
+        avatar_url: profile?.avatar_url || null,
+        is_followed: false,
+      };
+      const updateStats = (afterLiked: boolean) => {
+        setStatsByEventId((prev) => ({
+          ...prev,
+          [event.id]: EventCardStatsService.applyLikeToggle(
+            event.id,
+            before.isLiked,
+            afterLiked,
+            self,
+            ownerId,
+            prev[event.id] ?? {
+              viewsCount: 0,
+              friendsGoingCount: 0,
+              likesCount: event.likes_count ?? 0,
+              likers: [],
+            },
+          ),
+        }));
+      };
       try {
-        const after = await toggleEventHeart(ownerId, event, before);
-        syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+        const after = await (remove
+          ? removeEventHeart(ownerId, event)
+          : toggleEventHeart(ownerId, event, before));
+        loadVersion.current += 1;
+        updateStats(after.isLiked);
+
         const hearted = isEventHearted(after.isLiked, after.isFavorite);
         const patch = (list: EventWithCreator[]) =>
           withUpdatedLikeCount(list, event.id, before.isLiked, after.isLiked);
@@ -296,45 +345,34 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
         });
         setParticipatingEvents(patch);
         setOrganizingEvents(patch);
-        const self = {
-          id: ownerId,
-          display_name: profile?.display_name || 'Moi',
-          avatar_url: profile?.avatar_url || null,
-          is_followed: false,
-        };
-        setStatsByEventId((prev) => ({
-          ...prev,
-          [event.id]: EventCardStatsService.applyLikeToggle(
-            event.id,
-            before.isLiked,
-            after.isLiked,
-            self,
-            ownerId,
-            prev[event.id] ?? {
-              viewsCount: 0,
-              friendsGoingCount: 0,
-              likesCount: event.likes_count ?? 0,
-              likers: [],
-            },
-          ),
-        }));
+        setMapPreviewEvent((current) => current?.id === event.id
+          ? hearted ? patch([current])[0] : null
+          : current);
+
       } catch (error) {
         console.warn('toggle agenda heart', error);
+        if (useAuthStore.getState().session?.user.id !== ownerId) return;
+        updateStats(useLikesStore.getState().isLiked(event.id));
+        await load();
+        Alert.alert('Enregistrement impossible', 'Le changement n’a pas pu être confirmé. Réessaie dans un instant.');
       } finally {
         pendingHeartRef.current.delete(event.id);
+        setRefreshing(false);
         setPendingHeartIds(new Set(pendingHeartRef.current));
       }
     },
     [
       favoritesSet,
       likesSet,
+      load,
       ownerId,
       profile?.avatar_url,
       profile?.display_name,
-      toggleFavorite,
-      toggleLike,
     ],
   );
+
+  const handleToggleHeart = useCallback((event: EventWithCreator) => handleChangeHeart(event, false), [handleChangeHeart]);
+  const handleRemoveHeart = useCallback((event: EventWithCreator) => handleChangeHeart(event, true), [handleChangeHeart]);
 
   const handleCreate = () => {
     if (!features.eventCreate) return;
@@ -486,7 +524,6 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                 onSelect={(day) => {
                   setSelectedDay(day);
                   setAnchor(day);
-                  setSelectedBucket(null);
                   setShowMap(false);
                 }}
                 onShiftWeek={(delta) => {
@@ -520,6 +557,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={() => {
+                    closeSwipe();
                     setRefreshing(true);
                     void load();
                   }}
@@ -601,6 +639,8 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                               liked={likesSet.has(event.id) || favoritesSet.has(event.id)}
                               pending={pendingHeartIds.has(event.id)}
                               onOpen={openEvent}
+                              onRemove={handleRemoveHeart}
+                              onSwipeStart={handleSwipeStart}
                               onToggleHeart={handleToggleHeart}
                               onShare={handleShareEvent}
                             />
@@ -656,6 +696,8 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
           setLikedModalOpen(false);
           openEvent(event);
         }}
+        onRemove={handleRemoveHeart}
+        onSwipeStart={handleSwipeStart}
         onToggleHeart={handleToggleHeart}
         onShare={handleShareEvent}
       />

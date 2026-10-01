@@ -42,7 +42,6 @@ import { getEventImageUrls, getHumanizedDate } from '@/utils/event-card-display'
 import {
   ensureEventHearted,
   removeEventHeart,
-  syncHeartStores,
   toggleEventHeart,
 } from '@/utils/event-heart';
 import { haptics } from '@/utils/haptics';
@@ -67,9 +66,7 @@ export default function ProposalsScreen() {
   const categories = useTaxonomyStore((state) => state.categories);
   const loadTaxonomy = useTaxonomyStore((state) => state.load);
   const likedEventIds = useLikesStore((state) => state.likedEventIds);
-  const toggleLike = useLikesStore((state) => state.toggleLike);
   const favoriteEvents = useFavoritesStore((state) => state.favorites);
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   const phase = useProposalsStore((state) => state.phase);
   const hasHydrated = useProposalsStore((state) => state.hasHydrated);
@@ -241,8 +238,8 @@ export default function ProposalsScreen() {
         isLiked: useLikesStore.getState().isLiked(event.id) || Boolean(event.is_liked),
         isFavorite: useFavoritesStore.getState().isFavorite(event.id) || Boolean(event.is_favorited),
       };
-      const after = await ensureEventHearted(userId, event, before);
-      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+      await ensureEventHearted(userId, event, before);
+
       applyDecision(event, 'like', {
         heartCreatedBySession: !before.isLiked && !before.isFavorite,
       });
@@ -256,7 +253,7 @@ export default function ProposalsScreen() {
     } finally {
       setProcessingDecision(false);
     }
-  }, [applyDecision, processingDecision, profile?.id, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
+  }, [applyDecision, processingDecision, profile?.id, session?.user?.id, user?.id]);
 
   const currentEvent = pool[currentIndex];
   const nextEvent = pool[currentIndex + 1];
@@ -283,13 +280,12 @@ export default function ProposalsScreen() {
         isLiked: useLikesStore.getState().isLiked(event.id),
         isFavorite: useFavoritesStore.getState().isFavorite(event.id),
       };
-      let after = before;
       if (nextDecision === 'like') {
-        after = await ensureEventHearted(userId, event, before);
+        await ensureEventHearted(userId, event, before);
       } else if (before.isLiked || before.isFavorite) {
-        after = await toggleEventHeart(userId, event, before);
+        await toggleEventHeart(userId, event, before);
       }
-      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+
       reviseDecision(sessionId, eventId, nextDecision, {
         heartCreatedBySession:
           nextDecision === 'like' && !before.isLiked && !before.isFavorite,
@@ -301,7 +297,7 @@ export default function ProposalsScreen() {
     } finally {
       setHistoryBusyEventId(null);
     }
-  }, [historyBusyEventId, profile?.id, reviseDecision, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
+  }, [historyBusyEventId, profile?.id, reviseDecision, session?.user?.id, user?.id]);
 
   const deleteProposalHistory = useCallback(async (
     sessionIds: string[],
@@ -328,12 +324,7 @@ export default function ProposalsScreen() {
       if (removeCreatedHearts && userId) {
         const events = getSessionCreatedHeartEvents(targetSessions);
         for (const event of events) {
-          const before = {
-            isLiked: useLikesStore.getState().isLiked(event.id),
-            isFavorite: useFavoritesStore.getState().isFavorite(event.id),
-          };
-          const after = await removeEventHeart(userId, event.id);
-          syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+          await removeEventHeart(userId, event);
         }
       }
       deleteSessions(sessionIds);
@@ -347,7 +338,7 @@ export default function ProposalsScreen() {
     } finally {
       setHistoryDeleteBusy(false);
     }
-  }, [deleteSessions, historyDeleteBusy, profile?.id, session?.user?.id, toggleFavorite, toggleLike, user?.id]);
+  }, [deleteSessions, historyDeleteBusy, profile?.id, session?.user?.id, user?.id]);
 
   const confirmHistoryDeletion = useCallback((sessionIds: string[]) => {
     const count = sessionIds.length;
@@ -563,9 +554,7 @@ function ProposalSummary({
   const insets = useSafeAreaInsets();
   const { profile, user, session } = useAuth();
   const isLiked = useLikesStore((state) => state.isLiked);
-  const toggleLike = useLikesStore((state) => state.toggleLike);
   const isFavorite = useFavoritesStore((state) => state.isFavorite);
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const [heartBusyId, setHeartBusyId] = useState<string | null>(null);
 
   const handleHeart = async (event: EventWithCreator) => {
@@ -577,8 +566,8 @@ function ProposalSummary({
         isLiked: useLikesStore.getState().isLiked(event.id),
         isFavorite: useFavoritesStore.getState().isFavorite(event.id),
       };
-      const after = await toggleEventHeart(userId, event, before);
-      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+      await toggleEventHeart(userId, event, before);
+
       haptics.selection();
     } catch (error) {
       console.warn('[Proposals] heart failed', error);

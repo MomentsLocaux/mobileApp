@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -15,7 +16,7 @@ import { EventFilters } from '../../components/events';
 import { MapDiscoveryEventCard } from '@/components/search/MapDiscoveryEventCard';
 import { sharePublishedEvent } from '@/utils/event-share';
 import { AppBackground } from '@/components/ui';
-import { syncHeartStores, toggleEventHeart } from '@/utils/event-heart';
+import { toggleEventHeart } from '@/utils/event-heart';
 import { useAuth } from '../../hooks';
 import { useLocationStore, useFilterStore } from '../../store';
 import { filterEvents } from '../../utils/filter-events';
@@ -30,8 +31,8 @@ export default function EventsListScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { currentLocation } = useLocationStore();
-  const { favorites, toggleFavorite } = useFavoritesStore();
-  const { likedEventIds, toggleLike } = useLikesStore();
+  const { favorites } = useFavoritesStore();
+  const { likedEventIds } = useLikesStore();
   const { filters, focusedIds, setFilters, resetFilters, getActiveFilterCount } = useFilterStore();
   const { events: fetchedEvents, loading: loadingEvents, reload } = useEvents({ limit: 100 });
 
@@ -97,10 +98,11 @@ export default function EventsListScreen() {
       isFavorite: favoritesSet.has(event.id),
     };
     try {
-      const after = await toggleEventHeart(profile.id, event, before);
-      syncHeartStores(event, before, after, { toggleLike, toggleFavorite });
+      await toggleEventHeart(profile.id, event, before);
+
     } catch (error) {
       console.warn('toggle heart error', error);
+      Alert.alert('Enregistrement impossible', 'Réessaie dans un instant.');
     }
   };
 

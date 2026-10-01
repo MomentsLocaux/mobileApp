@@ -6,6 +6,7 @@ import { persistStorage } from './persistStorage';
 interface FavoritesState {
   favorites: EventWithCreator[];
   toggleFavorite: (event: EventWithCreator) => void;
+  setFavorite: (event: EventWithCreator, favorite: boolean) => void;
   replaceFavorites: (events: EventWithCreator[]) => void;
   isFavorite: (eventId: string) => boolean;
   clearFavorites: () => void;
@@ -15,6 +16,11 @@ export const useFavoritesStore = create<FavoritesState>()(
   persist(
     (set, get) => ({
       favorites: [],
+      setFavorite: (event, favorite) => set((state) => ({
+        favorites: favorite
+          ? [event, ...state.favorites.filter((item) => item.id !== event.id)]
+          : state.favorites.filter((item) => item.id !== event.id),
+      })),
       toggleFavorite: (event) =>
         set((state) => {
           const exists = state.favorites.find((e) => e.id === event.id);
@@ -25,7 +31,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         }),
       replaceFavorites: (events) =>
         set({
-          favorites: Array.isArray(events) ? events.slice(0, 200) : [],
+          favorites: Array.isArray(events) ? events : [],
         }),
       isFavorite: (eventId) => !!get().favorites.find((e) => e.id === eventId),
       clearFavorites: () => set({ favorites: [] }),
