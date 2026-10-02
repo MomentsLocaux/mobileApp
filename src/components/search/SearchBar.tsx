@@ -1273,18 +1273,72 @@ const SectionCard: React.FC<{
   icon?: React.ReactNode;
   onPress: () => void;
   children: React.ReactNode;
-}> = ({ title, summary, active, icon, onPress, children }) => (
-  <View style={[styles.card, active && styles.cardActive]}>
-    <TouchableOpacity style={styles.cardHeader} onPress={onPress}>
-      <View style={styles.cardTitleRow}>
-        {icon}
-        <Text style={styles.cardTitle}>{title}</Text>
-      </View>
-      {!active && summary ? <Text style={styles.cardSummary}>{summary}</Text> : null}
-    </TouchableOpacity>
-    {active && <View style={styles.cardContent}>{children}</View>}
-  </View>
-);
+}> = ({ title, summary, active, icon, onPress, children }) => {
+  const reduceMotion = useReduceMotion();
+  const progress = useSharedValue(active ? 1 : 0);
+  const contentHeight = useSharedValue(0);
+  const wasActive = useRef(!!active);
+  const [measured, setMeasured] = useState(false);
+
+  useEffect(() => {
+    if (wasActive.current && !active) Keyboard.dismiss();
+    wasActive.current = !!active;
+    const next = active ? 1 : 0;
+    progress.value = reduceMotion
+      ? next
+      : withTiming(
+          next,
+          active
+            ? createEnterTiming(Motion.duration.slow)
+            : createExitTiming(Motion.duration.normal),
+        );
+  }, [active, progress, reduceMotion]);
+
+  const bodyStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(progress.value, [0, 0.22, 1], [0, 1, 1], Extrapolate.CLAMP);
+    if (contentHeight.value <= 0) {
+      return progress.value === 0 ? { height: 0, opacity: 0 } : { opacity: 1 };
+    }
+    return {
+      height: contentHeight.value * progress.value,
+      opacity,
+    };
+  });
+
+  const summaryStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.4], [1, 0], Extrapolate.CLAMP),
+  }));
+
+  return (
+    <View style={[styles.card, active && styles.cardActive]}>
+      <TouchableOpacity style={styles.cardHeader} onPress={onPress} accessibilityRole="button" accessibilityState={{ expanded: !!active }}>
+        <View style={styles.cardTitleRow}>
+          {icon}
+          <Text style={styles.cardTitle}>{title}</Text>
+        </View>
+        {summary ? (
+          <Animated.Text style={[styles.cardSummary, summaryStyle]} numberOfLines={1}>
+            {summary}
+          </Animated.Text>
+        ) : null}
+      </TouchableOpacity>
+      <Animated.View style={[styles.cardBody, bodyStyle]} pointerEvents={active ? 'auto' : 'none'}>
+        <View
+          style={[styles.cardContent, (measured || !active) && styles.cardContentFloating]}
+          onLayout={(event) => {
+            const next = event.nativeEvent.layout.height;
+            if (next > 0 && Math.abs(next - contentHeight.value) > 0.5) {
+              contentHeight.value = next;
+              if (!measured) setMeasured(true);
+            }
+          }}
+        >
+          {children}
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
 
 const formatDate = (value: string | Date) => {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -1434,10 +1488,22 @@ const styles = StyleSheet.create({
   cardSummary: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+    flexShrink: 1,
+    marginLeft: spacing.sm,
+    textAlign: 'right',
+  },
+  cardBody: {
+    overflow: 'hidden',
   },
   cardContent: {
-    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
     gap: spacing.sm,
+  },
+  cardContentFloating: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
   },
   input: {
     backgroundColor: 'rgba(255,255,255,0.08)',

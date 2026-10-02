@@ -318,9 +318,9 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
   }
 
   const durationLabels: Record<EventDurationBucket, string> = {
-    exceptional: 'Exceptionnels',
-    short: 'Courts',
-    long: 'Longs',
+    exceptional: 'Exceptionnel',
+    short: 'Court',
+    long: 'Long',
   };
   for (const bucket of filters.content.duration) {
     parts.push(durationLabels[bucket]);

@@ -5,10 +5,10 @@ import { colors, typography } from '@/constants/theme';
 import type { EventDurationBucket } from '@/types/filters';
 import { normalizeDurationSelection } from '@/utils/event-duration';
 
-export const EVENT_DURATION_OPTIONS: { key: EventDurationBucket; label: string }[] = [
-  { key: 'exceptional', label: '1 à 3 jours' },
-  { key: 'short', label: '4 à 14 jours' },
-  { key: 'long', label: '15 jours et +' },
+export const EVENT_DURATION_OPTIONS: { key: EventDurationBucket; label: string; caption: string }[] = [
+  { key: 'exceptional', label: 'Exceptionnel', caption: '1 à 3 jours' },
+  { key: 'short', label: 'Court', caption: '4 à 14 j' },
+  { key: 'long', label: 'Long', caption: '15 jours et +' },
 ];
 
 export function EventDurationSelector({ values, onChange, testID }: {
