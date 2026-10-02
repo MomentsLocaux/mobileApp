@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import type { EventWithCreator } from '@/types/database';
 import { isEventHearted, toggleEventHeart } from '@/utils/event-heart';
@@ -19,10 +19,11 @@ export function useMapSocialActions({
   favoritesSet,
 }: Params) {
   const pending = useRef(new Set<string>());
+  const [guestGate, setGuestGate] = useState<string | null>(null);
   const handleToggleHeart = useCallback(
     async (event: EventWithCreator): Promise<MapHeartToggleResult | null> => {
       if (!profileId) {
-        Alert.alert('Connexion nécessaire', 'Connectez-vous pour aimer et enregistrer un événement.');
+        setGuestGate('Aimer cet événement');
         return null;
       }
       if (pending.current.has(event.id)) return null;
@@ -50,7 +51,11 @@ export function useMapSocialActions({
     [favoritesSet, likesSet, profileId]
   );
 
-  return { handleToggleHeart };
+  return {
+    handleToggleHeart,
+    guestGate,
+    closeGuestGate: () => setGuestGate(null),
+  };
 }
 
 export function isHeartedInSets(eventId: string, likesSet: Set<string>, favoritesSet: Set<string>): boolean {

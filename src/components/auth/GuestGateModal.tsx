@@ -8,7 +8,6 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -81,18 +80,14 @@ export const GuestGateModal = ({ visible, title, onClose, onSignUp, onSignIn }: 
             styles.sheet,
             { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm },
             sheetStyle,
+            { zIndex: 2 },
           ]}
         >
-          <LinearGradient
-            colors={['rgba(124, 181, 24,0.18)', 'rgba(26,36,38,0)']}
-            style={styles.glow}
-            pointerEvents="none"
-          />
           <View style={styles.handle} />
 
           <View style={styles.headerRow}>
             <View style={styles.iconBubble}>
-              <UserPlus size={22} color={colors.brand.primary} strokeWidth={2.25} />
+              <UserPlus size={22} color={colors.brand.secondary} strokeWidth={2.25} />
             </View>
             <FloatingPressable
               style={styles.closeBtn}
@@ -101,16 +96,16 @@ export const GuestGateModal = ({ visible, title, onClose, onSignUp, onSignIn }: 
               accessibilityLabel="Fermer"
               animateEntrance={false}
             >
-              <X size={18} color={colors.brand.text} />
+              <X size={18} color={colors.brand.textSecondary} />
             </FloatingPressable>
           </View>
 
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>
-            Cette fonctionnalité est réservée aux membres de Moments Locaux.
+            Un compte est nécessaire pour cette action.
           </Text>
           <Text style={styles.value}>
-            Créez un compte pour publier, enregistrer vos découvertes et participer à la vie locale.
+            Vous pouvez continuer à parcourir les moments en invité. Créez un compte, ou connectez-vous, pour participer.
           </Text>
 
           <Button title="Créer un compte" onPress={onSignUp} fullWidth />
@@ -149,36 +144,28 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   androidDim: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   backdropTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8, 14, 16, 0.45)',
+    backgroundColor: 'rgba(15, 23, 25, 0.35)',
   },
   sheet: {
-    backgroundColor: '#121a1c',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: colors.brand.page,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderColor: 'rgba(26, 51, 41, 0.08)',
     gap: spacing.sm,
-  },
-  glow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 110,
   },
   handle: {
     alignSelf: 'center',
-    width: 42,
+    width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(26, 51, 41, 0.2)',
     marginBottom: spacing.sm,
   },
   headerRow: {
@@ -189,10 +176,10 @@ const styles = StyleSheet.create({
   iconBubble: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand.secondary,
+    backgroundColor: 'rgba(124, 181, 24, 0.12)',
   },
   closeBtn: {
     width: 40,
@@ -200,9 +187,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.brand.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(26, 51, 41, 0.12)',
   },
   title: {
     ...typography.h4,

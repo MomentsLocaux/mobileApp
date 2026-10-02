@@ -639,11 +639,11 @@ export default function TabsLayout() {
             tabBarHeight={tabBarHeight}
             hidden={drawerOpen || lumiaTourVisible}
             color={accent.accent}
-            accessibilityLabel={contributionFabLabel}
+            accessibilityLabel={isGuest ? 'Créer un compte pour participer' : contributionFabLabel}
             onPress={() => {
               haptics.selection();
-              if (isGuest && !publishSurfaces.showCenterTabAction) {
-                openGuestGate('Reporter un bug');
+              if (isGuest) {
+                openGuestGate('Participer à Moments Locaux');
                 return;
               }
               setContributeOpen(true);
@@ -790,7 +790,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     inset: 0,
     backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: 40,
+    // Above the fixed tab bar (zIndex 100) so the open menu, including logout, stays tappable.
+    zIndex: 110,
+    elevation: 110,
   },
   drawer: {
     position: 'absolute',
@@ -804,7 +806,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderLeftWidth: 1,
     borderLeftColor: 'rgba(26, 51, 41, 0.08)',
-    zIndex: 40,
+    zIndex: 120,
+    elevation: 120,
   },
 
   drawerHeader: {

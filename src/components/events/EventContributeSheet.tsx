@@ -98,7 +98,9 @@ export function EventContributeSheet({
 
   const ensureAuth = (gateTitle: string) => {
     if (isGuest) {
-      closeAnimated();
+      // Close this sheet in the same turn. A second modal on top of a closing one
+      // leaves an invisible touch layer and freezes the app.
+      onClose();
       onRequireAuth?.(gateTitle);
       return false;
     }
@@ -197,7 +199,7 @@ export function EventContributeSheet({
           style={[
             styles.sheet,
             sheetStyle,
-            { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.sm },
+            { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.sm, zIndex: 2 },
           ]}
         >
           <View style={styles.handleRow}>

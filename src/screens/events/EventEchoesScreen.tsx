@@ -18,6 +18,7 @@ import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import { features } from '@/config/features';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { isEventOrganizerOwner } from '@/utils/event-organizer';
 
@@ -26,6 +27,7 @@ export default function EventEchoesScreen() {
   const router = useRouter();
   const { profile, session } = useAuth();
   const isGuest = !session;
+  const [guestGate, setGuestGate] = useState('');
   const { comments, loading: loadingComments, addComment, reload: reloadComments, editComment, removeComment } = useComments(id || '');
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
@@ -132,7 +134,7 @@ export default function EventEchoesScreen() {
   const handleAddPhoto = () => {
     if (!event) return;
     if (communityPhotoEligibility.reason === 'sign_in') {
-      Alert.alert('Connexion requise', 'Connectez-vous pour proposer une photo à la communauté.');
+      setGuestGate('Proposer une photo');
       return;
     }
     if (communityPhotoEligibility.reason === 'checkin_required') {
@@ -191,7 +193,7 @@ export default function EventEchoesScreen() {
 
   const handleToggleCommentLike = async (commentId: string) => {
     if (isGuest || !profile?.id || likingCommentId) {
-      if (isGuest) Alert.alert('Connexion requise', 'Connectez-vous pour aimer un commentaire.');
+      if (isGuest) setGuestGate('Aimer un commentaire');
       return;
     }
     setLikingCommentId(commentId);
@@ -215,7 +217,7 @@ export default function EventEchoesScreen() {
 
   const handleOpenReport = (commentId: string) => {
     if (isGuest) {
-      Alert.alert('Connexion requise', 'Connectez-vous pour signaler un commentaire.');
+      setGuestGate('Signaler un commentaire');
       return;
     }
     setReportCommentId(commentId);
@@ -536,6 +538,19 @@ export default function EventEchoesScreen() {
           setReportCommentId(null);
         }}
         onSelect={handleReportComment}
+      />
+      <GuestGateModal
+        visible={!!guestGate}
+        title={guestGate}
+        onClose={() => setGuestGate('')}
+        onSignUp={() => {
+          setGuestGate('');
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          setGuestGate('');
+          router.push('/auth/login' as any);
+        }}
       />
     </View>
   );
