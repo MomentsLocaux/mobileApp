@@ -12,6 +12,7 @@ import type {
   UserSubscription,
 } from '@/types/discovery.types';
 import type { EventCorrectionProposal } from '@/types/event-correction';
+import type { EventDurationBucket } from '@/types/filters';
 import type { EventSubmissionSource } from '@/types/event-submission';
 
 export type Json =
@@ -32,8 +33,8 @@ export interface Database {
       };
       events: {
         Row: Event;
-        Insert: Omit<Event, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Event, 'id'>>;
+        Insert: Omit<Event, 'id' | 'created_at' | 'updated_at' | 'duration_bucket'>;
+        Update: Partial<Omit<Event, 'id' | 'duration_bucket'>>;
       };
       event_media: {
         Row: EventMedia;
@@ -292,6 +293,8 @@ export interface Event {
   tags: string[];
   starts_at: string;
   ends_at: string;
+  /** Generated. exceptional = 1–3 UTC days, short = 4–14, long = 15+. Null if bounds are missing or inverted. */
+  duration_bucket?: EventDurationBucket | null;
   schedule_mode: string | null;
   recurrence_rule: string | null;
   latitude: number;

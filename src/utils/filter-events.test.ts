@@ -83,18 +83,21 @@ describe('event client filters', () => {
       '2099-01-01T10:00:00.000Z',
       '2099-01-10T14:00:00.000Z'
     );
+    shortMusic.duration_bucket = 'short';
     (shortMusic as { category: string }).category = 'music';
     const longMusic = event(
       'long-music',
       '2099-01-01T10:00:00.000Z',
       '2099-02-01T10:00:00.000Z'
     );
+    longMusic.duration_bucket = 'long';
     (longMusic as { category: string }).category = 'music';
     const shortSport = event(
       'short-sport',
       '2099-01-01T10:00:00.000Z',
       '2099-01-01T12:00:00.000Z'
     );
+    shortSport.duration_bucket = 'exceptional';
     (shortSport as { category: string }).category = 'sport';
 
     const result = filterEvents([shortMusic, longMusic, shortSport], {

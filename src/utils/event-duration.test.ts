@@ -1,95 +1,66 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { EventWithCreator } from '../types/database';
-import { classifyEventSpan, eventMatchesDuration } from './event-duration';
+import { eventMatchesDuration, normalizeDurationBucket } from './event-duration';
+import { hydrateDurationBuckets } from './event-duration-hydration';
 
-const event = (
-  startsAt: string,
-  endsAt: string | null,
-  operatingHours: unknown = null
-): EventWithCreator =>
-  ({
-    starts_at: startsAt,
-    ends_at: endsAt,
-    operating_hours: operatingHours,
-    schedule_mode: operatingHours ? 'recurrent' : 'ponctuel',
-  }) as unknown as EventWithCreator;
-
-describe('event span duration', () => {
-  it('treats a same-day event as exceptional only', () => {
-    const sameDay = event('2026-10-02T10:00:00+02:00', '2026-10-02T23:00:00+02:00');
-    assert.equal(classifyEventSpan(sameDay), 'exceptional');
-    assert.equal(eventMatchesDuration(sameDay, ['exceptional']), true);
-    assert.equal(eventMatchesDuration(sameDay, ['short']), false);
-    assert.equal(eventMatchesDuration(sameDay, ['long']), false);
+describe('server duration bucket', () => {
+  it('uses the stored bucket even when local dates suggest another duration', () => {
+    const event = { starts_at: '2026-10-01T10:00:00Z', ends_at: '2026-10-01T11:00:00Z', duration_bucket: 'long' } as EventWithCreator;
+    assert.equal(eventMatchesDuration(event, ['long']), true);
+    assert.equal(eventMatchesDuration(event, ['exceptional']), false);
+    assert.equal(eventMatchesDuration(event, ['short', 'long']), true);
   });
-
-  it('includes the 3-day boundary in exceptional only', () => {
-    const threeDays = event('2026-10-02T18:00:00+02:00', '2026-10-04T22:00:00+02:00');
-    assert.equal(classifyEventSpan(threeDays), 'exceptional');
-    assert.equal(eventMatchesDuration(threeDays, ['exceptional']), true);
-    assert.equal(eventMatchesDuration(threeDays, ['short']), false);
+  it('does not access dates or schedules when filtering', () => {
+    const event = { duration_bucket: 'short', get starts_at() { throw new Error('no date calculation'); }, get ends_at() { throw new Error('no date calculation'); } } as unknown as EventWithCreator;
+    assert.equal(eventMatchesDuration(event, ['short']), true);
+    assert.equal(eventMatchesDuration(event, ['long']), false);
   });
-
-  it('classifies day 4 as short only', () => {
-    const fourDays = event('2026-10-01T10:00:00+02:00', '2026-10-04T10:00:00+02:00');
-    assert.equal(classifyEventSpan(fourDays), 'short');
-    assert.equal(eventMatchesDuration(fourDays, ['exceptional']), false);
-    assert.equal(eventMatchesDuration(fourDays, ['short']), true);
-    assert.equal(eventMatchesDuration(fourDays, ['long']), false);
-  });
-
-  it('includes the 14-day boundary in short and classifies day 15 as long', () => {
-    const fourteen = event('2026-10-01T08:00:00+02:00', '2026-10-14T20:00:00+02:00');
-    const fifteen = event('2026-10-01T08:00:00+02:00', '2026-10-15T08:00:00+02:00');
-    assert.equal(classifyEventSpan(fourteen), 'short');
-    assert.equal(eventMatchesDuration(fourteen, ['short']), true);
-    assert.equal(eventMatchesDuration(fourteen, ['long']), false);
-    assert.equal(classifyEventSpan(fifteen), 'long');
-    assert.equal(eventMatchesDuration(fifteen, ['long']), true);
-    assert.equal(eventMatchesDuration(fifteen, ['short']), false);
-  });
-
-  it('keeps only the selected categories when several are chosen', () => {
-    const exceptional = event('2026-10-02T10:00:00+02:00', '2026-10-02T18:00:00+02:00');
-    const short = event('2026-10-01T10:00:00+02:00', '2026-10-08T10:00:00+02:00');
-    const long = event('2026-10-01T10:00:00+02:00', '2026-11-01T10:00:00+02:00');
-    const selected = ['short', 'long'] as const;
-
-    assert.equal(eventMatchesDuration(exceptional, selected), false);
-    assert.equal(eventMatchesDuration(short, selected), true);
-    assert.equal(eventMatchesDuration(long, selected), true);
-    assert.equal(eventMatchesDuration(exceptional, ['exceptional', 'short']), true);
-    assert.equal(eventMatchesDuration(long, []), true);
-  });
-
-  it('counts calendar days across a DST change', () => {
-    const overnight = event('2026-10-24T23:30:00+02:00', '2026-10-25T02:30:00+01:00');
-    assert.equal(classifyEventSpan(overnight), 'exceptional');
-  });
-
-  it('uses the publication span for recurring schedules', () => {
-    const exhibition = event(
-      '2026-10-01T00:00:00+02:00',
-      '2027-03-31T23:59:00+02:00',
-      [{ kind: 'fixed', open_days: [2, 4], slots: [{ opens: '10:00', closes: '12:00' }] }]
-    );
-    assert.equal(classifyEventSpan(exhibition), 'long');
-    assert.equal(eventMatchesDuration(exhibition, ['long']), true);
-    assert.equal(eventMatchesDuration(exhibition, ['short']), false);
-  });
-
-  it('keeps missing and reversed bounds under all only', () => {
-    const missing = event('2026-10-02T10:00:00+02:00', null);
-    const reversed = event('2026-10-02T10:00:00+02:00', '2026-10-02T09:00:00+02:00');
-
-    for (const value of [missing, reversed]) {
-      assert.equal(classifyEventSpan(value), 'unknown');
-      assert.equal(eventMatchesDuration(value, []), true);
-      assert.equal(eventMatchesDuration(value, ['exceptional']), false);
-      assert.equal(eventMatchesDuration(value, ['short']), false);
-      assert.equal(eventMatchesDuration(value, ['long']), false);
-      assert.equal(eventMatchesDuration(value, ['exceptional', 'short', 'long']), false);
+  it('keeps unknown, absent and invalid buckets only without a duration filter', () => {
+    for (const bucket of [undefined, null, '', 'unknown', 'SHORT', 3]) {
+      const event = { duration_bucket: bucket } as EventWithCreator;
+      assert.equal(normalizeDurationBucket(bucket), null);
+      assert.equal(eventMatchesDuration(event, []), true);
+      assert.equal(eventMatchesDuration(event, undefined), true);
+      assert.equal(eventMatchesDuration(event, ['exceptional', 'short', 'long']), false);
     }
+  });
+  it('matches each bucket exclusively and allows unions', () => {
+    for (const bucket of ['exceptional', 'short', 'long'] as const) {
+      assert.equal(eventMatchesDuration({ duration_bucket: bucket }, [bucket]), true);
+      assert.equal(eventMatchesDuration({ duration_bucket: bucket }, []), true);
+      const others = (['exceptional', 'short', 'long'] as const).filter(value => value !== bucket);
+      assert.equal(eventMatchesDuration({ duration_bucket: bucket }, others), false);
+    }
+  });
+});
+
+describe('duration bucket RPC hydration', () => {
+  it('fetches missing fields once, preserves order and explicit null, and never mutates input', async () => {
+    const rows = [{ id: 'a' }, { id: 'b', duration_bucket: null }, { id: 'a' }, { id: 'c', duration_bucket: 'short' }];
+    const calls: string[][] = [];
+    const result = await hydrateDurationBuckets(rows, async ids => {
+      calls.push(ids);
+      return [{ id: 'a', duration_bucket: 'long' }];
+    });
+    assert.deepEqual(calls, [['a']]);
+    assert.deepEqual(result.map(row => row.duration_bucket), ['long', null, 'long', 'short']);
+    assert.equal(rows[0].duration_bucket, undefined);
+    assert.deepEqual(result.map(row => row.id), ['a', 'b', 'a', 'c']);
+  });
+  it('avoids extra requests when the RPC already returns the column', async () => {
+    const fetch = async () => { throw new Error('unexpected fetch'); };
+    assert.deepEqual(await hydrateDurationBuckets([], fetch), []);
+    assert.deepEqual(await hydrateDurationBuckets([{ id: 'a', duration_bucket: 'exceptional' }], fetch), [{ id: 'a', duration_bucket: 'exceptional' }]);
+  });
+  it('bounds requests and treats inaccessible rows as unknown', async () => {
+    const rows = Array.from({ length: 401 }, (_, id) => ({ id: String(id) }));
+    const sizes: number[] = [];
+    const result = await hydrateDurationBuckets(rows, async ids => { sizes.push(ids.length); return []; });
+    assert.deepEqual(sizes, [200, 200, 1]);
+    assert.ok(result.every(row => row.duration_bucket === null));
+  });
+  it('propagates failure instead of returning an apparently complete unfiltered response', async () => {
+    await assert.rejects(hydrateDurationBuckets([{ id: 'a' }], async () => { throw new Error('network'); }), /network/);
   });
 });

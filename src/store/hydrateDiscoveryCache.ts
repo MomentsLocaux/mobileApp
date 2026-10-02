@@ -10,8 +10,8 @@ import {
   useTaxonomyStore,
 } from './taxonomyStore';
 
-const EVENT_CACHE_STORAGE_KEY = 'event-cache-store';
-const DISCOVERY_SNAPSHOT_STORAGE_KEY = 'discovery-snapshots';
+const EVENT_CACHE_STORAGE_KEY = 'event-cache-store-v2-duration-bucket';
+const DISCOVERY_SNAPSHOT_STORAGE_KEY = 'discovery-snapshots-v2-duration-bucket';
 const PERSIST_DEBOUNCE_MS = 750;
 
 type PersistedSnapshots = {

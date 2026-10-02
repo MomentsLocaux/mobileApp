@@ -1,3 +1,5 @@
+import { hydrateDurationBuckets } from '@/utils/event-duration-hydration';
+import { normalizeDurationBucket } from '@/utils/event-duration';
 import { supabase } from '@/lib/supabase/client';
 import type { IBugsProvider, IDataProvider } from './types';
 import type { CommentWithAuthor, Event, EventWithCreator, Profile } from '@/types/database';
@@ -20,6 +22,16 @@ const formatSupabaseError = (error: any, context: string) => {
   const details = [error?.code, error?.details, error?.hint].filter(Boolean).join(' | ');
   return new Error(`[${context}] ${rawMessage}${details ? ` (${details})` : ''}`);
 };
+
+/** Older discovery payloads omit duration_bucket. Current RPCs return it, so this stays idle. */
+async function withDurationBuckets(rows: Record<string, unknown>[], signal?: AbortSignal) {
+  return hydrateDurationBuckets(rows, async ids => {
+    const query = supabase.rpc('get_events_by_ids', { ids }).select('id,duration_bucket');
+    const { data, error } = await (signal ? query.abortSignal(signal) : query);
+    if (error) throw formatSupabaseError(error, 'getEventDurationBuckets');
+    return (data || []) as { id: string; duration_bucket: unknown }[];
+  });
+}
 
 const AVATAR_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatar';
 const EVENT_COVER_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_EVENT_COVER_BUCKET || 'event-media';
@@ -116,6 +128,7 @@ const EVENT_FULL_SELECT = `
   tags,
   starts_at,
   ends_at,
+  duration_bucket,
   schedule_mode,
   recurrence_rule,
   latitude,
@@ -175,6 +188,7 @@ const EVENT_CARD_SELECT = `
   tags,
   starts_at,
   ends_at,
+  duration_bucket,
   schedule_mode,
   latitude,
   longitude,
@@ -223,6 +237,7 @@ const mapViewportRowToEvent = (row: Record<string, unknown>): EventWithCreator =
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     starts_at: row.starts_at ? String(row.starts_at) : null,
     ends_at: row.ends_at ? String(row.ends_at) : null,
+    duration_bucket: normalizeDurationBucket(row.duration_bucket),
     schedule_mode: (row.schedule_mode as string) || null,
     latitude: row.latitude != null ? Number(row.latitude) : null,
     longitude: row.longitude != null ? Number(row.longitude) : null,
@@ -586,7 +601,7 @@ export const supabaseProvider: (Pick<
     }
 
     const now = Date.now();
-    const rows = (data || []) as Record<string, unknown>[];
+    const rows = await withDurationBuckets((data || []) as Record<string, unknown>[], signal);
     const events = rows.map((row) => mapViewportRowToEvent(row));
 
     const features = events
@@ -655,7 +670,8 @@ export const supabaseProvider: (Pick<
       throw formatSupabaseError(error, 'listProposalCandidates');
     }
 
-    return ((data || []) as Record<string, unknown>[]).map((row) => mapViewportRowToEvent(row));
+    const rows = await withDurationBuckets((data || []) as Record<string, unknown>[]);
+    return rows.map((row) => mapViewportRowToEvent(row));
   },
 
   async createEvent(payload: Partial<Event>) {

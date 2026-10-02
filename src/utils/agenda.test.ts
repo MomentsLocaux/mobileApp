@@ -133,8 +133,8 @@ test('lists group by calendar day with a french heading', () => {
 
 
 test('agenda refinement intersects categories, subcategories and duration while preserving past events', () => {
-  const past = { ...event('past', '2020-01-01T10:00:00Z', '2020-01-02T18:00:00Z'), category: 'arts', subcategory: 'expo' };
-  const long = { ...event('long', '2026-09-01T10:00:00Z', '2026-09-30T18:00:00Z'), category: 'arts', subcategory: 'expo' };
+  const past = { ...event('past', '2020-01-01T10:00:00Z', '2020-01-02T18:00:00Z'), category: 'arts', subcategory: 'expo', duration_bucket: 'exceptional' as const };
+  const long = { ...event('long', '2026-09-01T10:00:00Z', '2026-09-30T18:00:00Z'), category: 'arts', subcategory: 'expo', duration_bucket: 'long' as const };
   const otherSub = { ...past, id: 'theatre', subcategory: 'theatre' };
   const otherCategory = { ...past, id: 'sport', category: 'sport' };
   const events = [past, long, otherSub, otherCategory];
@@ -148,8 +148,8 @@ test('agenda refinement intersects categories, subcategories and duration while 
 });
 
 test('agenda refinement keeps calendar counts and date-range list on the same subset', () => {
-  const short = { ...event('short', '2026-09-22T10:00:00Z', '2026-09-22T18:00:00Z'), category: 'arts' };
-  const long = { ...event('long', '2026-09-01T10:00:00Z', '2026-09-30T18:00:00Z'), category: 'arts' };
+  const short = { ...event('short', '2026-09-22T10:00:00Z', '2026-09-22T18:00:00Z'), category: 'arts', duration_bucket: 'exceptional' as const };
+  const long = { ...event('long', '2026-09-01T10:00:00Z', '2026-09-30T18:00:00Z'), category: 'arts', duration_bucket: 'long' as const };
   const filtered = filterAgendaContentEvents([short, long], { duration: ['exceptional'] });
   const membership = { interestedIds: ['short', 'long'], participatingIds: [], organizingIds: [] };
   assert.equal(countAgendaDayActivities(filtered, tuesday, membership, { checkin: false, eventCreate: false }, now), 1);
