@@ -1,3 +1,5 @@
+import { CategoryFilterSelector } from '@/components/filters/CategoryFilterSelector';
+import { EventDurationSelector } from '@/components/filters/EventDurationSelector';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -21,8 +23,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { Motion, createEnterTiming, createExitTiming } from '@/constants/motion';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { getCategoryColor } from '@/constants/categories';
-import { getCategoryLucideIcon } from '@/constants/category-visuals';
 import {
   FilterChip,
   FilterChipRow,
@@ -59,6 +59,7 @@ interface Props {
   onApply: (draft: MapViewportFilterDraft) => void;
   value: MapViewportFilterDraft;
   searchActive?: boolean;
+  context?: 'map' | 'agenda';
 }
 
 function cloneDraft(value: MapViewportFilterDraft): MapViewportFilterDraft {
@@ -85,7 +86,7 @@ function draftsEqual(a: MapViewportFilterDraft, b: MapViewportFilterDraft): bool
   );
 }
 
-function defaultViewportDraft(): MapViewportFilterDraft {
+export function defaultViewportDraft(): MapViewportFilterDraft {
   const next = defaultDiscoveryTemporalFilters();
   return {
     status: next.status,
@@ -111,6 +112,7 @@ export function MapFiltersSheet({
   onApply,
   value,
   searchActive = false,
+  context = 'map',
 }: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
@@ -173,29 +175,6 @@ export function MapFiltersSheet({
     []
   );
 
-  const durationOptions = useMemo<FilterChipRowOption<EventDurationBucket>[]>(
-    () => [
-      { key: 'exceptional', label: 'Exceptionnels' },
-      { key: 'short', label: 'Courts' },
-      { key: 'long', label: 'Longs' },
-    ],
-    []
-  );
-
-  const categoryOptions = useMemo<FilterChipRowOption<string>[]>(
-    () =>
-      categories.map((cat) => {
-        const Icon = getCategoryLucideIcon(cat.slug);
-        const iconColor = getCategoryColor(cat.id);
-        return {
-          key: cat.id,
-          label: cat.label,
-          icon: <Icon size={14} color={iconColor} />,
-        };
-      }),
-    [categories]
-  );
-
   const subcategoryOptions = useMemo<FilterChipRowOption<string>[]>(
     () =>
       visibleSubcategories.map((sub) => ({
@@ -204,10 +183,6 @@ export function MapFiltersSheet({
       })),
     [visibleSubcategories]
   );
-
-  const allCategoryIds = useMemo(() => categoryOptions.map((item) => item.key), [categoryOptions]);
-  const allCategoriesSelected =
-    allCategoryIds.length > 0 && draft.categories.length === allCategoryIds.length;
 
   const handleTemporalChoice = (choice: SearchTemporalChoice) => {
     const next = filtersForSearchTemporalChoice(choice);
@@ -236,14 +211,6 @@ export function MapFiltersSheet({
         return sub ? nextCategories.includes(sub.category_id) : false;
       }),
     }));
-  };
-
-  const toggleAllCategories = () => {
-    if (allCategoriesSelected) {
-      setDraft((current) => ({ ...current, categories: [], subcategories: [] }));
-      return;
-    }
-    handleCategoriesChange(allCategoryIds);
   };
 
   const handleReset = () => {
@@ -302,13 +269,15 @@ export function MapFiltersSheet({
               <X size={18} color={colors.brand.text} />
             </TouchableOpacity>
             <Text accessibilityRole="header" style={styles.title}>
-              Filtrer les événements
+              {context === 'agenda' ? 'Filtrer ton agenda' : 'Filtrer les événements'}
             </Text>
             <View style={styles.headerSpacer} />
           </View>
 
           <Text style={styles.hint}>
-            {searchActive
+            {context === 'agenda'
+              ? 'Affine tes moments. Pour changer de période, utilise le calendrier de ton agenda.'
+              : searchActive
               ? 'Affine les événements affichés, sans changer la zone.'
               : 'Ces filtres s’appliquent à la carte et à la liste, sans changer la zone.'}
           </Text>
@@ -319,7 +288,7 @@ export function MapFiltersSheet({
             showsVerticalScrollIndicator={false}
             style={styles.scroll}
           >
-            <View style={styles.section}>
+            {context === 'map' ? <View style={styles.section}>
               <Text style={styles.sectionTitle}>Par date</Text>
               <FilterChipRow
                 accessibilityLabel="Période"
@@ -351,60 +320,16 @@ export function MapFiltersSheet({
                   onPress={() => setShowRangePicker(true)}
                 />
               </FilterChipRow>
-            </View>
+            </View> : null}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Par durée</Text>
-              <FilterChipRow
-                accessibilityLabel="Durée des événements, plusieurs choix possibles"
-                mode="multi"
-                options={durationOptions}
-                scrollable={false}
-                size="sm"
-                testID="map-filters-duration"
-                values={draft.duration}
-                onChange={(duration) =>
-                  setDraft((current) => ({
-                    ...current,
-                    duration: normalizeDurationSelection(duration),
-                  }))
-                }
-              />
-              <Text style={styles.sectionHint}>
-                Sans sélection, tout reste visible. Chaque choix ne garde que sa catégorie :
-                exceptionnels jusqu’à 3 jours, courts de 4 à 14 jours, longs au-delà.
-              </Text>
+              <EventDurationSelector values={draft.duration} testID="map-filters-duration"
+                onChange={duration => setDraft(current => ({ ...current, duration }))} />
             </View>
-
-            {categoryOptions.length > 0 ? (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Par intérêts</Text>
-                  <TouchableOpacity
-                    accessibilityLabel={
-                      allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'
-                    }
-                    accessibilityRole="button"
-                    hitSlop={8}
-                    onPress={toggleAllCategories}
-                  >
-                    <Text style={styles.selectAllText}>
-                      {allCategoriesSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <FilterChipRow
-                  accessibilityLabel="Catégories"
-                  mode="multi"
-                  options={categoryOptions}
-                  scrollable={false}
-                  size="sm"
-                  testID="map-filters-categories"
-                  values={draft.categories}
-                  onChange={handleCategoriesChange}
-                />
-              </View>
-            ) : null}
+            <View style={styles.section}>
+              <CategoryFilterSelector categories={categories} values={draft.categories}
+                onChange={handleCategoriesChange} testID="map-filters-categories" />
+            </View>
 
             {subcategoryOptions.length > 0 ? (
               <View style={styles.section}>
@@ -527,24 +452,9 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.sm,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
   sectionTitle: {
     ...typography.body,
     color: colors.brand.text,
-    fontWeight: '700',
-  },
-  sectionHint: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-  },
-  selectAllText: {
-    ...typography.caption,
-    color: colors.brand.secondary,
     fontWeight: '700',
   },
   footer: {

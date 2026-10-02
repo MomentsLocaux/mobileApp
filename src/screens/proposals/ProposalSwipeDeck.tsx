@@ -1,3 +1,4 @@
+import { getCategoryLucideIcon } from '@/constants/category-visuals';
 import React, { useEffect, useMemo } from 'react';
 import {
   Pressable,
@@ -233,6 +234,7 @@ function ProposalCardContent({
   const image = getEventImageUrls(event)[0];
   const date = getHumanizedDate(event, { includeTime: false });
   const category = categoryMap.get(event.category || '');
+  const CategoryIcon = getCategoryLucideIcon(category?.slug);
   const categoryColor = category ? getCategoryColor(category.slug) : undefined;
   const categoryTextColor = category ? getCategoryTextColor(category.slug) : undefined;
   const description = getEventDescriptionPreview(event.description, 105);
@@ -246,7 +248,7 @@ function ProposalCardContent({
     <>
       {!image ? (
         <View style={styles.imageFallback}>
-          <Text style={styles.imageFallbackEmoji}>{category?.icon || '✨'}</Text>
+          <CategoryIcon size={64} color={categoryColor} />
         </View>
       ) : null}
       <LinearGradient
@@ -308,7 +310,6 @@ const styles = StyleSheet.create({
   card: { position: 'absolute', overflow: 'hidden', borderRadius: 30, backgroundColor: '#243136', borderWidth: 1, borderColor: '#3b4a4f', shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 12 },
   nextCard: { transform: [{ scale: 0.955 }, { translateY: 12 }], opacity: 0.7 },
   imageFallback: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#17333b' },
-  imageFallbackEmoji: { fontSize: 80, opacity: 0.75 },
   cardContent: { flex: 1, justifyContent: 'flex-end', padding: spacing.lg },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   categoryBadge: { paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: borderRadius.full, backgroundColor: colors.brand.secondary },

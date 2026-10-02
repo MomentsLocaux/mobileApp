@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, ChevronUp, Compass } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Compass, SlidersHorizontal } from 'lucide-react-native';
 import { AppBackground, BrandIcon, DiscoveryLoadingState, EmptyState, SlidingSegmentedControl, UserAvatar } from '@/components/ui';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { AgendaBucketRow } from '@/components/agenda/AgendaBucketRow';
@@ -25,6 +25,8 @@ import { FavoritesMapView } from '@/components/favorites/FavoritesMapView';
 import { NavigationOptionsSheet } from '@/components/search/NavigationOptionsSheet';
 import { features } from '@/config/features';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
+import { MapFiltersSheet, defaultViewportDraft } from '@/components/search/MapFiltersSheet';
+import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useAuth } from '@/hooks';
 import { useEventPublishSurfaces } from '@/hooks/useEventPublishSurfaces';
 import { AgendaService } from '@/services/agenda.service';
@@ -47,6 +49,7 @@ import {
   countAgendaDayActivities,
   eventOverlapsLocalRange,
   filterAgendaBucketEvents,
+  filterAgendaContentEvents,
   groupAgendaEventsByDay,
   isSameLocalDay,
   likedEventsInRange,
@@ -69,6 +72,10 @@ const HUB_TABS = [
 
 export default function AgendaScreen({ presentation = 'tab' }: Props) {
   const router = useRouter();
+  useTaxonomy();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [agendaFilters, setAgendaFilters] = useState(defaultViewportDraft);
+  const activeAgendaFilterCount = [agendaFilters.categories, agendaFilters.subcategories, agendaFilters.duration].filter(values => values.length > 0).length;
   const { day: dayParam } = useLocalSearchParams<{ day?: string }>();
   const appliedDayRef = useRef<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -117,7 +124,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
 
   useEffect(() => {
     closeSwipe();
-  }, [selectedDay, hubTab, selectedBucket, showMap, calendarExpanded, likedModalOpen, rangeStart, rangeEnd, closeSwipe]);
+  }, [selectedDay, hubTab, selectedBucket, showMap, calendarExpanded, likedModalOpen, filtersOpen, rangeStart, rangeEnd, closeSwipe]);
   useFocusEffect(useCallback(() => closeSwipe, [closeSwipe]));
 
   const ownerId = profile?.id || user?.id || session?.user?.id || null;
@@ -217,41 +224,48 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
     }
   }, [isLoading, load, loading, ownerId, session]);
 
+  const filteredEvents = useMemo(() => filterAgendaContentEvents(allEvents, agendaFilters), [allEvents, agendaFilters]);
+  const filteredInterestedEvents = useMemo(() => filterAgendaContentEvents(interestedEvents, agendaFilters), [interestedEvents, agendaFilters]);
+
+  useEffect(() => {
+    setMapPreviewEvent(current => current && filteredEvents.some(event => event.id === current.id) ? current : null);
+  }, [filteredEvents]);
+
   const dayCount = useMemo(
-    () => countAgendaDayActivities(allEvents, selectedDay, membership, flags, now),
-    [allEvents, flags, membership, now, selectedDay],
+    () => countAgendaDayActivities(filteredEvents, selectedDay, membership, flags, now),
+    [filteredEvents, flags, membership, now, selectedDay],
   );
   const markedKeys = useMemo(() => {
     const marked = new Set<string>();
     const days = calendarExpanded ? monthDays : weekDays;
     for (const day of days) {
-      if (interestedEvents.some((event) => eventOverlapsLocalRange(event, day, day))) marked.add(toLocalDateKey(day));
+      if (filteredInterestedEvents.some((event) => eventOverlapsLocalRange(event, day, day))) marked.add(toLocalDateKey(day));
     }
     return marked;
-  }, [calendarExpanded, interestedEvents, monthDays, weekDays]);
+  }, [calendarExpanded, filteredInterestedEvents, monthDays, weekDays]);
   const likedRangeEvents = useMemo(
-    () => (rangeStart ? likedEventsInRange(interestedEvents, rangeStart, rangeEnd ?? rangeStart) : []),
-    [interestedEvents, rangeEnd, rangeStart],
+    () => (rangeStart ? likedEventsInRange(filteredInterestedEvents, rangeStart, rangeEnd ?? rangeStart) : []),
+    [filteredInterestedEvents, rangeEnd, rangeStart],
   );
 
   const bucketCounts = useMemo(() => {
     const counts = {} as Record<AgendaBucketId, number>;
     for (const bucket of buckets) {
-      counts[bucket] = filterAgendaBucketEvents(allEvents, bucket, membership, {
+      counts[bucket] = filterAgendaBucketEvents(filteredEvents, bucket, membership, {
         day: bucket === 'past' ? null : selectedDay,
         now,
       }).length;
     }
     return counts;
-  }, [allEvents, buckets, membership, now, selectedDay]);
+  }, [filteredEvents, buckets, membership, now, selectedDay]);
 
   const bucketEvents = useMemo(() => {
     if (!selectedBucket) return [];
-    return filterAgendaBucketEvents(allEvents, selectedBucket, membership, {
+    return filterAgendaBucketEvents(filteredEvents, selectedBucket, membership, {
       day: selectedBucket === 'past' ? null : selectedDay,
       now,
     });
-  }, [allEvents, membership, now, selectedBucket, selectedDay]);
+  }, [filteredEvents, membership, now, selectedBucket, selectedDay]);
 
   const groupedBucketEvents = useMemo(() => groupAgendaEventsByDay(bucketEvents), [bucketEvents]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
@@ -389,7 +403,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
       <View style={styles.centered}>
         <AppBackground />
         <DiscoveryLoadingState
-          title="Nous préparons votre agenda"
+          title="On prépare ton agenda…"
           subtitle="Tes moments notés arrivent…"
         />
       </View>
@@ -431,7 +445,16 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
             <View style={styles.iconButtonGhost} />
           )}
           <Text style={styles.title}>Mon agenda</Text>
-          <View style={styles.iconButtonGhost} />
+          {hubTab === 'agenda' || isModal ? <TouchableOpacity
+            testID="agenda-filters-open"
+            style={[styles.filterButton, activeAgendaFilterCount > 0 && styles.filterButtonActive]}
+            accessibilityRole="button"
+            accessibilityLabel={`Filtrer ton agenda${activeAgendaFilterCount ? `, ${activeAgendaFilterCount} filtres actifs` : ''}`}
+            onPress={() => { closeSwipe(); setFiltersOpen(true); }}
+          >
+            <SlidersHorizontal size={20} color={colors.brand.text} />
+            {activeAgendaFilterCount > 0 ? <Text style={styles.filterCount}>{activeAgendaFilterCount}</Text> : null}
+          </TouchableOpacity> : <View style={styles.iconButtonGhost} /> }
         </View>
 
         {!isModal ? (
@@ -599,10 +622,10 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                     ) : null}
                     {bucketEvents.length === 0 ? (
                       <EmptyState
-                        title={AGENDA_BUCKET_COPY[bucket].emptyTitle}
-                        subtitle={AGENDA_BUCKET_COPY[bucket].emptySubtitle}
-                        ctaLabel="Découvrir les activités"
-                        onCtaPress={() => router.push('/(tabs)/map' as any)}
+                        title={activeAgendaFilterCount ? 'Aucun moment avec ces filtres' : AGENDA_BUCKET_COPY[bucket].emptyTitle}
+                        subtitle={activeAgendaFilterCount ? 'Essaie d’autres catégories ou durées pour cette période.' : AGENDA_BUCKET_COPY[bucket].emptySubtitle}
+                        ctaLabel={activeAgendaFilterCount ? 'Modifier les filtres' : 'Découvrir les activités'}
+                        onCtaPress={() => activeAgendaFilterCount ? setFiltersOpen(true) : router.push('/(tabs)/map' as any)}
                       />
                     ) : showMap && bucket === 'interested' ? (
                       <View style={styles.mapWrap}>
@@ -652,7 +675,7 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
                 ) : null}
               </View>
             ))}
-            {emptyHub ? (
+            {emptyHub && !activeAgendaFilterCount ? (
               <View style={styles.emptyHub}>
                 <AgendaEmptyIllustration />
                 <Text style={styles.emptyTitle}>Aucune activité</Text>
@@ -683,6 +706,8 @@ export default function AgendaScreen({ presentation = 'tab' }: Props) {
           </View>
         )}
       </View>
+      <MapFiltersSheet context="agenda" visible={filtersOpen} value={agendaFilters}
+        onClose={() => setFiltersOpen(false)} onApply={next => { setAgendaFilters(next); setMapPreviewEvent(null); }} />
       <AgendaLikedRangeModal
         visible={likedModalOpen}
         start={rangeStart}
@@ -743,6 +768,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(26, 51, 41, 0.10)',
   },
+  filterButton: {
+    minWidth: 44, minHeight: 44, paddingHorizontal: 10, borderRadius: 22,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: colors.brand.surface, borderWidth: 1, borderColor: colors.brand.line,
+  },
+  filterButtonActive: { backgroundColor: colors.brand.surfaceMuted, borderColor: colors.brand.secondary },
+  filterCount: { ...typography.caption, color: colors.brand.text, fontWeight: '700' },
   iconButtonGhost: {
     width: 40,
     height: 40,

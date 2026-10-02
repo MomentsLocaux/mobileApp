@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 import type { EventWithCreator } from '@/types/database';
 import type { EventCardStats } from '@/services/event-card-stats.service';
 import { features } from '@/config/features';
 import { colors, spacing, typography } from '@/constants/theme';
 import { getCategoryColor, getCategoryLabel } from '@/constants/categories';
-import { pickCategoryMetaSlug } from '@/constants/category-visuals';
-import { getCategoryMapMarkerSource } from '@/constants/map-marker-assets';
+import { getCategoryLucideIcon, pickCategoryMetaSlug } from '@/constants/category-visuals';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
-import { BrandIcon } from '@/components/ui/BrandIcon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { EventCoverImage } from '@/components/events/EventCoverImage';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
@@ -51,7 +49,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
   const categories = useTaxonomyStore((state) => state.categoriesMap);
   const category = categories[event.category ?? ''] ? event.category : pickCategoryMetaSlug(event.category_meta) || event.category || '';
   const categoryColor = getCategoryColor(category || '');
-  const categoryMarker = getCategoryMapMarkerSource(categories[category || '']?.slug || category);
+  const CategoryIcon = getCategoryLucideIcon(categories[category || '']?.slug || category);
   const compact = width < 360;
   const rowSize = (compact ? 124 : 140) + Math.min(24, Math.max(0, fontScale - 1) * 40);
   const label = getCategoryLabel(event.category || '', event.category_meta);
@@ -86,7 +84,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
   if (feed) {
     return (
       <View testID={`map-event-feed-${event.id}`} style={[styles.listing, carousel && styles.listingCarousel, framed && styles.listingFramed]}>
-        <View style={[styles.listingMedia, framed && styles.listingMediaFramed, { backgroundColor: `${categoryColor}18` }, active && { borderColor: categoryColor, borderWidth: 2 }]}>
+        <View style={[styles.listingMedia, framed && styles.listingMediaFramed, { backgroundColor: `${categoryColor}18` }]}>
           <Pressable
             onPress={open}
             onPressIn={() => prefetchEventMedia(event, { priority: 'visible' })}
@@ -97,8 +95,9 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
           >
             {cover && failedCover !== cover ? (
               <EventCoverImage uri={cover} recyclingKey={`${event.id}:${cover}`} variant="list" style={styles.cover} onError={() => setFailedCover(cover)} />
-            ) : <BrandIcon name="sparkles" size={36} fillColor={categoryColor} />}
+            ) : <CategoryIcon size={36} color={categoryColor} />}
           </Pressable>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderWidth: active ? 2.5 : 1.5, borderColor: categoryColor, borderRadius: framed ? 14 : 16 }]} />
           <EventHeartButton
             appearance="overlay"
             active={liked}
@@ -154,12 +153,13 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
       >
         {cover && failedCover !== cover ? (
           <EventCoverImage uri={cover} recyclingKey={`${event.id}:${cover}`} variant="list" style={styles.cover} onError={() => setFailedCover(cover)} />
-        ) : <BrandIcon name="sparkles" size={36} fillColor={categoryColor} />}
+        ) : <CategoryIcon size={36} color={categoryColor} />}
         {spotlight ? dateStamp : null}
         {spotlight && isMeaningfulPriceLabel(price) ? (
           <View style={styles.coverPrice}><Text style={styles.price}>{price}</Text></View>
         ) : null}
       </Pressable>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderWidth: 1.5, borderColor: categoryColor }]} />
       <EventHeartButton
         appearance="overlay"
         active={liked}
@@ -191,11 +191,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
         </View>
         <View testID="event-card-actions" style={styles.actions}>
           <View style={styles.category} accessible accessibilityRole="image" accessibilityLabel={label || 'Catégorie de l’événement'}>
-            {categoryMarker ? (
-              <Image source={categoryMarker} style={styles.categoryImage} resizeMode="contain" accessible={false} />
-            ) : (
-              <BrandIcon name="sparkles" size={28} fillColor={categoryColor} />
-            )}
+            <CategoryIcon size={28} color={categoryColor} />
           </View>
           <View style={styles.actionSpacer} />
           <EventShareButton compact={!spotlight && compact} onPress={() => onShare(event)} accessibilityLabel={`Partager ${event.title}`} />
@@ -238,7 +234,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34 },
   actionSpacer: { flex: 1 },
   category: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  categoryImage: { width: 32, height: 32 },
   price: { ...typography.caption, fontSize: 10, fontWeight: '700', color: colors.brand.text },
   listing: { marginBottom: spacing.xl, gap: 10 },
   listingCarousel: { marginBottom: 0 },

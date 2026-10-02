@@ -3,6 +3,8 @@ import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { getCategoryColor, getCategoryTextColor } from '@/constants/categories';
 import { getCategoryLucideIcon } from '@/constants/category-visuals';
 
+import { useTaxonomyStore } from '@/store/taxonomyStore';
+
 type Props = {
   category?: string | null;
   height: number;
@@ -11,7 +13,8 @@ type Props = {
 
 /** Cover fallback: category color + Lucide icon (avoids stretching the app icon). */
 export function EventCoverPlaceholder({ category, height, style }: Props) {
-  const Icon = getCategoryLucideIcon(category);
+  const slug = useTaxonomyStore(state => state.categoriesMap[category || '']?.slug) || category;
+  const Icon = getCategoryLucideIcon(slug);
   const backgroundColor = getCategoryColor(category || '');
   const iconColor = getCategoryTextColor(category || '');
 
