@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { AuthService } from '@/services/auth.service';
 import {
   bugToHistoryItem,
   correctionToHistoryItem,
@@ -123,6 +124,8 @@ export async function loadMySuggestionHistory(
   }
 
   const promise = (async () => {
+    const session = await AuthService.ensureClientSession();
+    if (!session) return { items: [], failed: false };
     try {
       const result = await fetchMySuggestionHistory(userId);
       cache = { userId, fetchedAt: Date.now(), ...result };

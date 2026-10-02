@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { AuthService } from '@/services/auth.service';
 import { shouldFetchEventViewsFallback } from '@/utils/event-card-stats-plan';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 
@@ -140,12 +141,13 @@ export const EventCardStatsService = {
       });
 
       const emptyRpc = { data: null, error: null as unknown };
+      const authed = Boolean(currentUserId && (await AuthService.ensureClientSession()));
       const [publicStatsResponse, friendsResponse, likersResponse] = await Promise.all([
         supabase.rpc('get_event_public_stats', { event_ids: missingEventIds }),
-        currentUserId
+        authed
           ? supabase.rpc('get_event_friend_favorite_counts', { event_ids: missingEventIds })
           : Promise.resolve(emptyRpc),
-        currentUserId
+        authed
           ? supabase.rpc('get_event_liker_previews' as never, {
               p_event_ids: missingEventIds,
               p_limit_per_event: EVENT_CARD_LIKER_PREVIEW_LIMIT,
