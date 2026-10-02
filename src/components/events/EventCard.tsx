@@ -278,6 +278,7 @@ const EventCardComponent: React.FC<EventCardProps> = ({
       <Pressable onPress={handleCardPress} onPressIn={handleCardPressIn}>
         <View style={[styles.mediaWrap, { height: mediaHeight }]}>
           {mediaSection}
+          <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderWidth: 1.5, borderColor: categoryColor, borderRadius: EVENT_CARD_RADIUS, zIndex: 1 }]} />
           <LinearGradient
             pointerEvents="none"
             colors={['transparent', 'rgba(0,0,0,0.55)']}

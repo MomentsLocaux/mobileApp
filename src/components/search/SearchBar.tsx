@@ -1,3 +1,5 @@
+import { CategoryFilterSelector } from '@/components/filters/CategoryFilterSelector';
+import { EventDurationSelector, EVENT_DURATION_OPTIONS } from '@/components/filters/EventDurationSelector';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -362,6 +364,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
           ? `${selectedTags.length} tags`
           : null;
     if (tagLabel && (categoryLabel || subcategoryLabel)) extras.push(tagLabel);
+    if (what.duration.length) extras.push(EVENT_DURATION_OPTIONS.filter(option => what.duration.includes(option.key)).map(option => option.label).join(' / '));
     const baseWhatLabel = categoryLabel || subcategoryLabel || tagLabel || 'Toutes catégories';
     const whatLabel = extras.length ? `${baseWhatLabel} · ${extras.join(', ')}` : baseWhatLabel;
     return { whereLabel, whenLabel, whatLabel };
@@ -1074,66 +1077,12 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                         autoCorrect={false}
                         returnKeyType="search"
                       />
-                      <View style={styles.sectionLabelRow}>
-                        <Text style={styles.sectionLabel}>Catégories</Text>
-                        <TouchableOpacity
-                          onPress={() => {
-                            const allSelected =
-                              categories.length > 0 &&
-                              categories.every((category) => what.categories.includes(category.id));
-                            setWhat({
-                              categories: allSelected ? [] : categories.map((category) => category.id),
-                              subcategories: [],
-                            });
-                          }}
-                          accessibilityRole="button"
-                          accessibilityLabel={
-                            categories.length > 0 &&
-                            categories.every((category) => what.categories.includes(category.id))
-                              ? 'Tout désélectionner'
-                              : 'Tout sélectionner'
-                          }
-                        >
-                          <Text style={styles.selectAllText}>
-                            {categories.length > 0 &&
-                            categories.every((category) => what.categories.includes(category.id))
-                              ? 'Tout désélectionner'
-                              : 'Tout sélectionner'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                      <View style={styles.rowWrap}>
-                        {categories.map((cat) => {
-                          const categoryColor = getCategoryColor(cat.id);
-                          const categoryTextColor = getCategoryTextColor(cat.id);
-                          return (
-                            <Chip
-                              key={cat.id}
-                              label={cat.label}
-                              active={what.categories.includes(cat.id)}
-                              tone={{
-                                inactiveBackgroundColor: withAlpha(categoryColor, '1A'),
-                                inactiveBorderColor: withAlpha(categoryColor, '33'),
-                                inactiveTextColor: categoryColor,
-                                activeBackgroundColor: categoryColor,
-                                activeBorderColor: categoryColor,
-                                activeTextColor: categoryTextColor,
-                              }}
-                              onPress={() => {
-                                const exists = what.categories.includes(cat.id);
-                                const next = exists
-                                  ? what.categories.filter((c) => c !== cat.id)
-                                  : [...what.categories, cat.id];
-                                const filteredSubs = (what.subcategories || []).filter((s) => {
-                                  const sub = subcategories.find((sc) => sc.id === s);
-                                  return sub ? next.includes(sub.category_id) : false;
-                                });
-                                setWhat({ categories: next, subcategories: filteredSubs });
-                              }}
-                            />
-                          );
-                        })}
-                      </View>
+                      <EventDurationSelector values={what.duration} onChange={duration => setWhat({ duration })} testID="search-duration" />
+                      <CategoryFilterSelector categories={categories} values={what.categories} testID="search-categories"
+                        onChange={next => setWhat({ categories: next, subcategories: what.subcategories.filter(id => {
+                          const sub = subcategories.find(item => item.id === id);
+                          return sub ? next.includes(sub.category_id) : false;
+                        }) })} />
                       {what.categories.length > 0 && (
                         <>
                           <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Sous-catégories</Text>
@@ -1641,18 +1590,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...typography.caption,
     color: colors.brand.textSecondary,
-  },
-  sectionLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  selectAllText: {
-    ...typography.caption,
-    color: colors.brand.secondary,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
   },
   history: {
     marginTop: spacing.sm,

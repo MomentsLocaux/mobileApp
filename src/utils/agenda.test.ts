@@ -8,6 +8,7 @@ import {
   countAgendaDayActivities,
   eventOverlapsLocalDay,
   filterAgendaBucketEvents,
+  filterAgendaContentEvents,
   formatActivityCount,
   groupAgendaEventsByDay,
   likedEventsInRange,
@@ -128,4 +129,30 @@ test('lists group by calendar day with a french heading', () => {
   assert.match(groups[0]?.label || '', /22/);
   assert.equal(formatActivityCount(0), '0 activités');
   assert.equal(AGENDA_BUCKET_COPY.interested.title.includes('intéressé'), true);
+});
+
+
+test('agenda refinement intersects categories, subcategories and duration while preserving past events', () => {
+  const past = { ...event('past', '2020-01-01T10:00:00Z', '2020-01-02T18:00:00Z'), category: 'arts', subcategory: 'expo' };
+  const long = { ...event('long', '2026-09-01T10:00:00Z', '2026-09-30T18:00:00Z'), category: 'arts', subcategory: 'expo' };
+  const otherSub = { ...past, id: 'theatre', subcategory: 'theatre' };
+  const otherCategory = { ...past, id: 'sport', category: 'sport' };
+  const events = [past, long, otherSub, otherCategory];
+  assert.deepEqual(filterAgendaContentEvents(events, {}).map(item => item.id), events.map(item => item.id));
+  const refined = filterAgendaContentEvents(events, { categories: ['arts'], subcategories: ['expo'], duration: ['exceptional'] });
+  assert.deepEqual(refined.map(item => item.id), ['past']);
+  const membership = { interestedIds: events.map(item => item.id), participatingIds: [], organizingIds: [] };
+  assert.deepEqual(filterAgendaBucketEvents(refined, 'past', membership, { now, day: null }).map(item => item.id), ['past']);
+  assert.deepEqual(filterAgendaContentEvents(events, { categories: ['missing'] }), []);
+  assert.equal(events.length, 4, 'filtering does not remove heart membership or mutate loaded events');
+});
+
+test('agenda refinement keeps calendar counts and date-range list on the same subset', () => {
+  const short = { ...event('short', '2026-09-22T10:00:00Z', '2026-09-22T18:00:00Z'), category: 'arts' };
+  const long = { ...event('long', '2026-09-01T10:00:00Z', '2026-09-30T18:00:00Z'), category: 'arts' };
+  const filtered = filterAgendaContentEvents([short, long], { duration: ['exceptional'] });
+  const membership = { interestedIds: ['short', 'long'], participatingIds: [], organizingIds: [] };
+  assert.equal(countAgendaDayActivities(filtered, tuesday, membership, { checkin: false, eventCreate: false }, now), 1);
+  assert.deepEqual(likedEventsInRange(filtered, tuesday, tuesday).map(item => item.id), ['short']);
+  assert.deepEqual(filterAgendaBucketEvents(filtered, 'interested', membership, { now, day: tuesday }).map(item => item.id), ['short']);
 });

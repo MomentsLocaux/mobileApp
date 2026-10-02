@@ -1,3 +1,5 @@
+import type { EventFilters } from '../types/filters';
+import { filterEvents } from './filter-events';
 import type { EventWithCreator } from '@/types/database';
 import { isEventPast } from './event-status';
 
@@ -264,3 +266,16 @@ export const AGENDA_BUCKET_COPY: Record<
     emptySubtitle: 'Les moments terminés que tu as notés resteront lisibles ici.',
   },
 };
+
+/** Agenda owns its dates and past bucket; discovery's temporal defaults must not leak in. */
+export function filterAgendaContentEvents(
+  events: EventWithCreator[],
+  filters: Pick<EventFilters, 'categories' | 'subcategories' | 'duration'>,
+): EventWithCreator[] {
+  return filterEvents(events, {
+    categories: filters.categories,
+    subcategories: filters.subcategories,
+    duration: filters.duration,
+    includePast: true,
+  });
+}

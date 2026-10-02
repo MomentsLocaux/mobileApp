@@ -1,16 +1,36 @@
 import {
-  Baby,
+  createLucideIcon,
   BookOpen,
   Dumbbell,
-  Leaf,
+  Sprout,
   LucideIcon,
   Music,
-  ShoppingBag,
   Sparkles,
-  Theater,
   Users,
-  UtensilsCrossed,
+  House,
 } from 'lucide-react-native';
+
+/** Simple counterparts of the map artwork, sharing Lucide's 24-unit stroke grid. */
+const TheaterMasks = createLucideIcon('CategoryTheaterMasks', [
+  ['path', { d: 'M3 3c3 1 6 1 9 0v4M3 3v7c0 4 2 6 5 7', key: 'back' }],
+  ['path', { d: 'M6 7h1M6 12q1-2 3-1', key: 'sad' }],
+  ['path', { d: 'M10 8c4 1 7 1 11-1v8c0 4-3 6-5 7-3-1-6-3-6-7Z', key: 'front' }],
+  ['path', { d: 'M13 12h1M18 12h1M14 16q2 3 4 0', key: 'happy' }],
+]);
+const MarketBasket = createLucideIcon('CategoryMarketBasket', [
+  ['path', { d: 'M7 10V8a5 5 0 0 1 10 0v2M2 10h20l-3 11H5ZM3 15h18M9 10v11M15 10v11', key: 'basket' }],
+]);
+const TeddyBear = createLucideIcon('CategoryTeddyBear', [
+  ['path', { d: 'M7 6a3 3 0 1 1 3-3m4 0a3 3 0 1 1 3 3', key: 'ears' }],
+  ['path', { d: 'M6 8a6 6 0 0 1 12 0c0 3-2 5-6 5S6 11 6 8Z', key: 'head' }],
+  ['path', { d: 'M9 8h.01M15 8h.01M11 10h2', key: 'face' }],
+  ['path', { d: 'M8 13c-4-2-5 3-2 4m10-4c4-2 5 3 2 4M9 13c-2 2-2 5 0 7h6c2-2 2-5 0-7', key: 'body' }],
+  ['ellipse', { cx: '7', cy: '20', rx: '3', ry: '2', key: 'left-foot' }],
+  ['ellipse', { cx: '17', cy: '20', rx: '3', ry: '2', key: 'right-foot' }],
+]);
+const ServingCloche = createLucideIcon('CategoryServingCloche', [
+  ['path', { d: 'M3 17a9 9 0 0 1 18 0ZM1 21h22M12 8V5M10 5h4', key: 'cloche' }],
+]);
 
 /** MVP category slugs — single source of truth for map markers and UI icons. */
 export const CATEGORY_VISUAL_SLUGS = [
@@ -49,15 +69,15 @@ export type CategoryVisual = {
 };
 
 export const CATEGORY_VISUALS: Record<CategoryVisualSlug, CategoryVisual> = {
-  'arts-culture': { fallbackColor: '#7c3aed', Icon: Theater },
-  'marches-artisanat': { fallbackColor: '#0ea5e9', Icon: ShoppingBag },
+  'arts-culture': { fallbackColor: '#7c3aed', Icon: TheaterMasks },
+  'marches-artisanat': { fallbackColor: '#0ea5e9', Icon: MarketBasket },
   'fetes-animations': { fallbackColor: '#f97316', Icon: Music },
-  'famille-enfants': { fallbackColor: '#16a34a', Icon: Baby },
-  'gastronomie-saveurs': { fallbackColor: '#facc15', Icon: UtensilsCrossed, iconColor: '#3f2d00' },
-  'nature-bienetre': { fallbackColor: '#22c55e', Icon: Leaf },
+  'famille-enfants': { fallbackColor: '#16a34a', Icon: TeddyBear },
+  'gastronomie-saveurs': { fallbackColor: '#facc15', Icon: ServingCloche, iconColor: '#3f2d00' },
+  'nature-bienetre': { fallbackColor: '#22c55e', Icon: Sprout },
   'ateliers-apprentissage': { fallbackColor: '#6366f1', Icon: BookOpen },
   'sport-loisirs': { fallbackColor: '#f43f5e', Icon: Dumbbell },
-  'vie-locale': { fallbackColor: '#0ea5e9', Icon: Users },
+  'vie-locale': { fallbackColor: '#0ea5e9', Icon: House },
   'insolite-ephemere': { fallbackColor: '#a855f7', Icon: Sparkles },
 };
 
