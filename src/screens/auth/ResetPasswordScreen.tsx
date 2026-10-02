@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppBackground, Button, Input, ScreenHeader } from '@/components/ui';
 import { AuthService } from '@/services/auth.service';
@@ -17,8 +17,14 @@ import { completeAuthRedirectFromUrl } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
 import { colors, spacing, typography } from '@/constants/theme';
 
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ code?: string | string[]; type?: string | string[] }>();
+  const linkedUrl = Linking.useLinkingURL();
   const { setSession, setUser, setProfile } = useAuthStore();
   const [ready, setReady] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -26,10 +32,11 @@ export default function ResetPasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [loading, setLoading] = useState(false);
+  const attemptedToken = useRef<string | null>(null);
 
   const acceptRecoveryUrl = useCallback(async (url: string | null) => {
-    if (!url) return false;
-    if (!url.includes('code=') && !url.includes('access_token=')) return false;
+    if (!url) return 'skip' as const;
+    if (!url.includes('code=') && !url.includes('access_token=')) return 'skip' as const;
 
     try {
       const { session } = await completeAuthRedirectFromUrl(url);
@@ -37,22 +44,30 @@ export default function ResetPasswordScreen() {
       setUser(session.user);
       setLinkError(null);
       setReady(true);
-      return true;
+      return 'ok' as const;
     } catch (error) {
       setLinkError(error instanceof Error ? error.message : 'Lien invalide ou expiré');
       setReady(false);
-      return false;
+      return 'error' as const;
     }
   }, [setSession, setUser]);
 
   useEffect(() => {
     let mounted = true;
+    const code = firstParam(params.code);
+    const type = firstParam(params.type);
+    const fromParams = code
+      ? `moments-locaux://auth/reset-password?code=${encodeURIComponent(code)}${type ? `&type=${encodeURIComponent(type)}` : ''}`
+      : null;
+    const token = code || (linkedUrl && (linkedUrl.includes('code=') || linkedUrl.includes('access_token=')) ? linkedUrl : null);
+    if (token && attemptedToken.current === token) return;
+    if (token) attemptedToken.current = token;
 
     (async () => {
-      const initial = await Linking.getInitialURL();
-      if (!mounted) return;
-
-      if (initial && (await acceptRecoveryUrl(initial))) return;
+      const fromRoute = await acceptRecoveryUrl(fromParams);
+      if (!mounted || fromRoute === 'ok' || fromRoute === 'error') return;
+      const fromLink = await acceptRecoveryUrl(linkedUrl);
+      if (!mounted || fromLink === 'ok' || fromLink === 'error') return;
 
       const existing = await AuthService.getCurrentSession();
       if (!mounted) return;
@@ -63,19 +78,14 @@ export default function ResetPasswordScreen() {
         return;
       }
 
-      setLinkError('Ouvrez le lien reçu par email pour choisir un nouveau mot de passe.');
+      setLinkError('Ce lien n’a pas ouvert de session. Redemandez-le depuis ce téléphone, puis ouvrez-le dans l’app.');
       setReady(false);
     })();
 
-    const sub = Linking.addEventListener('url', ({ url }) => {
-      void acceptRecoveryUrl(url);
-    });
-
     return () => {
       mounted = false;
-      sub.remove();
     };
-  }, [acceptRecoveryUrl, setSession, setUser]);
+  }, [acceptRecoveryUrl, linkedUrl, params.code, params.type, setSession, setUser]);
 
   const validate = () => {
     const next: { password?: string; confirmPassword?: string } = {};

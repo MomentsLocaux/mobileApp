@@ -59,7 +59,10 @@ export async function establishSessionFromRedirect(url: string) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
     if (error) throw error;
     if (!data.session) throw new Error('Session introuvable après connexion');
-    return { session: data.session, type: params.type };
+    const redirectType = (data as { redirectType?: string | null }).redirectType;
+    const type =
+      params.type ?? (redirectType === 'PASSWORD_RECOVERY' ? 'recovery' : undefined);
+    return { session: data.session, type };
   }
 
   if (params.access_token && params.refresh_token) {
