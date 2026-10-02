@@ -1277,6 +1277,7 @@ const SectionCard: React.FC<{
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(active ? 1 : 0);
   const contentHeight = useSharedValue(0);
+  const contentHeightRef = useRef(0);
   const wasActive = useRef(!!active);
   const [measured, setMeasured] = useState(false);
 
@@ -1327,10 +1328,12 @@ const SectionCard: React.FC<{
           style={[styles.cardContent, (measured || !active) && styles.cardContentFloating]}
           onLayout={(event) => {
             const next = event.nativeEvent.layout.height;
-            if (next > 0 && Math.abs(next - contentHeight.value) > 0.5) {
+            if (next <= 0 || Math.abs(next - contentHeightRef.current) <= 0.5) return;
+            contentHeightRef.current = next;
+            requestAnimationFrame(() => {
               contentHeight.value = next;
-              if (!measured) setMeasured(true);
-            }
+            });
+            if (!measured) setMeasured(true);
           }}
         >
           {children}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable } from 'react-native-gesture-handler';
 import Animated, {
@@ -46,7 +46,10 @@ export function AgendaWeekStrip({ days, selected, today, markedKeys, onSelect, o
   const translateX = useSharedValue(0);
   const stripWidth = useSharedValue(280);
   const reduceMotionSv = useSharedValue(reduceMotion);
-  reduceMotionSv.value = reduceMotion;
+
+  useEffect(() => {
+    reduceMotionSv.value = reduceMotion;
+  }, [reduceMotion, reduceMotionSv]);
 
   const commitShift = useCallback((delta: -1 | 1) => {
     pressLocked.current = true;

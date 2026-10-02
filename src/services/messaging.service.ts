@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { AuthService } from '@/services/auth.service';
 import { isMissingSchemaError } from '@/utils/schema-missing';
 import { sanitizeUgcText, UGC_LIMITS } from '@/utils/ugc-sanitize';
 
@@ -40,6 +41,8 @@ export const MessagingService = {
   },
 
   async getUnreadCount(): Promise<number> {
+    const session = await AuthService.ensureClientSession();
+    if (!session) return 0;
     const { data, error } = await supabase.rpc('direct_messages_unread_count' as never);
     if (error) {
       if (isMissingSchemaError(error)) return 0;

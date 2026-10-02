@@ -4,6 +4,7 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase/client';
+import { AuthService } from '@/services/auth.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -231,6 +232,9 @@ export async function unregisterCurrentDevice(): Promise<void> {
  */
 export async function syncHomeLocation({ prompt }: { prompt: boolean }): Promise<boolean> {
   try {
+    const session = await AuthService.ensureClientSession();
+    if (!session) return false;
+
     let status = (await Location.getForegroundPermissionsAsync()).status;
     if (status !== 'granted') {
       if (!prompt) return false;

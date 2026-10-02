@@ -4,6 +4,7 @@ import { dataProvider } from '@/data-provider';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { supabase } from '@/lib/supabase/client';
+import { useAuthStore } from '@/store/authStore';
 import { LEGAL_POLICY_VERSION } from '@/constants/legal';
 import { shouldWriteLegalAcceptance } from '@/utils/legal-acceptance';
 import {
@@ -136,44 +137,84 @@ export class AuthService {
   }
 
   static async hasSavedSession(): Promise<boolean> {
+    return Boolean(await this.readStoredTokens());
+  }
+
+  private static sessionRepair: Promise<Session | null> | null = null;
+
+  /**
+   * The UI can still hold a profile after the in-memory Supabase client lost its JWT
+   * (reload of the client module). Put the SecureStore session back before private calls,
+   * otherwise PostgREST runs them as `anon` and returns 42501.
+   * Cold start stays on the biometric path: this only runs when the store already has a user.
+   */
+  static ensureClientSession(): Promise<Session | null> {
+    if (!this.sessionRepair) {
+      this.sessionRepair = this.ensureClientSessionOnce().finally(() => {
+        this.sessionRepair = null;
+      });
+    }
+    return this.sessionRepair;
+  }
+
+  private static async ensureClientSessionOnce(): Promise<Session | null> {
+    const current = await this.getCurrentSession();
+    if (current?.access_token) return current;
+
+    const state = useAuthStore.getState();
+    if (!state.user && !state.profile && !state.session) return null;
+    if (await this.isAutoRestoreBlocked()) {
+      useAuthStore.getState().reset();
+      return null;
+    }
+
+    const restored = await this.restoreStoredSessionQuietly();
+    if (restored) return restored;
+
+    useAuthStore.getState().reset();
+    return null;
+  }
+
+  private static async readStoredTokens(): Promise<{ access_token: string; refresh_token: string } | null> {
     const [accessToken, refreshToken, legacy] = await Promise.all([
       SecureStore.getItemAsync(SESSION_ACCESS_KEY),
       SecureStore.getItemAsync(SESSION_REFRESH_KEY),
       SecureStore.getItemAsync(LEGACY_SESSION_KEY),
     ]);
-    return !!(accessToken && refreshToken) || !!legacy;
+
+    if (accessToken && refreshToken) {
+      return { access_token: accessToken, refresh_token: refreshToken };
+    }
+    if (!legacy) return null;
+
+    try {
+      const parsed = JSON.parse(legacy) as { refresh_token?: string; access_token?: string };
+      if (!parsed?.refresh_token || !parsed?.access_token) return null;
+      await Promise.all([
+        SecureStore.setItemAsync(SESSION_ACCESS_KEY, parsed.access_token),
+        SecureStore.setItemAsync(SESSION_REFRESH_KEY, parsed.refresh_token),
+        SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
+      ]);
+      return { access_token: parsed.access_token, refresh_token: parsed.refresh_token };
+    } catch {
+      await SecureStore.deleteItemAsync(LEGACY_SESSION_KEY);
+      return null;
+    }
+  }
+
+  private static async restoreStoredSessionQuietly(): Promise<Session | null> {
+    const saved = await this.readStoredTokens();
+    if (!saved) return null;
+    const { data, error } = await supabase.auth.setSession({
+      refresh_token: saved.refresh_token,
+      access_token: saved.access_token,
+    });
+    if (error || !data.session) return null;
+    return data.session;
   }
 
   static async restoreSessionWithBiometrics(): Promise<AuthResponse & { biometricUsed?: boolean }> {
-    const [accessToken, refreshToken, legacy] = await Promise.all([
-      SecureStore.getItemAsync(SESSION_ACCESS_KEY),
-      SecureStore.getItemAsync(SESSION_REFRESH_KEY),
-      SecureStore.getItemAsync(LEGACY_SESSION_KEY),
-    ]);
-
-    let saved: { refresh_token: string; access_token: string } | null = null;
-
-    if (accessToken && refreshToken) {
-      saved = { access_token: accessToken, refresh_token: refreshToken };
-    } else if (legacy) {
-      try {
-        const parsed = JSON.parse(legacy) as { refresh_token?: string; access_token?: string };
-        if (parsed?.refresh_token && parsed?.access_token) {
-          saved = {
-            access_token: parsed.access_token,
-            refresh_token: parsed.refresh_token,
-          };
-          // One-time migration to the split keys.
-          await Promise.all([
-            SecureStore.setItemAsync(SESSION_ACCESS_KEY, parsed.access_token),
-            SecureStore.setItemAsync(SESSION_REFRESH_KEY, parsed.refresh_token),
-            SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
-          ]);
-        }
-      } catch {
-        await SecureStore.deleteItemAsync(LEGACY_SESSION_KEY);
-      }
-    }
+    const saved = await this.readStoredTokens();
 
     if (!saved) {
       return { success: false, error: 'No saved session' };
