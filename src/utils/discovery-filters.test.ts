@@ -93,6 +93,7 @@ describe('discovery filter contract', () => {
       subcategories: [],
       tags: ['jazz'],
       query: 'concert',
+      duration: ['long'],
     };
     filters.sort.map = { sortBy: 'date', sortOrder: 'asc' };
 
@@ -101,9 +102,9 @@ describe('discovery filter contract', () => {
         surface: 'map',
         categoryLabels: { music: 'Musique', jazz: 'Jazz' },
       }),
-      '01/09–03/09 · Luxembourg · 25 km · « concert » · Musique · Jazz · Date de début'
+      '01/09–03/09 · Luxembourg · 25 km · « concert » · Musique · Jazz · Longs · Date de début'
     );
-    assert.equal(activeFilterCount(filters, { surface: 'map' }), 6);
+    assert.equal(activeFilterCount(filters, { surface: 'map' }), 7);
   });
 
   it('summarizes one-sided custom date ranges', () => {
@@ -142,6 +143,7 @@ describe('discovery filter contract', () => {
       subcategories: ['jazz'],
       tags: ['family'],
       query: ' concert ',
+      duration: ['short'],
     };
 
     assert.deepEqual(toEventFilters(filters), {
@@ -154,6 +156,7 @@ describe('discovery filter contract', () => {
       subcategories: ['jazz'],
       tags: ['family'],
       name: 'concert',
+      duration: ['short'],
     });
   });
 

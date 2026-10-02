@@ -160,6 +160,7 @@ export function resolveMapClientFilters(
     subcategory: filters.subcategory,
     subcategories: filters.subcategories,
     tags: filters.tags,
+    duration: filters.duration,
     includePast: true,
   };
   if (!shouldApplyWhenFilters(searchActive, filters)) {

@@ -6,6 +6,7 @@ import type {
 } from '@/store/searchStore';
 import type { SortOption, SortOrder } from '@/types/filters';
 import type { DiscoveryStatus } from '@/constants/filters';
+import { normalizeDurationSelection } from '@/utils/event-duration';
 
 const STORAGE_KEY = 'ml.saved_searches.v1';
 const MAX_RECENT = 8;
@@ -58,6 +59,7 @@ export function fingerprintSearch(input: {
     subcategories: [...(input.what.subcategories || [])].sort(),
     tags: [...(input.what.tags || [])].sort(),
     query: (input.what.query || '').trim().toLowerCase(),
+    duration: normalizeDurationSelection(input.what.duration),
     sortBy: input.sortBy ?? null,
     sortOrder: input.sortOrder ?? null,
     status: input.status ?? null,
@@ -72,10 +74,15 @@ const stripWhere = (where: SearchWhereState): Omit<SearchWhereState, 'history'> 
 const normalizeLoaded = (raw: unknown): SavedSearchesState => {
   if (!raw || typeof raw !== 'object') return emptyState();
   const data = raw as Partial<SavedSearchesState>;
-  const recent = Array.isArray(data.recent) ? data.recent.filter(isSnapshot) : [];
-  const saved = Array.isArray(data.saved) ? data.saved.filter(isSnapshot) : [];
+  const recent = Array.isArray(data.recent) ? data.recent.filter(isSnapshot).map(normalizeSnapshot) : [];
+  const saved = Array.isArray(data.saved) ? data.saved.filter(isSnapshot).map(normalizeSnapshot) : [];
   return { recent: recent.slice(0, MAX_RECENT), saved: saved.slice(0, MAX_SAVED) };
 };
+
+const normalizeSnapshot = (snapshot: SavedSearchSnapshot): SavedSearchSnapshot => ({
+  ...snapshot,
+  what: { ...snapshot.what, duration: normalizeDurationSelection(snapshot.what.duration) },
+});
 
 const isSnapshot = (value: unknown): value is SavedSearchSnapshot => {
   if (!value || typeof value !== 'object') return false;
@@ -140,6 +147,7 @@ export const SavedSearchesService = {
         subcategories: [...(input.what.subcategories || [])],
         tags: [...(input.what.tags || [])],
         query: input.what.query || '',
+        duration: normalizeDurationSelection(input.what.duration),
       },
       sortBy: input.sortBy,
       sortOrder: input.sortOrder,

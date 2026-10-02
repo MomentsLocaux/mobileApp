@@ -76,4 +76,32 @@ describe('event client filters', () => {
     const byDescription = filterEvents([marche, concert], { name: 'jazz' });
     assert.deepEqual(byDescription.map((item) => item.id), ['concert']);
   });
+
+  it('combines occurrence duration with other client filters', () => {
+    const shortMusic = event(
+      'short-music',
+      '2099-01-01T10:00:00.000Z',
+      '2099-01-10T14:00:00.000Z'
+    );
+    (shortMusic as { category: string }).category = 'music';
+    const longMusic = event(
+      'long-music',
+      '2099-01-01T10:00:00.000Z',
+      '2099-02-01T10:00:00.000Z'
+    );
+    (longMusic as { category: string }).category = 'music';
+    const shortSport = event(
+      'short-sport',
+      '2099-01-01T10:00:00.000Z',
+      '2099-01-01T12:00:00.000Z'
+    );
+    (shortSport as { category: string }).category = 'sport';
+
+    const result = filterEvents([shortMusic, longMusic, shortSport], {
+      categories: ['music'],
+      duration: ['short'],
+    });
+
+    assert.deepEqual(result.map((item) => item.id), ['short-music']);
+  });
 });

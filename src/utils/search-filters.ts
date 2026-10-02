@@ -68,5 +68,9 @@ export const buildFiltersFromSearch = (
     filters.name = search.what.query.trim();
   }
 
+  if (search.what.duration && search.what.duration.length > 0) {
+    filters.duration = search.what.duration;
+  }
+
   return filters;
 };
