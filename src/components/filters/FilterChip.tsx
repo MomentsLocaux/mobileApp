@@ -21,6 +21,8 @@ export type FilterChipSize = 'xs' | 'sm' | 'md';
 
 export interface FilterChipProps {
   label: string;
+  /** Secondary line under the label, for ranges that should stay readable but quiet. */
+  caption?: string;
   active?: boolean;
   onPress: () => void;
   disabled?: boolean;
@@ -37,6 +39,7 @@ export interface FilterChipProps {
 
 export function FilterChip({
   label,
+  caption,
   active = false,
   onPress,
   disabled = false,
@@ -82,21 +85,34 @@ export function FilterChip({
       hitSlop={isComfortable ? undefined : isDense ? filterDenseHitSlop : filterHitSlop}
       accessibilityRole="button"
       accessibilityState={{ selected: active, disabled }}
-      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityLabel={accessibilityLabel ?? (caption ? `${label}, ${caption}` : label)}
       accessibilityHint={disabled ? disabledReason : undefined}
       testID={testID}
     >
       {icon ? <View style={styles.icon}>{icon}</View> : null}
-      <Text
-        style={[
-          styles.label,
-          isDense ? filterTypography.chipDense : null,
-          { color: active ? tone.activeTextColor : tone.inactiveTextColor },
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
+      <View style={styles.copy}>
+        <Text
+          style={[
+            styles.label,
+            isDense ? filterTypography.chipDense : null,
+            { color: active ? tone.activeTextColor : tone.inactiveTextColor },
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        {caption ? (
+          <Text
+            style={[
+              styles.caption,
+              { color: active ? tone.activeTextColor : tone.inactiveTextColor },
+            ]}
+            numberOfLines={1}
+          >
+            {caption}
+          </Text>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -115,8 +131,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  copy: {
+    alignItems: 'center',
+  },
   label: {
     ...filterTypography.chip,
     fontWeight: '600',
+  },
+  caption: {
+    fontFamily: filterTypography.chip.fontFamily,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '500',
+    opacity: 0.75,
   },
 });

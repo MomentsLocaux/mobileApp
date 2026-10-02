@@ -6,6 +6,7 @@ import { FilterChip, type FilterChipSize } from './FilterChip';
 export interface FilterChipRowOption<T extends string> {
   key: T;
   label: string;
+  caption?: string;
   disabled?: boolean;
   disabledReason?: string;
   tone?: FilterChipTone;
@@ -79,6 +80,7 @@ export function FilterChipRow<T extends string>(props: FilterChipRowProps<T>) {
     <FilterChip
       key={option.key}
       label={option.label}
+      caption={option.caption}
       active={isActive(option.key)}
       disabled={option.disabled}
       disabledReason={option.disabledReason}
