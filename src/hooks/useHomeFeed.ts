@@ -244,7 +244,7 @@ export function useHomeFeed() {
     router.push({ pathname: '/(tabs)/favorites', params: { day: nextEvent ? toLocalDateKey(new Date(nextEvent.starts_at)) : toLocalDateKey(now) } } as never);
   }, [nextEvent, now, router]);
   const toggleHeart = useCallback(async (event: EventWithCreator) => {
-    if (!userId) { setGuestGate('Connecte-toi pour enregistrer un moment'); return; }
+    if (!userId) { setGuestGate('Enregistrer un moment'); return; }
     if (pendingRef.current.has(event.id)) return;
     pendingRef.current.add(event.id); setPendingHearts(new Set(pendingRef.current));
     try {
@@ -279,7 +279,7 @@ export function useHomeFeed() {
     finally { if (mounted.current) setRefreshing(false); }
   }, [loadPool, loadPrivate]);
   const protectedNavigate = (path: '/notifications' | '/(tabs)/profile') => {
-    if (!userId) { setGuestGate('Connecte-toi pour retrouver ton espace'); return; }
+    if (!userId) { setGuestGate('Votre espace'); return; }
     router.push(path as never);
   };
   return {

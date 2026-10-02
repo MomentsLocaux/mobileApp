@@ -28,6 +28,7 @@ import {
   WandSparkles,
 } from 'lucide-react-native';
 import { AppBackground } from '@/components/ui';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuth, useLocation } from '@/hooks';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { useLikesStore } from '@/store/likesStore';
@@ -101,6 +102,7 @@ export default function ProposalsScreen() {
   const [wantsCurrentLocation, setWantsCurrentLocation] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processingDecision, setProcessingDecision] = useState(false);
+  const [guestGate, setGuestGate] = useState('');
   const [historyBusyEventId, setHistoryBusyEventId] = useState<string | null>(null);
   const [historyDeleteBusy, setHistoryDeleteBusy] = useState(false);
   const [cardRevision, setCardRevision] = useState(0);
@@ -228,7 +230,7 @@ export default function ProposalsScreen() {
     const userId = profile?.id || user?.id || session?.user?.id;
     if (!userId) {
       setCardRevision((value) => value + 1);
-      Alert.alert('Connexion requise', 'Reconnecte-toi pour enregistrer ce coup de cœur.');
+      setGuestGate('Enregistrer ce coup de cœur');
       return;
     }
 
@@ -269,7 +271,7 @@ export default function ProposalsScreen() {
 
     const userId = profile?.id || user?.id || session?.user?.id;
     if (!userId) {
-      Alert.alert('Connexion requise', 'Reconnecte-toi pour modifier ce choix.');
+      setGuestGate('Modifier ce choix');
       return;
     }
 
@@ -459,6 +461,19 @@ export default function ProposalsScreen() {
           onOpenDetails={openEventDetails}
         />
       ) : null}
+      <GuestGateModal
+        visible={!!guestGate}
+        title={guestGate}
+        onClose={() => setGuestGate('')}
+        onSignUp={() => {
+          setGuestGate('');
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          setGuestGate('');
+          router.push('/auth/login' as any);
+        }}
+      />
     </GestureHandlerRootView>
   );
 }

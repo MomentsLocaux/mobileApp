@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuth } from '@/hooks';
 import { useAuthStore } from '@/state/auth';
 import { NotificationsService, type AppNotification, type AppNotificationType, type NotificationVisual, hasFreshInboxCache, peekInboxCache } from '@/services/notifications.service';
@@ -386,6 +387,26 @@ export default function NotificationsInboxScreen() {
       </TouchableOpacity>
     );
   };
+
+  if (isGuest) {
+    return (
+      <View style={styles.safe}>
+        <GuestGateModal
+          visible
+          title="Vos notifications"
+          onClose={() => {
+            if (router.canGoBack()) {
+              router.back();
+              return;
+            }
+            router.navigate('/(tabs)');
+          }}
+          onSignUp={() => router.replace('/auth/register' as any)}
+          onSignIn={() => router.replace('/auth/login' as any)}
+        />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safe}>

@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks';
 import { CommunityService } from '../../services/community.service';
 import type { CommunityMember } from '../../types/community';
 import { AppBackground, DiscoveryLoadingState, EmptyState } from '@/components/ui';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { CommunityMemberCard, CommunitySearchField } from '@/components/community/CommunityMemberCard';
 import { haptics } from '@/utils/haptics';
 import { features } from '@/config/features';
@@ -44,6 +45,7 @@ function PeersMembersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [followPendingId, setFollowPendingId] = useState<string | null>(null);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
+  const [guestGate, setGuestGate] = useState('');
   const searchSeq = useRef(0);
 
   const currentUserId = user?.id || session?.user?.id || profile?.id;
@@ -113,7 +115,7 @@ function PeersMembersScreen() {
 
   const toggleFollow = async (memberId: string, current: boolean) => {
     if (!currentUserId) {
-      Alert.alert('Connexion requise', 'Connectez-vous pour suivre des membres.');
+      setGuestGate('Suivre un membre');
       return;
     }
     haptics.light();
@@ -269,6 +271,19 @@ function PeersMembersScreen() {
           />
         )}
       </View>
+      <GuestGateModal
+        visible={!!guestGate}
+        title={guestGate}
+        onClose={() => setGuestGate('')}
+        onSignUp={() => {
+          setGuestGate('');
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          setGuestGate('');
+          router.push('/auth/login' as any);
+        }}
+      />
     </View>
   );
 }

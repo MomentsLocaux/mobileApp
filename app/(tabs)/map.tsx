@@ -81,6 +81,7 @@ import { NavigationOptionsSheet } from '../../src/components/search/NavigationOp
 import type { EventWithCreator } from '../../src/types/database';
 import { AppBackground, BrandLogoSpinner } from '../../src/components/ui';
 import { MapChromeActions } from '../../src/components/map/MapChromeActions';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { TAB_BAR_ICONS_HEIGHT, useMapTabBarProgress } from '@/components/navigation/MapAwareTabBar';
 import { haptics } from '@/utils/haptics';
 import {
@@ -495,7 +496,7 @@ export default function MapScreen() {
   const favoritesSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const likesSet = useMemo(() => new Set(likedEventIds), [likedEventIds]);
 
-  const { handleToggleHeart } = useMapSocialActions({
+  const { handleToggleHeart, guestGate, closeGuestGate } = useMapSocialActions({
     profileId: profile?.id,
     likesSet,
     favoritesSet,
@@ -1595,6 +1596,19 @@ export default function MapScreen() {
         visible={!!navEvent}
         event={navEvent}
         onClose={() => setNavEvent(null)}
+      />
+      <GuestGateModal
+        visible={!!guestGate}
+        title={guestGate ?? ''}
+        onClose={closeGuestGate}
+        onSignUp={() => {
+          closeGuestGate();
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          closeGuestGate();
+          router.push('/auth/login' as any);
+        }}
       />
     </GestureHandlerRootView>
   );

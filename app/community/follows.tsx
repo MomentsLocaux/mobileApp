@@ -23,6 +23,7 @@ import {
 import { colors, spacing, typography } from '@/constants/theme';
 import { features } from '@/config/features';
 import { CommunityMemberCard, CommunitySearchField } from '@/components/community/CommunityMemberCard';
+import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { CommunityService, type FollowListMember } from '@/services/community.service';
 import { useAuth } from '@/hooks';
 import { haptics } from '@/utils/haptics';
@@ -72,6 +73,7 @@ function CommunityFollowsContent() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followPendingId, setFollowPendingId] = useState<string | null>(null);
+  const [guestGate, setGuestGate] = useState('');
 
   useEffect(() => {
     if (params.tab === 'following' || params.tab === 'followers') {
@@ -159,7 +161,7 @@ function CommunityFollowsContent() {
 
   const toggleFollow = async (member: FollowListMember, isFollowing: boolean) => {
     if (!currentUserId) {
-      Alert.alert('Connexion requise', 'Connectez-vous pour suivre des membres.');
+      setGuestGate('Suivre un membre');
       return;
     }
     haptics.light();
@@ -321,6 +323,19 @@ function CommunityFollowsContent() {
           }
         />
       )}
+      <GuestGateModal
+        visible={!!guestGate}
+        title={guestGate}
+        onClose={() => setGuestGate('')}
+        onSignUp={() => {
+          setGuestGate('');
+          router.push('/auth/register' as any);
+        }}
+        onSignIn={() => {
+          setGuestGate('');
+          router.push('/auth/login' as any);
+        }}
+      />
     </View>
   );
 }
