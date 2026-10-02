@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SortOption, SortOrder } from '../types/filters';
+import type { EventDurationBucket, SortOption, SortOrder } from '../types/filters';
 type Preset = 'today' | 'tonight' | 'tomorrow' | 'weekend';
 
 export interface SearchWhereState {
@@ -32,6 +32,7 @@ export interface SearchWhatState {
   subcategories: string[];
   tags: string[];
   query?: string;
+  duration?: EventDurationBucket[];
 }
 
 export interface SearchState {
@@ -71,7 +72,7 @@ const initialState: Omit<
   where: { history: [] },
   when: { includePast: false },
   who: { adults: 1, children: 0, babies: 0 },
-  what: { categories: [], subcategories: [], tags: [], query: '' },
+  what: { categories: [], subcategories: [], tags: [], query: '', duration: [] },
   sortBy: 'triage',
   sortOrder: undefined,
   searchApplied: false,

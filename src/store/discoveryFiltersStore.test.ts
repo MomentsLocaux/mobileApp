@@ -58,7 +58,7 @@ describe('discovery filter store', () => {
   it('resets all criteria while preserving each surface preference', () => {
     const store = useDiscoveryFiltersStore.getState();
     store.setStatus('upcoming');
-    store.setContent({ tags: ['family'] });
+    store.setContent({ tags: ['family'], duration: ['long'] });
     store.setSort('home', 'date', 'asc');
     store.setSort('map', 'popularity', 'desc');
     store.setMapMode('satellite');
@@ -69,6 +69,7 @@ describe('discovery filter store', () => {
     assert.equal(current.status, 'all');
     assert.equal(current.when.preset, 'today');
     assert.deepEqual(current.content.tags, []);
+    assert.deepEqual(current.content.duration, []);
     assert.deepEqual(current.sort.home, { sortBy: 'date', sortOrder: 'asc' });
     assert.deepEqual(current.sort.map, { sortBy: 'popularity', sortOrder: 'desc' });
     assert.equal(current.mapMode, 'satellite');
@@ -118,6 +119,7 @@ describe('discovery filter store', () => {
           subcategories: ['concert'],
           tags: ['jazz'],
           query: 'jazz',
+          duration: ['long'],
         },
       },
       {
@@ -135,6 +137,7 @@ describe('discovery filter store', () => {
     assert.equal(current.searchApplied, true);
     assert.equal(current.status, 'all');
     assert.deepEqual(current.content.tags, ['jazz']);
+    assert.deepEqual(current.content.duration, ['long']);
     assert.deepEqual(current.sort.map, { sortBy: 'date', sortOrder: 'asc' });
     assert.deepEqual(committed.content, current.content);
   });

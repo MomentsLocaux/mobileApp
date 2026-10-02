@@ -13,7 +13,7 @@ import {
   type DiscoveryStatus,
   type MapMode,
 } from '../constants/filters';
-import type { EventFilters, SortOption, SortOrder } from '../types/filters';
+import type { EventDurationBucket, EventFilters, SortOption, SortOrder } from '../types/filters';
 import { resolveEventTimeScope, type EventTimeScope } from './event-time-scope';
 import { buildFiltersFromSearch } from './search-filters';
 import {
@@ -51,6 +51,7 @@ export interface DiscoveryContentFilter {
   subcategories: string[];
   tags: string[];
   query?: string;
+  duration: EventDurationBucket[];
 }
 
 export interface DiscoverySortState {
@@ -79,7 +80,7 @@ export function createDefaultDiscoveryCriteria(): DiscoveryCriteria {
     status: DEFAULT_DISCOVERY_STATUS,
     when: { preset: DEFAULT_DISCOVERY_WHEN_PRESET, includePast: false },
     place: { center: null, radiusKm: DISCOVERY_DEFAULT_RADIUS_KM },
-    content: { categories: [], subcategories: [], tags: [], query: '' },
+    content: { categories: [], subcategories: [], tags: [], query: '', duration: [] },
   };
 }
 
@@ -151,6 +152,7 @@ export function toEventFilters(
         subcategories: filters.content.subcategories,
         tags: filters.content.tags,
         query,
+        duration: filters.content.duration,
       },
     }
   );
@@ -260,6 +262,7 @@ export function activeFilterCount(
   if (filters.content.subcategories.length > 0) count += 1;
   if (filters.content.tags.length > 0) count += 1;
   if (filters.content.query?.trim()) count += 1;
+  if (filters.content.duration.length > 0) count += 1;
 
   const surface = options?.surface;
   if (surface && filters.sort[surface].sortBy !== defaultSortForSurface(surface)) count += 1;
@@ -312,6 +315,15 @@ export function summarize(filters: DiscoveryFilters, options?: SummarizeOptions)
     parts.push(categoryLabels?.[tags[0]] ?? '1 tag');
   } else if (tags.length > 1) {
     parts.push(`${tags.length} tags`);
+  }
+
+  const durationLabels: Record<EventDurationBucket, string> = {
+    exceptional: 'Exceptionnels',
+    short: 'Courts',
+    long: 'Longs',
+  };
+  for (const bucket of filters.content.duration) {
+    parts.push(durationLabels[bucket]);
   }
 
   if (includeMapMode && filters.mapMode !== 'standard') {

@@ -13,6 +13,7 @@ import {
   type DiscoverySurface,
   type DiscoveryWhenFilter,
 } from '../utils/discovery-filters';
+import { normalizeDurationSelection } from '../utils/event-duration';
 
 /**
  * Target source of truth for discovery filters (home, map, search).
@@ -104,7 +105,16 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set, get)
 
   setRadiusKm: (radiusKm) => set((state) => ({ place: { ...state.place, radiusKm } })),
 
-  setContent: (content) => set((state) => ({ content: { ...state.content, ...content } })),
+  setContent: (content) =>
+    set((state) => ({
+      content: {
+        ...state.content,
+        ...content,
+        ...(content.duration !== undefined
+          ? { duration: normalizeDurationSelection(content.duration) }
+          : {}),
+      },
+    })),
 
   setSort: (surface, sortBy, sortOrder) =>
     set((state) => ({
@@ -142,6 +152,7 @@ export const useDiscoveryFiltersStore = create<DiscoveryFiltersState>((set, get)
           categories: [...criteria.content.categories],
           subcategories: [...criteria.content.subcategories],
           tags: [...(criteria.content.tags || [])],
+          duration: normalizeDurationSelection(criteria.content.duration),
         },
         sort,
         mapMode: state.mapMode,

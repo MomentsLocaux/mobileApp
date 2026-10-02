@@ -1519,6 +1519,7 @@ export default function MapScreen() {
               when,
               categories: content.categories,
               subcategories: content.subcategories,
+              duration: content.duration,
             }}
             visible={refineOpen}
             onApply={handleApplyViewportFilters}

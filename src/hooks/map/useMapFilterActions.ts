@@ -279,12 +279,17 @@ export function useMapFilterActions({
       when: DiscoveryFilters['when'];
       categories: string[];
       subcategories: string[];
+      duration: DiscoveryFilters['content']['duration'];
     }) => {
       const previous = discoveryStatus;
       const isDatePreset = Boolean(draft.when.preset);
       const hasCustomDates = Boolean(draft.when.startDate || draft.when.endDate);
       clearFrozenViewport();
-      setContent({ categories: draft.categories, subcategories: draft.subcategories });
+      setContent({
+        categories: draft.categories,
+        subcategories: draft.subcategories,
+        duration: draft.duration,
+      });
       setWhen({
         preset: draft.when.preset,
         startDate: draft.when.startDate,
@@ -314,7 +319,7 @@ export function useMapFilterActions({
     const previous = discoveryStatus;
     const next = defaultDiscoveryTemporalFilters();
     clearFrozenViewport();
-    setContent({ categories: [], subcategories: [] });
+    setContent({ categories: [], subcategories: [], duration: [] });
     setWhen({
       preset: next.when.preset,
       startDate: undefined,

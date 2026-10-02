@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '../constants/filters';
+import type { EventDurationBucket } from '../types/filters';
 import { createDefaultDiscoveryFilters } from './discovery-filters';
 import {
   isDiscoverySearchActive,
@@ -165,6 +166,7 @@ describe('map discovery contract', () => {
       time: 'today' as const,
       name: 'jazz',
       tags: ['jazz'],
+      duration: ['short'] as EventDurationBucket[],
       includePast: false,
     };
     assert.deepEqual(resolveMapClientFilters(filters, false), {
@@ -173,6 +175,7 @@ describe('map discovery contract', () => {
       subcategory: undefined,
       subcategories: ['concert'],
       tags: ['jazz'],
+      duration: ['short'],
       includePast: false,
       time: 'today',
       startDate: undefined,

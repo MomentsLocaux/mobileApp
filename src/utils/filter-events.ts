@@ -3,6 +3,7 @@ import type { EventFilters, TimeFilter, PopularityFilter } from '../types/filter
 import { getEffectiveEventEnd, isEventLive, isEventPast, isEventUpcoming } from './event-status';
 import { eventMatchesDatePreset } from './event-date-windows';
 import { eventMatchesNameQuery } from './event-name-search';
+import { eventMatchesDuration } from './event-duration';
 
 const POPULARITY_THRESHOLDS = {
   trending: 10,
@@ -140,6 +141,10 @@ export function filterEvents(
       return false;
     }
 
+    if (!eventMatchesDuration(event, filters.duration)) {
+      return false;
+    }
+
     if (
       filters.radiusKm !== undefined &&
       filters.centerLat !== undefined &&
@@ -169,6 +174,7 @@ export function getActiveFilterCount(filters: EventFilters): number {
   if (filters.popularity) count++;
   if (filters.tag) count++;
   if (filters.tags && filters.tags.length > 0) count++;
+  if (filters.duration && filters.duration.length > 0) count++;
 
   return count;
 }

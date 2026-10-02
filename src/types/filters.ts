@@ -1,5 +1,6 @@
 export type TimeFilter = 'today' | 'tonight' | 'tomorrow' | 'weekend' | 'live';
 export type PopularityFilter = 'trending' | 'popular' | 'top';
+export type EventDurationBucket = 'exceptional' | 'short' | 'long';
 export type SortOption = 'triage' | 'distance' | 'popularity' | 'date' | 'endDate' | 'created';
 export type SortOrder = 'asc' | 'desc';
 
@@ -22,6 +23,7 @@ export interface EventFilters {
   popularity?: PopularityFilter;
   tag?: string;
   tags?: string[];
+  duration?: EventDurationBucket[];
 }
 
 export interface MapFilters extends EventFilters {

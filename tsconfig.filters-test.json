@@ -35,6 +35,7 @@
     "src/utils/event-name-search.test.ts",
     "src/utils/lumia-conversation.test.ts",
     "src/utils/filter-events.test.ts",
+    "src/utils/event-duration.test.ts",
     "src/utils/map-viewport-fetch-utils.test.ts",
     "src/utils/map-peek-label.test.ts",
     "src/utils/similar-events.test.ts",

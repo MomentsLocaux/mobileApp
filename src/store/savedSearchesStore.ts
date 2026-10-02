@@ -14,6 +14,7 @@ import { buildSearchSummary } from '@/utils/search-summary';
 import type { Category, Subcategory, Tag } from '@/store/taxonomyStore';
 import type { DiscoveryFilters, DiscoverySurface } from '@/utils/discovery-filters';
 import { DEFAULT_SORT_OPTION } from '@/constants/filters';
+import { normalizeDurationSelection } from '@/utils/event-duration';
 
 type TaxonomyLabels = {
   categories: Category[];
@@ -77,6 +78,7 @@ const toLegacySearchState = (
       subcategories: [...filters.content.subcategories],
       tags: [...filters.content.tags],
       query: filters.content.query || '',
+      duration: filters.content.duration,
     },
     sortBy: filters.sort[surface].sortBy,
     sortOrder: filters.sort[surface].sortOrder,
@@ -187,7 +189,11 @@ export const useSavedSearchesStore = create<SavedSearchesStore>((set, get) => ({
           radiusKm: item.where.radiusKm,
         },
         when: { ...item.when },
-        content: { ...item.what, tags: [...(item.what.tags || [])] },
+        content: {
+          ...item.what,
+          tags: [...(item.what.tags || [])],
+          duration: normalizeDurationSelection(item.what.duration),
+        },
       },
       {
         status:

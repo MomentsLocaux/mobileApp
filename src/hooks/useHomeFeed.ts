@@ -31,7 +31,7 @@ import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import { getBoundsFromRadiusKm } from '@/utils/search-helpers';
 
 const HOME_POOL_LIMIT = 120;
-const EMPTY_CONTENT = { categories: [], subcategories: [], tags: [], query: '' };
+const EMPTY_CONTENT = { categories: [], subcategories: [], tags: [], query: '', duration: [] as const };
 type Center = { latitude: number; longitude: number };
 type Pool = { key: string; events: EventWithCreator[]; complete: boolean; fetchedAt: number };
 const zoneKey = (center: Center | null, radius: number) => center
@@ -50,6 +50,7 @@ export function useHomeFeed() {
   const { profile } = useAuth();
   const { currentLocation, isLoading: locationLoading, error: locationError, requestPermission } = useLocation();
   const place = useDiscoveryFiltersStore(state => state.place);
+  const duration = useDiscoveryFiltersStore(state => state.content.duration);
   const snapshot = useDiscoverySnapshotStore(state => state.home);
   const hydrated = useDiscoverySnapshotStore(state => state.hydrated);
   const taxonomy = useTaxonomyStore(state => state.categoriesMap);
@@ -225,12 +226,12 @@ export function useHomeFeed() {
     const radiusKm = options?.placeRadiusKm ?? browseRadiusKm;
     const camera = options?.camera ?? (center ? { ...center, radiusKm } : undefined);
     useDiscoveryFiltersStore.getState().applySearchCriteria({
-      when: temporal.when, content: EMPTY_CONTENT,
+      when: temporal.when, content: { ...EMPTY_CONTENT, duration },
       place: { center, radiusKm, label: options?.label || place.label || 'Autour de moi' },
     }, { status: temporal.status, applied: true });
     useMapTransferStore.getState().setHomeTransfer({ focus: camera });
     router.push({ pathname: '/(tabs)/map', params: { focus: '' } } as never);
-  }, [browseCenter, browseRadiusKm, place.label, router]);
+  }, [browseCenter, browseRadiusKm, duration, place.label, router]);
   const openSearch = useCallback(() => {
     useMapTransferStore.getState().setHomeTransfer({ openSearch: true });
     router.push('/(tabs)/map' as never);

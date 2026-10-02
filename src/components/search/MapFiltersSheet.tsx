@@ -42,12 +42,15 @@ import {
   type SearchTemporalChoice,
 } from '@/utils/search-temporal-choice';
 import type { DateRangeValue } from '@/types/eventDate.model';
+import type { EventDurationBucket } from '@/types/filters';
+import { normalizeDurationSelection } from '@/utils/event-duration';
 
 export type MapViewportFilterDraft = {
   status: DiscoveryStatus;
   when: DiscoveryWhenFilter;
   categories: string[];
   subcategories: string[];
+  duration: EventDurationBucket[];
 };
 
 interface Props {
@@ -64,6 +67,7 @@ function cloneDraft(value: MapViewportFilterDraft): MapViewportFilterDraft {
     when: { ...value.when },
     categories: [...value.categories],
     subcategories: [...value.subcategories],
+    duration: [...value.duration],
   };
 }
 
@@ -75,7 +79,9 @@ function draftsEqual(a: MapViewportFilterDraft, b: MapViewportFilterDraft): bool
     (a.when.endDate || undefined) === (b.when.endDate || undefined) &&
     Boolean(a.when.includePast) === Boolean(b.when.includePast) &&
     a.categories.join('\0') === b.categories.join('\0') &&
-    a.subcategories.join('\0') === b.subcategories.join('\0')
+    a.subcategories.join('\0') === b.subcategories.join('\0') &&
+    normalizeDurationSelection(a.duration).join('\0') ===
+      normalizeDurationSelection(b.duration).join('\0')
   );
 }
 
@@ -86,6 +92,7 @@ function defaultViewportDraft(): MapViewportFilterDraft {
     when: { ...next.when },
     categories: [],
     subcategories: [],
+    duration: [],
   };
 }
 
@@ -163,6 +170,15 @@ export function MapFiltersSheet({
 
   const temporalOptions = useMemo<FilterChipRowOption<SearchTemporalChoice>[]>(
     () => SEARCH_TEMPORAL_CHOICES.map((item) => ({ key: item.key, label: item.label })),
+    []
+  );
+
+  const durationOptions = useMemo<FilterChipRowOption<EventDurationBucket>[]>(
+    () => [
+      { key: 'exceptional', label: 'Exceptionnels' },
+      { key: 'short', label: 'Courts' },
+      { key: 'long', label: 'Longs' },
+    ],
     []
   );
 
@@ -337,6 +353,29 @@ export function MapFiltersSheet({
               </FilterChipRow>
             </View>
 
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Par durée</Text>
+              <FilterChipRow
+                accessibilityLabel="Durée des événements, plusieurs choix possibles"
+                mode="multi"
+                options={durationOptions}
+                scrollable={false}
+                size="sm"
+                testID="map-filters-duration"
+                values={draft.duration}
+                onChange={(duration) =>
+                  setDraft((current) => ({
+                    ...current,
+                    duration: normalizeDurationSelection(duration),
+                  }))
+                }
+              />
+              <Text style={styles.sectionHint}>
+                Sans sélection, tout reste visible. Chaque choix ne garde que sa catégorie :
+                exceptionnels jusqu’à 3 jours, courts de 4 à 14 jours, longs au-delà.
+              </Text>
+            </View>
+
             {categoryOptions.length > 0 ? (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -498,6 +537,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.text,
     fontWeight: '700',
+  },
+  sectionHint: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
   },
   selectAllText: {
     ...typography.caption,
