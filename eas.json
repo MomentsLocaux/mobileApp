@@ -53,11 +53,33 @@
     },
     "preview-device": {
       "distribution": "internal",
+      "environment": "development",
       "android": {
         "buildType": "apk"
       },
       "env": {
         "APP_ENV": "development",
+        "EAS_PROJECT_ID": "cdd0ac2d-c334-4aee-8bb9-e0cfb0771983",
+        "EXPO_PUBLIC_FEATURE_EVENT_CREATE": "false",
+        "EXPO_PUBLIC_FEATURE_CHECKIN": "false",
+        "EXPO_PUBLIC_FEATURE_OFFERS": "false",
+        "EXPO_PUBLIC_FEATURE_DIFFUSEUR": "false",
+        "EXPO_PUBLIC_FEATURE_GAMIFICATION": "false",
+        "EXPO_PUBLIC_FEATURE_DISCOVERY": "false",
+        "EXPO_PUBLIC_FEATURE_DISCOVERY_CAPTURE": "false",
+        "EXPO_PUBLIC_FEATURE_CONTESTS": "false",
+        "EXPO_PUBLIC_FEATURE_EVENT_SUGGEST": "true",
+        "EXPO_PUBLIC_FEATURE_LUMIA_CHAT": "true",
+        "EXPO_PUBLIC_GAMIFICATION_ENABLED": "false",
+        "EXPO_PUBLIC_DISCOVERY_ENABLED": "false",
+        "EXPO_PUBLIC_DISCOVERY_CAPTURE_ENABLED": "false"
+      }
+    },
+    "testflight": {
+      "autoIncrement": true,
+      "environment": "development",
+      "env": {
+        "APP_ENV": "production",
         "EAS_PROJECT_ID": "cdd0ac2d-c334-4aee-8bb9-e0cfb0771983",
         "EXPO_PUBLIC_FEATURE_EVENT_CREATE": "false",
         "EXPO_PUBLIC_FEATURE_CHECKIN": "false",
@@ -96,6 +118,7 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight": {}
   }
 }

@@ -128,9 +128,35 @@ async function upsertDevicePushTokenWithRetry(params: {
 }
 
 /**
- * Requests notification permission, obtains the Expo push token and stores it
- * in device_push_tokens. Returns the token, or null when unavailable
- * (permission denied, simulator, web, or missing EAS projectId).
+ * Shows the system notification dialog only when the user has not answered yet.
+ * A denial is left alone so a later visit does not raise the dialog again.
+ */
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return false;
+    let status = (await Notifications.getPermissionsAsync()).status;
+    if (status === 'granted') return true;
+    if (status === 'denied') return false;
+    status = (
+      await Notifications.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: true, allowSound: true },
+      })
+    ).status;
+    return status === 'granted';
+  } catch (e) {
+    console.warn('[push] requestNotificationPermission error:', e);
+    return false;
+  }
+}
+
+/**
+ * Obtains the Expo push token and stores it in device_push_tokens.
+ * Does not raise the system dialog: call requestNotificationPermission first
+ * from the screen where the user asked for alerts.
+ * Returns the token, or null when unavailable
+ * (permission not granted, simulator, web, or missing EAS projectId).
  */
 export async function registerForPushNotificationsAsync(userId: string): Promise<string | null> {
   if (Platform.OS === 'web') return null;
@@ -139,14 +165,7 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
     const Notifications = await getNotifications();
     if (!Notifications) return null;
 
-    let status = (await Notifications.getPermissionsAsync()).status;
-    if (status !== 'granted') {
-      status = (
-        await Notifications.requestPermissionsAsync({
-          ios: { allowAlert: true, allowBadge: true, allowSound: true },
-        })
-      ).status;
-    }
+    const status = (await Notifications.getPermissionsAsync()).status;
     if (status !== 'granted') return null;
 
     await ensureAndroidChannel(Notifications);

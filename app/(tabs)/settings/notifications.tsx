@@ -26,7 +26,12 @@ import {
   type UserPreferences,
 } from '@/services/preferences.service';
 import { ProximityAlertService } from '@/services/proximity-alert.service';
-import { clearHomeLocation, syncHomeLocation } from '@/services/push.service';
+import {
+  clearHomeLocation,
+  registerForPushNotificationsAsync,
+  requestNotificationPermission,
+  syncHomeLocation,
+} from '@/services/push.service';
 import {
   startProximityBackgroundAlerts,
   stopProximityBackgroundAlerts,
@@ -87,6 +92,24 @@ export default function NotificationsSettingsScreen() {
       setPrefs(previous);
       Toast.show({ type: 'error', text1: 'Échec de la mise à jour' });
     }
+  };
+
+  const handlePushToggle = async (value: boolean) => {
+    if (!value) {
+      await persist({ push_enabled: false });
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      Toast.show({
+        type: 'info',
+        text1: 'Notifications non autorisées',
+        text2: 'Vous pouvez les activer dans les réglages du téléphone.',
+      });
+      return;
+    }
+    await persist({ push_enabled: true });
+    if (userId) void registerForPushNotificationsAsync(userId);
   };
 
   const handleNearbyToggle = async (value: boolean) => {
@@ -185,7 +208,7 @@ export default function NotificationsSettingsScreen() {
           right={
             <Switch
               value={prefs.push_enabled}
-              onValueChange={(value) => persist({ push_enabled: value })}
+              onValueChange={(value) => void handlePushToggle(value)}
             />
           }
         />

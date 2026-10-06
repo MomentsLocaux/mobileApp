@@ -149,7 +149,7 @@ export function PushButton({
               />
             ) : null}
             {label ? (
-              <Text style={styles.label}>
+              <Text style={styles.label} numberOfLines={1}>
                 {label}
               </Text>
             ) : null}
@@ -207,6 +207,7 @@ const styles = StyleSheet.create({
   wellPill: {
     minHeight: WELL_SQUARE,
     minWidth: minimumTouchTarget,
+    width: '100%',
     borderRadius: CORNER,
     paddingHorizontal: 2,
     alignSelf: 'stretch',
@@ -249,12 +250,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
     gap: spacing.xs,
     zIndex: 1,
   },
   label: {
     ...typography.bodySmall,
-    flexShrink: 1,
+    flexShrink: 0,
     textAlign: 'center',
     fontWeight: '800',
     letterSpacing: 0.2,

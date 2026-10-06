@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -26,6 +28,7 @@ export default function ConversationThreadScreen() {
   const listRef = useRef<FlatList<DirectMessage>>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,18 +61,75 @@ export default function ConversationThreadScreen() {
     });
   }, [id, load]);
 
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft('');
+  };
+
+  const beginEdit = (message: DirectMessage) => {
+    setEditingId(message.id);
+    setDraft(message.body);
+    setError(null);
+  };
+
+  const confirmDelete = (message: DirectMessage) => {
+    Alert.alert(
+      'Supprimer ce message ?',
+      'Il disparaîtra pour vous et pour l’autre personne.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => void removeMessage(message),
+        },
+      ],
+    );
+  };
+
+  const removeMessage = async (message: DirectMessage) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await MessagingService.deleteMessage(message.id);
+      if (editingId === message.id) cancelEdit();
+      setMessages((current) => current.filter((row) => row.id !== message.id));
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Suppression impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openOwnMessageActions = (message: DirectMessage) => {
+    Alert.alert('Message', undefined, [
+      { text: 'Modifier', onPress: () => beginEdit(message) },
+      { text: 'Supprimer', style: 'destructive', onPress: () => confirmDelete(message) },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
   const send = async () => {
     if (!id || busy || !draft.trim()) return;
     setBusy(true);
     try {
-      const sent = await MessagingService.sendMessage(id, draft);
-      setDraft('');
+      if (editingId) {
+        const updated = await MessagingService.editMessage(editingId, draft);
+        setMessages((current) =>
+          current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
+        );
+        cancelEdit();
+      } else {
+        const sent = await MessagingService.sendMessage(id, draft);
+        setDraft('');
+        setMessages((current) =>
+          current.some((row) => row.id === sent.id) ? current : [...current, sent],
+        );
+      }
       setError(null);
-      setMessages((current) =>
-        current.some((row) => row.id === sent.id) ? current : [...current, sent],
-      );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Envoi impossible.');
+      setError(caught instanceof Error ? caught.message : editingId ? 'Modification impossible.' : 'Envoi impossible.');
     } finally {
       setBusy(false);
     }
@@ -103,19 +163,52 @@ export default function ConversationThreadScreen() {
             renderItem={({ item }) => {
               const mine = item.sender_id === myId;
               return (
-                <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                <Pressable
+                  disabled={!mine}
+                  onLongPress={() => openOwnMessageActions(item)}
+                  delayLongPress={280}
+                  accessibilityRole="text"
+                  accessibilityLabel={item.body}
+                  accessibilityHint={mine ? 'Maintien pour modifier ou supprimer' : undefined}
+                  accessibilityActions={
+                    mine
+                      ? [
+                          { name: 'edit', label: 'Modifier' },
+                          { name: 'delete', label: 'Supprimer' },
+                        ]
+                      : undefined
+                  }
+                  onAccessibilityAction={(event) => {
+                    if (event.nativeEvent.actionName === 'edit') beginEdit(item);
+                    if (event.nativeEvent.actionName === 'delete') confirmDelete(item);
+                  }}
+                  style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}
+                >
                   <Text style={mine ? styles.bubbleMineText : styles.bubbleText}>{item.body}</Text>
-                </View>
+                  {item.edited_at ? (
+                    <Text style={[styles.edited, mine ? styles.editedMine : styles.editedTheirs]}>
+                      Modifié
+                    </Text>
+                  ) : null}
+                </Pressable>
               );
             }}
           />
         )}
         {error && messages.length > 0 ? <Text style={styles.error}>{error}</Text> : null}
+        {editingId ? (
+          <View style={styles.editBanner}>
+            <Text style={styles.editBannerText}>Modification du message</Text>
+            <TouchableOpacity onPress={cancelEdit} accessibilityRole="button" accessibilityLabel="Annuler la modification">
+              <Text style={styles.editCancel}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <View style={styles.composer}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Écrire un message"
+            placeholder={editingId ? 'Modifier le message' : 'Écrire un message'}
             placeholderTextColor={colors.brand.textSecondary}
             style={styles.input}
             maxLength={UGC_LIMITS.directMessage}
@@ -126,9 +219,9 @@ export default function ConversationThreadScreen() {
             onPress={() => void send()}
             disabled={!draft.trim() || busy}
             accessibilityRole="button"
-            accessibilityLabel="Envoyer"
+            accessibilityLabel={editingId ? 'Enregistrer la modification' : 'Envoyer'}
           >
-            <Text style={styles.sendText}>Envoyer</Text>
+            <Text style={styles.sendText}>{editingId ? 'Enregistrer' : 'Envoyer'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -165,6 +258,18 @@ const styles = StyleSheet.create({
   },
   bubbleText: { ...typography.body, color: colors.brand.text },
   bubbleMineText: { ...typography.body, color: colors.brand.onAccent },
+  edited: { ...typography.caption, marginTop: 2, fontWeight: '700' },
+  editedMine: { color: colors.brand.onAccent, opacity: 0.72 },
+  editedTheirs: { color: colors.brand.textSecondary },
+  editBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  editBannerText: { ...typography.caption, color: colors.brand.textSecondary, fontWeight: '700' },
+  editCancel: { ...typography.caption, color: colors.brand.secondary, fontWeight: '800' },
   error: {
     ...typography.caption,
     color: colors.brand.error,

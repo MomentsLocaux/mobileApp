@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Linking, InteractionManager } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Linking, InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -176,6 +176,8 @@ export default function MapScreen() {
   const clearHomeTransfer = useMapTransferStore((s) => s.clearHomeTransfer);
 
   const insets = useSafeAreaInsets();
+  // Android draws edge-to-edge; keep the map sheet above the system navigation bar.
+  const androidNavigationInset = Platform.OS === 'android' ? insets.bottom : 0;
   const sheetMode = sheetStatus === 'singleEvent' ? 'single' : 'viewport';
   const {
     minSheetHeightShared,
@@ -1342,7 +1344,10 @@ export default function MapScreen() {
         </View>
 
         <View
-          style={styles.contentColumn}
+          style={[
+            styles.contentColumn,
+            androidNavigationInset > 0 ? { marginBottom: androidNavigationInset } : null,
+          ]}
           onLayout={(event) => {
             const height = event.nativeEvent.layout.height;
             handleColumnLayout(height);
@@ -1508,7 +1513,11 @@ export default function MapScreen() {
                 onPress={openUnitEventDetails}
                 onNavigate={() => setNavEvent(unitCardEvent)}
                 onClose={() => beginUnitCardDismissal(true)}
-                bottomInset={TAB_BAR_ICONS_HEIGHT + Math.max(insets.bottom, 8) + spacing.sm}
+                bottomInset={
+                  TAB_BAR_ICONS_HEIGHT +
+                  (androidNavigationInset > 0 ? spacing.sm : Math.max(insets.bottom, 8)) +
+                  spacing.sm
+                }
               />
             </Animated.View>
           ) : null}
@@ -1570,7 +1579,11 @@ export default function MapScreen() {
               hasViewportRefine={hasViewportRefine}
               onClearViewportFilters={handleClearViewportFilters}
               onOpenFilters={openRefinePanel}
-              bottomContentInset={60 + Math.max(insets.bottom, 8) + spacing.xl}
+              bottomContentInset={
+                TAB_BAR_ICONS_HEIGHT +
+                (androidNavigationInset > 0 ? spacing.md : Math.max(insets.bottom, 8)) +
+                spacing.xl
+              }
             />
           </Animated.View>
         </View>

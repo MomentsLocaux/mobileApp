@@ -61,6 +61,7 @@
     "src/utils/sign-out-choice.test.ts",
     "src/utils/query-timeout.test.ts",
     "src/utils/search-temporal-choice.test.ts",
+    "src/utils/search-place-anchor.test.ts",
     "src/utils/date-range-selection.test.ts",
     "src/utils/brand-icon-artwork.test.ts",
     "src/utils/event-card-meta.test.ts",

@@ -50,6 +50,7 @@ import {
 import { buildSearchSummary } from '@/utils/search-summary';
 import {
   hasSearchCriteria as checkSearchCriteria,
+  hasSearchPlaceAnchor,
   PROXIMITY_RADIUS_KM,
   resolveEffectiveRadiusKm,
   resolveSearchCenter,
@@ -392,7 +393,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
       setCountLoading(false);
       return;
     }
-    if (!hasSearchCriteria || combinationError) {
+    if (!hasSearchCriteria || combinationError || !searchCenter) {
       setSearchCount(null);
       setSearchCountError(false);
       setCountLoading(false);
@@ -557,6 +558,14 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   const applySnapshot = (item: SavedSearchSnapshot) => {
     const committed = applySavedSearch(item.id, surface);
     if (!committed) return;
+    if (!hasSearchPlaceAnchor(committed.place, userCoords)) {
+      Toast.show({
+        type: 'error',
+        text1: 'Lieu requis',
+        text2: 'Choisissez un lieu avant de relancer cette recherche.',
+      });
+      return;
+    }
     onApply(committed);
     closeExpanded();
   };
@@ -614,6 +623,14 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
   };
 
   const handleApplySearch = () => {
+    if (!searchCenter) {
+      Toast.show({
+        type: 'error',
+        text1: 'Lieu requis',
+        text2: 'Choisissez un lieu, ou activez la localisation pour chercher à proximité.',
+      });
+      return;
+    }
     if (combinationError) {
       Toast.show({ type: 'error', text1: 'Filtres incompatibles', text2: combinationError });
       return;
@@ -1146,7 +1163,12 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
 
             {searchMode === 'events' ? (
               <View style={{ marginBottom: insets.bottom + BOTTOM_BAR_GUTTER }}>
-                {searchCount === 0 && !countLoading && hasSearchCriteria ? (
+                {!searchCenter ? (
+                  <Text style={styles.zeroHint}>
+                    Choisissez un lieu, ou activez la localisation pour chercher à proximité.
+                  </Text>
+                ) : null}
+                {searchCenter && searchCount === 0 && !countLoading && hasSearchCriteria ? (
                   <Text style={styles.zeroHint}>
                     Aucun résultat — élargissez le rayon, changez la période ou retirez des filtres.
                   </Text>
@@ -1190,8 +1212,17 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
                       </TouchableOpacity>
                     ) : null}
                   </View>
-                  <TouchableOpacity style={styles.primaryBtn} onPress={handleApplySearch}>
-                    <Text style={styles.primaryText}>{countLabel}</Text>
+                  <TouchableOpacity
+                    style={[styles.primaryBtn, !searchCenter && styles.primaryBtnDisabled]}
+                    onPress={handleApplySearch}
+                    disabled={!searchCenter}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !searchCenter }}
+                    accessibilityLabel={searchCenter ? countLabel : 'Choisir un lieu'}
+                  >
+                    <Text style={styles.primaryText}>
+                      {searchCenter ? countLabel : 'Choisir un lieu'}
+                    </Text>
                     <ChevronRight size={16} color={colors.brand.primary} />
                   </TouchableOpacity>
                 </View>
@@ -1750,6 +1781,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.45,
   },
   primaryText: {
     ...typography.bodyBold,

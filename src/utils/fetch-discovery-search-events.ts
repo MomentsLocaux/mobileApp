@@ -35,8 +35,9 @@ export async function listEventsByNameQuery(options: {
 }
 
 /**
- * Home / SearchBar preview: viewport RPC for place-only searches,
+ * Home / SearchBar preview: viewport RPC for place-anchored searches,
  * plus a title/description `ilike` fetch when the user typed keywords in Quoi.
+ * Without a place bbox, the catalog-wide list is skipped — it times out.
  */
 export async function fetchDiscoverySearchEvents(options: {
   nameQuery?: string | null;
@@ -60,6 +61,10 @@ export async function fetchDiscoverySearchEvents(options: {
       : undefined;
   const bbox = options.constrainToPlace === false ? undefined : placeBbox;
 
+  if (!bbox && options.constrainToPlace !== false) {
+    return [];
+  }
+
   if (tokens.length > 0) {
     return listEventsByNameQuery({
       nameQuery: options.nameQuery || '',
@@ -76,5 +81,5 @@ export async function fetchDiscoverySearchEvents(options: {
     return viewport.events || [];
   }
 
-  return EventsService.listEvents({ limit, timeScope: options.timeScope });
+  return [];
 }

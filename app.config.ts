@@ -3,7 +3,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 import { assertNoPublicSecrets } from './scripts/check-client-secrets.mjs';
 
 const APP_VERSION = '1.0.0';
-const IOS_BUILD_NUMBER = '1';
+const IOS_BUILD_NUMBER = '3';
 const ANDROID_VERSION_CODE = 1;
 
 /** APNs entitlement is baked in at native build time, not Metro reload. */

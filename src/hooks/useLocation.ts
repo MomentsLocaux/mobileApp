@@ -69,8 +69,25 @@ export const useLocation = () => {
   }, [getCurrentLocation, setCurrentLocation, setError, setLoading, setPermissionGranted]);
 
   useEffect(() => {
-    void requestLocationPermission();
-  }, [requestLocationPermission]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (cancelled) return;
+        setPermissionGranted(status === 'granted');
+        if (status === 'granted') {
+          await requestLocationPermission();
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to read location permission');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestLocationPermission, setError, setPermissionGranted]);
 
   return {
     currentLocation,

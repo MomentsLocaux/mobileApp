@@ -1,0 +1,199 @@
+<!--
+  Email alpha — personnes qui ont laissé leur email sur le site
+  (intérêt au lancement, pas un cercle d’amis séparé)
+
+  Expéditeur : Moments Locaux <hello@moments-locaux.com>
+  Coller ce HTML dans Brevo (Campagnes → Email → Éditeur HTML / code).
+
+  Avant envoi :
+    1. App Store Connect → Moments Locaux → TestFlight → groupe externe.
+       Le build affiché doit être 1.0.0 (4), celui qui s’ouvre.
+    2. Lien public du groupe : https://testflight.apple.com/join/nWSpua5Z
+    3. Android, APK vérifié le 6 oct. 2026 :
+       https://expo.dev/accounts/roystok/projects/moments-locaux/builds/42d48011-d586-4cc4-90c2-182f2c22b6db
+       Ne pas remettre les liens expo.dev de septembre 2026.
+
+  Désinscription (obligatoire, liste du site) :
+    https://www.moments-locaux.com/fr/desinscription?email={{ contact.EMAIL }}
+
+  Roadmap : https://www.moments-locaux.com/fr/roadmap
+
+  Objet :
+    Moments Locaux — tu avais laissé ton email, je t’embarque
+
+  Préheader :
+    Merci pour ton intérêt sur le site. La première version est prête, sur iPhone et Android.
+-->
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Moments Locaux — alpha</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#F4FBF6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4FBF6;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid #D5E6DA;">
+            <tr>
+              <td align="center" style="padding:36px 32px 24px 32px;background-color:#E8F5E9;">
+                <img
+                  src="https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/moments-locaux-organizer.png"
+                  width="72"
+                  height="72"
+                  alt="Moments Locaux"
+                  style="display:block;border:0;border-radius:16px;margin:0 auto 16px auto;"
+                />
+                <p style="margin:0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Moments Locaux · Alpha
+                </p>
+                <h1 style="margin:10px 0 0 0;font-size:26px;line-height:1.25;color:#1A3329;font-weight:700;font-family:Georgia,'Times New Roman',serif;">
+                  Merci d’avoir levé la main
+                </h1>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:28px 32px 8px 32px;color:#1A3329;">
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Salut,
+                </p>
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Tu avais laissé ton email sur <a href="https://www.moments-locaux.com/fr" style="color:#557C10;text-decoration:underline;">moments-locaux.com</a> pour être prévenu de la sortie. Merci. C’est grâce à cet intérêt que je t’écris aujourd’hui : une première version de <strong>Moments Locaux</strong> est prête, et je veux t’embarquer avant les stores.
+                </p>
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#5B7A6A;">
+                  Ça va bugger par endroits, c’est pour ça que je te l’envoie maintenant. Si tu as un quart d’heure, installe-la et regarde ce qu’il y a près de chez toi. Rouvre-la une fois ou deux dans la semaine, et dis-moi ce que tu en penses.
+                </p>
+                <p style="margin:0 0 28px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Pour revoir les fonctionnalités et la suite :
+                  <a href="https://www.moments-locaux.com/fr/roadmap" style="color:#557C10;text-decoration:underline;">la roadmap sur le site</a>.
+                </p>
+
+                <p style="margin:0 0 16px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Un vrai téléphone, pas un ordinateur. Ensuite, crée un compte avec ton email, termine l’accueil, et choisis <strong>ta vraie ville</strong>.
+                </p>
+
+                <p style="margin:0 0 10px 0;font-size:18px;line-height:1.4;color:#1A3329;font-weight:700;">
+                  <img src="https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/icon-apple.png" width="28" height="28" alt="" style="display:inline-block;vertical-align:middle;border:0;margin-right:8px;" />
+                  Tu as un iPhone&nbsp;?
+                </p>
+                <p style="margin:0 0 6px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  1. Installe TestFlight, c’est gratuit sur l’App Store.
+                </p>
+                <p style="margin:0 0 16px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  2. Reviens dans cet email et clique sur le bouton ci-dessous. Il ouvre TestFlight et te permet d’installer l’application.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px 0;">
+                  <tr>
+                    <td align="center" bgcolor="#7CB518" style="border-radius:999px;">
+                      <a
+                        href="https://testflight.apple.com/join/nWSpua5Z"
+                        style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#1A3329;text-decoration:none;border-radius:999px;"
+                      >
+                        Installer sur iPhone
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 10px 0;font-size:18px;line-height:1.4;color:#1A3329;font-weight:700;">
+                  <img src="https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/icon-android.png" width="28" height="28" alt="" style="display:inline-block;vertical-align:middle;border:0;margin-right:8px;" />
+                  Tu as un téléphone Android&nbsp;?
+                </p>
+                <p style="margin:0 0 6px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  1. Ouvre le lien ci-dessous.
+                </p>
+                <p style="margin:0 0 6px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  2. Si le téléphone bloque l’installation, autorise-la, puis reviens en arrière.
+                </p>
+                <p style="margin:0 0 16px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  3. Si Play Protect prévient, choisis «&nbsp;Installer quand même&nbsp;».
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px 0;">
+                  <tr>
+                    <td align="center" bgcolor="#1A3329" style="border-radius:999px;">
+                      <a
+                        href="https://expo.dev/accounts/roystok/projects/moments-locaux/builds/42d48011-d586-4cc4-90c2-182f2c22b6db"
+                        style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#F4FBF6;text-decoration:none;border-radius:999px;"
+                      >
+                        Installer sur Android
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 12px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Le bouton +
+                </p>
+                <p style="margin:0 0 16px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Le rond vert entouré sur la capture. S’il est à moitié caché sur le bord, glisse-le vers le centre.
+                </p>
+                <img
+                  src="https://prymkgkafaovhzopslea.supabase.co/storage/v1/object/public/avatar/branding/alpha-map-plus.png"
+                  width="280"
+                  alt="Carte Moments Locaux, le bouton + est entouré"
+                  style="display:block;width:100%;max-width:280px;height:auto;border:0;border-radius:16px;margin:0 auto 20px auto;"
+                />
+
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  <strong>Scanner une affiche.</strong> Tu photographies une affiche ou un flyer. L’IA préremplit la suggestion, tu vérifies, l’équipe valide avant publication.
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  <strong>Saisie manuelle.</strong> Tu remplis le formulaire toi-même, si tu n’as pas d’affiche sous la main.
+                </p>
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  <strong>Un bug.</strong> Même bouton, ligne Assistance : une phrase et une capture suffisent.
+                </p>
+
+                <p style="margin:0 0 12px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  En priorité
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  1. Parcourir Accueil et Carte, ouvrir 2–3 fiches, en mettre une en favori.
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  2. Dans Membres, suivre les autres personnes du groupe. Like ou commente un même moment.
+                </p>
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  3. Un soir : une affiche via le bouton <strong>+</strong>, ou une question à Lumia « qu’est-ce qu’il y a ce week-end ? ».
+                </p>
+
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#5B7A6A;">
+                  Créer un événement pro, QR, boutique, missions et concours arrivent ensuite. Le détail est sur
+                  <a href="https://www.moments-locaux.com/fr/roadmap" style="color:#557C10;text-decoration:underline;">la roadmap</a>.
+                </p>
+
+                <p style="margin:0 0 8px 0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#7CB518;font-weight:600;">
+                  Si ça coince
+                </p>
+                <p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Bouton <strong>+</strong> → Reporter un bug. Compte bloqué :
+                  <a href="mailto:hello@moments-locaux.com" style="color:#557C10;text-decoration:underline;">hello@moments-locaux.com</a>.
+                </p>
+                <p style="margin:0 0 8px 0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Merci encore pour ton intérêt — même un « je n’ai rien compris » ou « j’ai trouvé un concert samedi » m’aide.
+                </p>
+                <p style="margin:0;font-size:16px;line-height:1.55;color:#1A3329;">
+                  Romain
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px 32px 28px 32px;border-top:1px solid #D5E6DA;">
+                <p style="margin:0;font-size:12px;line-height:1.5;color:#5B7A6A;text-align:center;">
+                  Version alpha, hors stores. Tes commentaires, photos d’affiches et ta position restent dans un environnement de test. Tu peux supprimer le compte dans Paramètres → Confidentialité.<br /><br />
+                  <a href="https://www.moments-locaux.com/fr/desinscription?email={{ contact.EMAIL }}" style="color:#557C10;text-decoration:underline;">Se désinscrire</a><br />
+                  <a href="https://www.moments-locaux.com/fr/roadmap" style="color:#557C10;text-decoration:underline;">moments-locaux.com/fr/roadmap</a><br />
+                  Moments Locaux · hello@moments-locaux.com
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

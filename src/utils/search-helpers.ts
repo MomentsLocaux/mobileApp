@@ -88,6 +88,15 @@ export const resolveSearchCenter = (
   return null;
 };
 
+/**
+ * A discovery search must be tied to a chosen place or to GPS.
+ * Without that anchor, the preview falls back to an unbounded event list and times out.
+ */
+export const hasSearchPlaceAnchor = (
+  place: DiscoveryPlaceFilter,
+  userCoords?: Coords | null
+): boolean => resolveSearchCenter(place, userCoords) != null;
+
 export const getBoundsFromRadiusKm = (latitude: number, longitude: number, radiusKm: number) => {
   const latDelta = radiusKm / 111;
   const lonDelta = radiusKm / (111 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.1));

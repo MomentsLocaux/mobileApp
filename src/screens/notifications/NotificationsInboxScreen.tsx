@@ -28,6 +28,7 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { useAuth } from '@/hooks';
 import { useAuthStore } from '@/state/auth';
 import { NotificationsService, type AppNotification, type AppNotificationType, type NotificationVisual, hasFreshInboxCache, peekInboxCache } from '@/services/notifications.service';
+import { registerForPushNotificationsAsync, requestNotificationPermission } from '@/services/push.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
 import { EmptyState, ScreenHeader, SkeletonBlock, SlidingSegmentedControl, UserAvatar } from '@/components/ui';
 import { hasRenderableAvatar } from '@/constants/avatar-presets';
@@ -274,6 +275,17 @@ export default function NotificationsInboxScreen() {
       setLoading(false);
     }
   }, [applyInbox, isGuest, mode, userId]);
+
+  useEffect(() => {
+    if (!userId || isGuest) return;
+    let cancelled = false;
+    void requestNotificationPermission().then((granted) => {
+      if (!cancelled && granted) void registerForPushNotificationsAsync(userId);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isGuest, userId]);
 
   useFocusEffect(
     useCallback(() => {

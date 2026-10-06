@@ -19,6 +19,7 @@ export type DirectMessage = {
   sender_id: string;
   body: string;
   created_at: string;
+  edited_at: string | null;
 };
 
 const asError = (error: unknown) => error as { code?: string; message?: string };
@@ -83,13 +84,29 @@ export const MessagingService = {
   },
 
   async listMessages(conversationId: string, limit = 80): Promise<DirectMessage[]> {
-    const { data, error } = await (supabase.from('direct_messages') as any)
-      .select('id, conversation_id, sender_id, body, created_at')
+    const columns = 'id, conversation_id, sender_id, body, created_at, edited_at';
+    const query = (supabase.from('direct_messages') as any)
+      .select(columns)
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
       .limit(limit);
+    const { data, error } = await query;
+    if (error && isMissingSchemaError(error)) {
+      const fallback = await (supabase.from('direct_messages') as any)
+        .select('id, conversation_id, sender_id, body, created_at')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
+        .limit(limit);
+      if (fallback.error) {
+        if (isMissingSchemaError(fallback.error)) return [];
+        throw toError(fallback.error, 'Impossible de charger la conversation.');
+      }
+      return ((fallback.data || []) as Omit<DirectMessage, 'edited_at'>[]).map((row) => ({
+        ...row,
+        edited_at: null,
+      }));
+    }
     if (error) {
-      if (isMissingSchemaError(error)) return [];
       throw toError(error, 'Impossible de charger la conversation.');
     }
     return (data || []) as DirectMessage[];
@@ -110,6 +127,36 @@ export const MessagingService = {
     return data as DirectMessage;
   },
 
+  async editMessage(messageId: string, body: string): Promise<DirectMessage> {
+    const sanitized = sanitizeUgcText(body, UGC_LIMITS.directMessage);
+    if (!sanitized) {
+      throw new Error('Écris un message avant d’enregistrer.');
+    }
+    const { data, error } = await supabase.rpc('edit_direct_message' as never, {
+      p_message_id: messageId,
+      p_body: sanitized,
+    } as never);
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        throw new Error('La modification des messages n’est pas encore disponible.');
+      }
+      throw new Error(asError(error).message || 'Modification impossible.');
+    }
+    return data as DirectMessage;
+  },
+
+  async deleteMessage(messageId: string): Promise<void> {
+    const { error } = await supabase.rpc('delete_direct_message' as never, {
+      p_message_id: messageId,
+    } as never);
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        throw new Error('La suppression des messages n’est pas encore disponible.');
+      }
+      throw new Error(asError(error).message || 'Suppression impossible.');
+    }
+  },
+
   async markRead(conversationId: string): Promise<void> {
     const { error } = await supabase.rpc('mark_direct_conversation_read' as never, {
       p_conversation_id: conversationId,
@@ -125,7 +172,7 @@ export const MessagingService = {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'direct_messages',
           filter: `conversation_id=eq.${conversationId}`,

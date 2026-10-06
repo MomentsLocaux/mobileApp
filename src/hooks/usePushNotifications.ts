@@ -11,7 +11,8 @@ import {
 /**
  * Wires Expo push notifications to the authenticated session:
  *  - configures foreground presentation
- *  - registers / refreshes the device token on login, removes it on logout
+ *  - refreshes the device token on login when permission is already granted,
+ *    removes it on logout. The system prompt is not raised here.
  *  - silently refreshes home_location when location permission is already granted
  *  - routes notification taps (foreground + cold start) to the right screen
  */
