@@ -7,7 +7,7 @@ import { ArrowLeft, Flag, Lock, MapPin, MessageCircle, Users } from 'lucide-reac
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
 import { AppBackground } from '@/components/ui';
 import { UserAvatar } from '@/components/ui/UserAvatar';
-import { CommunityService } from '../../services/community.service';
+import { CommunityService, type FriendLikedEvent } from '../../services/community.service';
 import { LocalStatusService } from '@/services/local-status.service';
 import { ReportService } from '@/services/report.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
@@ -48,6 +48,8 @@ export default function CommunityProfileScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [isAmbassadeur, setIsAmbassadeur] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [likedEvents, setLikedEvents] = useState<FriendLikedEvent[] | null>([]);
+  const [loadingLikes, setLoadingLikes] = useState(false);
   const currentUserId = user?.id || session?.user?.id || profile?.id;
   const showCreatorEvents = features.eventCreate;
 
@@ -119,6 +121,31 @@ export default function CommunityProfileScreen() {
     }, [refreshFollowingState]),
   );
 
+  const canSeeFriendLikes = features.socialPeers && Boolean(id) && (currentUserId === id || (isFollowing && theyFollowMe));
+
+  useEffect(() => {
+    if (!canSeeFriendLikes || !id) {
+      setLikedEvents([]);
+      setLoadingLikes(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingLikes(true);
+    void CommunityService.listFriendLikedEvents(id)
+      .then((rows) => {
+        if (!cancelled) setLikedEvents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLikedEvents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLikes(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canSeeFriendLikes, id]);
+
   const filteredLabel = useMemo(() => {
     const parts = [];
     if (dateFilter === 'upcoming') parts.push('À venir');
@@ -175,10 +202,10 @@ export default function CommunityProfileScreen() {
       ? 'C’est votre profil privé. Les autres membres doivent être amis (suivi mutuel) pour vous écrire.'
       : 'C’est votre profil public. Les autres membres voient votre nom, votre ville et peuvent vous écrire.'
     : isFriend
-      ? `Vous et ${firstName} êtes amis. Vous pouvez vous écrire.`
+      ? `Vous et ${firstName} êtes amis. Vous pouvez vous écrire et voir vos coups de cœur.`
       : isFollowing
-        ? `Vous suivez ${firstName}. Ses coups de cœur apparaîtront près des événements que vous découvrez.`
-        : `Suivez ${firstName} pour voir ses coups de cœur dans votre fil.`;
+        ? `Vous suivez ${firstName}. Ses coups de cœur restent privés tant que le suivi n’est pas réciproque.`
+        : `Un suivi mutuel permet de voir ses coups de cœur.`;
 
   const openConversation = async () => {
     if (!id || messageBusy) return;
@@ -347,6 +374,42 @@ export default function CommunityProfileScreen() {
         />
         {GAMIFICATION_ENABLED ? <Stat label="Engagement" value={member.lumo_total ?? 0} /> : null}
       </View>
+
+      {canSeeFriendLikes ? (
+        <View style={styles.likesSection}>
+          <Text style={styles.sectionTitle}>Coups de cœur</Text>
+          {loadingLikes ? (
+            <ActivityIndicator color={colors.brand.secondary} />
+          ) : likedEvents == null ? (
+            <Text style={styles.likesEmpty}>Liste indisponible pour le moment.</Text>
+          ) : likedEvents.length === 0 ? (
+            <Text style={styles.likesEmpty}>Aucun coup de cœur pour l’instant.</Text>
+          ) : (
+            likedEvents.map((liked) => {
+              const when = new Date(liked.starts_at);
+              const whenLabel = Number.isNaN(when.getTime())
+                ? ''
+                : when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+              return (
+                <TouchableOpacity
+                  key={liked.id}
+                  style={styles.likeRow}
+                  onPress={() => router.push(`/events/${liked.id}` as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel={liked.title}
+                >
+                  <View style={styles.likeCopy}>
+                    <Text style={styles.likeTitle} numberOfLines={2}>{liked.title}</Text>
+                    <Text style={styles.likeMeta} numberOfLines={1}>
+                      {[whenLabel, liked.city].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+      ) : null}
 
       {!showCreatorEvents ? (
         <View style={styles.presenceCard}>
@@ -729,6 +792,34 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.text,
     fontWeight: '700',
+  },
+  likesSection: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  likesEmpty: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+  },
+  likeRow: {
+    minHeight: 56,
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
+  },
+  likeCopy: {
+    gap: 2,
+  },
+  likeTitle: {
+    ...typography.body,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  likeMeta: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
   },
   eventsSection: {
     paddingHorizontal: spacing.md,

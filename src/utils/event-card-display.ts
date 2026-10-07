@@ -177,7 +177,7 @@ export function getEventSocialProofLabel(options: {
   if (followedNames.length === 1) return `Aimé par ${followedNames[0]}`;
   if (followedNames.length > 1) {
     const others = followedNames.length - 1;
-    return `${followedNames[0]} et ${others} suivi${others > 1 ? 's' : ''}`;
+    return `${followedNames[0]} et ${others} ami${others > 1 ? 's' : ''}`;
   }
 
   return `${effectiveLikes} personne${effectiveLikes > 1 ? 's' : ''} aime${effectiveLikes > 1 ? 'nt' : ''}`;

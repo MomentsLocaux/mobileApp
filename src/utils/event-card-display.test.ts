@@ -114,11 +114,11 @@ describe('event card social proof', () => {
     );
     assert.equal(
       getEventSocialProofLabel({ likesCount: 12, followedNames: ['Léa Martin', 'Paul', 'Nina'] }),
-      'Léa et 2 suivis',
+      'Léa et 2 amis',
     );
     assert.equal(
       getEventSocialProofLabel({ likesCount: 4, followedNames: ['Léa', 'Paul'] }),
-      'Léa et 1 suivi',
+      'Léa et 1 ami',
     );
   });
 

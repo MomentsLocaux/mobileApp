@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import { AuthService } from '@/services/auth.service';
+import { CommunityService } from '@/services/community.service';
+import { mutualFriendIds } from '@/utils/event-likers';
 import { shouldFetchEventViewsFallback } from '@/utils/event-card-stats-plan';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 
@@ -142,7 +144,7 @@ export const EventCardStatsService = {
 
       const emptyRpc = { data: null, error: null as unknown };
       const authed = Boolean(currentUserId && (await AuthService.ensureClientSession()));
-      const [publicStatsResponse, friendsResponse, likersResponse] = await Promise.all([
+      const [publicStatsResponse, friendsResponse, likersResponse, followerRows, followingIds] = await Promise.all([
         supabase.rpc('get_event_public_stats', { event_ids: missingEventIds }),
         authed
           ? supabase.rpc('get_event_friend_favorite_counts', { event_ids: missingEventIds })
@@ -153,7 +155,13 @@ export const EventCardStatsService = {
               p_limit_per_event: EVENT_CARD_LIKER_PREVIEW_LIMIT,
             } as never)
           : Promise.resolve(emptyRpc),
+        authed ? CommunityService.listMyFollowers().catch(() => []) : Promise.resolve([]),
+        authed && currentUserId
+          ? CommunityService.getFollowingIds(currentUserId).catch(() => [] as string[])
+          : Promise.resolve([] as string[]),
       ]);
+      const friendIds = mutualFriendIds(followingIds, followerRows.map((person) => person.id));
+      const followingIdsSet = new Set(followingIds);
 
       const publicStatsError = publicStatsResponse.error;
       const publicStats = publicStatsResponse.data;
@@ -198,11 +206,12 @@ export const EventCardStatsService = {
           const eventId = row?.event_id;
           const userId = row?.user_id;
           if (!eventId || !userId || !fetched[eventId]) return;
+          if (followingIdsSet.has(userId) && !friendIds.has(userId)) return;
           fetched[eventId].likers.push({
             id: userId,
             display_name: row.display_name || 'Membre',
             avatar_url: row.avatar_url || null,
-            is_followed: Boolean(row.is_followed),
+            is_followed: friendIds.has(userId),
           });
         });
       }

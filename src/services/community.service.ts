@@ -12,6 +12,14 @@ export type EventLikerProfile = {
   avatar_url: string | null;
 };
 
+export type FriendLikedEvent = {
+  id: string;
+  title: string;
+  city: string | null;
+  starts_at: string;
+  cover_url: string | null;
+};
+
 export type FollowListMember = {
   user_id: string;
   display_name: string;
@@ -305,7 +313,7 @@ export const CommunityService = {
   },
 
   /**
-   * Peers who liked or favorited this event among accounts the current user follows.
+   * Peers who liked or favorited this event among mutual friends only.
    * Uses SECURITY DEFINER RPC (owner-only RLS on event_likes / favorites).
    */
   async listEventEngagedByFollowing(
@@ -329,10 +337,41 @@ export const CommunityService = {
       return [];
     }
 
-    return (data || []).map((row: { user_id: string; display_name: string; avatar_url: string | null }) => ({
+    const peers = (data || []).map((row: { user_id: string; display_name: string; avatar_url: string | null }) => ({
       id: row.user_id,
       display_name: row.display_name || 'Membre',
       avatar_url: row.avatar_url || null,
+    }));
+    const followers = await this.listMyFollowers().catch(() => []);
+    const friends = new Set(followers.map((person) => person.id));
+    return peers.filter((person) => friends.has(person.id));
+  },
+
+  /**
+   * Events liked by a mutual friend, or by the signed-in member on their own profile.
+   * A one-way follow returns nothing.
+   */
+  async listFriendLikedEvents(
+    userId: string,
+    options?: { limit?: number },
+  ): Promise<FriendLikedEvent[] | null> {
+    if (!userId) return [];
+    const { data, error } = await supabase.rpc('list_friend_liked_events', {
+      p_user_id: userId,
+      p_limit: options?.limit ?? 30,
+    });
+    if (error) {
+      const code = String((error as { code?: string })?.code || '');
+      if (code === 'PGRST202' || code === '42883') return null;
+      console.warn('listFriendLikedEvents', error);
+      return [];
+    }
+    return (data || []).map((row: FriendLikedEvent) => ({
+      id: row.id,
+      title: row.title || 'Moment',
+      city: row.city || null,
+      starts_at: row.starts_at,
+      cover_url: row.cover_url || null,
     }));
   },
 

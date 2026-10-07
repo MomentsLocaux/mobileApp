@@ -421,16 +421,16 @@ export function selectSocialSignal(
     let caption = '';
     let weight = 0;
     if (saved >= 2) {
-      caption = `${saved} personnes que tu suis ont enregistré`;
+      caption = `${saved} amis ont enregistré`;
       weight = 100 + saved;
     } else if (saved === 1) {
-      caption = 'Une personne que tu suis a enregistré';
+      caption = 'Un ami a enregistré';
       weight = 80;
     } else if (followed.length >= 2) {
-      caption = `${followed.length} personnes que tu suis aiment`;
+      caption = `${followed.length} amis aiment`;
       weight = 60 + followed.length;
     } else if (followed.length === 1) {
-      const name = followed[0]?.display_name?.trim() || 'Une personne que tu suis';
+      const name = followed[0]?.display_name?.trim() || 'Un ami';
       caption = `${name} aime`;
       weight = 40;
     }
