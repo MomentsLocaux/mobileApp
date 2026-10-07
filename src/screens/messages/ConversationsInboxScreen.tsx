@@ -8,6 +8,7 @@ import { colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { MessagingService, type DirectConversationPreview } from '@/services/messaging.service';
 import { formatTimeAgo } from '@/utils/relative-time';
+import { sharedEventInboxPreview } from '@/utils/event-share';
 import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 
 export default function ConversationsInboxScreen() {
@@ -108,7 +109,7 @@ export default function ConversationsInboxScreen() {
                   {row.last_at ? <Text style={styles.time}>{formatTimeAgo(row.last_at)}</Text> : null}
                 </View>
                 <Text style={[styles.preview, row.unread_count > 0 && styles.previewUnread]} numberOfLines={1}>
-                  {row.last_body || 'Nouvelle conversation'}
+                  {sharedEventInboxPreview(row.last_body) || row.last_body || 'Nouvelle conversation'}
                 </Text>
               </View>
               {row.unread_count > 0 ? (

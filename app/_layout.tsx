@@ -21,6 +21,7 @@ import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { LegalAcceptanceGate } from '@/components/legal/LegalAcceptanceGate';
+import { EventShareHost } from '@/components/events/EventShareSheet';
 import { stackModalOptions, stackPushOptions } from '@/constants/navigation';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -186,6 +187,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <LegalAcceptanceGate />
+      <EventShareHost />
       <StatusBar style="dark" />
       <Toast config={toastConfig} />
       </BottomSheetModalProvider>

@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase/client';
 import { AuthService } from '@/services/auth.service';
 import { isMissingSchemaError } from '@/utils/schema-missing';
 import { sanitizeUgcText, UGC_LIMITS } from '@/utils/ugc-sanitize';
+import { sanitizeIlikeFragment } from '@/utils/event-name-search';
+import { canMessageProfile, normalizeProfileVisibility } from '@/utils/messaging-access';
 
 export type DirectConversationPreview = {
   conversation_id: string;
@@ -20,6 +22,13 @@ export type DirectMessage = {
   body: string;
   created_at: string;
   edited_at: string | null;
+};
+
+export type ShareRecipient = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  city: string | null;
 };
 
 const asError = (error: unknown) => error as { code?: string; message?: string };
@@ -67,6 +76,66 @@ export const MessagingService = {
       last_at: row.last_at ?? null,
       unread_count: Number(row.unread_count || 0),
     }));
+  },
+
+  /**
+   * Members the signed-in user is allowed to message, matched by display name.
+   * Public profiles, plus private profiles when the follow is mutual.
+   */
+  async searchRecipients(query: string): Promise<ShareRecipient[]> {
+    const viewerId = (await supabase.auth.getUser()).data.user?.id;
+    const fragment = sanitizeIlikeFragment(query);
+    if (!viewerId || fragment.length < 2) return [];
+
+    const [profiles, links] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, city, profile_visibility')
+        .eq('status', 'active')
+        .ilike('display_name', `%${fragment}%`)
+        .order('display_name', { ascending: true })
+        .limit(24),
+      supabase
+        .from('follows')
+        .select('follower, following')
+        .or(`follower.eq.${viewerId},following.eq.${viewerId}`),
+    ]);
+    if (profiles.error) throw profiles.error;
+    if (links.error) throw links.error;
+
+    const following = new Set(
+      ((links.data || []) as { follower: string; following: string }[])
+        .filter((row) => row.follower === viewerId)
+        .map((row) => row.following),
+    );
+    const followers = new Set(
+      ((links.data || []) as { follower: string; following: string }[])
+        .filter((row) => row.following === viewerId)
+        .map((row) => row.follower),
+    );
+
+    return ((profiles.data || []) as {
+      id: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      city: string | null;
+      profile_visibility: string | null;
+    }[])
+      .filter((row) => row.id && row.id !== viewerId && row.display_name)
+      .filter((row) => canMessageProfile({
+        viewerId,
+        targetId: row.id,
+        visibility: normalizeProfileVisibility(row.profile_visibility),
+        viewerFollowsTarget: following.has(row.id),
+        targetFollowsViewer: followers.has(row.id),
+      }).allowed)
+      .slice(0, 12)
+      .map((row) => ({
+        userId: row.id,
+        displayName: row.display_name || 'Membre',
+        avatarUrl: row.avatar_url,
+        city: row.city,
+      }));
   },
 
   async openConversation(targetId: string): Promise<string> {

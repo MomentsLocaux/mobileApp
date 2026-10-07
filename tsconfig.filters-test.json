@@ -48,6 +48,7 @@
     "src/utils/relative-time.test.ts",
     "src/utils/community-follows.test.ts",
     "src/utils/event-likers.test.ts",
+    "src/utils/event-share.test.ts",
     "src/utils/map-sheet-layout.test.ts",
     "src/utils/map-discovery-presentation.test.ts",
     "src/utils/map-sheet-camera.test.ts",

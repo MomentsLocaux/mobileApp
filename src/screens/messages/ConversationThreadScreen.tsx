@@ -21,6 +21,7 @@ import { MessagingService, type DirectMessage } from '@/services/messaging.servi
 import { NotificationsService } from '@/services/notifications.service';
 import { setActiveDirectConversation } from '@/services/push.service';
 import { UGC_LIMITS } from '@/utils/ugc-sanitize';
+import { parseSharedEventMessage } from '@/utils/event-share';
 
 export default function ConversationThreadScreen() {
   const router = useRouter();
@@ -168,13 +169,15 @@ export default function ConversationThreadScreen() {
             }
             renderItem={({ item }) => {
               const mine = item.sender_id === myId;
+              const shared = parseSharedEventMessage(item.body);
               return (
                 <Pressable
-                  disabled={!mine}
-                  onLongPress={() => openOwnMessageActions(item)}
+                  disabled={!mine && !shared}
+                  onPress={shared ? () => router.push(`/events/${shared.eventId}` as never) : undefined}
+                  onLongPress={mine ? () => openOwnMessageActions(item) : undefined}
                   delayLongPress={280}
-                  accessibilityRole="text"
-                  accessibilityLabel={item.body}
+                  accessibilityRole={shared ? 'button' : 'text'}
+                  accessibilityLabel={shared ? `Voir ${shared.title}` : item.body}
                   accessibilityHint={mine ? 'Maintien pour modifier ou supprimer' : undefined}
                   accessibilityActions={
                     mine
@@ -190,7 +193,17 @@ export default function ConversationThreadScreen() {
                   }}
                   style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}
                 >
-                  <Text style={mine ? styles.bubbleMineText : styles.bubbleText}>{item.body}</Text>
+                  {shared ? (
+                    <>
+                      {shared.note ? (
+                        <Text style={mine ? styles.bubbleMineText : styles.bubbleText}>{shared.note}</Text>
+                      ) : null}
+                      <Text style={[styles.shareTitle, shared.note ? styles.shareTitleSpaced : null, mine ? styles.bubbleMineText : styles.bubbleText]}>{shared.title}</Text>
+                      <Text style={[styles.shareCta, mine ? styles.editedMine : styles.shareCtaTheirs]}>Voir le moment</Text>
+                    </>
+                  ) : (
+                    <Text style={mine ? styles.bubbleMineText : styles.bubbleText}>{item.body}</Text>
+                  )}
                   {item.edited_at ? (
                     <Text style={[styles.edited, mine ? styles.editedMine : styles.editedTheirs]}>
                       Modifié
@@ -264,6 +277,10 @@ const styles = StyleSheet.create({
   },
   bubbleText: { ...typography.body, color: colors.brand.text },
   bubbleMineText: { ...typography.body, color: colors.brand.onAccent },
+  shareTitle: { ...typography.body, fontWeight: '700' },
+  shareTitleSpaced: { marginTop: 6 },
+  shareCta: { ...typography.caption, marginTop: 4, fontWeight: '700' },
+  shareCtaTheirs: { color: colors.brand.secondary },
   edited: { ...typography.caption, marginTop: 2, fontWeight: '700' },
   editedMine: { color: colors.brand.onAccent, opacity: 0.72 },
   editedTheirs: { color: colors.brand.textSecondary },

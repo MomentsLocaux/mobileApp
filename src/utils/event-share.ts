@@ -1,5 +1,21 @@
 import { Platform, Share } from 'react-native';
-import { WEBSITE_CANONICAL_ORIGIN, WEBSITE_FR_ORIGIN } from '../constants/website';
+import { WEBSITE_CANONICAL_ORIGIN } from '../constants/website';
+import { openInAppEventShare } from './event-share-host';
+import {
+  getEventAppLink,
+  getEventShareMessage,
+  type ShareableEvent,
+} from './event-share-message';
+
+export {
+  getEventAppLink,
+  getEventShareMessage,
+  getEventShareUrl,
+  internalEventShareMessage,
+  parseSharedEventMessage,
+  sharedEventInboxPreview,
+} from './event-share-message';
+export type { ShareableEvent } from './event-share-message';
 
 const DEFAULT_SHARE_ORIGIN = WEBSITE_CANONICAL_ORIGIN;
 
@@ -8,30 +24,14 @@ export function getPublicShareOrigin(): string {
   return raw.replace(/\/+$/, '');
 }
 
-/** App deeplink handled by Expo Router (`app/events/[id].tsx`). */
-export function getEventAppLink(eventId: string): string {
-  return `moments-locaux://events/${eventId}`;
-}
-
-/** HTTPS page for calendar / web. Not a Universal Link until associated domains are live. */
-export function getEventShareUrl(eventId: string): string {
-  return `${WEBSITE_FR_ORIGIN}/events/${eventId}`;
-}
-
-export function getEventShareMessage(title: string, eventId: string, externalUrl?: string | null): string {
-  const appLink = getEventAppLink(eventId);
-  const downloadUrl = `${WEBSITE_FR_ORIGIN}/download`;
-  const extra = externalUrl?.trim() && externalUrl.trim() !== appLink ? `\n${externalUrl.trim()}` : '';
-  return `${title}\n${appLink}\n\nPas encore l’app ? ${downloadUrl}${extra}`;
-}
-
-export async function sharePublishedEvent(event: {
-  id: string;
-  title: string;
-  external_url?: string | null;
-}): Promise<void> {
+export async function shareEventExternally(event: ShareableEvent): Promise<void> {
   const message = getEventShareMessage(event.title, event.id, event.external_url);
   await Share.share(
     Platform.OS === 'ios' ? { message, url: getEventAppLink(event.id) } : { message },
   );
+}
+
+export async function sharePublishedEvent(event: ShareableEvent): Promise<void> {
+  if (openInAppEventShare(event)) return;
+  await shareEventExternally(event);
 }
