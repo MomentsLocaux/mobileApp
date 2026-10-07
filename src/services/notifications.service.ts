@@ -12,6 +12,7 @@ export type AppNotificationType =
   | 'boost_expired'
   | 'social_follow'
   | 'social_like'
+  | 'direct_message'
   | 'system'
   | 'event_refused'
   | 'event_request_changes'
@@ -93,6 +94,8 @@ export const getNotificationActorId = (item: AppNotification): string | undefine
     'creator_id',
     'actorId',
     'actor_id',
+    'senderId',
+    'sender_id',
   );
 
 const inboxCacheKey = (userId: string, unreadOnly: boolean) => `${userId}:${unreadOnly ? 'unread' : 'all'}`;

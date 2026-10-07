@@ -12,6 +12,23 @@ type NotificationsModule = typeof import('expo-notifications');
 let notificationsModule: NotificationsModule | null | undefined;
 let handlerConfigured = false;
 let unavailableLogged = false;
+let activeDirectConversationId: string | null = null;
+
+/** The open thread. A message for this conversation does not raise a banner. */
+export function setActiveDirectConversation(conversationId: string | null) {
+  activeDirectConversationId = conversationId;
+}
+
+function isViewingDirectMessage(data: unknown): boolean {
+  if (!activeDirectConversationId) return false;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  const record = data as Record<string, unknown>;
+  const type =
+    (typeof record.notificationType === 'string' ? record.notificationType : undefined) ??
+    (typeof record.type === 'string' ? record.type : undefined);
+  const conversationId = typeof record.conversationId === 'string' ? record.conversationId : undefined;
+  return type === 'direct_message' && conversationId === activeDirectConversationId;
+}
 
 function isPushNativeModuleAvailable(): boolean {
   if (Platform.OS === 'web') return false;
@@ -60,12 +77,22 @@ export function configureNotificationHandler() {
     const Notifications = await getNotifications();
     if (!Notifications) return;
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
+      handleNotification: async (notification) => {
+        if (isViewingDirectMessage(notification.request.content.data)) {
+          return {
+            shouldShowBanner: false,
+            shouldShowList: false,
+            shouldPlaySound: false,
+            shouldSetBadge: true,
+          };
+        }
+        return {
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        };
+      },
     });
   })();
 }
