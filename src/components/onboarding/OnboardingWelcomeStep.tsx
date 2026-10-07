@@ -16,18 +16,21 @@ type Props = {
 const MVP_NEXT = [
   'Dire comment t’appeler',
   'Choisir ton quartier',
+  'Autoriser notifications et position',
   'Indiquer ce qui t’attire',
   'Ajouter un portrait, si tu veux',
 ];
 
 const PARTICULIER_NEXT = [
   'Choisir ton quartier et tes thèmes',
+  'Autoriser les notifications et la position',
   'Ajouter un portrait pour les autres membres',
   'Proposer des moments, seulement si tu le souhaites',
 ];
 
 const PROFESSIONNEL_NEXT = [
   'Préciser ton type d’activité',
+  'Autoriser les notifications et la position',
   'Relier ton agenda existant, si tu en as un',
   'Suivre les réactions à tes moments',
 ];

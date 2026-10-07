@@ -33,6 +33,10 @@ import { isRemoteAvatarUrl } from '@/constants/avatar-presets';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
 import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
+import {
+  ensureOnboardingNotificationChoice,
+  OnboardingPermissionsStep,
+} from '@/components/onboarding/OnboardingPermissionsStep';
 import { MVP_PROMISE, OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
 import {
   OnboardingCreateWhyStep,
@@ -75,6 +79,7 @@ type StepId =
   | 'create_why'
   | 'create_themes'
   | 'location'
+  | 'permissions'
   | 'themes'
   | 'avatar'
   | 'creator'
@@ -145,6 +150,7 @@ export default function OnboardingScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [permissionsBusy, setPermissionsBusy] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<'avatar' | 'cover' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +175,7 @@ export default function OnboardingScreen() {
 
   const steps: StepId[] = useMemo(() => {
     if (isProfessionnel) {
-      return ['welcome', 'identity', 'location', 'avatar', 'creator', 'connector'];
+      return ['welcome', 'identity', 'location', 'permissions', 'avatar', 'creator', 'connector'];
     }
     const marketingTail: StepId[] = features.offers
       ? ['tiers', 'eclairer']
@@ -182,6 +188,7 @@ export default function OnboardingScreen() {
         'identity',
         'create_why',
         'location',
+        'permissions',
         'themes',
         'create_themes',
         'avatar',
@@ -189,7 +196,7 @@ export default function OnboardingScreen() {
         ...(features.offers ? (['tiers', 'eclairer', 'mode_hint'] as StepId[]) : (['mode_hint'] as StepId[])),
       ];
     }
-    return ['welcome', 'identity', 'location', 'themes', 'avatar', ...marketingTail];
+    return ['welcome', 'identity', 'location', 'permissions', 'themes', 'avatar', ...marketingTail];
   }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
@@ -217,6 +224,7 @@ export default function OnboardingScreen() {
     (stepId === 'create_why' && !!createIntent) ||
     stepId === 'create_themes' ||
     (stepId === 'location' && !!selectedAddress) ||
+    stepId === 'permissions' ||
     stepId === 'themes' ||
     stepId === 'avatar' ||
     stepId === 'creator' ||
@@ -487,6 +495,15 @@ export default function OnboardingScreen() {
         if (!ok) console.warn('home_location not saved during onboarding');
       } finally {
         setLocationLoading(false);
+      }
+    }
+
+    if (stepId === 'permissions' && user?.id) {
+      setPermissionsBusy(true);
+      try {
+        await ensureOnboardingNotificationChoice(user.id);
+      } finally {
+        setPermissionsBusy(false);
       }
     }
 
@@ -1023,6 +1040,12 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        {stepId === 'permissions' && (
+          <View key="permissions" style={styles.stepContainer}>
+            <OnboardingPermissionsStep userId={user?.id} />
+          </View>
+        )}
+
         {stepId === 'themes' && (
           <View key="themes" style={styles.stepContainer}>
             <OnboardingThemesStep
@@ -1220,13 +1243,17 @@ export default function OnboardingScreen() {
               stepId === 'eclairer' ? () => handleUnlockTease('annual') : goNext
             }
             size="sm"
-            loading={isLoading || (stepId === 'location' && locationLoading && !!selectedAddress)}
+            loading={
+              isLoading ||
+              permissionsBusy ||
+              (stepId === 'location' && locationLoading && !!selectedAddress)
+            }
             style={
               stepId === 'eclairer'
                 ? [styles.footerButton, styles.premiumCta]
                 : styles.footerButton
             }
-            disabled={!canContinue || isLoading || isUploading}
+            disabled={!canContinue || isLoading || isUploading || permissionsBusy}
             accessibilityLabel={primaryTitle}
           />
         </View>

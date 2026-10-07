@@ -1,12 +1,15 @@
 import type { AppNotificationType } from '@/services/notifications.service';
 import { features } from '@/config/features';
+import {
+  hrefForNotificationDestination,
+  type NotificationRouteHref,
+} from '@/utils/notification-routes';
 
 type RouteTarget =
+  | { href: NotificationRouteHref }
   | { href: `/events/${string}` }
-  | { href: '/notifications' }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
-  | { href: '/profile/my-suggestions' }
   | { href: `/messages/${string}` };
 
 const asRecord = (value: unknown): Record<string, unknown> => {
@@ -33,6 +36,11 @@ export function resolveNotificationRoute(
   const eventId = pickString(d, 'eventId', 'event_id');
   if (eventId) {
     return { href: `/events/${eventId}` };
+  }
+
+  const destination = hrefForNotificationDestination(d);
+  if (destination) {
+    return { href: destination };
   }
 
   if (type === 'moderation_escalation') {
