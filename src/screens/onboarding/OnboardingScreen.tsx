@@ -34,8 +34,10 @@ import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep
 import { OnboardingEclaireurCtaStep } from '@/components/onboarding/OnboardingEclaireurCtaStep';
 import { OnboardingThemesStep } from '@/components/onboarding/OnboardingThemesStep';
 import {
-  ensureOnboardingNotificationChoice,
+  applyOnboardingPermissionPack,
+  DEFAULT_ONBOARDING_ALERT_PACK,
   OnboardingPermissionsStep,
+  type OnboardingAlertPack,
 } from '@/components/onboarding/OnboardingPermissionsStep';
 import { MVP_PROMISE, OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
 import {
@@ -48,6 +50,7 @@ import {
 } from '@/components/onboarding/OnboardingConnectorStep';
 import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
 import { OnboardingStepFrame } from '@/components/onboarding/OnboardingStepFrame';
+import { rememberAppFirstOpen } from '@/services/settings-tour-reminder.service';
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
 import { useDiscoveryFiltersStore } from '@/store';
 import { useSharedValue } from 'react-native-reanimated';
@@ -151,8 +154,13 @@ export default function OnboardingScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [permissionsBusy, setPermissionsBusy] = useState(false);
+  const [alertPack, setAlertPack] = useState<OnboardingAlertPack>(DEFAULT_ONBOARDING_ALERT_PACK);
   const [uploadTarget, setUploadTarget] = useState<'avatar' | 'cover' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void rememberAppFirstOpen();
+  }, []);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
@@ -504,7 +512,7 @@ export default function OnboardingScreen() {
     if (stepId === 'permissions' && user?.id) {
       setPermissionsBusy(true);
       try {
-        await ensureOnboardingNotificationChoice(user.id);
+        await applyOnboardingPermissionPack(user.id, alertPack);
       } finally {
         setPermissionsBusy(false);
       }
@@ -1045,7 +1053,7 @@ export default function OnboardingScreen() {
 
         {stepId === 'permissions' && (
           <View key="permissions" style={styles.stepContainer}>
-            <OnboardingPermissionsStep userId={user?.id} />
+            <OnboardingPermissionsStep pack={alertPack} onChange={setAlertPack} />
           </View>
         )}
 
@@ -1056,7 +1064,8 @@ export default function OnboardingScreen() {
               onToggle={toggleThemeSlug}
               onSelectAll={(slugs) => setThemeSlugs(slugs)}
               title="Qu’est-ce qui t’attire ?"
-              subtitle="Ces thèmes nourrissent ton fil. Tu les retrouves dans Paramètres → Notifications et préférences. Tu peux aussi passer cette étape."
+              subtitle="Sans choix, on te propose tout le rayon. Cocher sert à affiner. Tu peux aussi passer cette étape."
+              emptyHint="Tout le rayon"
             />
           </View>
         )}

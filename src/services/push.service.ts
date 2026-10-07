@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase/client';
 import { AuthService } from '@/services/auth.service';
 import { AnalyticsService } from '@/services/analytics.service';
+import { scheduleSettingsTourReminder } from '@/services/settings-tour-reminder.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -199,6 +200,7 @@ export async function registerForPushNotificationsAsync(userId: string): Promise
     if (status !== 'granted') return null;
 
     await ensureAndroidChannel(Notifications);
+    void scheduleSettingsTourReminder();
 
     const projectId = getProjectId();
     if (!projectId) {
