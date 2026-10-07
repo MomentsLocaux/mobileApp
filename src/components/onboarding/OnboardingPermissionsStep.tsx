@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
-import { Bell, Check, ChevronDown, ChevronUp, MapPin, Navigation } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { BrandIcon, type BrandIconName } from '@/components/ui/BrandIcon';
 import { features } from '@/config/features';
 import { borderRadius, colors, minimumTouchTarget, spacing, typography } from '@/constants/theme';
 import { requestProximityLocationPermissions } from '@/hooks/useProximityAlerts';
@@ -254,22 +255,21 @@ export function OnboardingPermissionsStep({ pack, onChange }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>On te prévient au bon moment</Text>
+      <Text style={styles.title} accessibilityRole="header">On te prévient au bon moment</Text>
       <Text style={styles.subtitle}>
-        Le réglage recommandé est déjà prêt. Tu pourras tout changer dans Paramètres.
+        Des nouvelles près de toi, à ton rythme. Tout reste ajustable dans Paramètres.
       </Text>
 
-      <Text style={styles.section}>Sur le téléphone</Text>
       <PhoneRow
-        icon={Bell}
+        icon="bell"
         title="Notifications"
-        reason="Les moments près de toi, un rappel avant ceux que tu gardes, et quand quelqu’un te suit ou aime un moment."
+        reason="Pour les découvertes et les rappels de tes moments."
         status={phone.notifications}
       />
       <PhoneRow
-        icon={MapPin}
+        icon="pin"
         title="Position pendant l’usage"
-        reason="Pour centrer la carte. Le quartier choisi juste avant reste le tien."
+        reason="Pour centrer la carte. Ton quartier reste ton point de départ."
         status={phone.location}
       />
       {Platform.OS !== 'web' && !bothSettled ? (
@@ -288,13 +288,22 @@ export function OnboardingPermissionsStep({ pack, onChange }: Props) {
         </Pressable>
       ) : null}
 
-      <Text style={styles.section}>Ce qu’on t’envoie</Text>
-      {onboardingPackLines(pack).map((line) => (
-        <View key={line} style={styles.checkRow}>
-          <Check size={16} color={colors.brand.secondary} strokeWidth={2.6} />
-          <Text style={styles.checkText}>{line}</Text>
-        </View>
-      ))}
+      <View style={styles.summary}>
+        <Text style={styles.section}>Tes alertes</Text>
+        <Text style={styles.summaryTitle}>
+          Autour de toi, à {pack.radiusKm} km
+        </Text>
+        <Text style={styles.reason}>
+          {FREQUENCY_CHOICES.find((choice) => choice.value === pack.frequency)?.label}
+          {' · '}{pack.maxPerDay} alerte{pack.maxPerDay > 1 ? 's' : ''}/jour maximum
+          {pack.quietStart && pack.quietEnd
+            ? ` · Silence de ${hourLabel(pack.quietStart)} h à ${hourLabel(pack.quietEnd)} h`
+            : ' · Y compris la nuit'}
+        </Text>
+        <Text style={styles.reason}>
+          Rappels de tes moments{features.socialPeers ? ', nouveaux abonnés et j’aime' : ''} inclus.
+        </Text>
+      </View>
       <Pressable
         onPress={() => {
           haptics.selection();
@@ -317,6 +326,12 @@ export function OnboardingPermissionsStep({ pack, onChange }: Props) {
       </Pressable>
       {expanded ? (
         <View style={styles.adjustPanel}>
+          {onboardingPackLines(pack).map((line) => (
+            <View key={line} style={styles.checkRow}>
+              <Check size={16} color={colors.brand.text} strokeWidth={2.6} />
+              <Text style={styles.checkText}>{line}</Text>
+            </View>
+          ))}
           <ChoiceGroup label="Rayon">
             {RADIUS_CHOICES.map((km) => (
               <Chip
@@ -363,7 +378,7 @@ export function OnboardingPermissionsStep({ pack, onChange }: Props) {
       <View style={styles.proximity}>
         <View style={styles.proximityCopy}>
           <View style={styles.proximityTitleRow}>
-            <Navigation size={18} color={colors.brand.secondary} strokeWidth={2.2} />
+            <BrandIcon name="navigation" size={22} />
             <Text style={styles.proximityTitle}>Quand je passe à côté</Text>
           </View>
           <Text style={styles.reason}>
@@ -375,7 +390,7 @@ export function OnboardingPermissionsStep({ pack, onChange }: Props) {
           accessibilityLabel="Quand je passe à côté"
           value={pack.proximityLive}
           onValueChange={(proximityLive) => patch({ proximityLive })}
-          trackColor={{ false: colors.neutral[300], true: 'rgba(124, 181, 24, 0.55)' }}
+          trackColor={{ false: colors.neutral[300], true: colors.primary[200] }}
           thumbColor={pack.proximityLive ? colors.brand.secondary : colors.neutral[100]}
         />
       </View>
@@ -388,12 +403,12 @@ export function OnboardingPermissionsStep({ pack, onChange }: Props) {
 }
 
 function PhoneRow({
-  icon: Icon,
+  icon,
   title,
   reason,
   status,
 }: {
-  icon: typeof Bell;
+  icon: BrandIconName;
   title: string;
   reason: string;
   status: GrantState;
@@ -402,7 +417,7 @@ function PhoneRow({
   return (
     <View style={styles.row}>
       <View style={styles.iconWrap}>
-        <Icon size={20} color={colors.brand.secondary} strokeWidth={2.2} />
+        <BrandIcon name={icon} size={28} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.rowTitle}>{title}</Text>
@@ -448,8 +463,11 @@ const styles = StyleSheet.create({
   wrap: {
     gap: spacing.md,
   },
+  summary: { gap: spacing.sm, paddingTop: spacing.md },
+  summaryTitle: { ...typography.h5, color: colors.brand.text },
   title: {
     ...typography.h2,
+    letterSpacing: -0.6,
     color: colors.brand.text,
   },
   subtitle: {
@@ -458,16 +476,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   section: {
-    ...typography.h6,
-    color: colors.brand.text,
+    ...typography.label,
+    color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
   row: {
-    minHeight: 88,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.brand.line,
   },
@@ -477,9 +495,6 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand.surface,
-    borderWidth: 1,
-    borderColor: colors.brand.line,
   },
   copy: {
     flex: 1,
@@ -491,15 +506,16 @@ const styles = StyleSheet.create({
   },
   reason: {
     ...typography.bodySmall,
+    lineHeight: 21,
     color: colors.brand.textSecondary,
   },
   status: {
-    ...typography.label,
+    ...typography.caption,
     color: colors.brand.textSecondary,
     marginTop: 2,
   },
   statusGranted: {
-    color: colors.brand.secondary,
+    color: colors.brand.text,
   },
   action: {
     minHeight: minimumTouchTarget,
@@ -514,7 +530,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     ...typography.label,
-    color: colors.brand.secondary,
+    color: colors.brand.text,
   },
   checkRow: {
     flexDirection: 'row',
@@ -609,6 +625,7 @@ const styles = StyleSheet.create({
   },
   proximityTitle: {
     ...typography.h6,
+    flex: 1,
     color: colors.brand.text,
   },
   note: {

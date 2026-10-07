@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -28,6 +29,8 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AppBackground, Button, UserAvatar } from '../../components/ui';
+import { BrandIcon } from '@/components/ui/BrandIcon';
+import { OnboardingNeighborhood } from '@/components/onboarding/OnboardingNeighborhood';
 import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
 import { isRemoteAvatarUrl } from '@/constants/avatar-presets';
 import { OnboardingTiersStep } from '@/components/onboarding/OnboardingTiersStep';
@@ -106,6 +109,9 @@ export default function OnboardingScreen() {
   const { profile, user, refreshProfile } = useAuth();
   const { pickImage, takePhoto } = useImagePicker();
   const insets = useSafeAreaInsets();
+  const { height: viewportHeight } = useWindowDimensions();
+  const compactPortrait = viewportHeight < 700;
+  const locationInputRef = useRef<TextInput | null>(null);
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
 
   const fallbackDisplayName = useMemo(() => {
@@ -208,6 +214,11 @@ export default function OnboardingScreen() {
   }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
+  useEffect(() => {
+    Keyboard.dismiss();
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  }, [stepId, scrollViewRef]);
+
   const totalSteps = steps.length;
   const isLastStep = stepIndex >= totalSteps - 1;
   const lastProfileStepId: StepId = isProfessionnel
@@ -607,7 +618,7 @@ export default function OnboardingScreen() {
     }
     const saved = await persistProfile();
     if (!saved) return;
-    if (isProfessionnel) {
+    if (isProfessionnel || isLastStep) {
       finishToHome();
       return;
     }
@@ -676,20 +687,10 @@ export default function OnboardingScreen() {
     <KeyboardAvoidingView
       style={styles.wrapper}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top}
+      keyboardVerticalOffset={0}
     >
-      <AppBackground />
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.container}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + spacing.md, paddingBottom: spacing.xl + insets.bottom },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
+      <AppBackground opacity={0.35} />
+      <View style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
         {isReplay ? (
           <View style={styles.replayTopBar}>
             <TouchableOpacity
@@ -706,17 +707,9 @@ export default function OnboardingScreen() {
         ) : null}
 
         {stepId === 'welcome' ? (
-          <View style={styles.welcomeHeader}>
-            <Text style={styles.welcomeTitle}>
-              {isReplay ? 'Revoir ton profil' : 'Bienvenue sur\nMoments Locaux'}
-            </Text>
-            <Text style={styles.welcomeSubtitle}>
-              {isReplay
-                ? 'Reprends les étapes : ton nom, ton quartier, tes thèmes et ton portrait.'
-                : features.diffuseur
-                  ? 'Pour te montrer ce qui se passe près de toi.'
-                  : MVP_PROMISE}
-            </Text>
+          <View style={styles.brandRow}>
+            <BrandIcon name="sparkles" size={22} />
+            <Text style={styles.brandLabel}>Moments Locaux</Text>
           </View>
         ) : isMarketingStep ? (
           <View style={styles.stepHeader}>
@@ -757,7 +750,13 @@ export default function OnboardingScreen() {
                 Étape {Math.max(1, progressSteps.indexOf(stepId) + 1)} / {progressSteps.length}
               </Text>
             </View>
-            <View style={styles.progressBar}>
+            <View
+              style={styles.progressBar}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Progression du profil"
+              accessibilityValue={{ min: 0, max: progressSteps.length, now: progressSteps.indexOf(stepId) + 1 }}
+            >
               {progressSteps.map((id, idx) => (
                 <View
                   key={id}
@@ -771,7 +770,37 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+      </View>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.container}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: spacing.lg, paddingBottom: spacing.lg },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        testID="onboarding-content"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         <OnboardingStepFrame stepKey={stepId} direction={stepDirection}>
+        {stepId === 'welcome' && (
+          <View style={styles.welcomeHeader}>
+            {!features.diffuseur ? <OnboardingNeighborhood /> : null}
+            <Text style={styles.welcomeTitle} accessibilityRole="header">
+              {isReplay ? 'Revoir ton profil' : features.diffuseur ? 'Bienvenue sur\nMoments Locaux' : 'De beaux moments,\ntout près.'}
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
+              {isReplay
+                ? 'Reprends les étapes : ton nom, ton quartier, tes thèmes et ton portrait.'
+                : features.diffuseur
+                  ? 'Pour te montrer ce qui se passe près de toi.'
+                  : MVP_PROMISE}
+            </Text>
+          </View>
+        )}
+
         {stepId === 'welcome' && (
           <View key="welcome" style={styles.stepContainer}>
             <OnboardingWelcomeStep
@@ -792,13 +821,14 @@ export default function OnboardingScreen() {
 
         {stepId === 'identity' && (
           <View key="identity" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>
+            <View style={styles.stepEmblem}><BrandIcon name="user" size={36} /></View>
+            <Text style={styles.stepTitle} accessibilityRole="header">
               {features.diffuseur ? 'Qui es-tu ici ?' : 'Comment t’appeler ?'}
             </Text>
             <Text style={styles.helper}>
               {features.diffuseur
                 ? 'Particulier pour découvrir, professionnel pour publier au nom d’une activité.'
-                : 'Ce nom s’affiche auprès des autres membres.'}
+                : 'Ton prénom ou un pseudo, visible par les autres membres.'}
             </Text>
 
             <View style={styles.inputGroup}>
@@ -988,7 +1018,7 @@ export default function OnboardingScreen() {
 
         {stepId === 'location' && (
           <View key="location" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>
+            <Text style={styles.stepTitle} accessibilityRole="header">
               {isProfessionnel ? 'Où es-tu basé ?' : 'Où veux-tu explorer ?'}
             </Text>
             <Text style={styles.helper}>
@@ -1007,10 +1037,14 @@ export default function OnboardingScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 accessibilityLabel="Rechercher une ville ou un quartier"
-                ref={registerFieldRef('addressSearch')}
+                ref={(node) => {
+                  locationInputRef.current = node;
+                  registerFieldRef('addressSearch')(node);
+                }}
                 onFocus={() => handleInputFocus('addressSearch')}
               />
             </View>
+            {!addressSearch.trim() && !selectedAddress ? <OnboardingNeighborhood compact /> : null}
             {locationLoading && !selectedAddress ? (
               <View style={styles.searchStatus}>
                 <ActivityIndicator size="small" color={colors.brand.secondary} />
@@ -1041,11 +1075,22 @@ export default function OnboardingScreen() {
             ) : null}
             {selectedAddress ? (
               <View style={styles.selection}>
-                <MapPin size={16} color={colors.brand.secondary} />
+                <BrandIcon name="pin" size={28} active />
                 <View style={styles.selectionCopy}>
-                  <Text style={styles.meta}>Lieu sélectionné</Text>
+                  <Text style={styles.meta}>✓ Ton point de départ</Text>
                   <Text style={styles.info}>{selectedAddress.label}</Text>
                 </View>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Modifier le lieu sélectionné"
+                  style={styles.editLocation}
+                  onPress={() => {
+                    handleSearchChange('');
+                    locationInputRef.current?.focus();
+                  }}
+                >
+                  <Text style={styles.editLocationText}>Modifier</Text>
+                </TouchableOpacity>
               </View>
             ) : null}
           </View>
@@ -1064,8 +1109,8 @@ export default function OnboardingScreen() {
               onToggle={toggleThemeSlug}
               onSelectAll={(slugs) => setThemeSlugs(slugs)}
               title="Qu’est-ce qui t’attire ?"
-              subtitle="Sans choix, on te propose tout le rayon. Cocher sert à affiner. Tu peux aussi passer cette étape."
-              emptyHint="Tout le rayon"
+              subtitle="Choisis ce qui te plaît. Sans sélection, découvre tous les thèmes."
+              emptyHint="Tous les thèmes"
             />
           </View>
         )}
@@ -1084,12 +1129,14 @@ export default function OnboardingScreen() {
 
         {stepId === 'avatar' && (
           <View key="avatar" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Choisis un portrait</Text>
-            <Text style={styles.helper}>
-              Optionnel. Un avatar, un portrait ou une photo, pour que les autres te reconnaissent. Tu pourras le changer plus tard.
-            </Text>
-            <View style={styles.avatarPreviewWrap}>
-              <UserAvatar uri={avatarUrl || null} name={displayName} size={96} />
+            <Text style={styles.stepTitle} accessibilityRole="header">Choisis un portrait</Text>
+            <View style={[styles.avatarIntro, compactPortrait && styles.avatarIntroCompact]}>
+              <Text style={[styles.helper, compactPortrait && styles.avatarIntroCopy]}>
+                Un visage pour tes rencontres locales. Tu pourras le changer à tout moment.
+              </Text>
+              <View style={styles.avatarPreviewWrap}>
+                <UserAvatar uri={avatarUrl || null} name={displayName} size={compactPortrait ? 64 : 112} />
+              </View>
             </View>
             <AvatarPresetPicker
               selectedUrl={avatarUrl || null}
@@ -1109,7 +1156,7 @@ export default function OnboardingScreen() {
 
         {stepId === 'creator' && (
           <View key="creator" style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Ton profil quand tu publies</Text>
+            <Text style={styles.stepTitle} accessibilityRole="header">Ton profil quand tu publies</Text>
             <Text style={styles.helper}>
               Optionnel. Tu peux compléter maintenant, ou plus tard depuis ton profil.
             </Text>
@@ -1220,6 +1267,8 @@ export default function OnboardingScreen() {
         )}
         </OnboardingStepFrame>
 
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]} testID="onboarding-footer">
         {error ? (
           <Text style={styles.errorText} accessibilityRole="alert">
             {error}
@@ -1227,34 +1276,12 @@ export default function OnboardingScreen() {
         ) : null}
 
         <View style={styles.buttonGroup}>
-          {showSkip ? (
-            <Button
-              title="Passer cette étape"
-              onPress={skipOptionalToTiers}
-              variant="outline"
-              size="sm"
-              style={styles.footerButton}
-              disabled={isLoading || isUploading}
-              accessibilityLabel="Passer cette étape"
-            />
-          ) : null}
-          {showContinueFree ? (
-            <Button
-              title="Rester sur l'offre gratuite"
-              onPress={continueFree}
-              variant="outline"
-              size="sm"
-              style={styles.footerButton}
-              disabled={isLoading}
-              accessibilityLabel="Rester sur l'offre gratuite"
-            />
-          ) : null}
           <Button
             title={primaryTitle}
             onPress={
               stepId === 'eclairer' ? () => handleUnlockTease('annual') : goNext
             }
-            size="sm"
+            size="lg"
             loading={
               isLoading ||
               permissionsBusy ||
@@ -1268,8 +1295,32 @@ export default function OnboardingScreen() {
             disabled={!canContinue || isLoading || isUploading || permissionsBusy}
             accessibilityLabel={primaryTitle}
           />
+          {showSkip ? (
+            <TouchableOpacity
+              onPress={skipOptionalToTiers}
+              style={styles.secondaryFooterButton}
+              disabled={isLoading || isUploading}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isLoading || isUploading }}
+            >
+              <Text style={styles.secondaryFooterText}>
+                {stepId === 'avatar' && !avatarUrl ? 'Continuer sans portrait' : 'Passer cette étape'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {showContinueFree ? (
+            <Button
+              title="Rester sur l'offre gratuite"
+              onPress={continueFree}
+              variant="ghost"
+              size="sm"
+              style={styles.secondaryFooterButton}
+              disabled={isLoading}
+              accessibilityLabel="Rester sur l'offre gratuite"
+            />
+          ) : null}
         </View>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -1283,9 +1334,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  content: {
+  chrome: { paddingHorizontal: spacing.lg, backgroundColor: colors.brand.page },
+  brandRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  brandLabel: { ...typography.label, color: colors.brand.text },
+  content: { paddingHorizontal: spacing.lg, flexGrow: 1 },
+  stepEmblem: { paddingVertical: spacing.sm, alignSelf: 'flex-start' },
+  footer: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    backgroundColor: colors.brand.page,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
+  secondaryFooterButton: { minHeight: 44, width: '100%', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm },
+  secondaryFooterText: { ...typography.label, color: colors.brand.textSecondary, textAlign: 'center' },
+  editLocation: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  editLocationText: { ...typography.label, color: colors.brand.text, textDecorationLine: 'underline' },
   replayTopBar: {
     alignItems: 'flex-end',
     marginBottom: spacing.sm,
@@ -1302,11 +1366,7 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     fontWeight: '600',
   },
-  welcomeHeader: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
+  welcomeHeader: { marginBottom: spacing.xl, gap: spacing.md },
   welcomeTitle: {
     ...typography.h1,
     color: colors.brand.text,
@@ -1318,7 +1378,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   stepHeader: {
-    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
     gap: spacing.sm,
   },
   stepHeaderRow: {
@@ -1360,6 +1420,7 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     ...typography.h2,
+    letterSpacing: -0.6,
     color: colors.brand.text,
   },
   inputGroup: {
@@ -1493,21 +1554,14 @@ const styles = StyleSheet.create({
     color: colors.brand.primary,
     fontWeight: '700',
   },
-  buttonGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  footerButton: {
-    flex: 1,
-    minHeight: 48,
-  },
+  buttonGroup: { gap: spacing.xs },
+  footerButton: { width: '100%', minHeight: 56, borderRadius: borderRadius.lg },
   premiumCta: {
     backgroundColor: colors.brand.premium,
   },
   helper: {
-    ...typography.bodySmall,
+    ...typography.body,
+    lineHeight: 24,
     color: colors.brand.textSecondary,
   },
   meta: {
@@ -1552,12 +1606,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  avatarIntro: { gap: spacing.md },
+  avatarIntroCompact: { flexDirection: 'row', alignItems: 'center' },
+  avatarIntroCopy: { flex: 1 },
   avatarPreviewWrap: {
     alignSelf: 'center',
-    borderRadius: 48,
-    overflow: 'hidden',
+    borderRadius: 68,
+    padding: spacing.sm,
+    marginVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.neutral[300],
   },
   avatarHint: {
     ...typography.caption,

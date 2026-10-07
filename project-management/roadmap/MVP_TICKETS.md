@@ -1,5 +1,24 @@
 # MVP Tickets
 
+## Refonte autorisée — onboarding découverte
+
+### ID: ONBOARDING-001
+
+Titre : Onboarding « carnet de découvertes », déclinaison de MVP-P1-007.
+
+Demande produit et direction validées le 2026-10-07. Branche `fix/onboarding-001-premium`.
+
+Périmètre : accueil, identité, lieu, permissions, thèmes et portrait. Charte menthe/encre/anis,
+Plus Jakarta Sans et Duo végétal conservés. Navigation fixe, contenu défilant, accueil illustré,
+permissions synthétiques et ajustables, thèmes compacts, portrait mis en avant.
+Aucun changement des flags ou du pack de permissions. Corriger la sortie de l’étape portrait
+facultative lorsqu’elle termine le parcours.
+
+Critères : CTA accessible sur petit écran et avec clavier ; progression stable ; retour et
+choix conservés ; thèmes/portrait facultatifs ; réduction des animations respectée ; aucun
+écran hors Alpha réactivé. Vérifications : typecheck, lint, revue visuelle et parcours simulé ;
+clavier et dialogues système à confirmer sur iOS/Android.
+
 ## Refonte autorisée — markers de carte
 
 ### ID: MAP-MARKERS-001
