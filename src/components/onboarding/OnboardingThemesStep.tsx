@@ -32,7 +32,7 @@ export function OnboardingThemesStep({
   onToggle,
   onSelectAll,
   title = 'Qu’est-ce qui t’attire ?',
-  subtitle = 'Sans choix, on te propose tout le rayon. Cocher sert à affiner. Tu peux aussi passer cette étape.',
+  subtitle = 'Choisis ce qui te plaît. Sans sélection, découvre tous les thèmes.',
   emptyHint = 'Aucune catégorie sélectionnée',
 }: Props) {
   useTaxonomy();
@@ -58,10 +58,10 @@ export function OnboardingThemesStep({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title} accessibilityRole="header">{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
       <View style={styles.categoryHeaderRow}>
-        <Text style={styles.selectionHint}>
+        <Text style={styles.selectionHint} accessibilityLiveRegion="polite">
           {selected.length === 0
             ? emptyHint
             : `${selected.length} sélectionnée${selected.length > 1 ? 's' : ''}`}
@@ -71,6 +71,7 @@ export function OnboardingThemesStep({
           onPress={handleSelectAll}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: allSelected }}
+          aria-checked={allSelected}
           accessibilityLabel={allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
         >
           <CheckCheck
@@ -100,6 +101,7 @@ export function OnboardingThemesStep({
               style={styles.categoryCard}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: active }}
+              aria-checked={active}
               accessibilityLabel={`Catégorie ${label}. ${hint}`}
             >
               <View
@@ -114,7 +116,7 @@ export function OnboardingThemesStep({
                 <Icon size={21} color={categoryColor} strokeWidth={2} />
               </View>
               <View style={styles.categoryCopy}>
-                <Text style={[styles.categoryLabel, active && { color: categoryColor }]}>
+                <Text style={styles.categoryLabel}>
                   {label}
                 </Text>
                 <Text style={styles.categoryHint}>{hint}</Text>
@@ -144,6 +146,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
+    letterSpacing: -0.6,
     color: colors.brand.text,
   },
   subtitle: {
@@ -159,7 +162,7 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
   },
   selectAllButton: {
-    minHeight: 42,
+    minHeight: 44,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,8 +170,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(124, 181, 24, 0.45)',
-    backgroundColor: 'rgba(124, 181, 24, 0.08)',
+    borderColor: colors.brand.line,
+    backgroundColor: colors.brand.surfaceMuted,
   },
   selectAllButtonActive: {
     backgroundColor: colors.brand.secondary,
@@ -176,20 +179,21 @@ const styles = StyleSheet.create({
   },
   selectAllText: {
     ...typography.label,
-    color: colors.brand.secondary,
+    color: colors.brand.text,
   },
   selectAllTextActive: {
     color: colors.brand.onAccent,
   },
   categoryList: {
-    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
   },
   categoryCard: {
-    minHeight: 72,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.brand.line,
   },
@@ -209,7 +213,7 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
   },
   categoryHint: {
-    ...typography.bodySmall,
+    ...typography.caption,
     color: colors.brand.textSecondary,
     marginTop: 3,
     lineHeight: 18,

@@ -4,6 +4,7 @@ import { Briefcase, Compass } from 'lucide-react-native';
 import type { AccountKind } from '@/constants/accountIdentity';
 import { LUMIA_INTRO } from '@/constants/lumiaTour';
 import { colors, spacing, typography } from '@/constants/theme';
+import { BrandIcon } from '@/components/ui/BrandIcon';
 import { haptics } from '@/utils/haptics';
 
 type Props = {
@@ -13,13 +14,7 @@ type Props = {
   showProfessionnel?: boolean;
 };
 
-const MVP_NEXT = [
-  'Dire comment t’appeler',
-  'Choisir ton quartier',
-  'Autoriser notifications et position',
-  'Indiquer ce qui t’attire',
-  'Ajouter un portrait, si tu veux',
-];
+const MVP_NEXT = ['Ton quartier', 'Tes envies', 'Tes découvertes'];
 
 const PARTICULIER_NEXT = [
   'Choisir ton quartier et tes thèmes',
@@ -36,7 +31,7 @@ const PROFESSIONNEL_NEXT = [
 ];
 
 export const MVP_PROMISE =
-  'Quelques étapes pour voir les moments près de chez toi.';
+  'Ton quartier, tes envies. Fais de la place aux découvertes près de chez toi.';
 
 /**
  * Welcome — dual door when Diffuseur is on; single discovery pitch otherwise (MVP).
@@ -56,14 +51,17 @@ export function OnboardingWelcomeStep({
   if (!showProfessionnel) {
     return (
       <View style={styles.wrap}>
-        <Text style={styles.lumiaIntro}>{LUMIA_INTRO}</Text>
-        <View style={styles.bullets}>
+        <View style={styles.discoverySteps}>
           {MVP_NEXT.map((line, index) => (
-            <View key={line} style={styles.bulletRow}>
-              <Text style={styles.stepMark}>{index + 1}</Text>
-              <Text style={styles.bulletFun}>{line}</Text>
+            <View key={line} style={styles.discoveryStep}>
+              <BrandIcon name={(['pin', 'sparkles', 'calendar'] as const)[index]} size={24} />
+              <Text style={styles.discoveryLabel}>{line}</Text>
             </View>
           ))}
+        </View>
+        <View style={styles.lumiaSignature}>
+          <BrandIcon name="bulb" size={22} />
+          <Text style={styles.lumiaSignatureText}>{LUMIA_INTRO}</Text>
         </View>
       </View>
     );
@@ -134,6 +132,11 @@ export function OnboardingWelcomeStep({
 }
 
 const styles = StyleSheet.create({
+  discoverySteps: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.brand.line },
+  discoveryStep: { flex: 1, alignItems: 'center', gap: spacing.sm },
+  discoveryLabel: { ...typography.caption, color: colors.brand.text, textAlign: 'center' },
+  lumiaSignature: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  lumiaSignatureText: { ...typography.bodySmall, color: colors.brand.textSecondary, flex: 1, lineHeight: 22 },
   wrap: {
     gap: spacing.lg,
   },
