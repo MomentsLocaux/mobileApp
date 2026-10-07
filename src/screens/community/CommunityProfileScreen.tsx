@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,6 +8,8 @@ import { colors, spacing, typography, borderRadius } from '../../constants/theme
 import { AppBackground } from '@/components/ui';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { CommunityService, type FriendLikedEvent } from '../../services/community.service';
+import { EventsService } from '@/services/events.service';
+import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { LocalStatusService } from '@/services/local-status.service';
 import { ReportService } from '@/services/report.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
@@ -48,7 +50,8 @@ export default function CommunityProfileScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [isAmbassadeur, setIsAmbassadeur] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
-  const [likedEvents, setLikedEvents] = useState<FriendLikedEvent[] | null>([]);
+  const [likedEvents, setLikedEvents] = useState<EventWithCreator[] | null>([]);
+  const [likedStats, setLikedStats] = useState<Record<string, EventCardStats>>({});
   const [loadingLikes, setLoadingLikes] = useState(false);
   const currentUserId = user?.id || session?.user?.id || profile?.id;
   const showCreatorEvents = features.eventCreate;
@@ -126,25 +129,92 @@ export default function CommunityProfileScreen() {
   useEffect(() => {
     if (!canSeeFriendLikes || !id) {
       setLikedEvents([]);
+      setLikedStats({});
       setLoadingLikes(false);
       return;
     }
     let cancelled = false;
     setLoadingLikes(true);
-    void CommunityService.listFriendLikedEvents(id)
-      .then((rows) => {
-        if (!cancelled) setLikedEvents(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setLikedEvents([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingLikes(false);
+    void (async () => {
+      let rows: FriendLikedEvent[] | null = [];
+      try {
+        rows = await CommunityService.listFriendLikedEvents(id);
+      } catch {
+        rows = [];
+      }
+      if (cancelled) return;
+      if (rows == null) {
+        setLikedEvents(null);
+        setLikedStats({});
+        return;
+      }
+      const ids = rows.map((row) => row.id);
+      const full = ids.length ? await EventsService.getEventsByIds(ids).catch(() => [] as EventWithCreator[]) : [];
+      if (cancelled) return;
+      const byId = new Map(full.map((event) => [event.id, event]));
+      const ordered = ids.flatMap((eventId) => {
+        const event = byId.get(eventId);
+        return event ? [event] : [];
       });
+      setLikedEvents(rows.length > 0 && ordered.length === 0 ? null : ordered);
+      if (!currentUserId || ordered.length === 0) {
+        setLikedStats({});
+        return;
+      }
+      const mine = currentUserId === id
+        ? ordered.map((event) => event.id)
+        : await SocialService.listLikedEventIds(currentUserId, ordered.map((event) => event.id));
+      if (cancelled) return;
+      setHeartedIds((current) => {
+        const next = new Set(current);
+        mine.forEach((eventId) => next.add(eventId));
+        return next;
+      });
+      const stats = await EventCardStatsService.getStatsForEvents(
+        ordered.map((event) => event.id),
+        currentUserId,
+      );
+      if (!cancelled) setLikedStats(stats);
+    })().finally(() => {
+      if (!cancelled) setLoadingLikes(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [canSeeFriendLikes, id]);
+  }, [canSeeFriendLikes, currentUserId, id]);
+
+  const toggleProfileHeart = useCallback((item: EventWithCreator) => {
+    const liked = heartedIds.has(item.id);
+    setHeartedIds((current) => {
+      const next = new Set(current);
+      if (liked) next.delete(item.id);
+      else next.add(item.id);
+      return next;
+    });
+    if (currentUserId) {
+      setLikedStats((current) => ({
+        ...current,
+        [item.id]: EventCardStatsService.applyLikeToggle(
+          item.id,
+          liked,
+          !liked,
+          {
+            id: currentUserId,
+            display_name: profile?.display_name || 'Moi',
+            avatar_url: profile?.avatar_url || null,
+            is_followed: false,
+          },
+          currentUserId,
+          current[item.id],
+        ),
+      }));
+    }
+    if (liked && currentUserId === id) {
+      setLikedEvents((current) => (current ? current.filter((event) => event.id !== item.id) : current));
+    }
+    if (!profile?.id) return;
+    void (liked ? SocialService.unlike(profile.id, item.id) : SocialService.like(profile.id, item.id));
+  }, [currentUserId, heartedIds, id, profile?.avatar_url, profile?.display_name, profile?.id]);
 
   const filteredLabel = useMemo(() => {
     const parts = [];
@@ -385,28 +455,18 @@ export default function CommunityProfileScreen() {
           ) : likedEvents.length === 0 ? (
             <Text style={styles.likesEmpty}>Aucun coup de cœur pour l’instant.</Text>
           ) : (
-            likedEvents.map((liked) => {
-              const when = new Date(liked.starts_at);
-              const whenLabel = Number.isNaN(when.getTime())
-                ? ''
-                : when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-              return (
-                <TouchableOpacity
-                  key={liked.id}
-                  style={styles.likeRow}
-                  onPress={() => router.push(`/events/${liked.id}` as any)}
-                  accessibilityRole="button"
-                  accessibilityLabel={liked.title}
-                >
-                  <View style={styles.likeCopy}>
-                    <Text style={styles.likeTitle} numberOfLines={2}>{liked.title}</Text>
-                    <Text style={styles.likeMeta} numberOfLines={1}>
-                      {[whenLabel, liked.city].filter(Boolean).join(' · ')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+            likedEvents.map((event) => (
+              <MapDiscoveryEventCard
+                key={event.id}
+                event={event}
+                variant="feed"
+                stats={likedStats[event.id]}
+                liked={heartedIds.has(event.id)}
+                onOpen={() => router.push(`/events/${event.id}` as any)}
+                onToggleHeart={toggleProfileHeart}
+                onShare={(item) => { void sharePublishedEvent(item); }}
+              />
+            ))
           )}
         </View>
       ) : null}
@@ -496,17 +556,7 @@ export default function CommunityProfileScreen() {
                 variant="feed"
                 liked={heartedIds.has(event.id)}
                 onOpen={() => router.push(`/events/${event.id}`)}
-                onToggleHeart={(item) => {
-                  const liked = heartedIds.has(item.id);
-                  setHeartedIds((current) => {
-                    const next = new Set(current);
-                    if (liked) next.delete(item.id);
-                    else next.add(item.id);
-                    return next;
-                  });
-                  if (!profile?.id) return;
-                  void (liked ? SocialService.unlike(profile.id, item.id) : SocialService.like(profile.id, item.id));
-                }}
+                onToggleHeart={toggleProfileHeart}
                 onShare={(item) => { void sharePublishedEvent(item); }}
               />
             ))
@@ -799,25 +849,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   likesEmpty: {
-    ...typography.bodySmall,
-    color: colors.brand.textSecondary,
-  },
-  likeRow: {
-    minHeight: 56,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.brand.line,
-  },
-  likeCopy: {
-    gap: 2,
-  },
-  likeTitle: {
-    ...typography.body,
-    color: colors.brand.text,
-    fontWeight: '600',
-  },
-  likeMeta: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
   },

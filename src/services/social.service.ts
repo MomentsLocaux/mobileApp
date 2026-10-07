@@ -27,6 +27,18 @@ export class SocialService {
     return dataProvider.toggleInterest(eventId);
   }
 
+  static async listLikedEventIds(userId: string, eventIds: string[]): Promise<string[]> {
+    const ids = Array.from(new Set(eventIds.filter(Boolean)));
+    if (!userId || !ids.length) return [];
+    const { data, error } = await supabase
+      .from('event_likes')
+      .select('event_id')
+      .eq('user_id', userId)
+      .in('event_id', ids);
+    if (error) return [];
+    return (data || []).map((row) => row.event_id);
+  }
+
   static async like(_userId: string, eventId: string): Promise<boolean> {
     return dataProvider.like(eventId);
   }
