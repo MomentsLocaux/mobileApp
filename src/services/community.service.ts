@@ -344,7 +344,7 @@ export const CommunityService = {
     }));
     const followers = await this.listMyFollowers().catch(() => []);
     const friends = new Set(followers.map((person) => person.id));
-    return peers.filter((person) => friends.has(person.id));
+    return peers.filter((person: { id: string }) => friends.has(person.id));
   },
 
   /**
