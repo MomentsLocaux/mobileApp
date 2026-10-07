@@ -41,3 +41,9 @@ Clavier iOS/Android (petit écran, saisie g/p/y), grandes tailles de texte syst�
 VoiceOver/TalkBack, demandes de permissions acceptées/refusées, photo/caméra et sauvegarde réelle.
 Ces vérifications constituent la suite QA du ticket ; les deux erreurs TypeScript doivent être
 traitées dans leurs périmètres respectifs avant une validation globale du projet.
+
+## Contrôle avant fusion
+
+Après synchronisation avec `main` (`3980389`), lint : 0 erreur, 41 avertissements.
+Typecheck : seule l’erreur préexistante `src/lib/webcrypto.ts:126` demeure ;
+le diagnostic de `community.service.ts` a été corrigé sur main. `git diff --check` OK.
