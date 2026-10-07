@@ -1654,7 +1654,7 @@ export default function EventDetailScreen() {
 
           {features.socialPeers && peersEngaged.length > 0 ? (
             <Card padding="md" style={[styles.creatorCard, { marginTop: spacing.sm }]}>
-              <Text style={styles.practicalTitle}>Aimé par vos suivis</Text>
+              <Text style={styles.practicalTitle}>Aimé par vos amis</Text>
               <View style={styles.peersRow}>
                 {peersEngaged.map((peer) => (
                   <TouchableOpacity

@@ -190,7 +190,7 @@ describe('home consistency and factual recommendations', () => {
   it('does not attribute a save to a liker or imply attendance', () => {
     const a = event('a', '2026-09-26T18:00:00', '2026-09-26T20:00:00');
     const signal = selectSocialSignal([a], { a: { friendsGoingCount: 1, likers: [{ id: 'alice', display_name: 'Alice', avatar_url: null, is_followed: true }] } }, NOW);
-    assert.equal(signal?.caption, 'Une personne que tu suis a enregistré');
+    assert.equal(signal?.caption, 'Un ami a enregistré');
   });
 
   it('does not announce exact totals for a capped or restored pool', () => {

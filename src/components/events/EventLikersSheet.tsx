@@ -14,7 +14,7 @@ import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { CommunityService, type EventLikerProfile } from '@/services/community.service';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { BrandIcon } from '@/components/ui/BrandIcon';
-import { mutualFriendIds, orderLikersFriendsFirst } from '@/utils/event-likers';
+import { likersVisibleToViewer } from '@/utils/event-likers';
 import { supabase } from '@/lib/supabase/client';
 
 type OrderedLiker = EventLikerProfile & { isFriend: boolean };
@@ -44,8 +44,7 @@ export function EventLikersSheet({ visible, eventId, onClose, onPressProfile }: 
         currentUser ? CommunityService.getFollowingIds(currentUser).catch(() => [] as string[]) : [],
         currentUser ? CommunityService.listMyFollowers().catch(() => []) : [],
       ]);
-      const friends = mutualFriendIds(followingIds, followers.map((person) => person.id));
-      return orderLikersFriendsFirst(rows, friends);
+      return likersVisibleToViewer(rows, followingIds, followers.map((person) => person.id));
     })()
       .then((rows) => {
         if (!cancelled) setLikers(rows);
