@@ -22,6 +22,8 @@ type Props = {
   /** Override copy — discover vs create_themes. */
   title?: string;
   subtitle?: string;
+  /** Shown when nothing is selected. Discovery uses this for “all themes”. */
+  emptyHint?: string;
 };
 
 /** PREF-P0-003 — cold-start theme declaration (skip = empty selection OK). */
@@ -30,7 +32,8 @@ export function OnboardingThemesStep({
   onToggle,
   onSelectAll,
   title = 'Qu’est-ce qui t’attire ?',
-  subtitle = 'Choisis quelques thèmes pour démarrer. Tu les retrouves dans Paramètres → Notifications et préférences. Tu peux aussi passer cette étape.',
+  subtitle = 'Sans choix, on te propose tout le rayon. Cocher sert à affiner. Tu peux aussi passer cette étape.',
+  emptyHint = 'Aucune catégorie sélectionnée',
 }: Props) {
   useTaxonomy();
   const categoriesMap = useTaxonomyStore((state) => state.categoriesMap);
@@ -60,7 +63,7 @@ export function OnboardingThemesStep({
       <View style={styles.categoryHeaderRow}>
         <Text style={styles.selectionHint}>
           {selected.length === 0
-            ? 'Aucune catégorie sélectionnée'
+            ? emptyHint
             : `${selected.length} sélectionnée${selected.length > 1 ? 's' : ''}`}
         </Text>
         <TouchableOpacity

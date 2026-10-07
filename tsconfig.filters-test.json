@@ -15,6 +15,7 @@
   "include": [
     "src/utils/notification-routes.test.ts",
     "src/utils/analytics-events.test.ts",
+    "src/utils/settings-tour-reminder.test.ts",
     "src/utils/discovery-filters.test.ts",
     "src/utils/contextual-sort-labels.test.ts",
     "src/utils/favorite-events.test.ts",
