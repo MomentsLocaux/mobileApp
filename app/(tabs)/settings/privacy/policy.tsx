@@ -23,7 +23,9 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.text}>
             Compte (e-mail via Supabase Auth), profil, interactions (favoris, likes, commentaires,
             follows), suggestions d’événements et corrections, signalements, bug reports,
-            notifications, données techniques d’appareil. Pas de check-in, pas de création
+            notifications, données techniques d’appareil, et mesures d’usage (écrans ouverts,
+            actions sur l’accueil, recherches sans le texte saisi). Tu peux couper les mesures
+            d’usage dans Paramètres, rubrique Confidentialité. Pas de check-in, pas de création
             organisateur, pas de Lumo en Alpha.
           </Text>
           <Text style={styles.heading}>2. Bases légales (art. 6 RGPD)</Text>
@@ -38,13 +40,15 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.text}>
             Fournir la découverte locale, la carte, le social entre pairs, la suggestion depuis
             une affiche, Lumia, la modération et la sécurité, et répondre aux obligations légales
-            (dont le DSA).
+            (dont le DSA). Les mesures d’usage servent à comprendre si l’accueil et les
+            notifications sont utiles. Elles ne contiennent ni nom, ni e-mail, ni texte libre.
           </Text>
           <Text style={styles.heading}>4. Conservation</Text>
           <Text style={styles.text}>
             Compte et profil : tant que le compte est actif, puis suppression sur demande. Liste
             de lancement : jusqu’à désinscription. Messages de contact : jusqu’à 12 mois. Bug
-            reports et logs techniques : 6 à 12 mois. Exports de compte : 24 heures. Les
+            reports et logs techniques : 6 à 12 mois. Mesures d’usage : 13 mois, puis
+            suppression ; elles sont aussi effacées avec le compte. Exports de compte : 24 heures. Les
             commentaires publics sont anonymisés à la suppression (texte retiré ; l’identifiant
             d’auteur peut être conservé pour la continuité du fil). Export JSON et suppression
             sont disponibles dans Paramètres.

@@ -166,6 +166,12 @@ serve(async (req) => {
   const { data: deletionResult, error: deletionError } = await supabase.rpc('process_account_deletion', {
     p_user_id: user.id,
   });
+  const { error: analyticsPurgeError } = await supabase.rpc('purge_analytics_events', {
+    p_user_id: user.id,
+  });
+  if (analyticsPurgeError) {
+    console.log('[delete-account] analytics purge error', { analyticsPurgeError });
+  }
   if (deletionError) {
     console.log('[delete-account] process_account_deletion error', { deletionError });
     return new Response(JSON.stringify({ success: false, message: 'Suppression des données impossible.' }), {

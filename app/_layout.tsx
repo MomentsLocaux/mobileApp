@@ -12,6 +12,7 @@ import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
+import { useProductAnalytics } from '../src/hooks/useProductAnalytics';
 import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
 import { ensureProximityLocationTaskRegistered } from '@/tasks/proximity-location';
 import { useProposalsStore } from '@/store/proposalsStore';
@@ -45,6 +46,7 @@ export default function RootLayout() {
 
   usePushNotifications(userId);
   useProximityAlerts(userId);
+  useProductAnalytics();
 
   useEffect(() => {
     useProposalsStore.getState().bindToUser(userId ?? null);

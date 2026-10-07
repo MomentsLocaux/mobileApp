@@ -340,6 +340,9 @@ export default function EventDetailScreen() {
 
   const trackEventView = useCallback(
     async (eventId: string) => {
+      void import('@/services/analytics.service').then(({ AnalyticsService }) => {
+        AnalyticsService.track('event_viewed', { event_id: eventId, source: 'detail' });
+      });
       try {
         const today = new Date().toISOString().split('T')[0];
         const storageKey = `event_view_${eventId}_${today}`;

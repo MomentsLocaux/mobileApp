@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { features } from '@/config/features';
 import { DISCOVERY_DEFAULT_RADIUS_KM, DISCOVERY_MIN_RADIUS_KM, HOME_NEARBY_MAX_RADIUS_KM } from '@/constants/filters';
 import { useAuth, useLocation } from '@/hooks';
@@ -9,12 +9,14 @@ import { AgendaService } from '@/services/agenda.service';
 import { PreferencesService } from '@/services/preferences.service';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { NotificationsService } from '@/services/notifications.service';
+import { AnalyticsService } from '@/services/analytics.service';
 import { useDiscoveryFiltersStore, useMapTransferStore } from '@/store';
 import { useDiscoverySnapshotStore } from '@/store/discoverySnapshotStore';
 import { useEventPreviewStore } from '@/store/eventPreviewStore';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import type { EventWithCreator } from '@/types/database';
 import { toLocalDateKey } from '@/utils/agenda';
+import { homeReasonCode } from '@/utils/analytics-events';
 import { listMapViewportForMap } from '@/utils/bbox-event-fetch';
 import { bumpCoverPrefetchGeneration } from '@/utils/cover-prefetch-queue';
 import { formatDistanceLabel } from '@/utils/event-card-display';
@@ -203,12 +205,31 @@ export function useHomeFeed() {
   const distanceLabelFor = useCallback((event: EventWithCreator) => browseCenter && Number.isFinite(event.latitude) && Number.isFinite(event.longitude)
     ? formatDistanceLabel(homeDistanceKm(browseCenter.latitude, browseCenter.longitude, event.latitude, event.longitude)) : null, [browseCenter]);
   const reasonFor = useCallback((event: EventWithCreator) => homeEventReason(event, rankContext), [rankContext]);
+  const homeFocused = useIsFocused();
+  const homeViewSignature = useRef('');
+  useEffect(() => {
+    if (!homeFocused || !pool.fetchedAt) return;
+    const withReason = rankedEvents.filter((event) => homeEventReason(event, rankContext)).length;
+    const signature = `${slot}:${rankedEvents.length}:${withReason}`;
+    if (homeViewSignature.current === signature) return;
+    homeViewSignature.current = signature;
+    AnalyticsService.track('home_viewed', {
+      slot,
+      card_count: rankedEvents.length,
+      cards_with_reason: withReason,
+    });
+  }, [homeFocused, pool.fetchedAt, rankContext, rankedEvents, slot]);
   const isHearted = useCallback((id: string) => Boolean(userId && privateData.userId === userId && privateData.interestedIds.includes(id)), [privateData, userId]);
 
   const openEvent = useCallback((event: EventWithCreator) => {
+    const position = rankedEvents.findIndex((card) => card.id === event.id);
+    AnalyticsService.track('home_card_tapped', {
+      position: position >= 0 ? position + 1 : 0,
+      reason: homeReasonCode(reasonFor(event)),
+    });
     useEventPreviewStore.getState().prepareEventDetail(event); prefetchEventMedia(event, { priority: 'visible' });
     router.push(`/map-event/${event.id}?origin=home-list` as never);
-  }, [router]);
+  }, [rankedEvents, reasonFor, router]);
   useEffect(() => {
     const visible = [...rankedEvents, ...(nextEvent ? [nextEvent] : [])];
     useEventPreviewStore.getState().pinVisibleEvents('home', visible.map(event => event.id));

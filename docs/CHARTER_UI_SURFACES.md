@@ -40,7 +40,7 @@ Avoid dark ink sheets (`#121a1c`, `rgba(26,36,38,…)`), white-on-white chips, a
 | Bug report form | `app/bug-report.tsx` | Form panel / chips contrast |
 | Contribution FAB | `src/components/events/ContributionFab.tsx`, `app/(tabs)/_layout.tsx` | Leaf fill, `onAccent` plus, mint border; draggable chat-head with throw inertia, then snap or peek on the left/right edge above the tab bar |
 | Drawer logout | `app/(tabs)/_layout.tsx`, `app/(tabs)/profile.tsx` | Choice « Garder / Oublier cet appareil » before sign-out; not account deletion (SCRUM-71) |
-| Settings hub | `app/(tabs)/settings/*`, `SettingsLayout` | Hidden tab (`href: null`) so the bottom tab bar stays visible, pinned to the screen bottom like the map (no nested-stack lift); scroll clears the overlay bar; Contribution FAB hidden on `/settings` |
+| Settings hub | `app/(tabs)/settings/*`, `SettingsLayout` | Hidden tab (`href: null`) so the bottom tab bar stays visible, pinned to the screen bottom like the map (no nested-stack lift); scroll clears the overlay bar; Contribution FAB hidden on `/settings`. Switch « Mesures d'usage » : piste menthe, pouce anis (SCRUM-299) |
 | Mes suggestions | `src/screens/profile/MySuggestionsScreen.tsx` | Rows separated by `colors.brand.line`; status chips stay |
 | Contribute sheet | `src/components/events/EventContributeSheet.tsx` | Light sheet + assistance row (bug reporter) |
 | Photo communauté sheet | `src/components/events/EventPhotoContributionModal.tsx` | Same sheet tokens as “Y aller”: header `spacing.lg`, option rows 14/72 (SCRUM-80) |

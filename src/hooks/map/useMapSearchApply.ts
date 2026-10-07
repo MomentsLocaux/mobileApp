@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { resolveEffectiveRadiusKm, resolveSearchCenter } from '@/utils/search-helpers';
+import { AnalyticsService } from '@/services/analytics.service';
 import type { DiscoveryFilters } from '@/utils/discovery-filters';
 
 type UserLocation = { latitude: number; longitude: number } | null;
@@ -58,6 +59,12 @@ export function useMapSearchApply({
 
   const applySearch = useCallback((committedFilters?: DiscoveryFilters) => {
     const activeFilters = committedFilters ?? filters;
+    AnalyticsService.track('search_performed', {
+      has_where: Boolean(activeFilters.place.center || activeFilters.place.label),
+      has_when: Boolean(activeFilters.when.preset && activeFilters.when.preset !== 'today')
+        || Boolean(activeFilters.when.startDate),
+      has_category: activeFilters.content.categories.length > 0,
+    });
     // SearchBar supplies the exact atomically committed snapshot, avoiding a
     // render-cycle race between the shared store and the map callback.
     syncSearchState(activeFilters);

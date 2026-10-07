@@ -1082,7 +1082,13 @@ export const supabaseProvider: (Pick<
 
   async toggleFavorite(eventId: string) {
     const { data, error } = await (supabase.rpc as any)('toggle_favorite', { event_id: eventId });
-    if (!error) return Boolean(data);
+    if (!error) {
+      if (Boolean(data)) {
+        const { AnalyticsService } = await import('@/services/analytics.service');
+        AnalyticsService.track('event_favorited', { event_id: eventId });
+      }
+      return Boolean(data);
+    }
     if (!isMissingFunctionError(error)) throw formatSupabaseError(error, 'toggleFavorite');
 
     // Fallback: toggle directly in favorites table.

@@ -394,6 +394,9 @@ export default function OnboardingScreen() {
       useDiscoveryFiltersStore.getState().addPlaceHistory(label);
     }
     router.replace('/(tabs)');
+    void import('@/services/analytics.service').then(({ AnalyticsService }) => {
+      AnalyticsService.track('onboarding_completed', { city_present: Boolean(selectedAddress) });
+    });
   };
 
   const persistProfile = async (): Promise<boolean> => {

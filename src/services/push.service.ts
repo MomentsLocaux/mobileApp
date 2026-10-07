@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase/client';
 import { AuthService } from '@/services/auth.service';
+import { AnalyticsService } from '@/services/analytics.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -171,7 +172,9 @@ export async function requestNotificationPermission(): Promise<boolean> {
         ios: { allowAlert: true, allowBadge: true, allowSound: true },
       })
     ).status;
-    return status === 'granted';
+    const granted = status === 'granted';
+    AnalyticsService.track('push_permission_result', { result: granted ? 'granted' : 'denied' });
+    return granted;
   } catch (e) {
     console.warn('[push] requestNotificationPermission error:', e);
     return false;
@@ -341,6 +344,7 @@ export async function clearHomeLocation(): Promise<void> {
 /** Subscribes to notification taps; no-op when the native module is missing. */
 export function subscribeToNotificationResponses(onResponse: (data: unknown) => void): () => void {
   let sub: { remove: () => void } | null = null;
+  let received: { remove: () => void } | null = null;
   let cancelled = false;
 
   void (async () => {
@@ -355,11 +359,20 @@ export function subscribeToNotificationResponses(onResponse: (data: unknown) => 
     sub = Notifications.addNotificationResponseReceivedListener((response) => {
       onResponse(response.notification.request.content.data);
     });
+    received = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as Record<string, unknown>;
+      const type =
+        (typeof data.notificationType === 'string' ? data.notificationType : undefined)
+        ?? (typeof data.type === 'string' ? data.type : undefined)
+        ?? 'system';
+      AnalyticsService.track('notification_received', { type });
+    });
   })();
 
   return () => {
     cancelled = true;
     sub?.remove();
+    received?.remove();
   };
 }
 
@@ -370,5 +383,7 @@ export function routeFromNotificationData(data: unknown) {
     (typeof d.notificationType === 'string' ? d.notificationType : undefined) ??
     (typeof d.type === 'string' ? d.type : undefined);
   const { href } = resolveNotificationRoute(type, data);
+  const notificationType = type && /^[a-z0-9_]{1,40}$/.test(type) ? type : 'system';
+  AnalyticsService.track('notification_opened', { type: notificationType });
   router.push(href as never);
 }

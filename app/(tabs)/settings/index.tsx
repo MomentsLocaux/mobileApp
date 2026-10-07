@@ -1,5 +1,5 @@
-import React from 'react';
-import { Alert, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Switch, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   User,
@@ -17,12 +17,15 @@ import {
   ShieldCheck,
   Download,
   MapPin,
+  Activity,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { features } from '@/config/features';
 import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
+import { AnalyticsService } from '@/services/analytics.service';
+import { colors } from '@/constants/theme';
 import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
 export default function SettingsScreen() {
@@ -31,6 +34,16 @@ export default function SettingsScreen() {
     useAccountIdentity();
 
   const requestLumiaReplay = useLumiaTourStore((s) => s.requestReplay);
+  const [usageMeasures, setUsageMeasures] = useState(true);
+
+  useEffect(() => {
+    void AnalyticsService.isOptedOut().then((optedOut) => setUsageMeasures(!optedOut));
+  }, []);
+
+  const handleUsageMeasures = (enabled: boolean) => {
+    setUsageMeasures(enabled);
+    void AnalyticsService.setOptOut(!enabled);
+  };
 
   const handleReplayOnboarding = () => {
     Alert.alert(
@@ -162,10 +175,24 @@ export default function SettingsScreen() {
 
       <SettingsSectionCard title="Confidentialité & données" icon={Lock} accent>
         <SettingsRow
+          label="Mesures d'usage"
+          icon={Activity}
+          showChevron={false}
+          noBorder
+          right={
+            <Switch
+              accessibilityLabel="Mesures d'usage"
+              value={usageMeasures}
+              onValueChange={handleUsageMeasures}
+              trackColor={{ false: colors.neutral[300], true: 'rgba(124, 181, 24, 0.55)' }}
+              thumbColor={usageMeasures ? colors.brand.secondary : colors.neutral[100]}
+            />
+          }
+        />
+        <SettingsRow
           label="Politique de confidentialité"
           icon={FileText}
           onPress={() => router.push('/settings/privacy/policy' as any)}
-          noBorder
         />
         <SettingsRow
           label="Visibilité du profil"
