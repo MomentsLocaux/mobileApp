@@ -19,7 +19,10 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const PREF_TZ = "Europe/Paris";
 
-/** Always attempt OS push even under budget / quiet hours. */
+/**
+ * Always attempt OS push even under the daily budget and quiet hours.
+ * direct_message is included so a conversation is not rationed like event alerts.
+ */
 const CRITICAL_PUSH_TYPES = new Set([
     "user_banned",
     "warning_received",
@@ -28,6 +31,7 @@ const CRITICAL_PUSH_TYPES = new Set([
     "media_rejected",
     "contest_entry_refused",
     "moderation_escalation",
+    "direct_message",
 ]);
 
 type NotificationRecord = {
@@ -295,6 +299,15 @@ Deno.serve(async (req: Request) => {
         notificationType: record!.type ?? null,
     };
 
+    const conversationId = typeof pushData.conversationId === "string"
+        ? pushData.conversationId
+        : null;
+    // Group by conversation. No custom Android channel: a missing channel
+    // would drop the banner on builds that only created "default".
+    const directMessagePush = type === "direct_message" && conversationId
+        ? { priority: "high" as const, threadId: conversationId, tag: conversationId }
+        : {};
+
     const messages = tokens.map((t: { token: string }) => ({
         to: t.token,
         title: record!.title,
@@ -302,6 +315,7 @@ Deno.serve(async (req: Request) => {
         data: pushData,
         sound: "default",
         badge,
+        ...directMessagePush,
     }));
 
     const res = await fetch(EXPO_PUSH_URL, {

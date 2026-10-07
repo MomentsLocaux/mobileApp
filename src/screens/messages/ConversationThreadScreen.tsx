@@ -18,6 +18,8 @@ import { AppBackground, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { MessagingService, type DirectMessage } from '@/services/messaging.service';
+import { NotificationsService } from '@/services/notifications.service';
+import { setActiveDirectConversation } from '@/services/push.service';
 import { UGC_LIMITS } from '@/utils/ugc-sanitize';
 
 export default function ConversationThreadScreen() {
@@ -41,6 +43,8 @@ export default function ConversationThreadScreen() {
       setMessages(rows);
       setError(null);
       await MessagingService.markRead(id);
+      NotificationsService.invalidateInboxCache();
+      void NotificationsService.getUnreadCount().catch(() => undefined);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Impossible de charger la conversation.');
     } finally {
@@ -50,8 +54,10 @@ export default function ConversationThreadScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (id) setActiveDirectConversation(id);
       void load();
-    }, [load]),
+      return () => setActiveDirectConversation(null);
+    }, [id, load]),
   );
 
   useEffect(() => {

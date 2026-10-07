@@ -17,6 +17,7 @@ import {
   CalendarCheck2,
   Image as ImageIcon,
   MapPin,
+  MessageCircle,
   MessageSquareWarning,
   ShieldAlert,
   Trophy,
@@ -145,6 +146,7 @@ const formatRelative = (value: string) => {
 };
 
 const typeIcon = (type: AppNotificationType): LucideIcon => {
+  if (type === 'direct_message') return MessageCircle;
   if (type === 'social_follow' || type === 'social_like') return UserPlus;
   if (type === 'event_published' || type === 'event_refused' || type === 'event_request_changes') {
     return CalendarCheck2;

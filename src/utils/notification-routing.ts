@@ -6,7 +6,8 @@ type RouteTarget =
   | { href: '/notifications' }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
-  | { href: '/profile/my-suggestions' };
+  | { href: '/profile/my-suggestions' }
+  | { href: `/messages/${string}` };
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -39,6 +40,13 @@ export function resolveNotificationRoute(
     const targetId = pickString(d, 'targetId', 'target_id');
     if (targetType === 'event' && targetId) {
       return { href: `/events/${targetId}` };
+    }
+  }
+
+  if (type === 'direct_message') {
+    const conversationId = pickString(d, 'conversationId', 'conversation_id');
+    if (conversationId) {
+      return { href: `/messages/${conversationId}` };
     }
   }
 
