@@ -88,6 +88,7 @@ import { PlaceMediaGallery, type MediaImage, type PlaceMediaGalleryHandle } from
 import { EventHeartButton } from '@/components/events/EventHeartButton';
 import type { BrandIconName } from '@/components/ui/BrandIcon';
 import { EventDetailSection } from '@/components/events/EventDetailSection';
+import { EventWeatherSection } from '@/components/events/EventWeatherSection';
 import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
 import { EventEchoesPreview } from '@/components/events/EventEchoesPreview';
 import { supabase } from '@/lib/supabase/client';
@@ -1550,6 +1551,18 @@ export default function EventDetailScreen() {
             />
           </EventDetailSection>
           </MotionReveal>
+
+          {event ? (
+            <MotionReveal delay={Motion.stagger.content * 3.5} enabled={!seededEvent}>
+              <EventWeatherSection
+                latitude={eventCoordinates?.latitude ?? null}
+                longitude={eventCoordinates?.longitude ?? null}
+                startsAt={event.starts_at}
+                endsAt={event.ends_at}
+                placeName={typeof event.city === 'string' ? event.city.trim() : ''}
+              />
+            </MotionReveal>
+          ) : null}
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
