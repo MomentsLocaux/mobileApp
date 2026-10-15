@@ -28,7 +28,7 @@ import {
   X,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { AppBackground, Button, UserAvatar } from '../../components/ui';
+import { AppBackground, Button, PushButton, UserAvatar } from '../../components/ui';
 import { BrandIcon } from '@/components/ui/BrandIcon';
 import { OnboardingNeighborhood } from '@/components/onboarding/OnboardingNeighborhood';
 import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
@@ -52,6 +52,7 @@ import {
   type ConnectorDraft,
 } from '@/components/onboarding/OnboardingConnectorStep';
 import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
+import { OnboardingPushPolicyStep } from '@/components/onboarding/OnboardingPushPolicyStep';
 import { OnboardingStepFrame } from '@/components/onboarding/OnboardingStepFrame';
 import { rememberAppFirstOpen } from '@/services/settings-tour-reminder.service';
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
@@ -78,6 +79,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { haptics } from '@/utils/haptics';
 import { features } from '@/config/features';
+import {
+  buildPushPersonalizationAnswers,
+  type PushPolicy,
+} from '@/utils/push-personalization';
 
 type StepId =
   | 'welcome'
@@ -86,6 +91,7 @@ type StepId =
   | 'create_themes'
   | 'location'
   | 'permissions'
+  | 'push_policy'
   | 'themes'
   | 'avatar'
   | 'creator'
@@ -161,6 +167,7 @@ export default function OnboardingScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [permissionsBusy, setPermissionsBusy] = useState(false);
   const [alertPack, setAlertPack] = useState<OnboardingAlertPack>(DEFAULT_ONBOARDING_ALERT_PACK);
+  const [pushPolicy, setPushPolicy] = useState<PushPolicy | null>(null);
   const [uploadTarget, setUploadTarget] = useState<'avatar' | 'cover' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,7 +196,7 @@ export default function OnboardingScreen() {
 
   const steps: StepId[] = useMemo(() => {
     if (isProfessionnel) {
-      return ['welcome', 'identity', 'location', 'permissions', 'avatar', 'creator', 'connector'];
+      return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'avatar', 'creator', 'connector'];
     }
     const marketingTail: StepId[] = features.offers
       ? ['tiers', 'eclairer']
@@ -203,6 +210,7 @@ export default function OnboardingScreen() {
         'create_why',
         'location',
         'permissions',
+        'push_policy',
         'themes',
         'create_themes',
         'avatar',
@@ -210,7 +218,7 @@ export default function OnboardingScreen() {
         ...(features.offers ? (['tiers', 'eclairer', 'mode_hint'] as StepId[]) : (['mode_hint'] as StepId[])),
       ];
     }
-    return ['welcome', 'identity', 'location', 'permissions', 'themes', 'avatar', ...marketingTail];
+    return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'themes', 'avatar', ...marketingTail];
   }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
@@ -244,6 +252,11 @@ export default function OnboardingScreen() {
     stepId === 'create_themes' ||
     (stepId === 'location' && !!selectedAddress) ||
     stepId === 'permissions' ||
+    (stepId === 'push_policy' &&
+      buildPushPersonalizationAnswers({
+        policy: pushPolicy,
+        answeredAt: 'pending',
+      }) != null) ||
     stepId === 'themes' ||
     stepId === 'avatar' ||
     stepId === 'creator' ||
@@ -526,6 +539,30 @@ export default function OnboardingScreen() {
         await applyOnboardingPermissionPack(user.id, alertPack);
       } finally {
         setPermissionsBusy(false);
+      }
+    }
+
+    if (stepId === 'push_policy') {
+      const answers = buildPushPersonalizationAnswers({
+        policy: pushPolicy,
+        answeredAt: new Date().toISOString(),
+      });
+      if (!answers || !user?.id) {
+        setError('Choisis une politique de notifications pour continuer.');
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await PreferencesService.savePushPersonalization(user.id, answers);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Impossible d’enregistrer ta politique de notifications.',
+        );
+        return;
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -1102,6 +1139,12 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        {stepId === 'push_policy' && (
+          <View key="push_policy" style={styles.stepContainer}>
+            <OnboardingPushPolicyStep policy={pushPolicy} onChangePolicy={setPushPolicy} />
+          </View>
+        )}
+
         {stepId === 'themes' && (
           <View key="themes" style={styles.stepContainer}>
             <OnboardingThemesStep
@@ -1276,25 +1319,31 @@ export default function OnboardingScreen() {
         ) : null}
 
         <View style={styles.buttonGroup}>
-          <Button
-            title={primaryTitle}
-            onPress={
-              stepId === 'eclairer' ? () => handleUnlockTease('annual') : goNext
-            }
-            size="lg"
-            loading={
-              isLoading ||
-              permissionsBusy ||
-              (stepId === 'location' && locationLoading && !!selectedAddress)
-            }
-            style={
-              stepId === 'eclairer'
-                ? [styles.footerButton, styles.premiumCta]
-                : styles.footerButton
-            }
-            disabled={!canContinue || isLoading || isUploading || permissionsBusy}
-            accessibilityLabel={primaryTitle}
-          />
+          {stepId === 'eclairer' ? (
+            <Button
+              title={primaryTitle}
+              onPress={() => handleUnlockTease('annual')}
+              size="lg"
+              style={[styles.footerButton, styles.premiumCta]}
+              disabled={!canContinue || isLoading || isUploading || permissionsBusy}
+              accessibilityLabel={primaryTitle}
+            />
+          ) : (
+            <PushButton
+              label={primaryTitle}
+              accessibilityLabel={primaryTitle}
+              onPress={() => {
+                void goNext();
+              }}
+              loading={
+                isLoading ||
+                permissionsBusy ||
+                (stepId === 'location' && locationLoading && !!selectedAddress)
+              }
+              disabled={!canContinue || isLoading || isUploading || permissionsBusy}
+              style={styles.footerPush}
+            />
+          )}
           {showSkip ? (
             <TouchableOpacity
               onPress={skipOptionalToTiers}
@@ -1556,6 +1605,7 @@ const styles = StyleSheet.create({
   },
   buttonGroup: { gap: spacing.xs },
   footerButton: { width: '100%', minHeight: 56, borderRadius: borderRadius.lg },
+  footerPush: { width: '100%', alignSelf: 'stretch' },
   premiumCta: {
     backgroundColor: colors.brand.premium,
   },

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -34,6 +35,7 @@ type Props = {
   /** Latched down + lit. Omit for a momentary push CTA. */
   toggled?: boolean;
   disabled?: boolean;
+  loading?: boolean;
   icon?: BrandIconName;
   iconSize?: number;
   label?: string;
@@ -49,6 +51,7 @@ export function PushButton({
   accessibilityLabel,
   toggled,
   disabled = false,
+  loading = false,
   icon,
   iconSize = 20,
   label,
@@ -108,7 +111,7 @@ export function PushButton({
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       onPressIn={() => {
         if (disabled) return;
         haptics.light();
@@ -122,13 +125,14 @@ export function PushButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{
-        disabled,
+        disabled: disabled || loading,
+        busy: loading,
         selected: isToggle ? Boolean(toggled) : undefined,
       }}
       style={[
         styles.pressable,
         !isSquare && styles.pressablePill,
-        disabled && styles.disabled,
+        (disabled || loading) && styles.disabled,
         style,
       ]}
     >
@@ -140,19 +144,25 @@ export function PushButton({
         <Animated.View style={[styles.face, isSquare ? styles.faceSquare : styles.facePill, faceStyle]}>
           <Animated.View pointerEvents="none" style={[styles.shine, isSquare && styles.shineSquare]} />
           <Animated.View style={styles.content}>
-            {icon ? (
-              <BrandIcon
-                name={icon}
-                size={iconSize}
-                active={false}
-                color={iconColor}
-              />
-            ) : null}
-            {label ? (
-              <Text style={styles.label} numberOfLines={1}>
-                {label}
-              </Text>
-            ) : null}
+            {loading ? (
+              <ActivityIndicator color={colors.brand.ink} />
+            ) : (
+              <>
+                {icon ? (
+                  <BrandIcon
+                    name={icon}
+                    size={iconSize}
+                    active={false}
+                    color={iconColor}
+                  />
+                ) : null}
+                {label ? (
+                  <Text style={styles.label} numberOfLines={1}>
+                    {label}
+                  </Text>
+                ) : null}
+              </>
+            )}
           </Animated.View>
         </Animated.View>
       </Animated.View>

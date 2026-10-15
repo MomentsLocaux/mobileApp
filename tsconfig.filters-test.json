@@ -61,6 +61,8 @@
     "src/utils/map-camera-fallback.test.ts",
     "src/utils/map-marker-request.test.ts",
     "src/utils/map-viewport-request.test.ts",
+    "src/utils/push-personalization.test.ts",
+    "src/utils/weather-forecast.test.ts",
     "src/utils/poster-analysis-progress.test.ts",
     "src/utils/sign-out-choice.test.ts",
     "src/utils/query-timeout.test.ts",

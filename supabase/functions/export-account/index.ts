@@ -143,7 +143,7 @@ serve(async (req) => {
       selectMaybe(
         supabase,
         'user_preferences',
-        'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_social, notify_radius_km, notify_frequency, notify_event_reminders, location_visibility, quiet_hours_start, quiet_hours_end, preferred_category_slugs, updated_at',
+        'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_social, notify_radius_km, notify_frequency, notify_event_reminders, location_visibility, quiet_hours_start, quiet_hours_end, preferred_category_slugs, push_personalization, updated_at',
         { column: 'user_id', value: user.id },
       ),
       selectMaybe(supabase, 'events', 'id, title, description, city, address, starts_at, ends_at, status, visibility, submission_source, created_at', {

@@ -3,6 +3,11 @@ import {
   CATEGORY_VISUAL_LABELS,
   type CategoryVisualSlug,
 } from '@/constants/category-visuals';
+import {
+  parsePushPersonalization,
+  preferencePatchFromPushPolicy,
+  type PushPersonalizationAnswers,
+} from '@/utils/push-personalization';
 
 export type NotifyFrequency = 'instant' | 'daily' | 'weekly';
 
@@ -35,10 +40,12 @@ export type UserPreferences = {
   quiet_hours_end: QuietTime;
   preferred_category_slugs: string[];
   location_visibility: LocationVisibility;
+  /** Questionnaire snapshot. Null until the onboarding policy step is answered. */
+  push_personalization: PushPersonalizationAnswers | null;
 };
 
 const PREF_FIELDS =
-  'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_rewards, notify_social, notify_radius_km, notify_frequency, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, discovery_max_push_per_week, max_push_per_day, quiet_hours_start, quiet_hours_end, preferred_category_slugs, location_visibility';
+  'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_rewards, notify_social, notify_radius_km, notify_frequency, notify_followed_creator, notify_event_reminders, discovery_push_enabled, right_now_push_enabled, break_loop_push_enabled, life_insight_push_enabled, discovery_max_push_per_week, max_push_per_day, quiet_hours_start, quiet_hours_end, preferred_category_slugs, location_visibility, push_personalization';
 
 // Mirrors the column defaults so a user without a row still sees sane values.
 export const DEFAULT_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
@@ -62,6 +69,7 @@ export const DEFAULT_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
   quiet_hours_end: null,
   preferred_category_slugs: [],
   location_visibility: 'nobody',
+  push_personalization: null,
 };
 
 export const THEME_CHIP_LABELS: Record<CategoryVisualSlug, string> = CATEGORY_VISUAL_LABELS;
@@ -89,6 +97,7 @@ const normalizePrefs = (row: Record<string, unknown>, userId: string): UserPrefe
       : 'nobody',
   max_push_per_day:
     typeof row.max_push_per_day === 'number' ? row.max_push_per_day : DEFAULT_PREFERENCES.max_push_per_day,
+  push_personalization: parsePushPersonalization(row.push_personalization),
 });
 
 export const PreferencesService = {
@@ -96,25 +105,51 @@ export const PreferencesService = {
     const load = (fields: string) =>
       supabase.from('user_preferences').select(fields).eq('user_id', userId).maybeSingle();
 
-    const primary = await load(PREF_FIELDS);
-    const result =
-      primary.error && /location_visibility/i.test(primary.error.message || '')
-        ? await load(PREF_FIELDS.replace(', location_visibility', ''))
-        : primary;
+    let fields = PREF_FIELDS;
+    let result = await load(fields);
+    for (let attempt = 0; attempt < 2 && result.error; attempt += 1) {
+      const message = result.error.message || '';
+      const next = /push_personalization/i.test(message)
+        ? fields.replace(', push_personalization', '')
+        : /location_visibility/i.test(message)
+          ? fields.replace(', location_visibility', '')
+          : null;
+      if (!next || next === fields) break;
+      fields = next;
+      result = await load(fields);
+    }
     if (result.error) throw new Error(result.error.message || 'Impossible de charger les préférences');
     if (result.data) return normalizePrefs(result.data as unknown as Record<string, unknown>, userId);
     return { user_id: userId, ...DEFAULT_PREFERENCES };
   },
 
   async updateMine(userId: string, patch: Partial<Omit<UserPreferences, 'user_id'>>): Promise<void> {
-    const { error } = await supabase.from('user_preferences').upsert(
-      {
-        user_id: userId,
-        ...patch,
-        updated_at: new Date().toISOString(),
-      } as never,
-      { onConflict: 'user_id' },
-    );
+    const write = (body: Partial<Omit<UserPreferences, 'user_id'>>) =>
+      supabase.from('user_preferences').upsert(
+        {
+          user_id: userId,
+          ...body,
+          updated_at: new Date().toISOString(),
+        } as never,
+        { onConflict: 'user_id' },
+      );
+
+    let body = patch;
+    let { error } = await write(body);
+    if (error && /push_personalization/i.test(error.message || '') && 'push_personalization' in body) {
+      const rest = { ...body };
+      delete rest.push_personalization;
+      body = rest;
+      ({ error } = await write(body));
+    }
     if (error) throw new Error(error.message || 'Impossible de mettre à jour les préférences');
+  },
+
+  /**
+   * Saves the onboarding questionnaire and copies it onto the live notify_* toggles.
+   * A missing snapshot column still leaves those toggles in place.
+   */
+  async savePushPersonalization(userId: string, answers: PushPersonalizationAnswers): Promise<void> {
+    await PreferencesService.updateMine(userId, preferencePatchFromPushPolicy(answers));
   },
 };
