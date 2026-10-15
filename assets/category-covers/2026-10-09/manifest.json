@@ -1,0 +1,72 @@
+[
+  {
+    "file": "arts-culture.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2134146,
+    "sha256": "db3871ea4e5e77b918d4c4ab60b2255b1b63f5a7c71dcfd9c121baee6968caad"
+  },
+  {
+    "file": "marches-artisanat.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2225342,
+    "sha256": "78aab517ac718c96721cd146248fb2b27f894078c5cea878e07840ee06b4c646"
+  },
+  {
+    "file": "fetes-animations.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2254727,
+    "sha256": "e7ffe60f149dcc3fe8bb3217d2394eb84ce9d10458620fdffb1f42dcaf21e472"
+  },
+  {
+    "file": "famille-enfants.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2387329,
+    "sha256": "543547a405063347c8beffd9436806e20cbd2bf7b944da253bd4b7e6bf6dd984"
+  },
+  {
+    "file": "gastronomie-saveurs.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2456981,
+    "sha256": "abd3cb1fad175103a89326d901807d04b678c4abfcf009bb1c276a9bc611c222"
+  },
+  {
+    "file": "nature-bienetre.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2497820,
+    "sha256": "cedc3c89361b6cb82efcd4e04689c0cade474abeac69a2a214b278e9c780dd77"
+  },
+  {
+    "file": "ateliers-apprentissage.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2025484,
+    "sha256": "5ed8a8cf1f50f86eda858c72d0e4d765cc876c3c1d6eaeaf2cd254c8304a3836"
+  },
+  {
+    "file": "sport-loisirs.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2228079,
+    "sha256": "ccb5ea58e1d0c2561e88a0cd8bccb8e9d4b259a9f3a618a61f9593fe881e244f"
+  },
+  {
+    "file": "vie-locale.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2281965,
+    "sha256": "0c8c2c5df8945e2ecfc8a90f736582387b32fef5d0890bafd59922506d753a1c"
+  },
+  {
+    "file": "insolite-ephemere.png",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2341925,
+    "sha256": "63167e5f2e9e17043e34c3ab52ef4c9923594d78528c09a19e212dea7408b493"
+  }
+]
