@@ -2,7 +2,7 @@
 -- Live delivery follows notify_event_nearby, notify_event_reminders and
 -- notify_proximity_live. Discovery is not part of this policy.
 --
--- DO NOT apply without human validation (AGENTS.md). Apply DEV first, then UAT.
+-- Applied on DEV 2026-10-15 (prymkgkafaovhzopslea). UAT/prod not applied.
 
 BEGIN;
 
