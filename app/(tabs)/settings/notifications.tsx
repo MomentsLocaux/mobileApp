@@ -25,6 +25,7 @@ import {
   THEME_CHIP_LABELS,
   type UserPreferences,
 } from '@/services/preferences.service';
+import { describePushPersonalization } from '@/utils/push-personalization';
 import { ProximityAlertService } from '@/services/proximity-alert.service';
 import {
   clearHomeLocation,
@@ -193,8 +194,30 @@ export default function NotificationsSettingsScreen() {
   const showRewards = features.gamification;
   const showSocial = features.socialPeers;
 
+  const policySummary = prefs.push_personalization
+    ? describePushPersonalization(prefs.push_personalization)
+    : null;
+
   return (
     <SettingsLayout title="Notifications & préférences">
+      {policySummary ? (
+        <SettingsSectionCard
+          title="Politique de notifications"
+          description={policySummary.title}
+          icon={Sparkles}
+        >
+          {policySummary.lines.map((line) => (
+            <Text key={line} style={styles.policyLine}>
+              {line}
+            </Text>
+          ))}
+          <Text style={styles.infoText}>
+            Les interrupteurs ci-dessous décident de ce qui part vraiment. Cette carte rappelle
+            le choix fait à l’inscription.
+          </Text>
+        </SettingsSectionCard>
+      ) : null}
+
       {/* 1. Push master + budget + quiet */}
       <SettingsSectionCard
         title="Notifications push"
@@ -453,6 +476,11 @@ const styles = StyleSheet.create({
   helperText: {
     ...typography.caption,
     color: colors.brand.textSecondary,
+  },
+  policyLine: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    paddingVertical: spacing.xs,
   },
   infoBox: {
     flexDirection: 'row',

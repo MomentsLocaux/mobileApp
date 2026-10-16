@@ -15,6 +15,7 @@ import { createAvatarConfig, encodeCustomAvatar, randomizeAvatar } from '@/utils
 import { haptics } from '@/utils/haptics';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { Button } from '@/components/ui/Button';
+import { PushButton } from '@/components/ui/PushButton';
 import { PresetAvatarArt } from '@/components/ui/PresetAvatarArt';
 
 type TabKey = 'models' | AvatarStyleKey | 'colors';
@@ -220,8 +221,9 @@ export function AvatarEditorModal({ initialUrl, onApply, onClose }: Props) {
 
           <View style={styles.footer}>
             <Button title="Annuler" variant="secondary" onPress={onClose} style={styles.cancel} />
-            <Button
-              title="Utiliser ce portrait"
+            <PushButton
+              label="Utiliser ce portrait"
+              accessibilityLabel="Utiliser ce portrait"
               onPress={() => { haptics.success(); onApply(encodeCustomAvatar(draft)); }}
               style={styles.apply}
             />
