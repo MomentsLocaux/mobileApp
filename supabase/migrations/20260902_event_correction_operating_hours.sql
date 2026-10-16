@@ -1,3 +1,9 @@
+-- SUPERSEDED by 20261016101835_event_correction_schedule_fields.sql.
+-- This draft was never applied (its version is not a 14-digit migration id).
+-- Do not apply it: it does not teach moderation_review_event_correction to write
+-- operating_hours / schedule_mode, and it allows an operating_hours object that
+-- events_operating_hours_json rejects.
+--
 -- SCRUM-120 follow-up — Allow operating_hours / schedule_mode on field corrections.
 -- Mobile now submits dates + particular hours (same planner as create), place, taxonomy, price.
 -- Legacy keys (title, description, cover_url, external_url) stay allowed so pending proposals
