@@ -1,7 +1,7 @@
 # Registre des traitements — Alpha Moments Locaux
 
 Ticket : **SCRUM-207** (epic [SCRUM-200](https://moments-locaux.atlassian.net/browse/SCRUM-200)).
-Version alignée : `2026-09-23` (`LEGAL_POLICY_VERSION` app et `PRIVACY_POLICY_VERSION` site).
+Version alignée : `2026-10-21` (`LEGAL_POLICY_VERSION` app et `PRIVACY_POLICY_VERSION` site). Brouillon SCRUM-334, relecture humaine avant merge.
 Responsable de traitement : **Romain Rauyer**, personne physique (pas de SAS / SIRET à ce stade).
 Contact : `hello@moments-locaux.com`.
 
@@ -20,6 +20,7 @@ Les traitements parkés (check-in, Lumo / IAP, Discovery Engine, Diffuseur B2B, 
 | Vercel | Hébergement du site, mesure d’audience (si consentement bandeau) | Journaux techniques, audience agrégée | Possible (États-Unis) — DPA / CCT |
 | Brevo | E-mails transactionnels (Auth, contact) | Adresse e-mail, contenu du message de contact | Possible — DPA / CCT |
 | Apple / Google | Stores, notifications, distribution | Compte développeur, métadonnées d’app, questionnaires privacy | Selon le store |
+| Google (AdMob) | Cartes publicitaires de la version gratuite | Identifiants techniques, contenu de l’annonce. Position précise seulement si le formulaire l’autorise. Identifiant publicitaire Apple seulement si « Autoriser le suivi » est accepté. | Possible (États-Unis) — DPA / CCT |
 
 Moments Locaux reste responsable de traitement pour les finalités produit. OpenAI n’entraîne pas de modèles à partir de ces contenus **si** le contrat et le paramétrage API l’excluent (à confirmer à chaque renouvellement de contrat).
 
@@ -52,6 +53,7 @@ Moments Locaux reste responsable de traitement pour les finalités produit. Open
 - **Finalité** : carte « autour de moi » et notifications de proximité (permission When In Use + Always).
 - **Base légale** : consentement (permission OS) ; contrat pour la personnalisation locale.
 - **Données** : position de l’appareil (non stockée comme historique de trajet en Alpha) ; tokens push.
+- **Lien pubs** : cette position n’est envoyée à Google AdMob pour choisir une annonce que si le formulaire publicitaire l’autorise, en plus de la permission du téléphone.
 - **Hors Alpha** : check-in GPS / QR.
 
 ### 5. UGC : commentaires, photos, suggestions, corrections, signalements
@@ -109,6 +111,17 @@ Moments Locaux reste responsable de traitement pour les finalités produit. Open
 - **Base légale** : intérêt légitime.
 - **Données** : codes d’erreur, identifiants techniques. Interdit : corps des prompts Lumia / photos en clair dans les logs (ADR 009).
 
+### 12. Cartes publicitaires (version gratuite)
+
+- **Statut** : décidé (SCRUM-329 / SCRUM-334). Le SDK n’est pas appelé tant que `EXPO_PUBLIC_FEATURE_ADS` est éteint. Les questionnaires stores (SCRUM-346) restent à mettre à jour avant d’allumer ce flag.
+- **Finalité** : financer une partie des frais de la version gratuite par des cartes natives, distinctes des événements.
+- **Base légale** : consentement pour les usages qui le nécessitent, recueilli dans l’application (formulaire Google UMP). Les autres bases applicables à la diffusion limitée sont présentées dans ce formulaire. Le refus limite les usages de vos données ; des annonces compatibles avec ce choix peuvent encore être affichées. Le choix se revoit dans Réglages → Publicités.
+- **Données** : si la personne accepte, identifiants techniques et personnalisation envoyés à Google AdMob. Position précise seulement si ce point du formulaire est accepté. Sur iPhone, identifiant publicitaire seulement après « Autoriser le suivi ». « Gérer les options » permet de retirer la personnalisation ou seulement la position. Aucune demande n’est envoyée lorsque Google UMP ne l’autorise pas (`canRequestAds=false`).
+- **Stockage du choix** : sur l’appareil (formulaire Google), pas dans Supabase. Deux appareils = deux questions.
+- **Masquage** : un entitlement actif `moments_locaux_habitue` ou `moments_locaux_plus` (Habitué ou Éclaireur) retire les cartes. L’achat intégré n’est pas ouvert (SCRUM-10) : sans ligne d’abonnement active, le compte reste sur la version gratuite.
+- **Sujets bloqués côté régie** : alcool, jeux d’argent, casino social, rencontres, politique, religion, santé sexuelle et reproductive, médicaments, références sexuelles. Classement maximal T. Application non destinée aux moins de 16 ans.
+- **Conservation** : Moments Locaux ne stocke pas le contenu de l’annonce. La preuve de consentement est celle du formulaire Google sur l’appareil.
+
 ## Traitements non déployés (Alpha)
 
 | Traitement | Statut | Ne pas déclarer comme actif |
@@ -128,7 +141,7 @@ Moments Locaux reste responsable de traitement pour les finalités produit. Open
 
 ## Transferts hors UE
 
-Supabase, Mapbox, OpenAI, stores : transferts possibles. Encadrement : DPA / CCT des sous-traitants. À relire à chaque renouvellement.
+Supabase, Mapbox, OpenAI, Google AdMob, stores : transferts possibles. Encadrement : DPA / CCT des sous-traitants. À relire à chaque renouvellement.
 
 ## Mise à jour
 

@@ -33,11 +33,11 @@ test('writes again when the policy version changes', () => {
   );
 });
 
-test('current app policy version re-prompts a 2026-09-09 acceptance', () => {
+test('current app policy version re-prompts a 2026-09-23 acceptance', () => {
   assert.equal(
     shouldWriteLegalAcceptance(
-      { legal_accepted_at: '2026-09-09T10:00:00.000Z', legal_policy_version: '2026-09-09' },
-      '2026-09-23',
+      { legal_accepted_at: '2026-09-23T10:00:00.000Z', legal_policy_version: '2026-09-23' },
+      '2026-10-21',
     ),
     true,
   );

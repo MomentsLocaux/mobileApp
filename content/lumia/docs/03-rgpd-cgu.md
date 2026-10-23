@@ -13,7 +13,7 @@ Moments Locaux est soumis au droit français. Lumia **n’est pas un avocat** : 
 **Paramètres → Informations légales**
 - [Conditions Générales d’Utilisation (CGU)](/settings/legal/cgu)
 - [Mentions légales](/settings/legal/mentions)
-- [Cookies et traceurs](/settings/legal/cookies) — l’app n’utilise pas de cookies publicitaires
+- [Cookies et traceurs](/settings/legal/cookies) — la version gratuite de l’app peut afficher des cartes publicitaires ; le site n’en dépose pas
 
 **Paramètres → Confidentialité & données**
 - [Politique de confidentialité](/settings/privacy/policy)
@@ -51,6 +51,10 @@ Les données privées sont supprimées ou anonymisées selon le flux prévu ; ce
 ## Export de données
 
 Depuis [Exporter mes données](/settings/privacy/export) : demande → fichier JSON (profil, préférences, likes, favoris, abonnements, contributions). Le lien expire au bout de 24 h. L’historique Lumia n’est **pas** inclus.
+
+## Cartes publicitaires
+
+La version gratuite de l’application peut afficher des cartes servies par Google. Si on accepte, elles peuvent être personnalisées, et la position peut servir à les choisir seulement si ce point du formulaire est aussi accepté. « Gérer les options » permet de retirer la personnalisation ou seulement la position. Le refus limite les usages de vos données ; des annonces compatibles avec ce choix peuvent encore être affichées. Sur iPhone, après un oui aux cartes personnalisées, le téléphone peut demander « Autoriser le suivi ». Le choix se revoit dans Réglages → Publicités. Un abonnement Habitué ou Éclaireur actif retire les cartes. Cet abonnement n’est pas encore en vente dans l’application. Détails : [Cookies et traceurs](/settings/legal/cookies) et [Politique de confidentialité](/settings/privacy/policy).
 
 ## Géolocalisation
 
