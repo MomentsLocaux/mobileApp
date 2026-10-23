@@ -42,6 +42,10 @@
     </array>
     <key>CFBundleVersion</key>
     <string>4</string>
+    <key>GADApplicationIdentifier</key>
+    <string>ca-app-pub-2956562071380245~2055818628</string>
+    <key>GADDelayAppMeasurementInit</key>
+    <true/>
     <key>LSApplicationQueriesSchemes</key>
     <array>
       <string>waze</string>
@@ -64,10 +68,6 @@
     <string>Moments Locaux peut proposer d’ajouter un événement à votre calendrier. L’ajout se confirme dans l’app Calendrier.</string>
     <key>NSCalendarsWriteOnlyAccessUsageDescription</key>
     <string>Moments Locaux peut proposer d’ajouter un événement à votre calendrier. L’ajout se confirme dans l’app Calendrier.</string>
-    <key>NSRemindersFullAccessUsageDescription</key>
-    <string>Moments Locaux n’accède pas à vos rappels. Cette mention est exigée par le module calendrier iOS au démarrage.</string>
-    <key>NSRemindersUsageDescription</key>
-    <string>Moments Locaux n’accède pas à vos rappels. Cette mention est exigée par le module calendrier iOS au démarrage.</string>
     <key>NSCameraUsageDescription</key>
     <string>Moments Locaux utilise la caméra pour prendre des photos d’événements et illustrer vos contributions.</string>
     <key>NSFaceIDUsageDescription</key>
@@ -82,12 +82,25 @@
     <string>Moments Locaux peut enregistrer des images dans votre photothèque si vous le demandez.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Moments Locaux utilise votre photothèque pour ajouter des images à votre profil ou à vos événements.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>Moments Locaux n’accède pas à vos rappels. Cette mention est exigée par le module calendrier iOS au démarrage.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>Moments Locaux n’accède pas à vos rappels. Cette mention est exigée par le module calendrier iOS au démarrage.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
     </array>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Moments Locaux utilise cet identifiant pour afficher des cartes publicitaires plus pertinentes, seulement si vous avez accepté les cartes personnalisées. Vous pouvez refuser.</string>
     <key>RCTNewArchEnabled</key>
     <true/>
+    <key>SKAdNetworkItems</key>
+    <array>
+      <dict>
+        <key>SKAdNetworkIdentifier</key>
+        <string>cstr6suwn9.skadnetwork</string>
+      </dict>
+    </array>
     <key>UIBackgroundModes</key>
     <array>
       <string>location</string>

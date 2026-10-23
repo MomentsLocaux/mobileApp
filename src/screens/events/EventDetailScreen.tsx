@@ -40,6 +40,7 @@ import {
   UserAvatar,
   BrandIcon,
 } from '../../components/ui';
+import { AdCard } from '@/components/ads/AdCard';
 import { features } from '@/config/features';
 import { sharePublishedEvent } from '@/utils/event-share';
 import {
@@ -1696,6 +1697,8 @@ export default function EventDetailScreen() {
           <EventEchoesPreview comments={comments} onOpenAll={handleGoToEchoes} />
 
           {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
+
+          <AdCard slotId={`detail-${event.id}`} />
 
           <EventMiniatureCarousel
             title="Vous aimerez peut-être"

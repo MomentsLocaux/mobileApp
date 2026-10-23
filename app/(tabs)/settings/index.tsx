@@ -18,6 +18,7 @@ import {
   Download,
   MapPin,
   Activity,
+  Megaphone,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { features } from '@/config/features';
@@ -25,6 +26,7 @@ import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
 import { SettingsSectionCard, SettingsRow } from '@/components/settings/SettingsSectionCard';
 import { AnalyticsService } from '@/services/analytics.service';
+import { reopenAdsPrivacyOptions } from '@/services/ads.service';
 import { colors } from '@/constants/theme';
 import { useLumiaTourStore } from '@/store/lumiaTourStore';
 
@@ -194,6 +196,20 @@ export default function SettingsScreen() {
           icon={FileText}
           onPress={() => router.push('/settings/privacy/policy' as any)}
         />
+        {features.ads ? (
+          <SettingsRow
+            label="Publicités"
+            icon={Megaphone}
+            onPress={() => {
+              void reopenAdsPrivacyOptions().catch(() => {
+                Alert.alert(
+                  'Publicités',
+                  'Le choix publicitaire sera disponible après la prochaine mise à jour de l’application.',
+                );
+              });
+            }}
+          />
+        ) : null}
         <SettingsRow
           label="Visibilité du profil"
           icon={Lock}
