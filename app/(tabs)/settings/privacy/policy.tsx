@@ -31,10 +31,12 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.heading}>2. Bases légales (art. 6 RGPD)</Text>
           <Text style={styles.text}>
             Compte et service : exécution du contrat (CGU). Localisation : votre consentement via
-            les autorisations de l’appareil. Modération et signalements DSA : obligation légale.
-            Sécurité, logs techniques et anti-spam : intérêt légitime. Liste de lancement (site) :
-            consentement, retirable via la page Désinscription. Formulaire de contact (site) :
-            mesures précontractuelles et intérêt légitime — ce n’est pas un consentement marketing.
+            les autorisations de l’appareil. Cartes publicitaires de la version gratuite : votre
+            consentement pour les usages de données qui le nécessitent, recueilli dans l’application.
+            Le refus peut laisser disponibles des annonces limitées compatibles avec vos choix. Modération et signalements DSA : obligation légale. Sécurité, logs
+            techniques et anti-spam : intérêt légitime. Liste de lancement (site) : consentement,
+            retirable via la page Désinscription. Formulaire de contact (site) : mesures
+            précontractuelles et intérêt légitime — ce n’est pas un consentement marketing.
           </Text>
           <Text style={styles.heading}>3. Utilisation</Text>
           <Text style={styles.text}>
@@ -57,7 +59,8 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.text}>
             Optionnelle, pour la carte et les alertes de proximité (autorisations When In Use et,
             pour les alertes, Always). Pas de check-in en Alpha. Vous pouvez retirer l’accès dans
-            les réglages du téléphone.
+            les réglages du téléphone. Elle n’est transmise à Google pour choisir une annonce que
+            si vous acceptez aussi ce point dans le formulaire publicitaire.
           </Text>
           <Text style={styles.heading}>6. Médias</Text>
           <Text style={styles.text}>
@@ -84,15 +87,33 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.heading}>9. Sous-traitants et transferts</Text>
           <Text style={styles.text}>
             Supabase (Auth, base, stockage), Mapbox (carte), Expo / EAS (builds et notifications),
-            OpenAI (processor IA), Apple et Google (distribution), Brevo (e-mails transactionnels
-            Auth et contact), Vercel (site). Des transferts hors UE sont possibles, encadrés par
-            les DPA et clauses contractuelles types des prestataires.
+            OpenAI (processor IA), Apple et Google (distribution), Google AdMob (cartes
+            publicitaires de l’application, selon vos choix de confidentialité), Brevo (e-mails
+            transactionnels Auth et contact), Vercel (site). Des transferts hors UE sont possibles,
+            encadrés par les DPA et clauses contractuelles types des prestataires.
           </Text>
           <Text style={styles.heading}>10. Âge</Text>
           <Text style={styles.text}>
             Le service n’est pas destiné aux personnes de moins de {LEGAL_MIN_AGE} ans.
           </Text>
-          <Text style={styles.heading}>11. Vos droits</Text>
+          <Text style={styles.heading}>11. Cartes publicitaires</Text>
+          <Text style={styles.text}>
+            La version gratuite peut afficher des cartes publicitaires servies par Google (AdMob).
+            Elles sont distinctes des événements : le mot Publicité et le nom de l’annonceur sont
+            visibles. Si vous acceptez, elles peuvent être personnalisées. « Gérer les options »
+            permet de garder les cartes et de retirer la personnalisation, ou de retirer seulement
+            la position. Sur iPhone, après un oui aux cartes personnalisées, le téléphone peut
+            afficher « Autoriser le suivi ». Si vous refusez cette fenêtre, les cartes restent,
+            sans identifiant publicitaire.
+          </Text>
+          <Text style={styles.text}>
+            Avant la première carte, un formulaire de consentement est proposé. Si vous refusez,
+            des annonces limitées compatibles avec vos choix peuvent encore être affichées. Vous pouvez revoir ce choix dans Réglages, rubrique
+            Publicités. Un abonnement Habitué ou Éclaireur actif retire les cartes. Sans
+            abonnement actif, le compte reste sur la version gratuite. L’achat de cet abonnement
+            n’est pas proposé dans l’application tant que l’offre n’est pas ouverte.
+          </Text>
+          <Text style={styles.heading}>12. Vos droits</Text>
           <Text style={styles.text}>
             Accès, rectification, suppression, portabilité et opposition : depuis l’app
             (export / supprimer le compte) ou {LEGAL_CONTACT_EMAIL}. Liste de lancement : page
