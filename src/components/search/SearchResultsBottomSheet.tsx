@@ -42,6 +42,8 @@ import {
   type MapSheetMode,
 } from '../../utils/map-sheet-layout';
 import { colors, spacing, typography } from '../../constants/theme';
+import { AdCard } from '@/components/ads/AdCard';
+import { listAdIndexes } from '@/utils/ads-policy';
 import { MapDiscoveryEventCard } from './MapDiscoveryEventCard';
 import { MapDiscoveryHeader } from './MapDiscoveryHeader';
 import { BrandIcon } from '@/components/ui/BrandIcon';
@@ -751,6 +753,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
       ],
     );
 
+    const listAdIndexSet = useMemo(
+      () => new Set(listAdIndexes(sortedEvents.length)),
+      [sortedEvents.length],
+    );
     const renderListItem = useCallback(
       ({ item, index }: { item: EventWithCreator; index: number }) => {
         const heading = mapEventDateHeading(item, sortedEvents[index - 1], sortBy);
@@ -761,9 +767,10 @@ export const SearchResultsBottomSheet = forwardRef<SearchResultsBottomSheetHandl
             active={item.id === activeEventId} distance={distanceFor(item)}
             onOpen={onOpenDetails} onHighlight={(event) => onHighlightEvent(event, { focusMap: false })}
             onToggleHeart={handleToggleHeart} onShare={shareEvent} />
+          {listAdIndexSet.has(index) ? <AdCard slotId={`list-${index}`} /> : null}
         </View>;
       },
-      [activeEventId, isHearted, onHighlightEvent, onOpenDetails, handleToggleHeart, statsByEventId, pendingIds, distanceFor, shareEvent, sortedEvents, sortBy]
+      [activeEventId, isHearted, listAdIndexSet, onHighlightEvent, onOpenDetails, handleToggleHeart, statsByEventId, pendingIds, distanceFor, shareEvent, sortedEvents, sortBy]
     );
 
     return (

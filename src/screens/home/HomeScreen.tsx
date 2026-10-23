@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { BrandIcon } from '@/components/ui/BrandIcon';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { LocalPulseCard } from '@/components/home/LocalPulseCard';
 import { NearbyMomentsSection } from '@/components/home/NearbyMomentsSection';
 import { NextMomentCard } from '@/components/home/NextMomentCard';
 import { SocialSignalCard } from '@/components/home/SocialSignalCard';
+import { AdCard } from '@/components/ads/AdCard';
 import { EmptyState } from '@/components/ui';
 import { features } from '@/config/features';
 import { colors, spacing } from '@/constants/theme';
@@ -29,6 +30,16 @@ export default function HomeScreen() {
   const headerProfileTour = useLumiaTourTarget('headerProfile');
   const headerChatTour = useLumiaTourTarget(features.lumiaChat ? 'headerChat' : undefined);
   const headerNotificationsTour = useLumiaTourTarget('headerNotifications');
+
+  useEffect(() => {
+    if (!__DEV__ || !features.ads) return;
+    console.warn('[ads] accueil', {
+      zone: Boolean(feed.browseCenter),
+      loading: feed.poolLoading,
+      error: feed.poolError,
+      sorties: feed.rankedEvents.length,
+    });
+  }, [feed.browseCenter, feed.poolLoading, feed.poolError, feed.rankedEvents.length]);
 
   return (
     <View style={styles.container}>
@@ -99,6 +110,9 @@ export default function HomeScreen() {
             onWiden={feed.widen}
             onNextDays={feed.showNextDays}
           />}
+          {feed.browseCenter && !feed.poolLoading && !feed.poolError && feed.rankedEvents.length > 0 ? (
+            <AdCard slotId="home" inset />
+          ) : null}
           {feed.pulse ? <LocalPulseCard pulse={feed.pulse} complete={feed.complete} onExplore={feed.openPulse} /> : null}
           {feed.socialSignal ? (
             <SocialSignalCard

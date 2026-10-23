@@ -30,6 +30,8 @@
     "src/utils/avatar-presets.test.ts",
     "src/utils/avatar-config.test.ts",
     "src/utils/legal-acceptance.test.ts",
+    "src/utils/ads-policy.test.ts",
+    "src/utils/ads-policy.ts",
     "src/utils/community-photo-eligibility.test.ts",
     "src/utils/event-time-scope.test.ts",
     "src/utils/ugc-sanitize.test.ts",

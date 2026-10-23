@@ -71,6 +71,12 @@ export const features = {
    * EAS production/preview set EXPO_PUBLIC_FEATURE_EVENT_SUGGEST=true.
    */
   eventSuggest: process.env.EXPO_PUBLIC_FEATURE_EVENT_SUGGEST === 'true',
+  /**
+   * Free-tier native ad cards (Google AdMob).
+   * Default OFF. A native rebuild with this flag on is required before any ad request.
+   * Real AdMob IDs stay in EAS env, not in git.
+   */
+  ads: process.env.EXPO_PUBLIC_FEATURE_ADS === 'true',
 } as const;
 
 export type FeatureFlag = keyof typeof features;

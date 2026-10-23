@@ -8,6 +8,24 @@ const ANDROID_VERSION_CODE = 1;
 
 /** APNs entitlement is baked in at native build time, not Metro reload. */
 const IS_STORE_PRODUCTION = process.env.APP_ENV === 'production';
+const ADS_ENABLED = process.env.EXPO_PUBLIC_FEATURE_ADS === 'true';
+/** Google's public sample app IDs. Production with ads must replace them via EAS. */
+const GOOGLE_TEST_ANDROID_APP_ID = 'ca-app-pub-3940256099942544~3347511713';
+const GOOGLE_TEST_IOS_APP_ID = 'ca-app-pub-3940256099942544~1458002511';
+const ADMOB_ANDROID_APP_ID = process.env.ADMOB_ANDROID_APP_ID?.trim() || GOOGLE_TEST_ANDROID_APP_ID;
+const ADMOB_IOS_APP_ID = process.env.ADMOB_IOS_APP_ID?.trim() || GOOGLE_TEST_IOS_APP_ID;
+const TRACKING_USAGE_FR =
+  'Moments Locaux utilise cet identifiant pour afficher des cartes publicitaires plus pertinentes, seulement si vous avez accepté les cartes personnalisées. Vous pouvez refuser.';
+
+if (
+  ADS_ENABLED &&
+  IS_STORE_PRODUCTION &&
+  (ADMOB_ANDROID_APP_ID === GOOGLE_TEST_ANDROID_APP_ID || ADMOB_IOS_APP_ID === GOOGLE_TEST_IOS_APP_ID)
+) {
+  throw new Error(
+    'EXPO_PUBLIC_FEATURE_ADS is enabled for a production build without AdMob app IDs. Set ADMOB_ANDROID_APP_ID and ADMOB_IOS_APP_ID in EAS.',
+  );
+}
 const APS_ENVIRONMENT = IS_STORE_PRODUCTION ? 'production' : 'development';
 
 const CAMERA_USAGE_FR =
@@ -38,6 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN,
+    adsProductionBuild: IS_STORE_PRODUCTION,
     // Public EAS project id (not a secret). Override with EAS_PROJECT_ID if needed.
     eas: {
       projectId: process.env.EAS_PROJECT_ID ?? 'cdd0ac2d-c334-4aee-8bb9-e0cfb0771983',
@@ -181,6 +200,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isIosBackgroundLocationEnabled: true,
       },
     ],
+    ...(ADS_ENABLED
+      ? [
+          [
+            'react-native-google-mobile-ads',
+            {
+              androidAppId: ADMOB_ANDROID_APP_ID,
+              iosAppId: ADMOB_IOS_APP_ID,
+              delayAppMeasurementInit: true,
+              userTrackingUsageDescription: TRACKING_USAGE_FR,
+              skAdNetworkItems: ['cstr6suwn9.skadnetwork'],
+            },
+          ] as [string, Record<string, unknown>],
+        ]
+      : []),
   ],
   experiments: {
     typedRoutes: true,
