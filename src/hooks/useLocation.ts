@@ -2,6 +2,8 @@ import { useCallback, useEffect } from 'react';
 import * as Location from 'expo-location';
 import { useLocationStore } from '../store';
 
+let pendingPermissionPrompt: Promise<void> | null = null;
+
 export const useLocation = () => {
   const {
     currentLocation,
@@ -70,24 +72,38 @@ export const useLocation = () => {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     (async () => {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
         if (cancelled) return;
         setPermissionGranted(status === 'granted');
-        if (status === 'granted') {
+        if (status === Location.PermissionStatus.DENIED) return;
+
+        if (status === Location.PermissionStatus.GRANTED) {
           await requestLocationPermission();
+          return;
         }
+
+        // Reinstall clears the OS grant. Ask immediately instead of leaving the map on France.
+        if (!pendingPermissionPrompt) {
+          pendingPermissionPrompt = requestLocationPermission();
+        }
+        await pendingPermissionPrompt;
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to read location permission');
+        }
+      } finally {
+        if (!cancelled && useLocationStore.getState().permissionGranted === false) {
+          setLoading(false);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [requestLocationPermission, setError, setPermissionGranted]);
+  }, [requestLocationPermission, setError, setLoading, setPermissionGranted]);
 
   return {
     currentLocation,

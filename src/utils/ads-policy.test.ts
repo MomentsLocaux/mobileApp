@@ -13,13 +13,14 @@ import {
 
 const TEST_PUBLISHER = 'ca-app-pub-3940256099942544';
 
-test('list ads start after the 8th event, then every 8, max 2', () => {
+test('list ads start after the 8th event, then every 8, and stop after the third', () => {
   assert.deepEqual(listAdIndexes(0), []);
   assert.deepEqual(listAdIndexes(7), []);
   assert.deepEqual(listAdIndexes(8), [7]);
   assert.deepEqual(listAdIndexes(15), [7]);
   assert.deepEqual(listAdIndexes(16), [7, 15]);
-  assert.deepEqual(listAdIndexes(40), [7, 15]);
+  assert.deepEqual(listAdIndexes(24), [7, 15, 23]);
+  assert.deepEqual(listAdIndexes(40), [7, 15, 23]);
 });
 
 test('refusal sends nothing, including no tracking prompt', () => {
@@ -94,13 +95,15 @@ test('session cap counts shown cards and frees a failed load', () => {
   resetAdSession();
   assert.equal(reserveAdSlot('home'), true);
   assert.equal(reserveAdSlot('list-7'), true);
+  assert.equal(reserveAdSlot('list-15'), true);
+  assert.equal(reserveAdSlot('list-23'), true);
   assert.equal(reserveAdSlot('detail-a'), true);
   assert.equal(reserveAdSlot('detail-b'), false);
   releaseAdSlot('detail-a');
   assert.equal(reserveAdSlot('detail-b'), true);
   commitAdImpression('detail-b');
   releaseAdSlot('detail-b');
-  assert.equal(adSessionSize(), 3);
+  assert.equal(adSessionSize(), 5);
   assert.equal(reserveAdSlot('detail-b'), true);
   resetAdSession();
 });

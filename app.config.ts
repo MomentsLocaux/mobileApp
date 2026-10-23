@@ -56,7 +56,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN,
-    adsProductionBuild: IS_STORE_PRODUCTION,
+    // TestFlight stays on production APNs but must keep Google's test units.
+    // Only the store profile sets ADS_PRODUCTION_UNITS.
+    adsProductionBuild: process.env.ADS_PRODUCTION_UNITS === 'true',
     // Public EAS project id (not a secret). Override with EAS_PROJECT_ID if needed.
     eas: {
       projectId: process.env.EAS_PROJECT_ID ?? 'cdd0ac2d-c334-4aee-8bb9-e0cfb0771983',

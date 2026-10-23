@@ -1,7 +1,9 @@
-export const AD_SESSION_CAP = 3;
+/** Home, a list scroll and one event page. Ads stay a minority of the session. */
+export const AD_SESSION_CAP = 5;
 export const LIST_MIN_EVENTS = 8;
 export const LIST_INTERVAL = 8;
-export const LIST_MAX_ADS = 2;
+/** After the 8th, 16th and 24th event, the rest of the list stays clear. */
+export const LIST_MAX_ADS = 3;
 
 const shownSlots = new Set<string>();
 const pendingSlots = new Set<string>();

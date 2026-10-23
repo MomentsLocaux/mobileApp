@@ -1,11 +1,12 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
 import { AppBackground } from '../src/components/ui/AppBackground';
+import { BrandLogoSpinner } from '../src/components/ui/BrandLogoSpinner';
 import { toastConfig } from '../src/components/ui/AppToast';
 import { brandFontAssets } from '../src/constants/fonts';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
@@ -35,6 +36,23 @@ function hideNativeSplash() {
   // Prefer the sync hide used by Expo SDK 54; hideAsync is kept for older callers.
   SplashScreen.hide();
   void SplashScreen.hideAsync().catch(() => undefined);
+}
+
+function BootScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F4FBF6',
+      }}
+      onLayout={hideNativeSplash}
+    >
+      <BrandLogoSpinner size={80} accessibilityLabel="Chargement de l'application" />
+      <Text style={{ marginTop: 18, color: '#5B7A6A', fontSize: 15 }}>Chargement…</Text>
+    </View>
+  );
 }
 
 export default function RootLayout() {
@@ -143,7 +161,7 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsReady) {
-    return null;
+    return <BootScreen />;
   }
 
   return (
