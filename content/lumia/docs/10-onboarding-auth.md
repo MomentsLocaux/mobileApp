@@ -17,7 +17,7 @@ Session persistée entre les ouvertures de l’app.
 
 Après inscription : parcours **Particulier** uniquement (pas Professionnel / Diffuseur en MVP store-ready).
 
-Étapes typiques : localisation, avatar, thèmes / centres d’intérêt. Pas d’intention « je veux créer des events » ni CTA offres en onboarding MVP.
+Étapes typiques : localisation, notifications, qui peut écrire (Privé par défaut : suivi mutuel requis ; Public : tout membre connecté), avatar, thèmes / centres d’intérêt. Pas d’intention « je veux créer des events » ni CTA offres en onboarding MVP. Le choix se retrouve dans Paramètres → Visibilité du profil. La dernière étape propose aussi « Vérifier mes paramètres », qui termine l’onboarding et ouvre Paramètres.
 
 ## Rejouer
 

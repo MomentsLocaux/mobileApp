@@ -53,6 +53,7 @@ import {
 } from '@/components/onboarding/OnboardingConnectorStep';
 import { OnboardingModeHintStep } from '@/components/onboarding/OnboardingModeHintStep';
 import { OnboardingPushPolicyStep } from '@/components/onboarding/OnboardingPushPolicyStep';
+import { OnboardingMessagingStep } from '@/components/onboarding/OnboardingMessagingStep';
 import { OnboardingStepFrame } from '@/components/onboarding/OnboardingStepFrame';
 import { rememberAppFirstOpen } from '@/services/settings-tour-reminder.service';
 import { DISCOVERY_DEFAULT_RADIUS_KM } from '@/constants/filters';
@@ -78,6 +79,10 @@ import type { CategoryVisualSlug } from '@/constants/category-visuals';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
 import { haptics } from '@/utils/haptics';
+import {
+  normalizeProfileVisibility,
+  type ProfileMessagingVisibility,
+} from '@/utils/messaging-access';
 import { features } from '@/config/features';
 import {
   buildPushPersonalizationAnswers,
@@ -92,6 +97,7 @@ type StepId =
   | 'location'
   | 'permissions'
   | 'push_policy'
+  | 'messaging'
   | 'themes'
   | 'avatar'
   | 'creator'
@@ -168,6 +174,7 @@ export default function OnboardingScreen() {
   const [permissionsBusy, setPermissionsBusy] = useState(false);
   const [alertPack, setAlertPack] = useState<OnboardingAlertPack>(DEFAULT_ONBOARDING_ALERT_PACK);
   const [pushPolicy, setPushPolicy] = useState<PushPolicy | null>(null);
+  const [profileVisibility, setProfileVisibility] = useState<ProfileMessagingVisibility>('private');
   const [uploadTarget, setUploadTarget] = useState<'avatar' | 'cover' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -179,6 +186,7 @@ export default function OnboardingScreen() {
   const searchSeq = useRef(0);
   const profilePersisted = useRef(false);
   const displayNameSeededRef = useRef(Boolean(fallbackDisplayName.trim()));
+  const visibilitySeededRef = useRef(false);
 
   const isProfessionnel = features.diffuseur && accountKind === 'professionnel';
   const canCreate =
@@ -196,7 +204,7 @@ export default function OnboardingScreen() {
 
   const steps: StepId[] = useMemo(() => {
     if (isProfessionnel) {
-      return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'avatar', 'creator', 'connector'];
+      return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'messaging', 'avatar', 'creator', 'connector'];
     }
     const marketingTail: StepId[] = features.offers
       ? ['tiers', 'eclairer']
@@ -211,6 +219,7 @@ export default function OnboardingScreen() {
         'location',
         'permissions',
         'push_policy',
+        'messaging',
         'themes',
         'create_themes',
         'avatar',
@@ -218,7 +227,7 @@ export default function OnboardingScreen() {
         ...(features.offers ? (['tiers', 'eclairer', 'mode_hint'] as StepId[]) : (['mode_hint'] as StepId[])),
       ];
     }
-    return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'themes', 'avatar', ...marketingTail];
+    return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'messaging', 'themes', 'avatar', ...marketingTail];
   }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
@@ -257,6 +266,7 @@ export default function OnboardingScreen() {
         policy: pushPolicy,
         answeredAt: 'pending',
       }) != null) ||
+    stepId === 'messaging' ||
     stepId === 'themes' ||
     stepId === 'avatar' ||
     stepId === 'creator' ||
@@ -301,6 +311,12 @@ export default function OnboardingScreen() {
     displayNameSeededRef.current = true;
     setDisplayName((current) => (current.trim() ? current : fallbackDisplayName));
   }, [fallbackDisplayName]);
+
+  useEffect(() => {
+    if (visibilitySeededRef.current || !profile?.onboarding_completed) return;
+    visibilitySeededRef.current = true;
+    setProfileVisibility(normalizeProfileVisibility(profile.profile_visibility));
+  }, [profile?.onboarding_completed, profile?.profile_visibility]);
 
   useEffect(() => {
     if (stepIndex >= steps.length) {
@@ -407,28 +423,46 @@ export default function OnboardingScreen() {
     ]);
   }, [uploadImage]);
 
-  const finishToHome = () => {
-    haptics.success();
-    if (selectedAddress) {
-      const label =
-        selectedAddress.city ||
-        selectedAddress.label.split(',')[0]?.trim() ||
-        selectedAddress.label;
-      useDiscoveryFiltersStore.getState().setPlace({
-        center: {
-          latitude: selectedAddress.latitude,
-          longitude: selectedAddress.longitude,
-        },
-        radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
-        label,
-        city: selectedAddress.city,
-      });
-      useDiscoveryFiltersStore.getState().addPlaceHistory(label);
-    }
-    router.replace('/(tabs)');
+  const rememberDiscoveryPlace = () => {
+    if (!selectedAddress) return;
+    const label =
+      selectedAddress.city ||
+      selectedAddress.label.split(',')[0]?.trim() ||
+      selectedAddress.label;
+    useDiscoveryFiltersStore.getState().setPlace({
+      center: {
+        latitude: selectedAddress.latitude,
+        longitude: selectedAddress.longitude,
+      },
+      radiusKm: DISCOVERY_DEFAULT_RADIUS_KM,
+      label,
+      city: selectedAddress.city,
+    });
+    useDiscoveryFiltersStore.getState().addPlaceHistory(label);
+  };
+
+  const trackOnboardingCompleted = () => {
     void import('@/services/analytics.service').then(({ AnalyticsService }) => {
       AnalyticsService.track('onboarding_completed', { city_present: Boolean(selectedAddress) });
     });
+  };
+
+  const finishToHome = () => {
+    haptics.success();
+    rememberDiscoveryPlace();
+    router.replace('/(tabs)');
+    trackOnboardingCompleted();
+  };
+
+  const finishToSettings = async () => {
+    haptics.selection();
+    if (!profilePersisted.current) {
+      const saved = await persistProfile();
+      if (!saved) return;
+    }
+    rememberDiscoveryPlace();
+    router.replace('/(tabs)/settings' as any);
+    trackOnboardingCompleted();
   };
 
   const persistProfile = async (): Promise<boolean> => {
@@ -462,6 +496,7 @@ export default function OnboardingScreen() {
         facebook_url: canCreate ? facebook.trim() || null : null,
         instagram_url: canCreate ? instagram.trim() || null : null,
         tiktok_url: canCreate ? tiktok.trim() || null : null,
+        profile_visibility: profileVisibility,
         onboarding_completed: true,
       };
 
@@ -559,6 +594,27 @@ export default function OnboardingScreen() {
           err instanceof Error
             ? err.message
             : 'Impossible d’enregistrer ta politique de notifications.',
+        );
+        return;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (stepId === 'messaging') {
+      const activeProfile = profile || (await refreshProfile());
+      if (!activeProfile) {
+        setError('Profil indisponible, réessayez dans quelques secondes.');
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await ProfileService.updateProfile(activeProfile.id, {
+          profile_visibility: profileVisibility,
+        });
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Impossible d’enregistrer qui peut t’écrire.',
         );
         return;
       } finally {
@@ -1145,6 +1201,12 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        {stepId === 'messaging' && (
+          <View key="messaging" style={styles.stepContainer}>
+            <OnboardingMessagingStep visibility={profileVisibility} onChange={setProfileVisibility} />
+          </View>
+        )}
+
         {stepId === 'themes' && (
           <View key="themes" style={styles.stepContainer}>
             <OnboardingThemesStep
@@ -1366,6 +1428,19 @@ export default function OnboardingScreen() {
               style={styles.secondaryFooterButton}
               disabled={isLoading}
               accessibilityLabel="Rester sur l'offre gratuite"
+            />
+          ) : null}
+          {isLastStep ? (
+            <Button
+              title="Vérifier mes paramètres"
+              onPress={() => {
+                void finishToSettings();
+              }}
+              variant="ghost"
+              size="sm"
+              style={styles.secondaryFooterButton}
+              disabled={isLoading || isUploading || permissionsBusy}
+              accessibilityLabel="Vérifier mes paramètres"
             />
           ) : null}
         </View>

@@ -53,6 +53,7 @@ export const authProvider: IAuthProvider = {
         display_name: email ? email.split('@')[0] : 'Utilisateur',
         role: 'particulier',
         onboarding_completed: false,
+        profile_visibility: 'private',
         avatar_url: null,
         bio: null,
         city: null,
