@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { AppBackground, Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
 import { AuthService } from '@/services/auth.service';
+import { hrefAfterAuthentication } from '@/services/notification-intent';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import type { SocialProvider } from '@/services/oauth.service';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -85,7 +86,7 @@ export default function RegisterScreen() {
         console.warn('[register] legal acceptance persist failed', error);
       }
     }
-    router.replace('/(tabs)' as any);
+    router.replace(hrefAfterAuthentication() as any);
   };
 
   const handleRegister = async () => {
@@ -131,7 +132,7 @@ export default function RegisterScreen() {
     }
 
     Alert.alert('Compte créé', 'Votre compte a été créé avec succès !', [
-      { text: 'OK', onPress: () => router.replace('/(tabs)') },
+      { text: 'OK', onPress: () => router.replace(hrefAfterAuthentication() as any) },
     ]);
   };
 

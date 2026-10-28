@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { colors } from '@/constants/theme';
 import { AuthService } from '@/services/auth.service';
+import { hrefAfterAuthentication } from '@/services/notification-intent';
 import { completeAuthRedirectFromUrl } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
 
@@ -51,7 +52,7 @@ export default function AuthCallbackScreen() {
               console.error('Post-OAuth profile hydration failed:', profileError);
             });
         }
-        router.replace('/(tabs)' as any);
+        router.replace(hrefAfterAuthentication() as any);
       } catch {
         if (mounted) router.replace('/auth/login');
       }

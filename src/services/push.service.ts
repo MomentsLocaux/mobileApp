@@ -8,6 +8,7 @@ import { AuthService } from '@/services/auth.service';
 import { AnalyticsService } from '@/services/analytics.service';
 import { scheduleSettingsTourReminder } from '@/services/settings-tour-reminder.service';
 import { resolveNotificationRoute } from '@/utils/notification-routing';
+import { stageNotificationHref, isNotificationRoutingReady } from '@/services/notification-intent';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -387,5 +388,12 @@ export function routeFromNotificationData(data: unknown) {
   const { href } = resolveNotificationRoute(type, data);
   const notificationType = type && /^[a-z0-9_]{1,40}$/.test(type) ? type : 'system';
   AnalyticsService.track('notification_opened', { type: notificationType });
+
+  // Cold start still has the boot redirect in flight. Pushing now is replaced
+  // by the login or tabs redirect, so the tap is kept until the shell is ready.
+  if (!isNotificationRoutingReady()) {
+    stageNotificationHref(href);
+    return;
+  }
   router.push(href as never);
 }

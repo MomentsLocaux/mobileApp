@@ -17,7 +17,9 @@ const memoryAuth = new Map<string, string>();
 
 /**
  * PKCE verifiers must survive until the email link reopens the app.
- * Session tokens stay in memory: cold start still goes through the existing SecureStore / biometric path.
+ * Session tokens stay in memory so a soft sign-out (« Garder cet appareil »)
+ * is not undone by supabase-js reloading its own storage. The Keychain copy
+ * is restored on cold start by AuthService, unless that sign-out flag is set.
  */
 const authStorage = {
   getItem: (key: string) => {

@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppBackground, Button, Input, ScreenHeader } from '@/components/ui';
 import { AuthService } from '@/services/auth.service';
+import { hrefAfterAuthentication } from '@/services/notification-intent';
 import { completeAuthRedirectFromUrl } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -122,7 +123,7 @@ export default function ResetPasswordScreen() {
     }
 
     Alert.alert('Mot de passe mis à jour', 'Vous pouvez continuer dans l’application.', [
-      { text: 'OK', onPress: () => router.replace('/(tabs)' as any) },
+      { text: 'OK', onPress: () => router.replace(hrefAfterAuthentication() as any) },
     ]);
   };
 

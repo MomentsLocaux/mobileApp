@@ -7,6 +7,7 @@ import { SettingsSectionCard } from '@/components/settings/SettingsSectionCard';
 import { Button } from '@/components/ui/Button';
 import { colors, spacing, typography } from '@/constants/theme';
 import { AuthService } from '@/services/auth.service';
+import { suspendNotificationRouting } from '@/services/notification-intent';
 import { useAuthStore } from '@/state/auth';
 
 export default function DeleteAccountScreen() {
@@ -29,6 +30,7 @@ export default function DeleteAccountScreen() {
     }
 
     resetAuth();
+    suspendNotificationRouting();
     Alert.alert(
       'Compte supprimé',
       'Votre compte et vos données personnelles ont été traités. Vous allez être déconnecté.',

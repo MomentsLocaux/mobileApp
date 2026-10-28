@@ -67,6 +67,8 @@
     "src/utils/weather-forecast.test.ts",
     "src/utils/poster-analysis-progress.test.ts",
     "src/utils/sign-out-choice.test.ts",
+    "src/utils/auth-session-errors.test.ts",
+    "src/services/notification-intent.test.ts",
     "src/utils/query-timeout.test.ts",
     "src/utils/search-temporal-choice.test.ts",
     "src/utils/search-place-anchor.test.ts",

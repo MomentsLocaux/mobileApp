@@ -4,9 +4,11 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../src/constants/theme';
 
 export default function Index() {
-  const { isLoading, isAuthenticated, profile } = useAuth();
+  const { isLoading, isAuthenticated, profile, initialized } = useAuth();
 
-  if (isLoading || (isAuthenticated && !profile)) {
+  // initialized starts false. Redirecting before the Keychain restore finishes
+  // sends every cold start to the login screen and drops notification routes.
+  if (!initialized || isLoading || (isAuthenticated && !profile)) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.brand.secondary} />

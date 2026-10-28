@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, Platform, Text, View } from 'react-native';
@@ -12,6 +12,7 @@ import { brandFontAssets } from '../src/constants/fonts';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { useAuthStore } from '../src/state/auth';
 import { AuthService } from '../src/services/auth.service';
+import { consumeNotificationHref, markNotificationRoutingReady } from '@/services/notification-intent';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { useProductAnalytics } from '../src/hooks/useProductAnalytics';
 import { useProximityAlerts } from '../src/hooks/useProximityAlerts';
@@ -62,6 +63,9 @@ export default function RootLayout() {
 
   const { setUser, setSession, setProfile, setLoading, initialized, setInitialized } = useAuthStore();
   const userId = useAuthStore((state) => state.user?.id);
+  const onboardingCompleted = useAuthStore(
+    (state) => state.profile?.onboarding_completed === true,
+  );
 
   usePushNotifications(userId);
   useProximityAlerts(userId);
@@ -102,7 +106,10 @@ export default function RootLayout() {
 
       try {
         const blocked = await AuthService.isAutoRestoreBlocked();
-        const currentSession = blocked ? null : await AuthService.getCurrentSession();
+        let currentSession = blocked ? null : await AuthService.getCurrentSession();
+        if (!blocked && !currentSession?.access_token) {
+          currentSession = await AuthService.restorePersistedSession();
+        }
         if (!mounted) return;
 
         if (currentSession) {
@@ -159,6 +166,16 @@ export default function RootLayout() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!fontsReady || !initialized || !userId || !onboardingCompleted) return;
+    const frame = requestAnimationFrame(() => {
+      markNotificationRoutingReady();
+      const href = consumeNotificationHref();
+      if (href) router.push(href as never);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [fontsReady, initialized, onboardingCompleted, userId]);
 
   if (!fontsReady) {
     return <BootScreen />;

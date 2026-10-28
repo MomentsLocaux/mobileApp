@@ -13,6 +13,8 @@ import {
   signInWithOAuthProvider,
   type SocialProvider,
 } from '@/services/oauth.service';
+import { isRevokedRefreshToken } from '@/utils/auth-session-errors';
+import { suspendNotificationRouting } from '@/services/notification-intent';
 
 export type AuthErrorCode = 'email_already_registered';
 
@@ -60,9 +62,21 @@ const LEGACY_SESSION_KEY = 'supabase_session';
 const SESSION_ACCESS_KEY = 'supabase_session_access_token';
 const SESSION_REFRESH_KEY = 'supabase_session_refresh_token';
 
+/**
+ * Auth tokens are Keychain items. AFTER_FIRST_UNLOCK lets a notification tap
+ * restore the session as the app wakes, including before the first UI paint.
+ * THIS_DEVICE_ONLY keeps the session off an iCloud backup of another phone.
+ */
+const SESSION_STORE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
+
 export class AuthService {
   private static profileRequests = new Map<string, Promise<Profile | null>>();
   private static explicitSignInInProgress = false;
+  /** Forget-device / account deletion: ignore a refresh that finishes afterwards. */
+  private static persistSuspended = false;
+  private static persistGeneration = 0;
 
   private static logPerf(step: string, startedAt: number) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -78,7 +92,10 @@ export class AuthService {
   }
 
   private static async saveSession(session: Session | null) {
+    if (this.persistSuspended) return;
+    const generation = this.persistGeneration;
     if (!session?.refresh_token || !session.access_token) {
+      if (generation !== this.persistGeneration || this.persistSuspended) return;
       await Promise.all([
         SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
         SecureStore.deleteItemAsync(SESSION_ACCESS_KEY),
@@ -86,12 +103,16 @@ export class AuthService {
       ]);
       return;
     }
+    if (generation !== this.persistGeneration || this.persistSuspended) return;
     // Store tokens separately to avoid SecureStore value-size warnings on a single payload.
     await Promise.all([
-      SecureStore.setItemAsync(SESSION_ACCESS_KEY, session.access_token),
-      SecureStore.setItemAsync(SESSION_REFRESH_KEY, session.refresh_token),
+      SecureStore.setItemAsync(SESSION_ACCESS_KEY, session.access_token, SESSION_STORE_OPTIONS),
+      SecureStore.setItemAsync(SESSION_REFRESH_KEY, session.refresh_token, SESSION_STORE_OPTIONS),
       SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
     ]);
+    if (generation !== this.persistGeneration || this.persistSuspended) {
+      await this.clearSavedSession();
+    }
   }
 
   /**
@@ -99,6 +120,7 @@ export class AuthService {
    * keep the user on the login screen once Supabase returned a valid session.
    */
   private static startPostSignInHydration(session: Session, user: User, startedAt: number) {
+    this.persistSuspended = false;
     void Promise.all([
       this.getProfileForUser(user),
       this.clearAutoRestoreBlock(),
@@ -128,6 +150,7 @@ export class AuthService {
   }
 
   static async clearAutoRestoreBlock() {
+    this.persistSuspended = false;
     await SecureStore.deleteItemAsync(LOGOUT_BLOCK_KEY);
   }
 
@@ -146,7 +169,8 @@ export class AuthService {
    * The UI can still hold a profile after the in-memory Supabase client lost its JWT
    * (reload of the client module). Put the SecureStore session back before private calls,
    * otherwise PostgREST runs them as `anon` and returns 42501.
-   * Cold start stays on the biometric path: this only runs when the store already has a user.
+   * Cold start restores from the Keychain before this runs. This only repairs a
+   * client that lost its JWT while the store still has a user.
    */
   static ensureClientSession(): Promise<Session | null> {
     if (!this.sessionRepair) {
@@ -164,6 +188,7 @@ export class AuthService {
     const state = useAuthStore.getState();
     if (!state.user && !state.profile && !state.session) return null;
     if (await this.isAutoRestoreBlocked()) {
+      suspendNotificationRouting();
       useAuthStore.getState().reset();
       return null;
     }
@@ -172,6 +197,7 @@ export class AuthService {
     if (restored) return restored;
 
     useAuthStore.getState().reset();
+    suspendNotificationRouting();
     return null;
   }
 
@@ -191,8 +217,8 @@ export class AuthService {
       const parsed = JSON.parse(legacy) as { refresh_token?: string; access_token?: string };
       if (!parsed?.refresh_token || !parsed?.access_token) return null;
       await Promise.all([
-        SecureStore.setItemAsync(SESSION_ACCESS_KEY, parsed.access_token),
-        SecureStore.setItemAsync(SESSION_REFRESH_KEY, parsed.refresh_token),
+        SecureStore.setItemAsync(SESSION_ACCESS_KEY, parsed.access_token, SESSION_STORE_OPTIONS),
+        SecureStore.setItemAsync(SESSION_REFRESH_KEY, parsed.refresh_token, SESSION_STORE_OPTIONS),
         SecureStore.deleteItemAsync(LEGACY_SESSION_KEY),
       ]);
       return { access_token: parsed.access_token, refresh_token: parsed.refresh_token };
@@ -202,15 +228,38 @@ export class AuthService {
     }
   }
 
+  /**
+   * Puts the Keychain session back into the in-memory Supabase client.
+   * No-op after « Garder cet appareil » : that choice still asks for Face ID.
+   */
+  static async restorePersistedSession(): Promise<Session | null> {
+    if (this.persistSuspended) return null;
+    if (await this.isAutoRestoreBlocked()) return null;
+    return this.restoreStoredSessionQuietly();
+  }
+
   private static async restoreStoredSessionQuietly(): Promise<Session | null> {
+    if (this.persistSuspended) return null;
     const saved = await this.readStoredTokens();
     if (!saved) return null;
-    const { data, error } = await supabase.auth.setSession({
-      refresh_token: saved.refresh_token,
-      access_token: saved.access_token,
-    });
-    if (error || !data.session) return null;
-    return data.session;
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        refresh_token: saved.refresh_token,
+        access_token: saved.access_token,
+      });
+      if (error || !data.session) {
+        if (isRevokedRefreshToken(error)) {
+          await this.clearSavedSession();
+        }
+        return null;
+      }
+      // Refresh-token rotation invalidates the previous Keychain copy.
+      await this.saveSession(data.session);
+      return data.session;
+    } catch (error) {
+      console.warn('[auth] stored session restore failed', error);
+      return null;
+    }
   }
 
   static async restoreSessionWithBiometrics(): Promise<AuthResponse & { biometricUsed?: boolean }> {
@@ -240,9 +289,11 @@ export class AuthService {
       refresh_token: saved.refresh_token,
       access_token: saved.access_token,
     });
-    if (error) {
-      await this.clearSavedSession();
-      return { success: false, error: error.message };
+    if (error || !data.session) {
+      if (isRevokedRefreshToken(error)) {
+        await this.clearSavedSession();
+      }
+      return { success: false, error: error?.message || 'Session invalide' };
     }
 
     const session = data.session;
@@ -438,6 +489,8 @@ export class AuthService {
   static async fullSignOut(): Promise<AuthResponse> {
     try {
       // SCRUM-71 « Oublier cet appareil » : purge locale + révocation session.
+      this.persistSuspended = true;
+      this.persistGeneration += 1;
       await Promise.all([
         this.clearSavedSession(),
         this.blockAutoRestore(),
@@ -483,6 +536,8 @@ export class AuthService {
         };
       }
 
+      this.persistSuspended = true;
+      this.persistGeneration += 1;
       await Promise.all([
         this.clearSavedSession(),
         this.blockAutoRestore(),
@@ -573,6 +628,11 @@ export class AuthService {
       const belongsToExplicitSignIn = this.explicitSignInInProgress;
       setTimeout(() => {
         void (async () => {
+          // Keep the Keychain copy aligned with refresh-token rotation.
+          if (!this.persistSuspended) {
+            await this.saveSession(session);
+          }
+
           const blocked = !belongsToExplicitSignIn && (await this.isAutoRestoreBlocked());
           if (blocked) {
             callback(null, null);

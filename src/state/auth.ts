@@ -35,5 +35,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   setInitialized: (initialized) => set({ initialized }),
-  reset: () => set(initialState),
+  // Keep initialized: a sign-out must not send the root layout back to the boot spinner.
+  reset: () => set((state) => ({ ...initialState, initialized: state.initialized })),
 }));

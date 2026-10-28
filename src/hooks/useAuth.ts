@@ -4,6 +4,7 @@ import { AuthService } from '@/services/auth.service';
 import type { SocialProvider } from '@/services/oauth.service';
 import { UserService } from '@/services/user.service';
 import { useLumiaChatStore } from '@/store/lumiaChatStore';
+import { suspendNotificationRouting } from '@/services/notification-intent';
 
 export function useAuth() {
   const {
@@ -12,6 +13,7 @@ export function useAuth() {
     profile,
     isLoading,
     error,
+    initialized,
     setUser,
     setSession,
     setProfile,
@@ -132,6 +134,7 @@ export function useAuth() {
       return false;
     }
     setLoading(false);
+    suspendNotificationRouting();
     reset();
     return true;
   }, [reset, setError, setLoading]);
@@ -150,6 +153,7 @@ export function useAuth() {
       return false;
     }
     setLoading(false);
+    suspendNotificationRouting();
     useLumiaChatStore.getState().clearConversation();
     reset();
     return true;
@@ -166,6 +170,7 @@ export function useAuth() {
     profile,
     isLoading,
     error,
+    initialized,
     isAuthenticated: !!session,
     signIn,
     signInWithProvider,
