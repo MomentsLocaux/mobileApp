@@ -39,9 +39,9 @@ export type LumiaTourStep = {
   href?: LumiaTourHref;
 };
 
-import { LUMIA_NAME, LUMIA_AVATAR_LOCAL } from '@/constants/lumia';
+import { LUMIA_AVATAR_LOCAL, LUMIA_NAME, LUMIA_TOUR_LOCAL } from '@/constants/lumia';
 
-export { LUMIA_NAME, LUMIA_AVATAR_LOCAL };
+export { LUMIA_AVATAR_LOCAL, LUMIA_NAME, LUMIA_TOUR_LOCAL };
 
 export const LUMIA_INTRO =
   'Je suis Lumia. Après ton profil, je te fais un tour rapide de l’app — tu pourras le rejouer dans Paramètres.';

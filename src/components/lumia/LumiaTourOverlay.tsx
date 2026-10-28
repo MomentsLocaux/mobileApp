@@ -12,8 +12,8 @@ import Svg, { Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import {
-  LUMIA_AVATAR_LOCAL,
   LUMIA_NAME,
+  LUMIA_TOUR_LOCAL,
   type LumiaTourStep,
   type LumiaTourTargetRect,
 } from '@/constants/lumiaTour';
@@ -153,7 +153,7 @@ export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Pr
         <SpotlightScrim hole={hole} />
 
         <Image
-          source={LUMIA_AVATAR_LOCAL}
+          source={LUMIA_TOUR_LOCAL}
           style={[styles.avatar, { left: avatarLeft, top: avatarTop }]}
           accessibilityLabel={LUMIA_NAME}
         />
@@ -213,6 +213,7 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
+    overflow: 'hidden',
     borderWidth: 2.5,
     borderColor: colors.brand.secondary,
     backgroundColor: colors.brand.surfaceMuted,

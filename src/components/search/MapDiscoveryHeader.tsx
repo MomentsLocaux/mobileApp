@@ -67,7 +67,7 @@ export function MapDiscoveryHeader({
 const styles = StyleSheet.create({
   sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, gap: 8 },
   headingLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-  lumia: { width: 28, height: 28, borderRadius: 14 },
+  lumia: { width: 28, height: 28, borderRadius: 14, overflow: 'hidden' },
   title: { ...typography.body, fontWeight: '700', color: colors.brand.text, flexShrink: 1 },
   seeAll: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
   link: { ...typography.caption, color: colors.brand.text, fontWeight: '700', textDecorationLine: 'underline' },
