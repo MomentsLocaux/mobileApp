@@ -163,6 +163,26 @@ serve(async (req) => {
     }
   }
 
+  // Read paths before process_account_deletion deletes bug_reports rows.
+  const { data: bugReports, error: bugReportsError } = await supabase
+    .from('bug_reports')
+    .select('attachment_path')
+    .eq('reporter_id', user.id);
+  if (bugReportsError) {
+    console.log('[delete-account] bug report attachment lookup error', { bugReportsError });
+  }
+  const attachmentPaths = (bugReports ?? [])
+    .map((row: { attachment_path?: string | null }) => row.attachment_path)
+    .filter((path: string | null | undefined): path is string => !!path);
+  if (attachmentPaths.length > 0) {
+    const { error: attachmentRemoveError } = await supabase.storage
+      .from('bug-report-attachments')
+      .remove(attachmentPaths);
+    if (attachmentRemoveError) {
+      console.log('[delete-account] bug-report-attachments remove error', { attachmentRemoveError });
+    }
+  }
+
   const { data: deletionResult, error: deletionError } = await supabase.rpc('process_account_deletion', {
     p_user_id: user.id,
   });
