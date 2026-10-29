@@ -123,7 +123,7 @@ import {
   resolveSeededEventDetail,
   useEventPreviewStore,
 } from '@/store/eventPreviewStore';
-import { eventHeroIdentity } from '@/store/eventCache';
+import { eventDetailSeedStillCurrent } from '@/store/eventCache';
 import { prefetchEventMedia } from '@/utils/prefetch-event-media';
 import {
   getMapDetailSlideOffset,
@@ -430,13 +430,7 @@ export default function EventDetailScreen() {
       if (enriched) {
         setEvent((current) => {
           const merged = mergeCachedEvent(current ?? undefined, enriched);
-          if (
-            current &&
-            eventHeroIdentity(current) === eventHeroIdentity(merged) &&
-            current.description === merged.description &&
-            current.likes_count === merged.likes_count &&
-            current.address === merged.address
-          ) {
+          if (current && eventDetailSeedStillCurrent(current, merged)) {
             return current;
           }
           return merged;

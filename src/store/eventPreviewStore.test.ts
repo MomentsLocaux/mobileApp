@@ -10,6 +10,7 @@ import {
   pinOpenedEventIntoCache,
   pinVisibleEventsIntoCache,
   rememberEventsIntoCache,
+  eventDetailSeedStillCurrent,
   eventHeroIdentity,
   EMPTY_EVENT_CACHE,
 } from './eventCache';
@@ -64,6 +65,56 @@ describe('event cache merge', () => {
       likes_count: 12,
     } as EventWithCreator));
     assert.equal(eventHeroIdentity(seed), eventHeroIdentity(merged));
+  });
+
+  it('keeps a list card when the detail row adds no practical fields', () => {
+    const seed = sample('a', 'Concert', {
+      cover_url: 'https://cdn.example/cover.jpg',
+      description: 'Texte',
+      address: '1 rue',
+    });
+    const merged = mergeCachedEvent(
+      seed,
+      sample('a', 'Concert', {
+        cover_url: 'https://cdn.example/cover.jpg',
+        description: 'Texte',
+        address: '1 rue',
+        registration_required: null,
+        contact_email: null,
+        operating_hours: null,
+      }),
+    );
+    assert.equal(eventDetailSeedStillCurrent(seed, merged), true);
+  });
+
+  it('replaces a list card once practical info or hours arrive', () => {
+    const seed = sample('a', 'Concert', {
+      cover_url: 'https://cdn.example/cover.jpg',
+      description: 'Texte',
+      address: '1 rue',
+    });
+    const withContact = mergeCachedEvent(
+      seed,
+      sample('a', 'Concert', {
+        cover_url: 'https://cdn.example/cover.jpg',
+        description: 'Texte',
+        address: '1 rue',
+        contact_email: 'orga@example.com',
+      }),
+    );
+    assert.equal(eventDetailSeedStillCurrent(seed, withContact), false);
+    assert.equal(withContact.contact_email, 'orga@example.com');
+
+    const withHours = mergeCachedEvent(
+      seed,
+      sample('a', 'Concert', {
+        cover_url: 'https://cdn.example/cover.jpg',
+        description: 'Texte',
+        address: '1 rue',
+        operating_hours: [{ kind: 'fixed', open_days: [6] }],
+      }),
+    );
+    assert.equal(eventDetailSeedStillCurrent(seed, withHours), false);
   });
 });
 

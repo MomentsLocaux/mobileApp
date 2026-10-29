@@ -108,6 +108,46 @@ export function eventHeroIdentity(event: Pick<EventWithCreator, 'id' | 'cover_ur
   return `${event.id}::${event.cover_url ?? ''}::${mediaUrls}::${event.title}`;
 }
 
+/** Present on the detail payload, absent from list and map cards. */
+const DETAIL_ONLY_KEYS = [
+  'registration_required',
+  'max_participants',
+  'external_url',
+  'contact_email',
+  'contact_phone',
+  'operating_hours',
+  'recurrence_rule',
+  'rating_count',
+  'rating_avg',
+  'refusal_reason',
+  'submission_source',
+  'location',
+] as const satisfies readonly (keyof EventWithCreator)[];
+
+const sameDetailValue = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) return true;
+  if (left == null && right == null) return true;
+  if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+  return false;
+};
+
+/**
+ * The detail screen can keep the seeded card when the full row does not change
+ * the hero, the description, or the fields lists never load.
+ */
+export function eventDetailSeedStillCurrent(
+  current: EventWithCreator,
+  merged: EventWithCreator,
+): boolean {
+  if (eventHeroIdentity(current) !== eventHeroIdentity(merged)) return false;
+  if (current.description !== merged.description) return false;
+  if (current.likes_count !== merged.likes_count) return false;
+  if (current.address !== merged.address) return false;
+  return DETAIL_ONLY_KEYS.every((key) => sameDetailValue(current[key], merged[key]));
+}
+
 export function collectPinnedIds(state: EventCacheSnapshot): Set<string> {
   const pinned = new Set<string>();
   for (const ids of Object.values(state.pinnedBySurface)) {
