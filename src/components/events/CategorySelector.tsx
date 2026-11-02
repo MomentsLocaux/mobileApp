@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, type LayoutChangeEvent } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { getCategoryLucideIcon } from '@/constants/category-visuals';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -32,12 +32,7 @@ export const CategorySelector = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Catégorie</Text>
-      <ScrollView
-        horizontal
-        nestedScrollEnabled
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollRow}
-      >
+      <View style={styles.list}>
         {categories.map((cat) => {
           const active = selected === cat.id;
           const Icon = getCategoryLucideIcon(cat.slug);
@@ -56,23 +51,16 @@ export const CategorySelector = ({
               <View style={[styles.iconWrap, { backgroundColor: `${catColor}3A` }]}>
                 <Icon size={18} color={catColor} />
               </View>
-              <Text style={[styles.cardText, active && { color: catColor }]} numberOfLines={2}>
-                {cat.label}
-              </Text>
+              <Text style={[styles.cardText, active && { color: catColor }]}>{cat.label}</Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       {selected && onSelectSubcategory && (
         <View style={styles.subSection} onLayout={onSubcategoryLayout}>
           <Text style={styles.title}>Sous-catégorie</Text>
-          <ScrollView
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scrollRow}
-          >
+          <View style={styles.list}>
             {selectedSubcategories.map((sub) => {
               const active = subcategory === sub.id;
               return (
@@ -82,9 +70,7 @@ export const CategorySelector = ({
                   onPress={() => onSelectSubcategory(active ? undefined : sub.id)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[styles.subCardText, active && styles.subCardTextActive]} numberOfLines={2}>
-                    {sub.label}
-                  </Text>
+                  <Text style={[styles.subCardText, active && styles.subCardTextActive]}>{sub.label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -97,7 +83,7 @@ export const CategorySelector = ({
                 Autre / non précisé
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         </View>
       )}
     </View>
@@ -113,17 +99,16 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     fontWeight: '700',
   },
-  scrollRow: {
+  list: {
     gap: spacing.sm,
-    paddingRight: spacing.md,
   },
   card: {
-    width: 116,
-    minHeight: 104,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    padding: spacing.sm,
-    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
   iconWrap: {
@@ -137,20 +122,20 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.text,
     fontWeight: '700',
+    flex: 1,
   },
   subSection: {
     gap: spacing.sm,
   },
   subCard: {
-    width: 128,
-    minHeight: 76,
     paddingVertical: spacing.sm,
-    justifyContent: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.brand.line,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.brand.line,
   },
   subCardActive: {
-    borderBottomColor: colors.brand.secondary,
+    borderColor: colors.brand.secondary,
   },
   subCardText: {
     ...typography.bodySmall,

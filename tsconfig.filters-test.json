@@ -65,6 +65,8 @@
     "src/utils/map-viewport-request.test.ts",
     "src/utils/push-personalization.test.ts",
     "src/utils/weather-forecast.test.ts",
+    "src/utils/event-practical-info.test.ts",
+    "src/utils/notification-routing.test.ts",
     "src/utils/poster-analysis-progress.test.ts",
     "src/utils/sign-out-choice.test.ts",
     "src/utils/auth-session-errors.test.ts",

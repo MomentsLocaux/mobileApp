@@ -12,6 +12,9 @@ import {
   View,
 } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { AppBackground, ScreenHeader } from '@/components/ui';
 import { LumiaRichText } from '@/components/lumia/LumiaRichText';
 import { features } from '@/config/features';
@@ -19,11 +22,17 @@ import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { isAllowedLumiaHref } from '@/constants/lumia-deeplinks';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
+import { androidEdgePadding, useAndroidKeyboardOverlap } from '@/hooks/useAndroidKeyboardOverlap';
 import { askLumia, type LumiaAction, type LumiaChatReply } from '@/services/lumia-chat.service';
 import { useLumiaChatStore } from '@/store/lumiaChatStore';
 import type { LumiaHistoryTurn } from '@/utils/lumia-conversation';
 import { confirmAiProcessingNotice } from '@/utils/ai-processing-notice';
+import { haptics } from '@/utils/haptics';
 import type { EventWithCreator } from '@/types/database';
+
+function lumiaPlainText(text: string): string {
+  return text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/\*\*/g, '').trim();
+}
 
 type ChatMessage = {
   id: string;
@@ -35,6 +44,8 @@ type ChatMessage = {
 
 export default function LumiaChatScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidKeyboardOverlap = useAndroidKeyboardOverlap();
   const { user, profile } = useAuth();
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const messages = useLumiaChatStore((state) => state.messages);
@@ -51,6 +62,20 @@ export default function LumiaChatScreen() {
   useEffect(() => {
     hydrateForUser(user?.id ?? null);
   }, [hydrateForUser, user?.id]);
+
+  useEffect(() => {
+    if (!androidKeyboardOverlap) return;
+    const frame = requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [androidKeyboardOverlap]);
+
+  const copyMessage = useCallback(async (text: string) => {
+    const plain = lumiaPlainText(text);
+    if (!plain) return;
+    await Clipboard.setStringAsync(plain);
+    haptics.selection();
+    Toast.show({ type: 'success', text1: 'Message copié' });
+  }, []);
 
   const openHref = useCallback(
     (href: string) => {
@@ -137,11 +162,24 @@ export default function LumiaChatScreen() {
                 </View>
               ) : null}
               {item.role === 'lumia' ? (
-                <LumiaRichText style={styles.bubbleText} onLinkPress={openHref}>
+                <LumiaRichText
+                  style={styles.bubbleText}
+                  onLinkPress={openHref}
+                  onLongPress={() => {
+                    void copyMessage(item.text);
+                  }}
+                >
                   {item.text}
                 </LumiaRichText>
               ) : (
-                <Text style={styles.bubbleUserText}>{item.text}</Text>
+                <Text
+                  style={styles.bubbleUserText}
+                  onLongPress={() => {
+                    void copyMessage(item.text);
+                  }}
+                >
+                  {item.text}
+                </Text>
               )}
               {item.actions?.length ? (
                 <View style={styles.actionsRow}>
@@ -181,7 +219,14 @@ export default function LumiaChatScreen() {
             </View>
           )}
         />
-        <View style={styles.composerWrap}>
+        <View
+          style={[
+            styles.composerWrap,
+            {
+              paddingBottom: androidEdgePadding(spacing.md, insets.bottom, androidKeyboardOverlap),
+            },
+          ]}
+        >
           {quotaLabel ? <Text style={styles.quotaHint}>{quotaLabel}</Text> : null}
           <Text style={styles.legalHint}>
             Messages transmis temporairement à OpenAI. Pas d’historique sur nos serveurs.

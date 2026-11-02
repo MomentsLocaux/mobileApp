@@ -61,6 +61,22 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
             <Text style={styles.sectionTitle}>
                 {showOrganizerFields ? 'Catégorie & Visibilité' : 'Catégorie'}
             </Text>
+            <View onLayout={registerSection('optional')}>
+                <OptionalInfoSection
+                    price={price}
+                    contact={contact}
+                    externalLink={externalLink}
+                    defaultOpen
+                    onOpen={() => requestAnimationFrame(() => scrollToSection('optional'))}
+                    onInputFocus={onInputFocus}
+                    onInputRef={onInputRef}
+                    onChange={(data) => {
+                        if (data.price !== undefined) setPrice(data.price);
+                        if (data.contact !== undefined) setContact(data.contact);
+                        if (data.externalLink !== undefined) setExternalLink(data.externalLink);
+                    }}
+                />
+            </View>
             <CategorySelector
                 selected={category}
                 subcategory={subcategory}
@@ -106,23 +122,6 @@ export const Step2Content = ({ scrollViewRef, onInputFocus, onInputRef }: Props)
                         </View>
                     </View>
                 </View>
-            ) : null}
-            {showOrganizerFields ? (
-            <View onLayout={registerSection('optional')}>
-                <OptionalInfoSection
-                    price={price}
-                    contact={contact}
-                    externalLink={externalLink}
-                    onOpen={() => requestAnimationFrame(() => scrollToSection('optional'))}
-                    onInputFocus={onInputFocus}
-                    onInputRef={onInputRef}
-                    onChange={(data) => {
-                        if (data.price !== undefined) setPrice(data.price);
-                        if (data.contact !== undefined) setContact(data.contact);
-                        if (data.externalLink !== undefined) setExternalLink(data.externalLink);
-                    }}
-                />
-            </View>
             ) : null}
         </ScrollView>
     );

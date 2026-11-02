@@ -25,6 +25,9 @@ Mapbox.setTelemetryEnabled(false);
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
 
+/** Discovery stays useful down to a city block. Beyond that the tiles stop helping. */
+const MAP_MAX_ZOOM_LEVEL = 16;
+
 interface MapWrapperProps {
   initialRegion: {
     latitude: number;
@@ -550,6 +553,7 @@ const MapWrapperInner = forwardRef<MapWrapperHandle, MapWrapperProps>(
             heading: 0,
           }}
           padding={toCameraPadding(mapPadding)}
+          maxZoomLevel={MAP_MAX_ZOOM_LEVEL}
           maxBounds={maxBounds ? { sw: [...maxBounds.sw], ne: [...maxBounds.ne] } : undefined}
         />
 

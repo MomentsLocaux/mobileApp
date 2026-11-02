@@ -8,13 +8,17 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppBackground, Button, Input, ScreenHeader } from '@/components/ui';
 import { AuthService } from '@/services/auth.service';
 import { colors, spacing, typography } from '@/constants/theme';
+import { androidEdgePadding, useAndroidKeyboardOverlap } from '@/hooks/useAndroidKeyboardOverlap';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidKeyboardOverlap = useAndroidKeyboardOverlap();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -56,7 +60,15 @@ export default function ForgotPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <AppBackground />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: androidEdgePadding(spacing.lg, insets.bottom, androidKeyboardOverlap),
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <ScreenHeader title="" onBack={() => router.back()} />
           <Text style={styles.title}>Mot de passe oublié</Text>

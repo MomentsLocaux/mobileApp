@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppBackground, Button, Input, ScreenHeader } from '@/components/ui';
@@ -17,6 +18,7 @@ import { hrefAfterAuthentication } from '@/services/notification-intent';
 import { completeAuthRedirectFromUrl } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
 import { colors, spacing, typography } from '@/constants/theme';
+import { androidEdgePadding, useAndroidKeyboardOverlap } from '@/hooks/useAndroidKeyboardOverlap';
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -24,6 +26,8 @@ function firstParam(value: string | string[] | undefined): string | undefined {
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidKeyboardOverlap = useAndroidKeyboardOverlap();
   const params = useLocalSearchParams<{ code?: string | string[]; type?: string | string[] }>();
   const linkedUrl = Linking.useLinkingURL();
   const { setSession, setUser, setProfile } = useAuthStore();
@@ -133,7 +137,15 @@ export default function ResetPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <AppBackground />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: androidEdgePadding(spacing.lg, insets.bottom, androidKeyboardOverlap),
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <ScreenHeader title="" onBack={() => router.replace('/auth/login')} />
           <Text style={styles.title}>Nouveau mot de passe</Text>

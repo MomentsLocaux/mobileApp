@@ -64,16 +64,17 @@ type Props = {
   boldStyle?: StyleProp<TextStyle>;
   linkStyle?: StyleProp<TextStyle>;
   onLinkPress?: (href: string) => void;
+  onLongPress?: () => void;
 };
 
 /**
  * Renders Lumia chat text with **bold** and [label](/deeplink).
  */
-export function LumiaRichText({ children, style, boldStyle, linkStyle, onLinkPress }: Props) {
+export function LumiaRichText({ children, style, boldStyle, linkStyle, onLinkPress, onLongPress }: Props) {
   const segments = useMemo(() => parseLumiaInlineMarkdown(children), [children]);
 
   return (
-    <Text style={style}>
+    <Text style={style} onLongPress={onLongPress} suppressHighlighting>
       {segments.map((seg, i) => {
         if (seg.kind === 'link') {
           return (

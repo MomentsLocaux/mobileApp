@@ -12,6 +12,7 @@ import {
   ImageBackground,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -23,6 +24,7 @@ import { Input } from '../../components/ui';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import type { SocialProvider } from '@/services/oauth.service';
 import { useAuthStore } from '@/state/auth';
+import { androidEdgePadding, useAndroidKeyboardOverlap } from '@/hooks/useAndroidKeyboardOverlap';
 
 const { width, height } = Dimensions.get('window');
 
@@ -34,6 +36,8 @@ const PAGE = colors.brand.page as string;
 
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidKeyboardOverlap = useAndroidKeyboardOverlap();
   const { signIn, signInWithProvider, isLoading } = useAuth();
   const setSession = useAuthStore((state) => state.setSession);
   const setUser = useAuthStore((state) => state.setUser);
@@ -143,7 +147,12 @@ export default function LoginScreen() {
             'rgba(26,51,41,0.78)',
           ]}
           locations={[0, 0.35, 0.7, 1]}
-          style={styles.gradient}
+          style={[
+            styles.gradient,
+            {
+              paddingBottom: androidEdgePadding(spacing.lg, insets.bottom, androidKeyboardOverlap),
+            },
+          ]}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}

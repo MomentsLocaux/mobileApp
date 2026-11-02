@@ -1,13 +1,13 @@
-import type { AppNotificationType } from '@/services/notifications.service';
-import { features } from '@/config/features';
+import { features } from '../config/features';
 import {
   hrefForNotificationDestination,
   type NotificationRouteHref,
-} from '@/utils/notification-routes';
+} from './notification-routes';
 
 type RouteTarget =
   | { href: NotificationRouteHref }
   | { href: `/events/${string}` }
+  | { href: `/events/create?edit=${string}` }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
   | { href: `/messages/${string}` };
@@ -29,10 +29,22 @@ const inbox = (): RouteTarget => ({ href: '/notifications' });
 
 /** Resolves in-app navigation for a notification payload (push tap or inbox). */
 export function resolveNotificationRoute(
-  type: AppNotificationType | string | undefined,
+  type: string | undefined,
   data: unknown,
 ): RouteTarget {
   const d = asRecord(data);
+
+  if (type === 'event_request_changes') {
+    const changeEventId = pickString(d, 'eventId', 'event_id');
+    if (changeEventId) {
+      return { href: `/events/create?edit=${changeEventId}` };
+    }
+    if (features.eventCreate && !features.eventSuggest) {
+      return { href: '/profile/my-events' };
+    }
+    return { href: '/profile/my-suggestions' };
+  }
+
   const eventId = pickString(d, 'eventId', 'event_id');
   if (eventId) {
     return { href: `/events/${eventId}` };
@@ -86,7 +98,7 @@ export function resolveNotificationRoute(
     return inbox();
   }
 
-  if (type === 'event_refused' || type === 'event_request_changes' || type === 'event_published') {
+  if (type === 'event_refused' || type === 'event_published') {
     if (features.eventCreate && !features.eventSuggest) {
       return { href: '/profile/my-events' };
     }

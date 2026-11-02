@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Briefcase, Sparkles, Camera, Pencil, X, ChevronRight, Bug } from 'lucide-react-native';
@@ -55,6 +57,7 @@ export function EventContributeSheet({
   const router = useRouter();
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(0);
+  const dragY = useSharedValue(0);
   const { canOrganize, eventSuggest, needsIntentChooser, routes } = useEventPublishSurfaces();
   const canContribute = canOrganize || eventSuggest;
   const resetStore = useCreateEventStore((s) => s.reset);
@@ -76,11 +79,12 @@ export function EventContributeSheet({
     setIntent(initialIntent);
     setStep(needsIntentChooser ? 'intent' : 'method');
     progress.value = reduceMotion ? 1 : withSpring(1, Motion.spring.sheet);
-  }, [visible, canOrganize, needsIntentChooser, progress, reduceMotion]);
+    dragY.value = 0;
+  }, [visible, canOrganize, needsIntentChooser, progress, dragY, reduceMotion]);
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * 40 }],
+    transform: [{ translateY: (1 - progress.value) * 40 + dragY.value }],
     opacity: 0.94 + progress.value * 0.06,
   }));
 
@@ -95,6 +99,31 @@ export function EventContributeSheet({
     });
     setTimeout(onClose, Motion.duration.fast);
   };
+
+  const closeRef = useRef(closeAnimated);
+  closeRef.current = closeAnimated;
+  const requestClose = useCallback(() => {
+    closeRef.current();
+  }, []);
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(12)
+        .failOffsetX([-24, 24])
+        .onUpdate((event) => {
+          dragY.value = Math.max(0, event.translationY);
+        })
+        .onEnd((event) => {
+          if (event.translationY > 72 || event.velocityY > 900) {
+            dragY.value = 0;
+            runOnJS(requestClose)();
+            return;
+          }
+          dragY.value = withSpring(0, Motion.spring.sheet);
+        }),
+    [dragY, requestClose],
+  );
 
   const ensureAuth = (gateTitle: string) => {
     if (isGuest) {
@@ -183,7 +212,7 @@ export function EventContributeSheet({
 
   return (
     <Modal visible={visible} animationType="none" transparent onRequestClose={closeAnimated}>
-      <View style={styles.root}>
+      <GestureHandlerRootView style={styles.root}>
         <Animated.View style={[styles.backdropWrap, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeAnimated} accessibilityLabel="Fermer">
             {Platform.OS === 'ios' ? (
@@ -195,13 +224,14 @@ export function EventContributeSheet({
           </Pressable>
         </Animated.View>
 
-        <Animated.View
-          style={[
-            styles.sheet,
-            sheetStyle,
-            { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.sm, zIndex: 2 },
-          ]}
-        >
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              sheetStyle,
+              { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.sm, zIndex: 2 },
+            ]}
+          >
           <View style={styles.handleRow}>
             <View style={styles.handle} />
             <FloatingPressable
@@ -275,7 +305,8 @@ export function EventContributeSheet({
             </View>
           )}
         </Animated.View>
-      </View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

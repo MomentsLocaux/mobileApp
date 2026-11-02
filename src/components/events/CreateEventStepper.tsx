@@ -27,6 +27,7 @@ import { Step3Content } from '@/components/events/steps/Step3Content';
 import { CoverGenerateStep } from '@/components/events/CoverGenerateStep';
 import { hasCreateEventDraft, useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { confirmDiscardEventDraft } from '@/utils/discard-event-draft';
+import { practicalInfoFromDraft } from '@/utils/event-practical-info';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
 import { EventDedupService } from '@/services/event-dedup.service';
@@ -44,6 +45,7 @@ export const CreateEventStepper = () => {
     const { user } = useAuth();
     const { edit } = useLocalSearchParams<{ edit?: string }>();
     const insets = useSafeAreaInsets();
+    const androidBottomInset = Platform.OS === 'android' ? insets.bottom : 0;
     const allowExitRef = useRef(false);
 
     const pagerRef = useRef<PagerView>(null);
@@ -230,15 +232,7 @@ export const CreateEventStepper = () => {
 
         try {
             setSubmitting(true);
-            const contact_email = !isSuggest && contact && contact.includes('@') ? contact : null;
-            const contact_phone = !isSuggest && contact && !contact.includes('@') ? contact : null;
-            let priceValue: number | null = null;
-            if (!isSuggest && price) {
-                const normalized = Number(price.replace(',', '.').replace(/[^0-9.-]/g, ''));
-                if (!Number.isNaN(normalized)) {
-                    priceValue = normalized;
-                }
-            }
+            const practical = practicalInfoFromDraft(price, contact);
 
             let finalCoverUrl = coverImage?.publicUrl || null;
             if (coverImage?.publicUrl && !isRemoteUrl(coverImage.publicUrl)) {
@@ -262,14 +256,14 @@ export const CreateEventStepper = () => {
                 city: location.city,
                 postal_code: location.postalCode,
                 visibility: isSuggest || visibility === 'public' ? 'public' : 'prive',
-                is_free: isSuggest ? true : !price || price.toLowerCase().includes('gratuit'),
-                price: priceValue,
+                is_free: practical.isFree,
+                price: practical.price,
                 cover_url: finalCoverUrl,
                 max_participants: null,
                 registration_required: null,
                 external_url: externalLink || videoLink || null,
-                contact_email,
-                contact_phone,
+                contact_email: practical.contactEmail,
+                contact_phone: practical.contactPhone,
                 schedule_mode: eventScheduleModeToDb(
                     isSameDayRange(startDate, endDate) ? 'single_day' : scheduleMode,
                 ),
@@ -413,7 +407,7 @@ export const CreateEventStepper = () => {
         currentStep === 0 ? canProceedStep1 : currentStep === 1 ? canProceedStep2 : Boolean(coverImage);
 
     const renderContinueFooter = () => (
-        <View style={styles.footer}>
+        <View style={[styles.footer, androidBottomInset > 0 && { paddingBottom: spacing.md + androidBottomInset }]}>
             {currentStep === 0 ? (
                 <View style={styles.prevBtnSpacer} />
             ) : (
@@ -442,7 +436,12 @@ export const CreateEventStepper = () => {
 
             case 3:
                 return (
-                    <View style={styles.publishFooter}>
+                    <View
+                        style={[
+                            styles.publishFooter,
+                            androidBottomInset > 0 && { paddingBottom: spacing.md + androidBottomInset },
+                        ]}
+                    >
                         <TouchableOpacity
                             style={[styles.publishBtn, (!canPublish || submitting) && styles.publishDisabled]}
                             disabled={!canPublish || submitting}

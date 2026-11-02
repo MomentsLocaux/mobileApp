@@ -10,6 +10,8 @@ type Props = {
   onInputFocus?: (key: string) => void;
   onInputRef?: (key: string) => (node: any) => void;
   onOpen?: () => void;
+  /** Create flow shows the fields immediately. They stay collapsible. */
+  defaultOpen?: boolean;
   onChange: (data: { price?: string; contact?: string; externalLink?: string }) => void;
 };
 
@@ -20,9 +22,10 @@ export const OptionalInfoSection = ({
   onInputFocus,
   onInputRef,
   onOpen,
+  defaultOpen = false,
   onChange,
 }: Props) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <View style={styles.container}>

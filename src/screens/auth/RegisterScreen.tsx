@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppBackground, Button, Input, ScreenHeader } from '../../components/ui';
 import { useAuth } from '../../hooks';
@@ -17,10 +18,13 @@ import { hrefAfterAuthentication } from '@/services/notification-intent';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import type { SocialProvider } from '@/services/oauth.service';
 import { colors, spacing, typography } from '../../constants/theme';
+import { androidEdgePadding, useAndroidKeyboardOverlap } from '@/hooks/useAndroidKeyboardOverlap';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidKeyboardOverlap = useAndroidKeyboardOverlap();
   const { signUp, signInWithProvider, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -143,7 +147,12 @@ export default function RegisterScreen() {
     >
       <AppBackground />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: androidEdgePadding(spacing.lg, insets.bottom, androidKeyboardOverlap),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>

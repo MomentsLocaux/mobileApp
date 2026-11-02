@@ -14,9 +14,11 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBackground, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/hooks';
+import { androidEdgePadding, useAndroidKeyboardOverlap } from '@/hooks/useAndroidKeyboardOverlap';
 import { MessagingService, type DirectMessage } from '@/services/messaging.service';
 import { NotificationsService } from '@/services/notifications.service';
 import { setActiveDirectConversation } from '@/services/push.service';
@@ -25,6 +27,8 @@ import { parseSharedEventMessage } from '@/utils/event-share';
 
 export default function ConversationThreadScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidKeyboardOverlap = useAndroidKeyboardOverlap();
   const { id: rawId, name } = useLocalSearchParams<{ id: string | string[]; name?: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const { user, profile } = useAuth();
@@ -67,6 +71,12 @@ export default function ConversationThreadScreen() {
       void load();
     });
   }, [id, load]);
+
+  useEffect(() => {
+    if (!androidKeyboardOverlap) return;
+    const frame = requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [androidKeyboardOverlap]);
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -223,7 +233,12 @@ export default function ConversationThreadScreen() {
             </TouchableOpacity>
           </View>
         ) : null}
-        <View style={styles.composer}>
+        <View
+          style={[
+            styles.composer,
+            { paddingBottom: androidEdgePadding(spacing.lg, insets.bottom, androidKeyboardOverlap) },
+          ]}
+        >
           <TextInput
             value={draft}
             onChangeText={setDraft}

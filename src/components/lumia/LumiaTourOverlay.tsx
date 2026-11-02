@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Image,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -68,6 +69,8 @@ function SpotlightScrim({ hole }: { hole: LumiaTourTargetRect | null }) {
 export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Props) {
   const insets = useSafeAreaInsets();
   const targets = useLumiaTourStore((s) => s.targets);
+  const overlayRef = useRef<View>(null);
+  const [androidOrigin, setAndroidOrigin] = useState({ x: 0, y: 0 });
   const [index, setIndex] = useState(0);
   const [typedLen, setTypedLen] = useState(0);
   const step = steps[index];
@@ -105,9 +108,31 @@ export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Pr
     return () => clearTimeout(timer);
   }, [visible, spoken, typedLen]);
 
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'android') return;
+    const measure = () => {
+      overlayRef.current?.measureInWindow((x, y) => {
+        setAndroidOrigin((prev) => (prev.x === x && prev.y === y ? prev : { x, y }));
+      });
+    };
+    const frame = requestAnimationFrame(measure);
+    const later = setTimeout(measure, 50);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(later);
+    };
+  }, [visible, index]);
+
   if (!steps.length || !step) return null;
 
-  const hole = step.target ? targets[step.target] ?? null : null;
+  const measuredHole = step.target ? targets[step.target] ?? null : null;
+  const hole = measuredHole
+    ? {
+        ...measuredHole,
+        x: measuredHole.x - (Platform.OS === 'android' ? androidOrigin.x : 0),
+        y: measuredHole.y - (Platform.OS === 'android' ? androidOrigin.y : 0),
+      }
+    : null;
 
   const finishTyping = () => {
     if (!typedComplete) setTypedLen(spoken.length);
@@ -149,7 +174,7 @@ export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Pr
       onRequestClose={skip}
       statusBarTranslucent
     >
-      <View style={styles.root} pointerEvents="box-none">
+      <View ref={overlayRef} style={styles.root} pointerEvents="box-none">
         <SpotlightScrim hole={hole} />
 
         <Image
