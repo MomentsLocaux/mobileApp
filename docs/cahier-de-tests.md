@@ -1,11 +1,11 @@
 # Cahier de tests — Application mobile
 
-Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOCIAL_PEERS on, création/gamification off).
+Recette manuelle iOS/Android du build courant : découverte, social, agenda, propositions, Lumia et suggestion par affiche. Création organisateur, check-in, offres, diffuseur, gamification, concours et roadtrip restent éteints.
 
 > Source de vérité exécutable : catalogue seedé dans la Moderation Console (`/moderation/qa`). Les IDs ci-dessous sont stables.
 
-- **Cas** : 58
-- **Smoke P0** : 15
+- **Cas** : 75
+- **Smoke P0** : 23
 - **Suivi** : créer une campagne dans la console, synchroniser le catalogue, initialiser les exécutions.
 
 ## Authentification
@@ -40,7 +40,7 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 3. Saisir email et mot de passe corrects
 4. Valider
 
-**Résultat attendu** : L'utilisateur est authentifié et redirigé vers l'écran principal (carte).
+**Résultat attendu** : L'utilisateur est authentifié et arrive sur l'onglet Accueil. Un deep link de notification en attente, s'il y en a un, est ouvert à la place.
 
 ### MOB-AUTH-003 — Connexion refusée avec identifiants invalides
 
@@ -322,9 +322,23 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Résultat attendu** : Un message de type 'pas de connexion' s'affiche et la dernière carte connue (si en cache) reste consultable, sans crash.
 
+### MOB-MAP-010 — Pins distincts selon la catégorie
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : Au moins deux événements publiés de catégories différentes dans le viewport
+
+**Étapes**
+
+1. Ouvrir l’onglet Carte
+2. Comparer les pins de deux catégories
+
+**Résultat attendu** : Chaque catégorie a son visuel de pin. Un zoom arrière regroupe les pins en clusters sans les remplacer par un pin unique générique.
+
 ## Engagement
 
-### MOB-ENG-001 — Ajouter un événement en favori
+### MOB-ENG-001 — Noter un événement avec le cœur
 
 - **Priorité** : P0
 - **Type** : smoke
@@ -332,26 +346,26 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Étapes**
 
-1. Ouvrir la fiche d'un événement
-2. Toucher l'icône favori
+1. Ouvrir la fiche d'un événement publié
+2. Toucher le cœur
 
-**Résultat attendu** : L'événement apparaît dans la liste des favoris du profil, l'icône reste active après retour sur la fiche.
+**Résultat attendu** : Le cœur reste actif au retour sur la fiche. L'événement apparaît dans l'onglet Agenda, bac « Je suis intéressé(e) ». Le like et le favori sont enregistrés ensemble.
 
-### MOB-ENG-002 — Retirer un favori
+### MOB-ENG-002 — Retirer un cœur
 
 - **Priorité** : P2
 - **Type** : functional
 - **Plateformes** : ios, android
-- **Préconditions** : Événement déjà en favori
+- **Préconditions** : Événement déjà noté (cœur actif)
 
 **Étapes**
 
-1. Ouvrir la liste des favoris
-2. Retirer un événement
+1. Rouvrir la fiche
+2. Toucher à nouveau le cœur
 
-**Résultat attendu** : L'événement disparaît de la liste de favoris immédiatement.
+**Résultat attendu** : Le cœur se désactive. L'événement quitte le bac « Je suis intéressé(e) » de l'agenda.
 
-### MOB-ENG-003 — Liker un événement
+### MOB-ENG-003 — Le cœur met à jour le compteur de personnes qui ont aimé
 
 - **Priorité** : P0
 - **Type** : smoke
@@ -359,10 +373,11 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Étapes**
 
-1. Ouvrir la fiche d'un événement
-2. Toucher l'icône 'J'aime'
+1. Ouvrir la fiche d'un événement pas encore aimé
+2. Noter le nombre de personnes qui ont aimé
+3. Toucher le cœur
 
-**Résultat attendu** : Le compteur de likes s'incrémente immédiatement (optimistic update) et se confirme après réponse serveur.
+**Résultat attendu** : Le compteur augmente tout de suite, puis reste cohérent après rechargement. Il n'existe pas de second bouton J'aime distinct du cœur.
 
 ### MOB-ENG-004 — Ajouter un commentaire sur un événement
 
@@ -516,6 +531,35 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 1. Ouvrir l'application avec le flag désactivé
 
 **Résultat attendu** : Aucun onglet ni action de suivi/abonnement n'est visible dans l'interface, aucune erreur réseau liée au social n'est déclenchée.
+
+### MOB-SOC-008 — Ouvrir les messages depuis le menu
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : FEATURE_SOCIAL_PEERS activé, compte connecté
+
+**Étapes**
+
+1. Ouvrir le menu Profil
+2. Toucher Messages
+
+**Résultat attendu** : La liste des conversations s’ouvre. Un fil existant affiche les messages ; une liste vide reste un état vide, sans crash.
+
+### MOB-SOC-009 — Consulter l’annuaire des membres
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : FEATURE_SOCIAL_PEERS activé
+
+**Étapes**
+
+1. Ouvrir le menu Profil
+2. Toucher Membres
+3. Ouvrir un profil public
+
+**Résultat attendu** : La liste des membres s’affiche et un profil public est consultable, avec l’action Suivre.
 
 ## Notifications
 
@@ -700,19 +744,20 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Résultat attendu** : La nouvelle photo est uploadée, compressée et affichée sur le profil sans délai excessif.
 
-### MOB-COMPTE-003 — Visualiser tous les statuts de publication (draft/pending/published/refused/archived)
+### MOB-COMPTE-003 — Consulter le statut de ses suggestions
 
-- **Priorité** : P0
-- **Type** : regression
+- **Priorité** : P1
+- **Type** : functional
 - **Plateformes** : ios, android
-- **Préconditions** : Utilisateur ayant au moins un événement dans chacun des statuts possibles
+- **Préconditions** : Au moins une suggestion envoyée, création organisateur désactivée
 
 **Étapes**
 
-1. Ouvrir Compte > Mes publications
-2. Parcourir chaque onglet/filtre de statut
+1. Ouvrir le menu Profil
+2. Toucher Mes suggestions
+3. Tenter d’ouvrir Mes événements
 
-**Résultat attendu** : Chaque événement affiche le bon libellé de statut (Brouillon, En attente, Publié, Refusé, Archivé) avec les actions associées correctes.
+**Résultat attendu** : Chaque suggestion affiche son libellé de statut (en attente, publié, refusé ou correctifs demandés). Mes événements renvoie vers Mes suggestions tant que la création organisateur est éteinte.
 
 ### MOB-COMPTE-004 — Accès aux CGU et à la politique de confidentialité
 
@@ -722,8 +767,8 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Étapes**
 
-1. Ouvrir Compte > Informations légales
-2. Ouvrir les CGU puis la politique de confidentialité
+1. Ouvrir Paramètres > Informations légales > Conditions Générales d’Utilisation
+2. Revenir et ouvrir Confidentialité & données > Politique de confidentialité
 
 **Résultat attendu** : Les deux documents s’affichent intégralement (webview ou écran natif) sans erreur de chargement.
 
@@ -735,9 +780,9 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Étapes**
 
-1. Ouvrir Compte > Supprimer mon compte
+1. Ouvrir Paramètres > Confidentialité & données > Supprimer mon compte
 2. Lire l’avertissement de suppression définitive
-3. Confirmer avec le mot de passe ou une re-authentification
+3. Toucher Supprimer définitivement puis confirmer l’alerte
 
 **Résultat attendu** : Le compte et les données associées sont supprimés/anonymisés conformément au RGPD, l'utilisateur est déconnecté et redirigé vers l'écran de connexion.
 
@@ -749,10 +794,10 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Étapes**
 
-1. Ouvrir Compte > Supprimer mon compte
-2. Sur l’écran de confirmation, toucher Annuler
+1. Ouvrir Paramètres > Confidentialité & données > Supprimer mon compte
+2. Toucher Annuler
 
-**Résultat attendu** : Le compte reste actif, l’utilisateur revient à l’écran Compte sans aucune donnée supprimée.
+**Résultat attendu** : Le compte reste actif. L’utilisateur revient aux paramètres, sans suppression.
 
 ## Non-fonctionnel
 
@@ -804,7 +849,7 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 
 **Étapes**
 
-1. Naviguer dans plusieurs écrans (carte, profil, favoris)
+1. Naviguer dans plusieurs écrans (accueil, carte, agenda)
 2. Activer le mode avion
 3. Continuer à naviguer entre écrans déjà chargés
 
@@ -821,4 +866,217 @@ Recette manuelle iOS/Android pour le MVP découverte + social pairs (FEATURE_SOC
 1. Augmenter la taille de police dans les réglages d’accessibilité du système
 2. Rouvrir l’application et naviguer sur les écrans principaux
 
-**Résultat attendu** : Les textes s’adaptent sans troncature critique ni chevauchement bloquant sur les écrans clés (carte, fiche événement, compte).
+**Résultat attendu** : Les textes s’adaptent sans troncature critique ni chevauchement bloquant sur les écrans clés (accueil, carte, fiche événement, agenda).
+
+## Accueil
+
+### MOB-HOME-001 — Chargement du fil d’accueil
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : Compte connecté, onboarding terminé, événements publiés à proximité
+
+**Étapes**
+
+1. Ouvrir l’onglet Accueil
+2. Attendre la fin du chargement
+
+**Résultat attendu** : Le fil affiche des moments publiés. Le sélecteur de dates et de thèmes est utilisable, sans écran blanc ni crash.
+
+### MOB-TOUR-001 — Tour Lumia après le premier onboarding
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : Compte dont le tour n’a jamais été terminé ni passé
+
+**Étapes**
+
+1. Terminer l’onboarding et arriver sur les onglets
+2. Lire une étape du tour, puis toucher « Passer · ne plus afficher » ou aller au bout
+
+**Résultat attendu** : Le tour met en évidence les onglets (accueil, propositions, carte, agenda, menu) et le chat Lumia. Une fois passé ou terminé, il ne se réaffiche pas au prochain lancement.
+
+## Invité
+
+### MOB-GUEST-001 — Continuer en invité
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : Aucun compte connecté
+
+**Étapes**
+
+1. Ouvrir l’écran de connexion
+2. Toucher « Continuer en invité »
+
+**Résultat attendu** : La carte s’ouvre sans compte. Les onglets Agenda, Propositions et Profil ne donnent pas accès aux données d’un utilisateur.
+
+### MOB-GUEST-002 — Porte d’authentification sur les onglets protégés
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : Session invité
+
+**Étapes**
+
+1. Toucher l’onglet Agenda
+2. Fermer la porte
+3. Toucher l’onglet Profil
+
+**Résultat attendu** : Une invitation à se connecter ou créer un compte s’affiche. La carte reste accessible après fermeture de la porte.
+
+## Propositions
+
+### MOB-PROP-001 — Aimer une carte du deck
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : Compte particulier connecté, événements publiés dans le rayon choisi
+
+**Étapes**
+
+1. Ouvrir l’onglet Propositions
+2. Lancer une session et générer un deck
+3. Glisser une carte vers la droite, ou toucher le bouton « J’aime »
+
+**Résultat attendu** : La carte quitte le deck. En fin de session, le coup de cœur est listé et se retrouve dans l’agenda.
+
+### MOB-PROP-002 — Passer une carte du deck
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : Deck de propositions ouvert
+
+**Étapes**
+
+1. Glisser une carte vers la gauche, ou toucher « Je passe »
+
+**Résultat attendu** : La carte suivante s’affiche. L’événement passé n’est pas ajouté à l’agenda.
+
+## Agenda
+
+### MOB-AGENDA-001 — Bacs visibles de l’agenda
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : Build courant : check-in et création d’événement désactivés
+
+**Étapes**
+
+1. Ouvrir l’onglet Agenda avec un compte particulier
+2. Lire les bacs proposés
+
+**Résultat attendu** : Les bacs « Je suis intéressé(e) » et « Passées » sont présents. « Je participe » et « J’organise » restent absents tant que les flags check-in et création sont éteints.
+
+### MOB-AGENDA-002 — Changer de jour dans la semaine
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : Au moins un événement noté sur un autre jour
+
+**Étapes**
+
+1. Ouvrir l’agenda
+2. Toucher un autre jour de la bande semaine
+
+**Résultat attendu** : La liste suit le jour choisi. Un jour sans moment affiche l’état vide du bac, sans mélanger les dates.
+
+## Lumia
+
+### MOB-LUMIA-001 — Ouvrir le chat Lumia
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : EXPO_PUBLIC_FEATURE_LUMIA_CHAT activé, compte connecté
+
+**Étapes**
+
+1. Depuis l’accueil, toucher « Parler à Lumia »
+2. Accepter l’information de traitement si elle s’affiche
+
+**Résultat attendu** : L’écran de conversation s’ouvre. Une question courte reçoit une réponse, ou un message d’erreur explicite si le service est indisponible. Le chat n’est pas joignable si le flag est éteint.
+
+### MOB-LUMIA-002 — Lumia renvoie vers un moment déjà publié
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : Chat Lumia ouvert, un événement publié connu dans la zone
+
+**Étapes**
+
+1. Demander un moment publié (lieu ou titre reconnaissable)
+2. Ouvrir le lien proposé dans la réponse
+
+**Résultat attendu** : Le lien ouvre la fiche de l’événement dans l’app. Lumia ne propose pas de créer un événement ni un écran de gamification.
+
+## Suggestion
+
+### MOB-SUGG-001 — Suggérer un événement en scannant une affiche
+
+- **Priorité** : P0
+- **Type** : smoke
+- **Plateformes** : ios, android
+- **Préconditions** : EXPO_PUBLIC_FEATURE_EVENT_SUGGEST activé, compte connecté, photo d’affiche lisible
+
+**Étapes**
+
+1. Toucher le bouton flottant de contribution
+2. Choisir « Scanner une affiche »
+3. Fournir la photo et vérifier le formulaire prérempli
+4. Envoyer la suggestion
+
+**Résultat attendu** : La suggestion part en file « Suggestions utilisateurs » de la console, distincte de la file scrapers. L’utilisateur peut la retrouver dans ses suggestions.
+
+### MOB-SUGG-002 — Suggérer un événement en saisie manuelle
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : Compte connecté, suggestion d’événement activée
+
+**Étapes**
+
+1. Ouvrir la feuille de contribution
+2. Choisir « Saisie manuelle »
+3. Renseigner titre, lieu et date, puis envoyer
+
+**Résultat attendu** : Le formulaire de suggestion s’ouvre sans passer par l’IA. La suggestion arrive dans la même file communautaire.
+
+### MOB-SUGG-003 — Création organisateur absente du build courant
+
+- **Priorité** : P0
+- **Type** : regression
+- **Plateformes** : ios, android
+- **Préconditions** : EXPO_PUBLIC_FEATURE_EVENT_CREATE désactivé
+
+**Étapes**
+
+1. Ouvrir la feuille de contribution
+2. Parcourir le menu latéral
+
+**Résultat attendu** : La feuille propose la suggestion (affiche ou saisie) et le signalement de bug. Elle ne propose pas « Je suis l’organisateur ». Aucun parcours de publication organisateur n’est accessible.
+
+### MOB-BUG-001 — Signaler un bug depuis le bouton flottant
+
+- **Priorité** : P1
+- **Type** : functional
+- **Plateformes** : ios, android
+- **Préconditions** : Compte connecté
+
+**Étapes**
+
+1. Ouvrir la feuille de contribution
+2. Choisir « Reporter un bug / Suggérer une amélioration »
+3. Envoyer un signalement de test
+
+**Résultat attendu** : Le formulaire de bug s’ouvre et l’envoi crée un ticket visible dans la file Bugs de la console.
