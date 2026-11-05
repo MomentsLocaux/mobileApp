@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { EVENT_COVER_GENERATE_MAX_TRIES } from '@/constants/cover-generate-quota';
 import { EVENT_POSTER_ANALYZE_MAX_TRIES } from '@/constants/poster-analyze-quota';
 import type { EventSubmissionSource } from '@/types/event-submission';
+import { stripNullBytes, UGC_LIMITS } from '@/utils/ugc-sanitize';
 import type {
   EventScheduleModeMobile,
   EventTimeSlot,
@@ -187,7 +188,10 @@ export const useCreateEventStore = create<CreateEventState>((set) => ({
   setEndDate: (endDate) => set({ endDate }),
   setLocation: (location) => set({ location }),
   setVideoLink: (videoLink) => set({ videoLink }),
-  setDescription: (description) => set({ description }),
+  setDescription: (description) =>
+    set({
+      description: stripNullBytes(description ?? '').slice(0, UGC_LIMITS.eventDescription),
+    }),
   setCategory: (category) => set({ category, subcategory: undefined }),
   setSubcategory: (subcategory) => set({ subcategory }),
   setTags: (tags) => set({ tags }),

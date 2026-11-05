@@ -171,20 +171,23 @@ export const LocationPickerModal = ({
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
       setReverseLoading(true);
       try {
-        const rev = await MapboxService.reverse(lat, lon);
+        const rev = await MapboxService.reverseNearby(lat, lon);
+        const fallbackLabel = options?.fallbackLabel
+          ? `${options.fallbackLabel} (${lat.toFixed(5)}, ${lon.toFixed(5)})`
+          : undefined;
         const next: GeocodeResult | null = rev
           ? options?.keepExactCoords
             ? { ...rev, latitude: lat, longitude: lon }
             : rev
-          : options?.fallbackLabel
+          : fallbackLabel
             ? {
                 latitude: lat,
                 longitude: lon,
-                label: options.fallbackLabel,
+                label: fallbackLabel,
                 city: '',
                 region: '',
                 postalCode: '',
-                country: 'FR',
+                country: '',
               }
             : null;
         if (!next) return;

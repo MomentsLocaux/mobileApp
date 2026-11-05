@@ -126,11 +126,13 @@ export default function ProfileEditScreen() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const geo = await MapboxService.reverse(pos.coords.latitude, pos.coords.longitude);
+      const geo = await MapboxService.reverseNearby(pos.coords.latitude, pos.coords.longitude);
       setHomeLocation({
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
-        addressLabel: geo?.label || 'Ma position actuelle',
+        addressLabel:
+          geo?.label ||
+          `Ma position actuelle (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`,
         city: geo?.city || '',
         postalCode: geo?.postalCode || '',
         country: geo?.country || 'FR',

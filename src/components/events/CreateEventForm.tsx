@@ -4,10 +4,11 @@ import { colors, spacing, borderRadius, typography } from '@/constants/theme';
 import { EventScheduleEditor } from '@/components/events/EventScheduleEditor';
 import { useCreateEventStore } from '@/hooks/useCreateEventStore';
 import { validateEventSchedule, type EventScheduleDraft } from '@/utils/event-schedule';
+import { UGC_LIMITS } from '@/utils/ugc-sanitize';
 
 type Props = {
   onOpenLocation: () => void;
-  onValidate: (valid: boolean) => void;
+  onValidate?: (valid: boolean) => void;
   onInputFocus?: (key: string) => void;
   onInputRef?: (key: string) => (node: any) => void;
 };
@@ -72,7 +73,7 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
   const hasBaseValid = Boolean(title.trim() && startDate && location && scheduleValidation.valid);
 
   React.useEffect(() => {
-    onValidate(hasBaseValid);
+    onValidate?.(hasBaseValid);
   }, [hasBaseValid, onValidate]);
 
   return (
@@ -113,14 +114,15 @@ export const CreateEventForm = ({ onOpenLocation, onValidate, onInputFocus, onIn
           style={[styles.input, styles.textArea]}
           placeholder="Description"
           value={description}
-          onChangeText={(text) => {
-            if (text.length <= 1000) setDescription(text);
-          }}
+          maxLength={UGC_LIMITS.eventDescription}
+          onChangeText={setDescription}
           multiline
           ref={onInputRef?.('description')}
           onFocus={() => onInputFocus?.('description')}
         />
-        <Text style={styles.counter}>{(description || '').length}/1000</Text>
+        <Text style={styles.counter}>
+          {(description || '').length}/{UGC_LIMITS.eventDescription}
+        </Text>
       </View>
     </View>
   );

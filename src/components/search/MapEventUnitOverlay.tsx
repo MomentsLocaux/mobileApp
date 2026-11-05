@@ -1,14 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, View, StyleSheet } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   type SharedValue,
   interpolate,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
+import { Motion } from '@/constants/motion';
 import { colors, spacing } from '@/constants/theme';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { FloatingPressable } from '@/components/ui/FloatingPressable';
@@ -41,6 +45,30 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   const [cardStats, setCardStats] = useState<EventCardStats | null>(null);
   const [interactive, setInteractive] = useState(false);
   const statsRequestRef = useRef(0);
+  const dragY = useSharedValue(0);
+
+  useEffect(() => {
+    dragY.value = 0;
+  }, [dragY, event.id]);
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(12)
+        .failOffsetX([-24, 24])
+        .onUpdate((gesture) => {
+          dragY.value = Math.max(0, gesture.translationY);
+        })
+        .onEnd((gesture) => {
+          if (gesture.translationY > 72 || gesture.velocityY > 900) {
+            dragY.value = 0;
+            runOnJS(onClose)();
+            return;
+          }
+          dragY.value = withSpring(0, Motion.spring.sheet);
+        }),
+    [dragY, onClose],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +101,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
     const reveal = Math.min(Math.max(progress.value, 0), 1);
     return {
       opacity: interpolate(reveal, [0, 0.35, 1], [0, 1, 1]),
-      transform: [{ translateY: (1 - reveal) * 120 }],
+      transform: [{ translateY: (1 - reveal) * 120 + dragY.value }],
     };
   });
 
@@ -86,7 +114,9 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
       pointerEvents={interactive ? 'box-none' : 'none'}
       style={[styles.wrapper, { bottom: bottomInset }, cardStyle]}
     >
+      <GestureDetector gesture={pan}>
       <View collapsable={false} style={styles.cardShell}>
+        <View style={styles.handle} accessibilityElementsHidden />
         <MapDiscoveryEventCard
           event={event}
           variant="feed"
@@ -112,6 +142,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
           </FloatingPressable>
         </Animated.View>
       </View>
+      </GestureDetector>
     </Animated.View>
   );
 };
@@ -133,6 +164,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.page,
     borderRadius: 22,
     overflow: 'hidden',
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 8,
+    marginBottom: 2,
+    backgroundColor: colors.brand.line,
   },
   cardHeart: { top: 8, right: 46 },
   topActions: {

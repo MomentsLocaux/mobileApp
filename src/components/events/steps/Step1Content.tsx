@@ -7,7 +7,7 @@ import { CreateEventForm } from '@/components/events/CreateEventForm';
 import { LocationPickerModal } from '@/components/events/LocationPickerModal';
 
 type Props = {
-    onValidate: (valid: boolean) => void;
+    onValidate?: (valid: boolean) => void;
     scrollViewRef?: React.RefObject<ScrollView>;
     onInputFocus?: (key: string) => void;
     onInputRef?: (key: string) => (node: any) => void;

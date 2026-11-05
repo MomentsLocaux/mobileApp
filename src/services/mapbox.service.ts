@@ -73,6 +73,17 @@ export const MapboxService = {
       country: 'FR',
     };
   },
+
+  /**
+   * Current-position lookup. France is tried first; a miss (border, Luxembourg,
+   * Belgium) is retried without a country filter so the validation fiche gets a
+   * real address instead of the placeholder « Ma position actuelle ».
+   */
+  async reverseNearby(lat: number, lon: number): Promise<GeocodeResult | null> {
+    const inFrance = await this.reverse(lat, lon);
+    if (inFrance) return inFrance;
+    return this.reverse(lat, lon, { country: '' });
+  },
 };
 
 const cityFromFeature = (feature: MapboxFeature): string =>

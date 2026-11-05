@@ -34,6 +34,8 @@ import { EventDedupService } from '@/services/event-dedup.service';
 import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import { EventSuggestEntryButton } from '@/components/events/EventSuggestEntryButton';
 import { eventScheduleModeToDb, isSameDayRange, operatingHoursFromDraft } from '@/utils/event-schedule';
+import { formatEventDraftGaps, listEventDraftContinueGaps } from '@/utils/event-draft-gaps';
+import { sanitizeUgcText, UGC_LIMITS } from '@/utils/ugc-sanitize';
 import { prefillCreateEventStore } from '@/utils/prefill-create-event-store';
 import { withoutNeedsChangesTag } from '@/constants/moderation-tags';
 
@@ -50,7 +52,6 @@ export const CreateEventStepper = () => {
 
     const pagerRef = useRef<PagerView>(null);
     const [currentStep, setCurrentStep] = useState(0);
-    const [formValid, setFormValid] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const reduceMotion = useReduceMotion();
     const progressAnim = useSharedValue((1 / 4) * 100);
@@ -81,37 +82,49 @@ export const CreateEventStepper = () => {
     const currentStepRef = useRef(currentStep);
     currentStepRef.current = currentStep;
 
-    const canProceedStep1 = useMemo(
-        () => formValid && !!title.trim() && !!startDate && !!location,
-        [formValid, title, startDate, location]
+    const draftGapInput = useMemo(
+        () => ({
+            title,
+            startDate,
+            endDate,
+            hasLocation: Boolean(location),
+            hasCategory: Boolean(category),
+            hasCover: Boolean(coverImage),
+            scheduleMode,
+            scheduleOpenDays,
+            scheduleFixedSlots,
+            scheduleVariableDays,
+        }),
+        [
+            category,
+            coverImage,
+            endDate,
+            location,
+            scheduleFixedSlots,
+            scheduleMode,
+            scheduleOpenDays,
+            scheduleVariableDays,
+            startDate,
+            title,
+        ],
     );
 
-    const canProceedStep2 = useMemo(
-        () => !!category && !!title && !!startDate && !!location,
-        [category, title, startDate, location]
+    const continueGaps = useMemo(
+        () =>
+            listEventDraftContinueGaps({
+                ...draftGapInput,
+                step: currentStep === 1 ? 1 : currentStep === 2 ? 2 : 0,
+            }),
+        [currentStep, draftGapInput],
     );
 
-    const canPublish = canProceedStep2 && !!coverImage;
+    const publishGaps = useMemo(
+        () => listEventDraftContinueGaps({ ...draftGapInput, step: 3 }),
+        [draftGapInput],
+    );
 
-    const missingStep1Fields = useMemo(() => {
-        const missing: string[] = [];
-        if (!title.trim()) missing.push('un titre');
-        if (!startDate) missing.push('une date');
-        if (!location) missing.push('un lieu');
-        return missing;
-    }, [title, startDate, location]);
-
-    const missingPublishFields = useMemo(() => {
-        const missing: string[] = [...missingStep1Fields];
-        if (!coverImage) missing.push('une cover');
-        if (!category) missing.push('une catégorie');
-        return missing;
-    }, [missingStep1Fields, coverImage, category]);
-
-    const missingFieldsHint =
-        missingPublishFields.length > 0
-            ? `Il manque ${missingPublishFields.join(', ')}.`
-            : null;
+    const canPublish = publishGaps.length === 0;
+    const missingFieldsHint = publishGaps.length > 0 ? formatEventDraftGaps(publishGaps) : null;
 
     const goToPage = (page: number) => {
         pagerRef.current?.setPage(page);
@@ -122,24 +135,8 @@ export const CreateEventStepper = () => {
     };
 
     const handleNext = () => {
-        if (currentStep === 0 && !canProceedStep1) {
-            Alert.alert(
-                'Informations manquantes',
-                missingStep1Fields.length > 0
-                    ? `Il manque ${missingStep1Fields.join(', ')}.`
-                    : 'Veuillez remplir tous les champs obligatoires.'
-            );
-            return;
-        }
-        if (currentStep === 1 && !canProceedStep2) {
-            Alert.alert(
-                'Informations manquantes',
-                missingFieldsHint || 'Veuillez sélectionner une catégorie.'
-            );
-            return;
-        }
-        if (currentStep === 2 && !coverImage) {
-            Alert.alert('Couverture requise', 'Ajoute une photo ou génère une couverture pour continuer.');
+        if (continueGaps.length > 0) {
+            Alert.alert('Informations manquantes', formatEventDraftGaps(continueGaps));
             return;
         }
         goToPage(currentStep + 1);
@@ -244,7 +241,7 @@ export const CreateEventStepper = () => {
 
             const payload = {
                 title,
-                description: description || '',
+                description: sanitizeUgcText(description || '', UGC_LIMITS.eventDescription),
                 category: category as any,
                 subcategory: subcategory || null,
                 tags: withoutNeedsChangesTag(tags),
@@ -403,27 +400,33 @@ export const CreateEventStepper = () => {
         return () => subscription.remove();
     }, []);
 
-    const canContinue =
-        currentStep === 0 ? canProceedStep1 : currentStep === 1 ? canProceedStep2 : Boolean(coverImage);
-
     const renderContinueFooter = () => (
         <View style={[styles.footer, androidBottomInset > 0 && { paddingBottom: spacing.md + androidBottomInset }]}>
-            {currentStep === 0 ? (
-                <View style={styles.prevBtnSpacer} />
-            ) : (
-                <TouchableOpacity style={styles.prevBtn} onPress={handlePrevious} accessibilityRole="button">
-                    <Text style={styles.prevText}>Précédent</Text>
+            {continueGaps.length > 0 ? (
+                <Text style={styles.missingHint} accessibilityRole="text">
+                    {formatEventDraftGaps(continueGaps)}
+                </Text>
+            ) : null}
+            <View style={styles.footerActions}>
+                {currentStep === 0 ? (
+                    <View style={styles.prevBtnSpacer} />
+                ) : (
+                    <TouchableOpacity style={styles.prevBtn} onPress={handlePrevious} accessibilityRole="button">
+                        <Text style={styles.prevText}>Précédent</Text>
+                    </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                    style={styles.nextBtn}
+                    onPress={handleNext}
+                    accessibilityRole="button"
+                    accessibilityLabel="Continuer"
+                    accessibilityHint={
+                        continueGaps.length > 0 ? formatEventDraftGaps(continueGaps) : undefined
+                    }
+                >
+                    <Text style={styles.nextText}>Continuer</Text>
                 </TouchableOpacity>
-            )}
-            <TouchableOpacity
-                style={[styles.nextBtn, !canContinue && styles.nextBtnDisabled]}
-                disabled={!canContinue}
-                onPress={handleNext}
-                accessibilityRole="button"
-                accessibilityLabel="Continuer"
-            >
-                <Text style={[styles.nextText, !canContinue && styles.nextTextDisabled]}>Continuer</Text>
-            </TouchableOpacity>
+            </View>
         </View>
     );
 
@@ -526,7 +529,7 @@ export const CreateEventStepper = () => {
                     <View key="0" style={{ flex: 1 }}>
                         <EventSuggestEntryButton visible={submissionSource !== 'community_suggest'} />
                         <View style={{ flex: 1 }}>
-                            <Step1Content onValidate={setFormValid} />
+                            <Step1Content />
                         </View>
                     </View>
                     <View key="1" style={{ flex: 1 }}>
@@ -598,6 +601,9 @@ const styles = StyleSheet.create({
         backgroundColor: colors.brand.page,
         borderTopWidth: 1,
         borderTopColor: colors.brand.surfaceMuted,
+        gap: spacing.sm,
+    },
+    footerActions: {
         flexDirection: 'row',
         gap: spacing.md,
     },
@@ -611,7 +617,7 @@ const styles = StyleSheet.create({
     missingHint: {
         ...typography.caption,
         color: colors.brand.textSecondary,
-        textAlign: 'center',
+        textAlign: 'left',
         paddingHorizontal: spacing.sm,
     },
     prevBtn: {

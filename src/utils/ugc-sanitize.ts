@@ -6,6 +6,7 @@ export const UGC_LIMITS = {
   bio: 2000,
   reportReason: 2000,
   bugReportUser: 4000,
+  eventDescription: 1000,
   lumiaMessage: 800,
   directMessage: 2000,
 } as const;

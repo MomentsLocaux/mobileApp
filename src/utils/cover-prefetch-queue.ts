@@ -1,6 +1,10 @@
 export const COVER_PREFETCH_CONCURRENCY = 3;
 /** Next-page covers to queue after the visible rows — not the whole 50-row window. */
 export const COVER_PREFETCH_AHEAD_LIMIT = 6;
+/** Waiting jobs kept when the user opens cards faster than images can load. */
+export const COVER_PREFETCH_QUEUE_LIMIT = 24;
+/** URLs remembered so we don't fetch them again. Older ones are dropped. */
+export const COVER_PREFETCH_COMPLETED_LIMIT = 120;
 
 export type CoverPrefetchPriority = 'visible' | 'ahead';
 
@@ -31,6 +35,7 @@ export function createCoverPrefetchController(options: {
   const queuedUris = new Set<string>();
   const inflight = new Set<string>();
   const completed = new Set<string>();
+  const completedOrder: string[] = [];
   let active = 0;
   let pumpScheduled = false;
   let idleWaiters: (() => void)[] = [];
@@ -62,7 +67,14 @@ export function createCoverPrefetchController(options: {
         .catch(() => undefined)
         .finally(() => {
           inflight.delete(job.uri);
-          completed.add(job.uri);
+          if (!completed.has(job.uri)) {
+            completed.add(job.uri);
+            completedOrder.push(job.uri);
+            while (completedOrder.length > COVER_PREFETCH_COMPLETED_LIMIT) {
+              const oldest = completedOrder.shift();
+              if (oldest) completed.delete(oldest);
+            }
+          }
           active -= 1;
           pump();
           notifyIdle();
@@ -95,6 +107,12 @@ export function createCoverPrefetchController(options: {
         queued.push({ uri, priority });
         queuedUris.add(uri);
       }
+      while (queued.length > COVER_PREFETCH_QUEUE_LIMIT) {
+        const aheadIndex = queued.findIndex((job) => job.priority === 'ahead');
+        const index = aheadIndex >= 0 ? aheadIndex : 0;
+        const removed = queued.splice(index, 1)[0];
+        if (removed) queuedUris.delete(removed.uri);
+      }
       schedulePump();
     },
     bumpGeneration() {
@@ -110,6 +128,7 @@ export function createCoverPrefetchController(options: {
       queuedUris.clear();
       inflight.clear();
       completed.clear();
+      completedOrder.splice(0, completedOrder.length);
       active = 0;
       idleWaiters = [];
     },

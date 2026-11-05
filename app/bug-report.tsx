@@ -25,6 +25,7 @@ import {
   type BugReportPageId,
 } from '@/constants/bug-report-pages';
 import { BugsService } from '@/services/bugs.service';
+import { stripNullBytes, UGC_LIMITS } from '@/utils/ugc-sanitize';
 import { invalidateMySuggestionHistory } from '@/services/suggestion-history.service';
 import { useAuth } from '@/hooks';
 import { useAutoScrollOnFocus } from '@/hooks/useAutoScrollOnFocus';
@@ -235,13 +236,17 @@ export default function BugReportScreen() {
               placeholder="Décrivez le bug, les étapes pour le reproduire, l'attendu…"
               placeholderTextColor={colors.brand.textSecondary}
               value={description}
-              onChangeText={setDescription}
+              maxLength={UGC_LIMITS.bugReportUser}
+              onChangeText={(text) => setDescription(stripNullBytes(text).slice(0, UGC_LIMITS.bugReportUser))}
               multiline
               numberOfLines={5}
               textAlignVertical="top"
               ref={registerFieldRef('description')}
               onFocus={() => handleInputFocus('description')}
             />
+            <Text style={styles.counter}>
+              {description.length}/{UGC_LIMITS.bugReportUser}
+            </Text>
           </View>
 
           <View style={styles.field}>
@@ -386,6 +391,11 @@ const styles = StyleSheet.create({
   },
   textarea: {
     minHeight: 140,
+  },
+  counter: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    alignSelf: 'flex-end',
   },
   select: {
     borderWidth: 1,
