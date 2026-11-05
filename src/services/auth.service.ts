@@ -496,7 +496,7 @@ export class AuthService {
         this.blockAutoRestore(),
         supabase.auth.signOut().catch(() => undefined),
       ]);
-      const { useLumiaChatStore } = await import('@/store/lumiaChatStore');
+      const { useLumiaChatStore } = await import('../store/lumiaChatStore');
       useLumiaChatStore.getState().clearConversation();
       return { success: true };
     } catch (error) {
@@ -544,7 +544,7 @@ export class AuthService {
         supabase.auth.signOut().catch(() => undefined),
       ]);
 
-      const { useLumiaChatStore } = await import('@/store/lumiaChatStore');
+      const { useLumiaChatStore } = await import('../store/lumiaChatStore');
       useLumiaChatStore.getState().clearConversation();
 
       return { success: true };

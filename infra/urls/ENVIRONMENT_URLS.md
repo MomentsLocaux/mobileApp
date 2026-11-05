@@ -3,14 +3,26 @@
 Environments are **Supabase projects**, not Git branches.  
 Secrets live in Bitwarden / local `.env*` (gitignored). Templates: `.env.example`, `.env.uat.example`.
 
+## Décision du 4 novembre 2026
+
+Les projets **déjà actifs** deviennent la production. On ne crée pas une prod vide, on ne copie pas, on ne supprime pas.
+
+| Rôle | Nom affiché aujourd’hui | Nom cible | Ref (ne change pas) | Région |
+| --- | --- | --- | --- | --- |
+| App prod | `moments-locaux-dev` | `moments-locaux-prd` | `prymkgkafaovhzopslea` | `eu-north-1` |
+| Ingestion prod | `moments-locaux-ingest-dev` | `moments-locaux-ingest-prd` | `ieehuzeotwagkkprohjr` | `eu-west-1` |
+
+L’URL reste `https://<ref>.supabase.co` tant que le domaine Auth custom n’est pas activé. Mobile, site, console et scraper qui parlent déjà à ces refs y restent. Le libellé affiché par le scraper et la console est `PRD`. `dev` reste accepté comme alias, sans changer les clés ni les variables déjà en place.
+
+UAT et un nouveau DEV seront créés **après** ce passage, à partir de cette prod nettoyée. `ieehuzeotwagkkprohjr` est l’ingestion active : ne pas le détruire.
+
 | Env | Supabase project name | Project ref | Region | URL |
 | --- | --------------------- | ----------- | ------ | --- |
-| **DEV** | `moments-locaux-dev` | `prymkgkafaovhzopslea` | `eu-north-1` | `https://prymkgkafaovhzopslea.supabase.co` |
-| **INGEST** | `moments-locaux-ingest-dev` | `ieehuzeotwagkkprohjr` | `eu-west-1` | `https://ieehuzeotwagkkprohjr.supabase.co` |
-| **UAT** | _(parked until a real preprod / PROD exists)_ | — | — | — |
-| **PROD** | _(later)_ | — | — | — |
+| **PROD app** | `moments-locaux-dev` → `moments-locaux-prd` | `prymkgkafaovhzopslea` | `eu-north-1` | `https://prymkgkafaovhzopslea.supabase.co` |
+| **PROD ingest** | `moments-locaux-ingest-dev` → `moments-locaux-ingest-prd` | `ieehuzeotwagkkprohjr` | `eu-west-1` | `https://ieehuzeotwagkkprohjr.supabase.co` |
+| **UAT / nouveau DEV** | à créer après la promotion | — | — | — |
 
-> INGEST is the scrape warehouse only (staging / runs / occurrences). Mobile, console and site stay on DEV. The old UAT app clone was renamed; do not point the apps at it.
+> INGEST is the scrape warehouse only (staging / runs / occurrences). Mobile, console and site stay on the app project. Do not point the apps at the ingest ref.
 
 ## Local files (per repo)
 
@@ -39,9 +51,9 @@ Optional public links inside the app (`EXPO_PUBLIC_APP_SHARE_URL`, QR web base) 
 
 | Profile | `APP_ENV` | Backend |
 | ------- | --------- | ------- |
-| `development` | `development` | DEV |
-| `preview` | `development` | DEV (plus UAT) |
-| `production` | `production` | PROD (later) |
+| `development` | `development` | App prod actuelle (`prymkgkafaovhzopslea`) tant qu’un DEV neuf n’existe pas |
+| `preview` | `development` | Même projet |
+| `production` | `production` | Même projet : `prymkgkafaovhzopslea` |
 
 ## Keys per env (Bitwarden)
 
@@ -74,8 +86,8 @@ See runbook: `infra/runbooks/BRAND_EMAIL_BREVO_SMTP.md` (Brevo domain + Supabase
 iOS shows the **real Auth host** in the system dialog  
 (“MomentsLocaux souhaite utiliser …”).
 
-- Today (DEV/UAT): ugly `https://<project-ref>.supabase.co` — acceptable for internal testing.
-- **Before public / store PROD:** enable a **Supabase Auth custom domain** (e.g. `auth.moments-locaux.com`) so the sheet shows a clean brand host instead of the project ref.
+- Today the sheet shows `https://prymkgkafaovhzopslea.supabase.co`.
+- **Before public store release:** enable a **Supabase Auth custom domain** on this same project (e.g. `auth.moments-locaux.com`) so the sheet shows a clean brand host instead of the project ref.
 - Requires Supabase plan that supports custom domains + DNS CNAME on `moments-locaux.com`.
 - Native Apple Sign In does not use that sheet; Google/Facebook browser OAuth does.
 

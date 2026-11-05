@@ -17,18 +17,28 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-const selectMaybe = async (
+const PAGE_SIZE = 1000;
+
+const selectAll = async (
   supabase: ReturnType<typeof createClient>,
   table: string,
   columns: string,
   filter: { column: string; value: string },
 ) => {
-  const { data, error } = await supabase.from(table).select(columns).eq(filter.column, filter.value);
-  if (error) {
-    console.log('[export-account] skip table', { table, message: error.message });
-    return [];
+  const rows: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .eq(filter.column, filter.value)
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+    const page = (data ?? []) as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
   }
-  return data ?? [];
 };
 
 serve(async (req) => {
@@ -134,38 +144,38 @@ serve(async (req) => {
       corrections,
       mediaSubmissions,
     ] = await Promise.all([
-      selectMaybe(
+      selectAll(
         supabase,
         'profiles',
         'id, display_name, city, bio, avatar_url, cover_url, created_at, profile_visibility',
         { column: 'id', value: user.id },
       ),
-      selectMaybe(
+      selectAll(
         supabase,
         'user_preferences',
         'user_id, push_enabled, email_enabled, notify_event_nearby, notify_proximity_live, notify_social, notify_radius_km, notify_frequency, notify_event_reminders, location_visibility, quiet_hours_start, quiet_hours_end, preferred_category_slugs, push_personalization, updated_at',
         { column: 'user_id', value: user.id },
       ),
-      selectMaybe(supabase, 'events', 'id, title, description, city, address, starts_at, ends_at, status, visibility, submission_source, created_at', {
+      selectAll(supabase, 'events', 'id, title, description, city, address, starts_at, ends_at, status, visibility, submission_source, created_at', {
         column: 'creator_id',
         value: user.id,
       }),
-      selectMaybe(supabase, 'event_likes', 'event_id, created_at', { column: 'user_id', value: user.id }),
-      selectMaybe(supabase, 'favorites', 'event_id, created_at', { column: 'profile_id', value: user.id }),
-      selectMaybe(supabase, 'follows', 'following, created_at', { column: 'follower', value: user.id }),
-      selectMaybe(supabase, 'follows', 'follower, created_at', { column: 'following', value: user.id }),
-      selectMaybe(supabase, 'event_interests', 'event_id, created_at', { column: 'user_id', value: user.id }),
-      selectMaybe(supabase, 'event_checkins', 'event_id, created_at', { column: 'user_id', value: user.id }),
-      selectMaybe(supabase, 'direct_messages', 'id, conversation_id, sender_id, body, created_at', {
+      selectAll(supabase, 'event_likes', 'event_id, created_at', { column: 'user_id', value: user.id }),
+      selectAll(supabase, 'favorites', 'event_id, created_at', { column: 'profile_id', value: user.id }),
+      selectAll(supabase, 'follows', 'following, created_at', { column: 'follower', value: user.id }),
+      selectAll(supabase, 'follows', 'follower, created_at', { column: 'following', value: user.id }),
+      selectAll(supabase, 'event_interests', 'event_id, created_at', { column: 'user_id', value: user.id }),
+      selectAll(supabase, 'event_checkins', 'event_id, created_at', { column: 'user_id', value: user.id }),
+      selectAll(supabase, 'direct_messages', 'id, conversation_id, sender_id, body, created_at', {
         column: 'sender_id',
         value: user.id,
       }),
-      selectMaybe(supabase, 'event_comments', 'id, event_id, content, created_at', { column: 'user_id', value: user.id }),
-      selectMaybe(supabase, 'event_correction_proposals', 'id, event_id, kind, status, created_at', {
-        column: 'author_id',
+      selectAll(supabase, 'event_comments', 'id, event_id, message, created_at', { column: 'author_id', value: user.id }),
+      selectAll(supabase, 'event_correction_proposals', 'id, event_id, kind, status, comment, created_at', {
+        column: 'proposer_id',
         value: user.id,
       }),
-      selectMaybe(supabase, 'event_media_submissions', 'id, event_id, status, created_at', {
+      selectAll(supabase, 'event_media_submissions', 'id, event_id, status, created_at', {
         column: 'author_id',
         value: user.id,
       }),

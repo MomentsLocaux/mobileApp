@@ -152,33 +152,45 @@ export const MessagingService = {
     return data;
   },
 
-  async listMessages(conversationId: string, limit = 80): Promise<DirectMessage[]> {
+  async listMessages(
+    conversationId: string,
+    options?: { before?: string; limit?: number },
+  ): Promise<DirectMessage[]> {
+    const limit = options?.limit ?? 80;
     const columns = 'id, conversation_id, sender_id, body, created_at, edited_at';
-    const query = (supabase.from('direct_messages') as any)
+    let query = (supabase.from('direct_messages') as any)
       .select(columns)
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(limit);
+    if (options?.before) query = query.lt('created_at', options.before);
     const { data, error } = await query;
+    const chronological = (rows: DirectMessage[]) =>
+      [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+
     if (error && isMissingSchemaError(error)) {
-      const fallback = await (supabase.from('direct_messages') as any)
+      let fallbackQuery = (supabase.from('direct_messages') as any)
         .select('id, conversation_id, sender_id, body, created_at')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(limit);
+      if (options?.before) fallbackQuery = fallbackQuery.lt('created_at', options.before);
+      const fallback = await fallbackQuery;
       if (fallback.error) {
         if (isMissingSchemaError(fallback.error)) return [];
         throw toError(fallback.error, 'Impossible de charger la conversation.');
       }
-      return ((fallback.data || []) as Omit<DirectMessage, 'edited_at'>[]).map((row) => ({
-        ...row,
-        edited_at: null,
-      }));
+      return chronological(
+        ((fallback.data || []) as Omit<DirectMessage, 'edited_at'>[]).map((row) => ({
+          ...row,
+          edited_at: null,
+        })),
+      );
     }
     if (error) {
       throw toError(error, 'Impossible de charger la conversation.');
     }
-    return (data || []) as DirectMessage[];
+    return chronological((data || []) as DirectMessage[]);
   },
 
   async sendMessage(conversationId: string, body: string): Promise<DirectMessage> {
@@ -270,5 +282,75 @@ export const MessagingService = {
     return () => {
       void supabase.removeChannel(channel);
     };
+  },
+
+  async isBlocked(userId: string): Promise<boolean> {
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    if (!me || !userId) return false;
+    const { data, error } = await (supabase.from('user_blocks') as any)
+      .select('blocker_id')
+      .eq('blocker_id', me)
+      .eq('blocked_id', userId)
+      .maybeSingle();
+    if (error) {
+      if (isMissingSchemaError(error)) return false;
+      throw error;
+    }
+    return Boolean(data);
+  },
+
+  async blockUser(userId: string): Promise<void> {
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    if (!me) throw new Error('Connexion requise.');
+    const { error } = await (supabase.from('user_blocks') as any).insert({ blocker_id: me, blocked_id: userId });
+    if (error && (error as { code?: string }).code !== '23505') {
+      if (isMissingSchemaError(error)) {
+        throw new Error('Le blocage n’est pas encore activé sur la base.');
+      }
+      throw new Error(asError(error).message || 'Blocage impossible.');
+    }
+  },
+
+  async unblockUser(userId: string): Promise<void> {
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    if (!me) throw new Error('Connexion requise.');
+    const { error } = await (supabase.from('user_blocks') as any).delete().eq('blocker_id', me).eq('blocked_id', userId);
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        throw new Error('Le blocage n’est pas encore activé sur la base.');
+      }
+      throw new Error(asError(error).message || 'Déblocage impossible.');
+    }
+  },
+
+  async reportPerson(userId: string, reason: string): Promise<void> {
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    if (!me) throw new Error('Connexion requise.');
+    const { error } = await supabase.from('reports').insert({
+      target_type: 'user',
+      target_id: userId,
+      reporter_id: me,
+      reason: sanitizeUgcText(reason, UGC_LIMITS.reportReason),
+      severity: 'abusive',
+    } as never);
+    if (error) throw new Error(asError(error).message || 'Signalement impossible.');
+  },
+
+  async reportMessage(messageId: string, reason: string): Promise<void> {
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    if (!me) throw new Error('Connexion requise.');
+    const { error } = await supabase.from('reports').insert({
+      target_type: 'direct_message',
+      target_id: messageId,
+      reporter_id: me,
+      reason: sanitizeUgcText(reason, UGC_LIMITS.reportReason),
+      severity: 'abusive',
+    } as never);
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        throw new Error('Le signalement d’un message n’est pas encore activé sur la base.');
+      }
+      throw new Error(asError(error).message || 'Signalement impossible.');
+    }
   },
 };

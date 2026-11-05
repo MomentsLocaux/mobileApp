@@ -92,6 +92,12 @@ function toBytes(data: BufferSource): Uint8Array {
   return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 }
 
+function copyToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 function encodeUtf8(input: string): Uint8Array {
   const bytes: number[] = [];
   for (let i = 0; i < input.length; i += 1) {
@@ -123,7 +129,7 @@ const subtle = {
     if (name.toUpperCase() !== 'SHA-256') {
       throw new Error(`Digest non pris en charge: ${name}`);
     }
-    return sha256Bytes(toBytes(data)).buffer;
+    return copyToArrayBuffer(sha256Bytes(toBytes(data)));
   },
 };
 
@@ -142,13 +148,6 @@ export function installWebCrypto(): void {
   if (typeof current?.subtle?.digest === 'function') return;
 
   const base = (current ?? {}) as Crypto;
-  if (typeof base.getRandomValues !== 'function') {
-    base.getRandomValues = <T extends ArrayBufferView>(array: T): T => {
-      const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
-      for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-      return array;
-    };
-  }
   try {
     Object.defineProperty(base, 'subtle', { value: subtle, configurable: true });
   } catch {

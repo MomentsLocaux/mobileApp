@@ -15,6 +15,7 @@
     "test:secrets": "node --test scripts/check-client-secrets.test.mjs",
     "check:secrets": "node scripts/check-client-secrets.mjs",
     "expo:config": "expo config",
+    "eas-build-pre-install": "node scripts/eas-production-entitlements.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },

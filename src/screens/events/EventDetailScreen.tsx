@@ -81,7 +81,7 @@ import {
   getCategoryLabel,
   getCategoryTextColor,
 } from '../../constants/categories';
-import { formatResolvedEventTagLabel, getVisibleEventTags } from '../../utils/event-card-display';
+import { formatResolvedEventTagLabel, getEventPriceLabel, getVisibleEventTags } from '../../utils/event-card-display';
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
@@ -800,10 +800,11 @@ export default function EventDetailScreen() {
     router.push(`/events/echoes?id=${event.id}` as any);
   };
 
-  const formatPrice = (price?: number | null) => {
-    if (typeof price !== 'number' || Number.isNaN(price) || price <= 0) return 'Gratuit';
-    return `${price.toFixed(2)}€`;
-  };
+  const formatPrice = (price?: number | null) =>
+    getEventPriceLabel({
+      price: typeof price === 'number' ? price : null,
+      is_free: event?.is_free === true,
+    });
 
   const hasTicketPrice = useMemo(
     () => typeof event?.price === 'number' && !Number.isNaN(event.price) && event.price > 0,

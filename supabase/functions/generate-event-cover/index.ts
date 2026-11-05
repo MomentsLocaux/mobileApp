@@ -28,10 +28,6 @@ function parseDraftId(value: unknown): string | null {
   return DRAFT_ID_RE.test(raw) ? raw : null;
 }
 
-function isMissingQuotaInfra(message: string): boolean {
-  return /could not find the function|schema cache|does not exist|42P01|42883/i.test(message);
-}
-
 async function consumeBurst(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -254,21 +250,19 @@ serve(async (req) => {
       p_draft_id: draftId,
       p_limit: COVER_GENERATE_LIMIT,
     });
-    if (quotaError) {
-      const message = quotaError.message || '';
-      console.log('[generate-event-cover] quota rpc error', message);
-      if (!isMissingQuotaInfra(message)) {
-        return jsonResponse({ ok: false, message: 'Quota indisponible. Réessaie plus tard.' }, 503);
+    if (quotaError || quotaOk !== true) {
+      console.log('[generate-event-cover] quota rpc error', quotaError?.message || 'quota not consumed');
+      if (!quotaError && quotaOk === false) {
+        return jsonResponse(
+          {
+            ok: false,
+            code: 'quota_exceeded',
+            message: `Tu as déjà ${COVER_GENERATE_LIMIT} propositions pour cet événement. Choisis-en une, ou ajoute une photo.`,
+          },
+          429,
+        );
       }
-    } else if (quotaOk === false) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: 'quota_exceeded',
-          message: `Tu as déjà ${COVER_GENERATE_LIMIT} propositions pour cet événement. Choisis-en une, ou ajoute une photo.`,
-        },
-        429,
-      );
+      return jsonResponse({ ok: false, message: 'Quota indisponible. Réessaie plus tard.' }, 503);
     }
 
     const quotaConsumed = !quotaError && quotaOk === true;

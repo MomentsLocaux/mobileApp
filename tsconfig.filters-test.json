@@ -13,6 +13,7 @@
     "types": ["node"]
   },
   "include": [
+    "src/utils/owned-storage-path.test.ts",
     "src/utils/notification-routes.test.ts",
     "src/utils/analytics-events.test.ts",
     "src/utils/settings-tour-reminder.test.ts",
