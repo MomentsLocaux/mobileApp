@@ -263,6 +263,10 @@ export default function EventDetailScreen() {
     !canAnimateSurface,
   );
   const dismissingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const leaveRequestedAtRef = useRef(0);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissCommitted = useSharedValue(0);
   const seededIdRef = useRef(id);
   const galleryRef = useRef<PlaceMediaGalleryHandle>(null);
   const scrollY = useSharedValue(0);
@@ -517,6 +521,16 @@ export default function EventDetailScreen() {
   ]);
 
   const finishMapDismiss = useCallback(() => {
+    if (!mountedRef.current) return;
+    const now = Date.now();
+    // Collapse the animation callback and the safety timer into one pop.
+    // A later press can try again if this screen is still mounted.
+    if (now - leaveRequestedAtRef.current < 800) return;
+    leaveRequestedAtRef.current = now;
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
     if (isMapTransitionOrigin && id) {
       useMapDetailTransitionStore.getState().markReturning(id);
     }
@@ -528,27 +542,46 @@ export default function EventDetailScreen() {
   }, [id, isMapTransitionOrigin, router]);
 
   const cancelMapDismiss = useCallback(() => {
+    if (dismissCommitted.value === 1) return;
     dismissingRef.current = false;
     surfaceProgress.value = withSpring(1, Motion.spring.sheet);
-  }, [surfaceProgress]);
+  }, [dismissCommitted, surfaceProgress]);
 
   const animateMapDismiss = useCallback(() => {
-    if (dismissingRef.current) return;
+    // A second request must still leave. The first animation can be cancelled
+    // when another swipe writes the same shared value, and its callback then
+    // reports finished=false. Without this, the screen stays open and ignores
+    // both the swipe and the close button.
+    if (dismissingRef.current) {
+      finishMapDismiss();
+      return;
+    }
     dismissingRef.current = true;
+    dismissCommitted.value = 1;
+    const duration = reduceMotion ? 120 : 280;
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = setTimeout(() => {
+      finishMapDismiss();
+    }, duration + 160);
     surfaceProgress.value = withTiming(
       0,
       {
-        duration: reduceMotion ? 120 : 280,
+        duration,
         easing: Motion.easing.emphasized,
       },
       (finished) => {
         'worklet';
-        if (finished) runOnJS(finishMapDismiss)();
+        // finished is false when a later gesture cancels the timing. Still leave:
+        // keeping the lock set is what makes the close button and the swipe die.
+        if (finished || dismissCommitted.value === 1) {
+          runOnJS(finishMapDismiss)();
+        }
       },
     );
-  }, [finishMapDismiss, reduceMotion, surfaceProgress]);
+  }, [dismissCommitted, finishMapDismiss, reduceMotion, surfaceProgress]);
 
   const startMapDismiss = useCallback(() => {
+    dismissCommitted.value = 1;
     if (isMapTransitionOrigin && transitionContext?.eventId !== id) {
       finishMapDismiss();
       return;
@@ -559,6 +592,7 @@ export default function EventDetailScreen() {
     animateMapDismiss();
   }, [
     animateMapDismiss,
+    dismissCommitted,
     finishMapDismiss,
     id,
     isMapTransitionOrigin,
@@ -603,6 +637,7 @@ export default function EventDetailScreen() {
         .failOffsetX([-24, 24])
         .simultaneousWithExternalGesture(detailScrollGesture)
         .onUpdate((gesture) => {
+          if (dismissCommitted.value === 1) return;
           const translationY = Math.max(0, gesture.translationY);
           surfaceProgress.value = 1 - Math.min(
             0.82,
@@ -610,12 +645,23 @@ export default function EventDetailScreen() {
           );
         })
         .onEnd((gesture) => {
-          runOnJS(handleDismissGestureRelease)(
-            Math.max(0, gesture.translationY),
-            Math.max(0, gesture.velocityY),
-          );
+          const translationY = Math.max(0, gesture.translationY);
+          const velocityY = Math.max(0, gesture.velocityY);
+          if (
+            shouldCompleteMapDetailDismiss(
+              translationY,
+              velocityY,
+              windowDimensions.height,
+            )
+          ) {
+            // Commit on the UI thread before JS runs, so a follow-up touch
+            // cannot overwrite the close animation and drop its callback.
+            dismissCommitted.value = 1;
+          }
+          runOnJS(handleDismissGestureRelease)(translationY, velocityY);
         })
         .onFinalize((_gesture, success) => {
+          if (dismissCommitted.value === 1) return;
           if (!success) {
             surfaceProgress.value = withSpring(1, Motion.spring.sheet);
           }
@@ -623,12 +669,31 @@ export default function EventDetailScreen() {
     [
       canSwipeDismiss,
       detailScrollGesture,
+      dismissCommitted,
       handleDismissGestureRelease,
       scrollAtTop,
       surfaceProgress,
       windowDimensions.height,
     ],
   );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    dismissingRef.current = false;
+    leaveRequestedAtRef.current = 0;
+    dismissCommitted.value = 0;
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+  }, [dismissCommitted, id]);
 
   useEffect(() => {
     if (!canSwipeDismiss) return;
@@ -642,6 +707,10 @@ export default function EventDetailScreen() {
   }, [canSwipeDismiss, surfaceProgress]);
 
   const handleBack = () => {
+    if (dismissingRef.current || dismissCommitted.value === 1) {
+      finishMapDismiss();
+      return;
+    }
     if (canSwipeDismiss) {
       startMapDismiss();
       return;
@@ -1286,8 +1355,9 @@ export default function EventDetailScreen() {
 
   return (
     <>
-      <GestureDetector gesture={mapDismissGesture}>
-        <Animated.View style={[styles.dismissableScreen, screenStyle]}>
+      <Animated.View style={[styles.dismissableScreen, screenStyle]}>
+        <GestureDetector gesture={mapDismissGesture}>
+          <View style={styles.dismissGestureSurface}>
           <View
             style={[
               styles.detailSurfaceContent,
@@ -1709,6 +1779,9 @@ export default function EventDetailScreen() {
             pointerEvents="none"
             style={[styles.topBanner, { height: bannerHeight }, topBannerStyle]}
           />
+        </View>
+        </View>
+        </GestureDetector>
           <View pointerEvents="box-none" style={styles.photoChrome}>
           <View pointerEvents="box-none" style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
             <View style={styles.chromeLeft} pointerEvents="box-none">
@@ -1776,9 +1849,7 @@ export default function EventDetailScreen() {
             </Animated.View>
           </View>
           </View>
-          </View>
         </Animated.View>
-      </GestureDetector>
 
       <NavigationOptionsSheet
         visible={navSheetVisible}
@@ -1856,6 +1927,9 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: colors.brand.page,
+  },
+  dismissGestureSurface: {
+    flex: 1,
   },
   detailSurfaceContent: {
     position: 'absolute',

@@ -27,6 +27,7 @@ export function shouldCompleteMapDetailDismiss(
   velocityY: number,
   screenHeight: number,
 ) {
+  'worklet';
   const distanceThreshold = Math.max(
     120,
     screenHeight * MAP_DETAIL_DISMISS_DISTANCE_RATIO,
