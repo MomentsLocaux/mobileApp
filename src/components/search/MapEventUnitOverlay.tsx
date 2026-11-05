@@ -61,7 +61,8 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
         })
         .onEnd((gesture) => {
           if (gesture.translationY > 72 || gesture.velocityY > 900) {
-            dragY.value = 0;
+            // Keep the card where the finger released. Resetting dragY
+            // snaps it back up before the close animation fades it out.
             runOnJS(onClose)();
             return;
           }
