@@ -104,18 +104,20 @@ export function getHumanizedDate(
   };
 }
 
+export const UNKNOWN_PRICE_LABEL = 'Tarif non renseigné';
+
 export function getEventPriceLabel(event: Pick<EventWithCreator, 'is_free' | 'price'>): string {
-  if (event.is_free) return 'Gratuit';
   if (typeof event.price === 'number' && Number.isFinite(event.price) && event.price > 0) {
     const formatted = event.price % 1 === 0 ? String(event.price) : event.price.toFixed(2).replace('.', ',');
     return `À partir de ${formatted} €`;
   }
-  return 'Prix non renseigné';
+  if (event.is_free) return 'Gratuit';
+  return UNKNOWN_PRICE_LABEL;
 }
 
 /** Hide empty/placeholder price badges that hurt social proof on cards. */
 export function isMeaningfulPriceLabel(label: string): boolean {
-  return label !== 'Prix non renseigné';
+  return label !== UNKNOWN_PRICE_LABEL;
 }
 
 /** Hide empty/placeholder access badges. "Entrée libre" is the no-data fallback, not a verified fact. */

@@ -1084,7 +1084,7 @@ export const supabaseProvider: (Pick<
     const { data, error } = await (supabase.rpc as any)('toggle_favorite', { event_id: eventId });
     if (!error) {
       if (Boolean(data)) {
-        const { AnalyticsService } = await import('@/services/analytics.service');
+        const { AnalyticsService } = await import('../services/analytics.service');
         AnalyticsService.track('event_favorited', { event_id: eventId });
       }
       return Boolean(data);

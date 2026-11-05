@@ -38,14 +38,37 @@ export default function ConversationThreadScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stickToEnd = useRef(true);
   const myId = profile?.id || user?.id || null;
+  const pageSize = 80;
+
+  const mergeMessages = (current: DirectMessage[], incoming: DirectMessage[]) => {
+    const oldestIncoming = incoming[0]?.created_at;
+    const olderKept = oldestIncoming
+      ? current.filter((row) => row.created_at < oldestIncoming && !incoming.some((item) => item.id === row.id))
+      : [];
+    const byId = new Map<string, DirectMessage>();
+    for (const row of [...olderKept, ...incoming]) byId.set(row.id, row);
+    return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const rows = await MessagingService.listMessages(id);
-      setMessages(rows);
+      const [rows, conversations] = await Promise.all([
+        MessagingService.listMessages(id, { limit: pageSize }),
+        MessagingService.listConversations(),
+      ]);
+      const other = conversations.find((row) => row.conversation_id === id);
+      setOtherUserId(other?.other_user_id ?? null);
+      setBlocked(other ? await MessagingService.isBlocked(other.other_user_id) : false);
+      setHasOlder(rows.length === pageSize);
+      setMessages((current) => mergeMessages(current, rows));
       setError(null);
       await MessagingService.markRead(id);
       NotificationsService.invalidateInboxCache();
@@ -56,6 +79,24 @@ export default function ConversationThreadScreen() {
       setLoading(false);
     }
   }, [id]);
+
+  const loadOlder = async () => {
+    if (!id || loadingOlder || !hasOlder || messages.length === 0) return;
+    stickToEnd.current = false;
+    setLoadingOlder(true);
+    try {
+      const page = await MessagingService.listMessages(id, {
+        before: messages[0].created_at,
+        limit: pageSize,
+      });
+      setHasOlder(page.length === pageSize);
+      setMessages((current) => mergeMessages(current, page));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Impossible de charger les messages plus anciens.');
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -119,6 +160,57 @@ export default function ConversationThreadScreen() {
     }
   };
 
+  const reportWithReason = (title: string, onPick: (reason: string) => Promise<void>) => {
+    const run = (reason: string) => {
+      void onPick(reason).catch((caught) => {
+        setError(caught instanceof Error ? caught.message : 'Signalement impossible.');
+      });
+    };
+    Alert.alert(title, 'Choisis la raison.', [
+      { text: 'Message abusif', onPress: () => run('Message abusif') },
+      { text: 'Spam', onPress: () => run('Spam') },
+      { text: 'Contenu illégal', onPress: () => run('Contenu illégal') },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
+  const openSafetyMenu = () => {
+    if (!otherUserId) return;
+    Alert.alert(name || 'Conversation', undefined, [
+      {
+        text: 'Signaler cette personne',
+        onPress: () => reportWithReason('Signaler cette personne', async (reason) => {
+          await MessagingService.reportPerson(otherUserId, reason);
+          Alert.alert('Signalement envoyé', 'L’équipe va le lire.');
+        }),
+      },
+      blocked
+        ? {
+            text: 'Débloquer',
+            onPress: () => void MessagingService.unblockUser(otherUserId).then(() => setBlocked(false)).catch((caught) => {
+              setError(caught instanceof Error ? caught.message : 'Déblocage impossible.');
+            }),
+          }
+        : {
+            text: 'Bloquer',
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert('Bloquer cette personne ?', 'Vous ne pourrez plus vous écrire.', [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                  text: 'Bloquer',
+                  style: 'destructive',
+                  onPress: () => void MessagingService.blockUser(otherUserId).then(() => setBlocked(true)).catch((caught) => {
+                    setError(caught instanceof Error ? caught.message : 'Blocage impossible.');
+                  }),
+                },
+              ]);
+            },
+          },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
   const openOwnMessageActions = (message: DirectMessage) => {
     Alert.alert('Message', undefined, [
       { text: 'Modifier', onPress: () => beginEdit(message) },
@@ -128,7 +220,7 @@ export default function ConversationThreadScreen() {
   };
 
   const send = async () => {
-    if (!id || busy || !draft.trim()) return;
+    if (!id || busy || blocked || !draft.trim()) return;
     setBusy(true);
     try {
       if (editingId) {
@@ -138,6 +230,7 @@ export default function ConversationThreadScreen() {
         );
         cancelEdit();
       } else {
+        stickToEnd.current = true;
         const sent = await MessagingService.sendMessage(id, draft);
         setDraft('');
         setMessages((current) =>
@@ -155,7 +248,19 @@ export default function ConversationThreadScreen() {
   return (
     <View style={styles.root}>
       <AppBackground />
-      <ScreenHeader title={name || 'Conversation'} onBack={() => router.back()} />
+      <ScreenHeader
+        title={name || 'Conversation'}
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity
+            onPress={openSafetyMenu}
+            accessibilityRole="button"
+            accessibilityLabel="Signaler ou bloquer"
+          >
+            <Text style={styles.safety}>···</Text>
+          </TouchableOpacity>
+        }
+      />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -171,7 +276,16 @@ export default function ConversationThreadScreen() {
             data={messages}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+            onContentSizeChange={() => {
+              if (stickToEnd.current) listRef.current?.scrollToEnd({ animated: false });
+            }}
+            ListHeaderComponent={
+              hasOlder ? (
+                <TouchableOpacity onPress={() => void loadOlder()} disabled={loadingOlder} accessibilityRole="button">
+                  <Text style={styles.older}>{loadingOlder ? 'Chargement…' : 'Messages plus anciens'}</Text>
+                </TouchableOpacity>
+              ) : null
+            }
             ListEmptyComponent={
               <Text style={styles.empty}>
                 {error || 'Écris le premier message de cette conversation.'}
@@ -182,9 +296,16 @@ export default function ConversationThreadScreen() {
               const shared = parseSharedEventMessage(item.body);
               return (
                 <Pressable
-                  disabled={!mine && !shared}
+                  disabled={!mine && !shared && !otherUserId}
                   onPress={shared ? () => router.push(`/events/${shared.eventId}` as never) : undefined}
-                  onLongPress={mine ? () => openOwnMessageActions(item) : undefined}
+                  onLongPress={
+                    mine
+                      ? () => openOwnMessageActions(item)
+                      : () => reportWithReason('Signaler ce message', async (reason) => {
+                          await MessagingService.reportMessage(item.id, reason);
+                          Alert.alert('Signalement envoyé', 'L’équipe va le lire.');
+                        })
+                  }
                   delayLongPress={280}
                   accessibilityRole={shared ? 'button' : 'text'}
                   accessibilityLabel={shared ? `Voir ${shared.title}` : item.body}
@@ -242,7 +363,8 @@ export default function ConversationThreadScreen() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={editingId ? 'Modifier le message' : 'Écrire un message'}
+            placeholder={blocked ? 'Personne bloquée' : editingId ? 'Modifier le message' : 'Écrire un message'}
+            editable={!blocked}
             placeholderTextColor={colors.brand.textSecondary}
             style={styles.input}
             maxLength={UGC_LIMITS.directMessage}
@@ -251,7 +373,7 @@ export default function ConversationThreadScreen() {
           <TouchableOpacity
             style={[styles.send, (!draft.trim() || busy) && styles.sendDisabled]}
             onPress={() => void send()}
-            disabled={!draft.trim() || busy}
+            disabled={!draft.trim() || busy || blocked}
             accessibilityRole="button"
             accessibilityLabel={editingId ? 'Enregistrer la modification' : 'Envoyer'}
           >
@@ -268,6 +390,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: spacing.md, gap: spacing.sm, flexGrow: 1 },
+  safety: { ...typography.body, color: colors.brand.text, fontWeight: '700', letterSpacing: 1 },
+  older: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+    fontWeight: '700',
+  },
   empty: {
     ...typography.bodySmall,
     color: colors.brand.textSecondary,

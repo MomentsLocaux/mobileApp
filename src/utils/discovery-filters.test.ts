@@ -102,7 +102,7 @@ describe('discovery filter contract', () => {
         surface: 'map',
         categoryLabels: { music: 'Musique', jazz: 'Jazz' },
       }),
-      '01/09–03/09 · Luxembourg · 25 km · « concert » · Musique · Jazz · Longs · Date de début'
+      '01/09–03/09 · Luxembourg · 25 km · « concert » · Musique · Jazz · Long · Date de début'
     );
     assert.equal(activeFilterCount(filters, { surface: 'map' }), 7);
   });

@@ -139,7 +139,7 @@ describe('home editorial blocks', () => {
       NOW,
     );
     assert.equal(signal?.title, 'Festival du Parc');
-    assert.equal(signal?.caption, '3 personnes que tu suis ont enregistré');
+    assert.equal(signal?.caption, '3 amis ont enregistré');
     assert.equal(selectSocialSignal([event('quiet', '2026-09-26T16:00:00', '2026-09-26T18:00:00')], {}, NOW), null);
   });
 });

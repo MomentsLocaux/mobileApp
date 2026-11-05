@@ -11,6 +11,16 @@ type AsyncStorageLike = {
   removeItem: (key: string) => Promise<void>;
 };
 
+function isAsyncStorageLike(value: unknown): value is AsyncStorageLike {
+  if (!value || typeof value !== 'object') return false;
+  const storage = value as Record<string, unknown>;
+  return (
+    typeof storage.getItem === 'function' &&
+    typeof storage.setItem === 'function' &&
+    typeof storage.removeItem === 'function'
+  );
+}
+
 let asyncStoragePromise: Promise<AsyncStorageLike | null> | null = null;
 
 const getAsyncStorage = async (): Promise<AsyncStorageLike | null> => {
@@ -22,16 +32,12 @@ const getAsyncStorage = async (): Promise<AsyncStorageLike | null> => {
   if (!asyncStoragePromise) {
     asyncStoragePromise = (async () => {
       try {
-        const mod = await import('@react-native-async-storage/async-storage');
-        const storage = (mod?.default ?? mod) as AsyncStorageLike | undefined;
-        if (
-          storage &&
-          typeof storage.getItem === 'function' &&
-          typeof storage.setItem === 'function' &&
-          typeof storage.removeItem === 'function'
-        ) {
-          return storage;
-        }
+        const mod: unknown = await import('@react-native-async-storage/async-storage');
+        const exported =
+          mod && typeof mod === 'object' && 'default' in mod
+            ? (mod as { default: unknown }).default
+            : mod;
+        if (isAsyncStorageLike(exported)) return exported;
       } catch {
         // Native module not linked in current build; fallback storage will be used.
       }

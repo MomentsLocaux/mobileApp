@@ -9,23 +9,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const storageMarker = '/storage/v1/object/public/';
-const buckets = ['avatar', 'avatars', 'event-media', 'public'];
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const pathFromPublicUrl = (url?: string | null, bucket?: string) => {
-  if (!url || !bucket) return null;
-  const marker = `${storageMarker}${bucket}/`;
+/** Keep in sync with src/utils/owned-storage-path.ts */
+const isOwnedAccountStoragePath = (bucket: string, path: string, userId: string) => {
+  if (!userId || !UUID_RE.test(userId)) return false;
+  if (!path || path.includes('\\') || path.includes('..')) return false;
+  const parts = path.split('/').filter((part) => part.length > 0);
+  if (parts.length !== path.split('/').length || parts.some((part) => part === '.' || part === '..')) {
+    return false;
+  }
+  if (bucket === 'avatar') {
+    return (
+      (parts[0] === 'avatars' || parts[0] === 'profile-covers') &&
+      parts[1] === userId &&
+      parts.length >= 3
+    );
+  }
+  if (bucket === 'event-media') {
+    if (parts[0] === 'category-defaults') return false;
+    if ((parts[0] === 'event-covers' || parts[0] === 'gallery') && parts[1] === userId && parts.length >= 3) {
+      return true;
+    }
+    return parts[0] === 'contrib' && UUID_RE.test(parts[1] ?? '') && parts[2] === userId && parts.length >= 4;
+  }
+  if (bucket === 'account-exports' || bucket === 'bug-report-attachments') {
+    return parts[0] === userId && parts.length >= 2;
+  }
+  return false;
+};
+
+const ownedPathFromPublicUrl = (url: string | null | undefined, bucket: string, userId: string) => {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${bucket}/`;
   const index = url.indexOf(marker);
   if (index < 0) return null;
   const path = decodeURIComponent(url.slice(index + marker.length).split('?')[0] ?? '');
-  return path || null;
-};
-
-const collectPath = (paths: Record<string, Set<string>>, url?: string | null) => {
-  for (const bucket of buckets) {
-    const path = pathFromPublicUrl(url, bucket);
-    if (path) paths[bucket].add(path);
-  }
+  return isOwnedAccountStoragePath(bucket, path, userId) ? path : null;
 };
 
 serve(async (req) => {
@@ -71,18 +92,40 @@ serve(async (req) => {
 
   const storagePaths: Record<string, Set<string>> = {
     avatar: new Set<string>(),
-    avatars: new Set<string>(),
     'event-media': new Set<string>(),
-    public: new Set<string>(),
+  };
+  const retainedEventMedia = new Set<string>();
+
+  const rememberOwned = (bucket: string, url?: string | null, retain = false) => {
+    const path = ownedPathFromPublicUrl(url, bucket, user.id);
+    if (!path) return;
+    if (retain) retainedEventMedia.add(path);
+    else storagePaths[bucket]?.add(path);
   };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('avatar_url, cover_url')
-    .eq('id', user.id)
-    .maybeSingle();
-  collectPath(storagePaths, profile?.avatar_url);
-  collectPath(storagePaths, profile?.cover_url);
+  const listFolder = async (bucket: string, folder: string) => {
+    let offset = 0;
+    for (;;) {
+      const { data, error } = await supabase.storage.from(bucket).list(folder, { limit: 100, offset });
+      if (error) {
+        console.log('[delete-account] storage list error', { bucket, folder, error });
+        return;
+      }
+      const entries = data ?? [];
+      for (const entry of entries) {
+        if (!entry?.name) continue;
+        const path = `${folder}/${entry.name}`;
+        if (isOwnedAccountStoragePath(bucket, path, user.id)) storagePaths[bucket]?.add(path);
+      }
+      if (entries.length < 100) return;
+      offset += entries.length;
+    }
+  };
+
+  await listFolder('avatar', `avatars/${user.id}`);
+  await listFolder('avatar', `profile-covers/${user.id}`);
+  await listFolder('event-media', `event-covers/${user.id}`);
+  await listFolder('event-media', `gallery/${user.id}`);
 
   const { data: events } = await supabase
     .from('events')
@@ -97,9 +140,7 @@ serve(async (req) => {
   );
   const eventIds = (events ?? []).map((event: { id: string }) => event.id);
   for (const event of events ?? []) {
-    if (!retainedPublicEventIds.has(event.id)) {
-      collectPath(storagePaths, event.cover_url);
-    }
+    rememberOwned('event-media', event.cover_url, retainedPublicEventIds.has(event.id));
   }
 
   if (eventIds.length > 0) {
@@ -108,9 +149,7 @@ serve(async (req) => {
       .select('event_id, url')
       .in('event_id', eventIds);
     for (const media of eventMedia ?? []) {
-      if (!retainedPublicEventIds.has(media.event_id)) {
-        collectPath(storagePaths, media.url);
-      }
+      rememberOwned('event-media', media.url, retainedPublicEventIds.has(media.event_id));
     }
   }
 
@@ -119,15 +158,21 @@ serve(async (req) => {
     .select('url')
     .eq('author_id', user.id);
   for (const submission of submissions ?? []) {
-    collectPath(storagePaths, submission.url);
+    rememberOwned('event-media', submission.url, retainedEventMedia.has(
+      ownedPathFromPublicUrl(submission.url, 'event-media', user.id) ?? '',
+    ));
   }
 
+  for (const path of retainedEventMedia) storagePaths['event-media']?.delete(path);
+
   for (const [bucket, paths] of Object.entries(storagePaths)) {
-    const uniquePaths = [...paths];
-    if (uniquePaths.length === 0) continue;
-    const { error: removeError } = await supabase.storage.from(bucket).remove(uniquePaths);
-    if (removeError) {
-      console.log('[delete-account] storage remove error', { bucket, removeError });
+    const uniquePaths = [...paths].filter((path) => isOwnedAccountStoragePath(bucket, path, user.id));
+    for (let index = 0; index < uniquePaths.length; index += 100) {
+      const chunk = uniquePaths.slice(index, index + 100);
+      const { error: removeError } = await supabase.storage.from(bucket).remove(chunk);
+      if (removeError) {
+        console.log('[delete-account] storage remove error', { bucket, removeError });
+      }
     }
   }
 
@@ -149,7 +194,9 @@ serve(async (req) => {
     .eq('user_id', user.id);
   const exportPaths = (exportRows ?? [])
     .map((row: { storage_path?: string | null }) => row.storage_path)
-    .filter((path: string | null | undefined): path is string => !!path);
+    .filter((path: string | null | undefined): path is string =>
+      !!path && isOwnedAccountStoragePath('account-exports', path, user.id)
+    );
   if (exportPaths.length > 0) {
     const { error: exportRemoveError } = await supabase.storage.from('account-exports').remove(exportPaths);
     if (exportRemoveError) {
@@ -173,7 +220,9 @@ serve(async (req) => {
   }
   const attachmentPaths = (bugReports ?? [])
     .map((row: { attachment_path?: string | null }) => row.attachment_path)
-    .filter((path: string | null | undefined): path is string => !!path);
+    .filter((path: string | null | undefined): path is string =>
+      !!path && isOwnedAccountStoragePath('bug-report-attachments', path, user.id)
+    );
   if (attachmentPaths.length > 0) {
     const { error: attachmentRemoveError } = await supabase.storage
       .from('bug-report-attachments')

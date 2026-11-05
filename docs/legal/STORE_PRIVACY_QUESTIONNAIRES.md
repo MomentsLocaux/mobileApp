@@ -14,13 +14,13 @@ Store listing : **découverte locale, suggestion depuis une affiche, assistant L
 | OpenAI | Non (Edge Functions) | Texte Lumia, photo d’affiche — déclarer comme données envoyées à un tiers |
 | Apple Sign In / Google | Oui si OAuth | Identifiant de compte |
 
-Pas de SDK pub, pas de contacts, pas d’IAP Alpha.
+Google AdMob est dans le binaire (publicités). Pas de contacts, pas d’IAP Alpha. Les identifiants de pubs réels sont dans EAS, pas dans le dépôt.
 
 ## Apple — App Privacy
 
 **Privacy Policy URL :** `https://www.moments-locaux.com/fr/privacy`
 
-**Tracking :** Non (pas de tracking publicitaire, pas de `AppTrackingTransparency`).
+**Tracking :** Oui si la personne accepte les pubs personnalisées. Le bandeau iOS (App Tracking Transparency) est demandé dans ce cas. Sans accord : pubs non personnalisées, tracking Non.
 
 ### Données collectées (liées à l’identité)
 
@@ -40,14 +40,15 @@ Pas de SDK pub, pas de contacts, pas d’IAP Alpha.
 
 **Sensitive / health / financial :** Non.
 
-**Data used to track :** Non.
+**Data used to track :** Identifiant publicitaire, seulement après accord. Sinon Non.
 
 ## Notes reviewer (App Store Connect)
 
 Coller dans « Notes for Review » :
 
 - Photo d’affiche et chat Lumia : traités par un processor IA (OpenAI) pour le compte de Moments Locaux. Pas d’historique serveur du chat.
-- Localisation Always : uniquement pour les alertes de proximité (« un moment près de toi »), opt-in, désactivable dans Réglages → Notifications. Pas de tracking publicitaire, pas d’historique de trajet.
+- Localisation Always : uniquement pour les alertes de proximité (« un moment près de toi »), opt-in, désactivable dans Réglages → Notifications. Pas d’historique de trajet.
+- Publicités : Google AdMob. Pas de pub personnalisée sans accord. Âge affiché sur la fiche : 16 ans.
 - Permission Rappels iOS : exigée au démarrage par le module calendrier (`expo-calendar`) pour proposer « Je note la date » dans l’agenda. L’app **n’accède pas** aux rappels utilisateur et n’en crée pas. Le texte système le dit explicitement.
 
 ## Google — Data safety
@@ -66,7 +67,7 @@ Coller dans « Notes for Review » :
 | App info and performance | Possible | — | — | Analytics |
 | Financial / Purchases | Non | — | — | — |
 | Contacts | Non | — | — | — |
-| Advertising ID | Non | — | — | — |
+| Advertising ID | Oui | Google AdMob | Non | Advertising |
 
 **Data encrypted in transit :** Oui (HTTPS).
 
@@ -78,7 +79,7 @@ Coller dans « Notes for Review » :
 
 ## Copy store listing (FR, court)
 
-Découvrez ce qui se passe près de chez vous. Suggérez un moment aperçu sur une affiche. Lumia vous aide dans l’app. Moments Locaux n’est pas une billetterie et n’ouvre pas encore la publication organisateur.
+Découvrez ce qui se passe près de chez vous. Suggérez un moment aperçu sur une affiche. Lumia vous aide dans l’app. L’app affiche des publicités et peut prévenir d’un moment près de toi si tu l’acceptes. 16 ans et plus. Moments Locaux n’est pas une billetterie et n’ouvre pas encore la publication organisateur.
 
 ## Après validation humaine (fait 2026-09-14)
 
