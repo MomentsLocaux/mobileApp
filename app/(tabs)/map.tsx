@@ -85,6 +85,11 @@ import { GuestGateModal } from '@/components/auth/GuestGateModal';
 import { TAB_BAR_ICONS_HEIGHT, useMapTabBarProgress } from '@/components/navigation/MapAwareTabBar';
 import { haptics } from '@/utils/haptics';
 import {
+  nearestEventForCardSwipe,
+  type MapCardSwipeDirection,
+} from '@/utils/map-card-neighbor';
+import { extractEventCoords } from '@/utils/event-coords';
+import {
   includesPast,
   resolveSortCenter,
   toEventFilters,
@@ -798,6 +803,41 @@ export default function MapScreen() {
 
   dismissUnitCardRef.current = beginUnitCardDismissal;
 
+  const pendingNeighborRef = useRef<EventWithCreator | null>(null);
+  const unitCardNeighbors = useMemo(() => {
+    if (!unitCardEvent) return { left: null, right: null };
+    return {
+      left: nearestEventForCardSwipe(unitCardEvent, sheetEvents, 'left'),
+      right: nearestEventForCardSwipe(unitCardEvent, sheetEvents, 'right'),
+    };
+  }, [sheetEvents, unitCardEvent]);
+  const prepareUnitCardNeighbor = useCallback((direction: MapCardSwipeDirection) => {
+    const current = unitCardEventRef.current;
+    if (!current) return false;
+    const next = nearestEventForCardSwipe(current, sheetEvents, direction);
+    if (!next) return false;
+    pendingNeighborRef.current = next;
+    return true;
+  }, [sheetEvents]);
+
+  const commitUnitCardNeighbor = useCallback(() => {
+    const next = pendingNeighborRef.current;
+    pendingNeighborRef.current = null;
+    if (!next) return;
+    haptics.selection();
+    highlightViewportEvent(next);
+    unitCardEventRef.current = next;
+    setUnitCardEvent(next);
+    const coords = extractEventCoords(next);
+    focusOnEvent(
+      coords ? { ...next, latitude: coords.latitude, longitude: coords.longitude } : next,
+      {
+        bumpZoom: false,
+        paddingBottom: MAP_PREVIEW_CARD_ESTIMATED_HEIGHT + insets.bottom + spacing.xl,
+      },
+    );
+  }, [focusOnEvent, highlightViewportEvent, insets.bottom]);
+
   const { handleFeaturePress: handleMarkerFeaturePress } = useMapMarkerPress({
     mapRef,
     sheetEvents,
@@ -1509,10 +1549,15 @@ export default function MapScreen() {
                 progress={unitCardTravel}
                 currentUserId={profile?.id}
                 isHearted={likesSet.has(unitCardEvent.id) || favoritesSet.has(unitCardEvent.id)}
+                isEventHearted={(id) => likesSet.has(id) || favoritesSet.has(id)}
                 onToggleHeart={handleToggleHeart}
                 onPress={openUnitEventDetails}
                 onNavigate={() => setNavEvent(unitCardEvent)}
                 onClose={() => beginUnitCardDismissal(true)}
+                onPrepareNeighbor={prepareUnitCardNeighbor}
+                onCommitNeighbor={commitUnitCardNeighbor}
+                neighborLeft={unitCardNeighbors.left}
+                neighborRight={unitCardNeighbors.right}
                 bottomInset={
                   TAB_BAR_ICONS_HEIGHT +
                   (androidNavigationInset > 0 ? spacing.sm : Math.max(insets.bottom, 8)) +
