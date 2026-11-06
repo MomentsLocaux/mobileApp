@@ -30,7 +30,7 @@ export function EventEchoesPreview({ comments, onOpenAll }: Props) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.title}>Echos de la communauté</Text>
+      <Text style={styles.title}>Les échos</Text>
 
       {rootComments.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -80,7 +80,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    ...typography.h4,
+    ...typography.h5,
+    fontWeight: '700',
     color: colors.brand.text,
   },
   carousel: {

@@ -1,25 +1,19 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Share, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Send } from 'lucide-react-native';
 import { AppBackground, Card, Button, ScreenHeader } from '@/components/ui';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
-
-const DEFAULT_SHARE_URL = 'https://moments-locaux.com';
+import { getAppShareMessage, getPublicShareOrigin } from '@/utils/event-share';
 
 export default function InviteFriendsScreen() {
   const router = useRouter();
-  const shareUrl = useMemo(
-    () => process.env.EXPO_PUBLIC_APP_SHARE_URL || DEFAULT_SHARE_URL,
-    [],
-  );
 
   const handleInvite = async () => {
     try {
       await Share.share({
-        message: `Viens découvrir Moments Locaux avec moi: ${shareUrl}`,
-        url: shareUrl,
-        title: 'Inviter des amis',
+        message: getAppShareMessage(getPublicShareOrigin()),
+        title: 'Moments Locaux',
       });
     } catch (error) {
       console.warn('invite share error', error);

@@ -190,8 +190,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   commitNeighborRef.current = onCommitNeighbor;
   reduceMotionRef.current = reduceMotion;
   onCloseRef.current = onClose;
-  allowLeft.value = neighborLeft ? 1 : 0;
-  allowRight.value = neighborRight ? 1 : 0;
 
   const measuredStage = stageWidth || windowWidth;
   const inset = carousel ? CARD_INSET : spacing.md;
@@ -223,6 +221,11 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
       if (commit) runOnJS(commit)();
     });
   }, [dragX, stride, switching]);
+
+  useLayoutEffect(() => {
+    allowLeft.value = neighborLeft ? 1 : 0;
+    allowRight.value = neighborRight ? 1 : 0;
+  }, [allowLeft, allowRight, neighborLeft, neighborRight]);
 
   useLayoutEffect(() => {
     if (cardWidth > 0) stride.value = cardWidth + CARD_GAP;

@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -33,23 +35,25 @@ export function EventPlatformOrganizerSheet({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(0);
+  const dragY = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      dragY.value = 0;
       progress.value = reduceMotion
         ? 1
         : withSpring(1, Motion.spring.sheet);
     } else {
       progress.value = reduceMotion ? 0 : withTiming(0, { duration: Motion.duration.fast });
     }
-  }, [visible, reduceMotion, progress]);
+  }, [visible, reduceMotion, progress, dragY]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
   }));
 
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * 28 }],
+    transform: [{ translateY: (1 - progress.value) * 28 + dragY.value }],
   }));
 
   const closeAnimated = () => {
@@ -57,9 +61,41 @@ export function EventPlatformOrganizerSheet({
     onClose();
   };
 
+  const finishSwipeClose = useCallback(() => {
+    haptics.light();
+    onClose();
+  }, [onClose]);
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(12)
+        .failOffsetX([-24, 24])
+        .onUpdate((event) => {
+          if (reduceMotion) return;
+          dragY.value = Math.max(0, event.translationY);
+        })
+        .onEnd((event) => {
+          const shouldClose = event.translationY > 72 || event.velocityY > 900;
+          if (!shouldClose) {
+            dragY.value = withSpring(0, Motion.spring.sheet);
+            return;
+          }
+          if (reduceMotion) {
+            runOnJS(finishSwipeClose)();
+            return;
+          }
+          dragY.value = withTiming(480, { duration: 220 });
+          progress.value = withTiming(0, { duration: 220 }, (finished) => {
+            if (finished) runOnJS(finishSwipeClose)();
+          });
+        }),
+    [dragY, finishSwipeClose, progress, reduceMotion],
+  );
+
   return (
     <Modal visible={visible} animationType="none" transparent onRequestClose={closeAnimated}>
-      <View style={styles.root}>
+      <GestureHandlerRootView style={styles.root}>
         <Animated.View style={[styles.backdropWrap, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeAnimated} accessibilityLabel="Fermer">
             {Platform.OS === 'ios' ? (
@@ -71,6 +107,7 @@ export function EventPlatformOrganizerSheet({
           </Pressable>
         </Animated.View>
 
+        <GestureDetector gesture={pan}>
         <Animated.View
           style={[
             styles.sheet,
@@ -117,7 +154,8 @@ export function EventPlatformOrganizerSheet({
             />
           </View>
         </Animated.View>
-      </View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

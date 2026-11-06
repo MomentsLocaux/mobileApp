@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Dimensions,
   Linking,
   Pressable,
+  PixelRatio,
   StatusBar,
   useWindowDimensions,
   AppState,
@@ -21,16 +21,9 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ChevronRight,
-  Star,
-  Eye,
-  Edit,
-  Trash2,
-} from 'lucide-react-native';
+import { ChevronDown, ChevronRight, Edit, Trash2 } from 'lucide-react-native';
 import {
   Button,
-  Card,
   AppBackground,
   screenHeaderStyles,
   MotionReveal,
@@ -76,12 +69,8 @@ import { haptics } from '@/utils/haptics';
 import { EventsService } from '../../services/events.service';
 import { useAuth } from '../../hooks';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
-import {
-  getCategoryColor,
-  getCategoryLabel,
-  getCategoryTextColor,
-} from '../../constants/categories';
-import { formatResolvedEventTagLabel, getEventPriceLabel, getVisibleEventTags } from '../../utils/event-card-display';
+import { getCategoryLabel } from '../../constants/categories';
+import { formatResolvedEventTagLabel, getEventPriceLabel, getVisibleEventTags, isMeaningfulPriceLabel } from '../../utils/event-card-display';
 import type { EventMediaSubmission, EventWithCreator } from '../../types/database';
 import { useComments } from '@/hooks/useComments';
 import { useLocationStore } from '@/store';
@@ -110,12 +99,13 @@ import { useLikesStore } from '@/store/likesStore';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { useSimilarEvents } from '@/hooks/useSimilarEvents';
-import { EVENT_ITINERARY_LABEL } from '@/utils/event-navigation';
 import { openDiffuseurContact } from '@/utils/open-website';
 import { toggleEventHeart } from '@/utils/event-heart';
 import { likesCountAfterHeartToggle } from '@/utils/likes-count';
 import { getCommunityPhotoEligibility } from '@/utils/community-photo-eligibility';
 import { getDistanceText } from '@/utils/sort-events';
+import { formatEventCardRangeLine } from '@/utils/event-card-meta';
+import { formatCityDistanceLine, formatPeerLikeLabel, formatPlaceDrawerLines } from '@/utils/event-detail-presentation';
 import MapboxGL from '@rnmapbox/maps';
 import { useMapDetailTransitionStore } from '@/store/mapDetailTransitionStore';
 import {
@@ -130,7 +120,7 @@ import {
   shouldCompleteMapDetailDismiss,
 } from '@/utils/map-detail-transition';
 
-const { width } = Dimensions.get('window');
+const DESCRIPTION_PREVIEW_LINES = 5;
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '');
 
 const normalizeImageUrl = (value: unknown): string | null => {
@@ -161,6 +151,16 @@ const formatDateLong = (value: string) =>
       month: 'long',
     }),
   );
+
+function isSameLocalDay(start?: string | null, end?: string | null): boolean {
+  if (!start || !end) return false;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return false;
+  return startDate.getFullYear() === endDate.getFullYear()
+    && startDate.getMonth() === endDate.getMonth()
+    && startDate.getDate() === endDate.getDate();
+}
 
 function PhotoGlyphButton({
   name,
@@ -221,6 +221,56 @@ function PhotoGlyphButton({
   );
 }
 
+function EventDetailLocationMap({
+  latitude,
+  longitude,
+}: {
+  latitude: number;
+  longitude: number;
+}) {
+  const cameraRef = useRef<MapboxGL.Camera>(null);
+  const center = useMemo(
+    () => [longitude, latitude] as [number, number],
+    [latitude, longitude],
+  );
+  const applyCamera = useCallback(() => {
+    cameraRef.current?.setCamera({
+      centerCoordinate: center,
+      zoomLevel: 13,
+      animationDuration: 0,
+      animationMode: 'moveTo',
+    });
+  }, [center]);
+
+  return (
+    <View style={styles.locationMapBox}>
+      <MapboxGL.MapView
+        style={StyleSheet.absoluteFill}
+        styleURL={MapboxGL.StyleURL.Dark}
+        scrollEnabled
+        zoomEnabled
+        pitchEnabled
+        rotateEnabled
+        onDidFinishLoadingMap={applyCamera}
+        onDidFinishLoadingStyle={applyCamera}
+        onLayout={applyCamera}
+      >
+        <MapboxGL.Camera
+          ref={cameraRef}
+          defaultSettings={{ centerCoordinate: center, zoomLevel: 13 }}
+          centerCoordinate={center}
+          zoomLevel={13}
+          animationMode="moveTo"
+          animationDuration={0}
+        />
+        <MapboxGL.PointAnnotation id="event-location-preview" coordinate={center}>
+          <View style={styles.locationMarker} />
+        </MapboxGL.PointAnnotation>
+      </MapboxGL.MapView>
+    </View>
+  );
+}
+
 export default function EventDetailScreen() {
   const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
   const router = useRouter();
@@ -271,7 +321,13 @@ export default function EventDetailScreen() {
   const galleryRef = useRef<PlaceMediaGalleryHandle>(null);
   const scrollY = useSharedValue(0);
   const photoHeight = Math.round(windowDimensions.height * 0.56);
-  const photoPeek = Math.round(windowDimensions.height * 0.46);
+  // Visible photo before the drawer. Shorter than the photo layer so the title
+  // and the first facts show on open. Wash, banner contact and the add-photo
+  // control still key off this peek, not off photoHeight.
+  const photoPeek = Math.round(windowDimensions.height * 0.38);
+  const titleFontSize = windowDimensions.width < 360 ? 24 : 27;
+  const titleLineHeight = titleFontSize + 7;
+  const stackActions = windowDimensions.width < 360 || PixelRatio.getFontScale() > 1.2;
   const finishEntryMotion = useCallback(() => {
     requestAnimationFrame(() => {
       setEntryMotionComplete(true);
@@ -869,17 +925,6 @@ export default function EventDetailScreen() {
     router.push(`/events/echoes?id=${event.id}` as any);
   };
 
-  const formatPrice = (price?: number | null) =>
-    getEventPriceLabel({
-      price: typeof price === 'number' ? price : null,
-      is_free: event?.is_free === true,
-    });
-
-  const hasTicketPrice = useMemo(
-    () => typeof event?.price === 'number' && !Number.isNaN(event.price) && event.price > 0,
-    [event?.price],
-  );
-
   const calendarPayload = () => {
     if (!event) return null;
     const locationLabel = [event.address, [event.postal_code, event.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -961,21 +1006,19 @@ export default function EventDetailScreen() {
     await Linking.openURL(url);
   };
 
-  const locationLabel = useMemo(() => {
-    if (!event) return 'Lieu à venir';
-    const venueName = typeof event.venue_name === 'string' ? event.venue_name.trim() : '';
-    const city = typeof event.city === 'string' ? event.city.trim() : '';
-    const address = typeof event.address === 'string' ? event.address.trim() : '';
-    return venueName || city || address || 'Lieu à venir';
+  const cityLabel = useMemo(() => {
+    if (!event || typeof event.city !== 'string') return '';
+    return event.city.trim();
   }, [event]);
 
-  const locationSubLabel = useMemo(() => {
-    if (!event) return 'Lieu de l’événement';
-    const postalCode = typeof event.postal_code === 'string' ? event.postal_code.trim() : '';
-    const city = typeof event.city === 'string' ? event.city.trim() : '';
-    const address = typeof event.address === 'string' ? event.address.trim() : '';
-    const cityLine = [postalCode, city].filter(Boolean).join(' ');
-    return cityLine || address || 'Lieu de l’événement';
+  const placeDrawerLines = useMemo(() => {
+    if (!event) return [] as string[];
+    return formatPlaceDrawerLines({
+      venue: event.venue_name,
+      address: event.address,
+      postalCode: event.postal_code,
+      city: event.city,
+    });
   }, [event]);
 
   const eventCoordinates = useMemo(() => {
@@ -1007,33 +1050,60 @@ export default function EventDetailScreen() {
   }, [currentLocation, eventCoordinates]);
 
   const startDateLabel = useMemo(() => {
-    if (!event) return '';
+    if (!event?.starts_at) return '';
+    const end = event.ends_at ? new Date(event.ends_at) : null;
+    const start = new Date(event.starts_at);
+    const spansSeveralDays = Boolean(
+      end
+      && !Number.isNaN(end.getTime())
+      && !Number.isNaN(start.getTime())
+      && end.getTime() >= start.getTime()
+      && !isSameLocalDay(event.starts_at, event.ends_at),
+    );
+    if (spansSeveralDays) {
+      return formatEventCardRangeLine(event, 'compact', { includeTime: false });
+    }
     return formatDateLong(event.starts_at);
   }, [event]);
 
-  const startDateTimeLabel = useMemo(() => {
+  const placeSummary = useMemo(
+    () => formatCityDistanceLine(cityLabel, distanceLabel),
+    [cityLabel, distanceLabel],
+  );
+
+  const placeDrawerAvailable = placeDrawerLines.length > 0 || Boolean(eventCoordinates);
+  const showPlaceRow = Boolean(placeSummary) || placeDrawerAvailable;
+
+  const peerLikeLabel = useMemo(
+    () => formatPeerLikeLabel(peersEngaged.map((peer) => peer.display_name)),
+    [peersEngaged],
+  );
+
+  const knownPrice = useMemo(() => {
     if (!event) return '';
-    return `${startDateLabel} - ${formatTime(event.starts_at)}`;
-  }, [event, startDateLabel]);
+    const label = getEventPriceLabel({
+      price: typeof event.price === 'number' ? event.price : null,
+      is_free: event.is_free === true,
+    });
+    return isMeaningfulPriceLabel(label) ? label : '';
+  }, [event]);
+
+  const startDateTimeLabel = useMemo(() => {
+    if (!event?.starts_at) return '';
+    return `${formatDateLong(event.starts_at)} · ${formatTime(event.starts_at)}`;
+  }, [event]);
 
   const visibleTags = useMemo(
     () => (event ? getVisibleEventTags(event.tags, tagsMap).slice(0, 6) : []),
     [event, tagsMap],
   );
 
-  const endDateLabel = useMemo(() => {
-    if (!event?.ends_at) return 'Se termine selon les informations de l’organisateur.';
-    const endDate = new Date(event.ends_at);
-    if (Number.isNaN(endDate.getTime())) return 'Se termine selon les informations de l’organisateur.';
-    return `Se termine le ${formatDateLong(event.ends_at)}.`;
-  }, [event?.ends_at]);
-
   const endDateTimeLabel = useMemo(() => {
-    if (!event?.ends_at) return endDateLabel;
+    if (!event?.ends_at) return '';
     const endDate = new Date(event.ends_at);
-    if (Number.isNaN(endDate.getTime())) return endDateLabel;
-    return `Se termine à ${formatTime(event.ends_at)} le ${formatDateLong(event.ends_at)}.`;
-  }, [event?.ends_at, endDateLabel]);
+    if (Number.isNaN(endDate.getTime())) return '';
+    return `${formatDateLong(event.ends_at)} · ${formatTime(event.ends_at)}`;
+  }, [event]);
 
   const calendarDetailLines = useMemo(() => {
     if (!event) return [] as Array<{ title: string; value: string }>;
@@ -1101,7 +1171,9 @@ export default function EventDetailScreen() {
 
     if (!lines.length) {
       addLine('Début', startDateTimeLabel);
-      addLine('Fin', endDateTimeLabel);
+      if (endDateTimeLabel && !isSameLocalDay(event.starts_at, event.ends_at)) {
+        addLine('Fin', endDateTimeLabel);
+      }
     }
     return lines;
   }, [event, startDateTimeLabel, endDateTimeLabel]);
@@ -1156,28 +1228,12 @@ export default function EventDetailScreen() {
       });
   }, [communityPhotos]);
 
-  const { ratingAvg, ratingCount } = useMemo(() => {
-    const commentRatings = comments
-      .map((comment) => comment.rating)
-      .filter((rating): rating is number => typeof rating === 'number' && !Number.isNaN(rating));
-    const derivedCount = commentRatings.length;
-    const derivedAvg = derivedCount > 0
-      ? Math.round((commentRatings.reduce((sum, rating) => sum + rating, 0) / derivedCount) * 100) / 100
-      : 0;
-    const dbCount = Number(event?.rating_count || 0);
-    const dbAvg = Number(event?.rating_avg || 0);
-    const effectiveCount = Math.max(derivedCount, dbCount);
-    const effectiveAvg = derivedCount > 0 && derivedCount >= dbCount ? derivedAvg : dbAvg;
-
-    return {
-      ratingAvg: Number.isFinite(effectiveAvg) ? effectiveAvg : 0,
-      ratingCount: Number.isFinite(effectiveCount) ? effectiveCount : 0,
-    };
-  }, [comments, event]);
-
   const practicalInfoRows = useMemo(() => {
     if (!event) return [] as Array<{ label: string; value: string; action?: () => void }>;
     const rows: Array<{ label: string; value: string; action?: () => void }> = [];
+    if (knownPrice) {
+      rows.push({ label: 'Tarif', value: knownPrice });
+    }
     if (event.registration_required !== null && event.registration_required !== undefined) {
       rows.push({
         label: 'Inscription',
@@ -1219,6 +1275,7 @@ export default function EventDetailScreen() {
     event?.external_url,
     event?.max_participants,
     event?.registration_required,
+    knownPrice,
   ]);
 
   useEffect(() => {
@@ -1409,30 +1466,15 @@ export default function EventDetailScreen() {
           <View style={styles.drawerHandle} />
           <View style={styles.content}>
           <MotionReveal delay={Motion.stagger.content} enabled={!seededEvent}>
-          <View style={styles.metaRow}>
-            {event.city ? (
-              <Text style={styles.eventKicker} numberOfLines={1}>
-                {event.city}
+          {getCategoryLabel(event.category || '', event.category_meta).trim() || __DEV__ ? (
+          <View style={styles.introHead}>
+            {getCategoryLabel(event.category || '', event.category_meta).trim() ? (
+              <Text style={styles.categoryLabel} numberOfLines={1}>
+                {getCategoryLabel(event.category || '', event.category_meta)}
               </Text>
             ) : (
               <View style={styles.metaRowSpacer} />
             )}
-            <View
-              style={[
-                styles.categoryChip,
-                { backgroundColor: getCategoryColor(event.category || '') },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  { color: getCategoryTextColor(event.category || '') },
-                ]}
-                numberOfLines={1}
-              >
-                {getCategoryLabel(event.category || '', event.category_meta)}
-              </Text>
-            </View>
             {__DEV__ ? (
               <TouchableOpacity
                 style={styles.debugIdButton}
@@ -1444,7 +1486,8 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
-          <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+          ) : null}
+          <Text style={[styles.title, { fontSize: titleFontSize, lineHeight: titleLineHeight }]}>
             {event.title}
           </Text>
           {visibleTags.length ? (
@@ -1454,6 +1497,83 @@ export default function EventDetailScreen() {
                   <Text style={styles.tagChipText}>{formatResolvedEventTagLabel(tag, tagsMap)}</Text>
                 </View>
               ))}
+            </View>
+          ) : null}
+          {startDateLabel ? (
+            <TouchableOpacity
+              style={[styles.factPress, stackActions && styles.factPressStacked]}
+              onPress={() => setCalendarExpanded((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: calendarExpanded }}
+              accessibilityLabel={
+                calendarExpanded ? 'Masquer le détail des horaires' : 'Afficher le détail des horaires'
+              }
+            >
+              <View style={styles.factCopy}>
+                <Text style={styles.introDate}>{startDateLabel}</Text>
+              </View>
+              <View style={[styles.disclosure, stackActions && styles.disclosureStacked]}>
+                <Text style={styles.disclosureText}>Détail des horaires</Text>
+                <ChevronDown
+                  size={16}
+                  color={colors.brand.secondary}
+                  style={{ transform: [{ rotate: calendarExpanded ? '180deg' : '0deg' }] }}
+                />
+              </View>
+            </TouchableOpacity>
+          ) : null}
+          {calendarExpanded && startDateLabel ? (
+            <View style={styles.calendarExpandedWrap}>
+              {calendarDetailLines.map((line, index) => (
+                <View key={`${line.title}-${line.value}-${index}`} style={styles.calendarExpandedRow}>
+                  <Text style={styles.calendarExpandedTitle}>{line.title}</Text>
+                  <Text style={styles.calendarExpandedValue}>{line.value}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {showPlaceRow ? (
+            <TouchableOpacity
+              style={[styles.factPress, stackActions && styles.factPressStacked]}
+              disabled={!placeDrawerAvailable}
+              activeOpacity={placeDrawerAvailable ? 0.7 : 1}
+              onPress={() => setLocationExpanded((prev) => !prev)}
+              accessibilityRole={placeDrawerAvailable ? 'button' : 'text'}
+              accessibilityState={placeDrawerAvailable ? { expanded: locationExpanded } : undefined}
+              accessibilityLabel={
+                placeDrawerAvailable
+                  ? locationExpanded
+                    ? 'Masquer les informations du lieu'
+                    : 'Afficher les informations du lieu'
+                  : placeSummary
+              }
+            >
+              <View style={styles.factCopy}>
+                {placeSummary ? <Text style={styles.introPlace}>{placeSummary}</Text> : null}
+              </View>
+              {placeDrawerAvailable ? (
+                <View style={[styles.disclosure, stackActions && styles.disclosureStacked]}>
+                  <Text style={styles.disclosureText}>Plus d’info</Text>
+                  <ChevronDown
+                    size={16}
+                    color={colors.brand.secondary}
+                    style={{ transform: [{ rotate: locationExpanded ? '180deg' : '0deg' }] }}
+                  />
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          ) : null}
+          {locationExpanded && placeDrawerAvailable ? (
+            <View style={styles.locationExpandedWrap}>
+              {placeDrawerLines.map((line) => (
+                <Text key={line} style={styles.placeDetail}>{line}</Text>
+              ))}
+              {eventCoordinates ? (
+                <EventDetailLocationMap
+                  latitude={eventCoordinates.latitude}
+                  longitude={eventCoordinates.longitude}
+                />
+              ) : null}
             </View>
           ) : null}
           {canEditEvent || canDeleteEvent ? (
@@ -1482,17 +1602,47 @@ export default function EventDetailScreen() {
             ) : null}
           </View>
           ) : null}
+          {features.socialPeers && peerLikeLabel ? (
+            <View style={styles.peersBlock}>
+              <View style={styles.peerAvatars}>
+                {peersEngaged.slice(0, 3).map((peer, index) => (
+                  <TouchableOpacity
+                    key={peer.id}
+                    style={[styles.peerAvatar, index > 0 && styles.peerAvatarOverlap]}
+                    onPress={() => {
+                      if (isGuest) {
+                        openGuestGate('Voir un profil');
+                        return;
+                      }
+                      router.push(`/community/${peer.id}` as any);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Profil de ${peer.display_name}`}
+                  >
+                    <UserAvatar uri={peer.avatar_url} name={peer.display_name} size={26} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                onPress={handleOpenLikers}
+                accessibilityRole="button"
+                accessibilityLabel={`${peerLikeLabel}. Voir qui a aimé`}
+                style={styles.peerLabelButton}
+              >
+                <Text style={styles.peersTitle}>{peerLikeLabel}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
           </MotionReveal>
 
           {event.description ? (
             <MotionReveal delay={Motion.stagger.content * 1.5} enabled={!seededEvent}>
-              <Card padding="md" style={styles.descriptionCard}>
-                {/* Hidden full text to measure whether truncation is needed */}
+              <View style={styles.descriptionBlock}>
                 {!descriptionCanExpand && !descriptionExpanded ? (
                   <Text
                     style={[styles.description, styles.descriptionMeasure]}
                     onTextLayout={(e) => {
-                      if (e.nativeEvent.lines.length > 3) {
+                      if (e.nativeEvent.lines.length > DESCRIPTION_PREVIEW_LINES) {
                         setDescriptionCanExpand(true);
                       }
                     }}
@@ -1500,199 +1650,124 @@ export default function EventDetailScreen() {
                     {event.description}
                   </Text>
                 ) : null}
-                <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>
+                <Text
+                  style={styles.description}
+                  numberOfLines={descriptionExpanded ? undefined : DESCRIPTION_PREVIEW_LINES}
+                >
                   {event.description}
                 </Text>
                 {descriptionCanExpand || descriptionExpanded ? (
                   <TouchableOpacity
                     onPress={() => setDescriptionExpanded((prev) => !prev)}
                     accessibilityRole="button"
+                    accessibilityLabel={descriptionExpanded ? 'Réduire la description' : 'Lire la suite de la description'}
                     hitSlop={8}
                     style={styles.descriptionToggle}
                   >
                     <Text style={styles.descriptionToggleText}>
-                      {descriptionExpanded ? 'Voir moins' : 'Voir plus'}
+                      {descriptionExpanded ? 'Voir moins' : 'Lire la suite'}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
-              </Card>
+              </View>
             </MotionReveal>
           ) : null}
 
-          <MotionReveal delay={Motion.stagger.content * 2} enabled={!seededEvent}>
-          <EventDetailSection>
-            <View style={styles.infoRowNoMargin}>
-              <PushButton
-                icon="calendar"
-                toggled={calendarExpanded}
-                onPress={() => setCalendarExpanded((prev) => !prev)}
-                accessibilityLabel={
-                  calendarExpanded ? 'Masquer le détail des horaires' : 'Afficher le détail des horaires'
-                }
-              />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoDatePrimary}>{startDateLabel}</Text>
-                <Text style={styles.infoDateSecondary}>{endDateLabel}</Text>
-              </View>
-              <View style={styles.priceBlock}>
-                <Text style={styles.priceValue}>{formatPrice(event.price)}</Text>
-                {hasTicketPrice ? <Text style={styles.priceHint}>PAR BILLET</Text> : null}
-              </View>
-            </View>
+          <View style={styles.actionRow}>
             <PushButton
               icon="calendar"
-              iconSize={20}
+              iconSize={18}
               tone="secondary"
-              label={calendarBusy ? 'Ouverture de l’agenda…' : EVENT_CALENDAR_LABEL}
+              label={calendarBusy ? 'Ouverture…' : EVENT_CALENDAR_LABEL}
               disabled={calendarBusy}
               onPress={() => void handleAddToCalendar()}
               accessibilityLabel={EVENT_CALENDAR_LABEL}
-              style={styles.calendarCta}
+              style={[styles.actionButton, stackActions && styles.actionButtonStacked]}
             />
-            {calendarExpanded ? (
-              <View style={styles.calendarExpandedWrap}>
-                {calendarDetailLines.map((line, index) => (
-                  <View key={`${line.title}-${line.value}-${index}`} style={styles.calendarExpandedRow}>
-                    <Text style={styles.calendarExpandedTitle}>{line.title}</Text>
-                    <Text style={styles.calendarExpandedValue}>{line.value}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </EventDetailSection>
-          </MotionReveal>
-
-          <MotionReveal delay={Motion.stagger.content * 3} enabled={!seededEvent}>
-          <EventDetailSection style={styles.locationSection}>
-            <View style={styles.infoRowNoMargin}>
-              <PushButton
-                icon="pin"
-                toggled={locationExpanded}
-                onPress={() => setLocationExpanded((prev) => !prev)}
-                accessibilityLabel={locationExpanded ? 'Masquer la carte' : 'Afficher la carte'}
-              />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoValue}>{locationLabel}</Text>
-                <Text style={styles.infoLabel}>
-                  {distanceLabel ? `${locationSubLabel} · ${distanceLabel}` : locationSubLabel}
-                </Text>
-              </View>
-            </View>
-              {locationExpanded ? (
-                <View style={styles.locationExpandedWrap}>
-                  <View style={styles.locationMapBox}>
-                    {eventCoordinates ? (
-                      <MapboxGL.MapView
-                        style={StyleSheet.absoluteFill}
-                        styleURL={MapboxGL.StyleURL.Dark}
-                        scrollEnabled
-                        zoomEnabled
-                        pitchEnabled
-                        rotateEnabled
-                      >
-                        <MapboxGL.Camera
-                          zoomLevel={13}
-                          centerCoordinate={[eventCoordinates.longitude, eventCoordinates.latitude]}
-                        />
-                        <MapboxGL.PointAnnotation
-                          id="event-location-preview"
-                          coordinate={[eventCoordinates.longitude, eventCoordinates.latitude]}
-                        >
-                          <View style={styles.locationMarker} />
-                        </MapboxGL.PointAnnotation>
-                      </MapboxGL.MapView>
-                    ) : (
-                      <View style={styles.locationMapFallback} />
-                    )}
-                  </View>
-                </View>
-              ) : null}
             <PushButton
               icon="navigation"
-              iconSize={20}
-              label={EVENT_ITINERARY_LABEL}
+              iconSize={18}
+              label="Itinéraire"
               onPress={handleOpenNavigationOptions}
-              accessibilityLabel={EVENT_ITINERARY_LABEL}
-              style={styles.calendarCta}
+              accessibilityLabel="Ouvrir l’itinéraire"
+              style={[styles.actionButton, stackActions && styles.actionButtonStacked]}
             />
-          </EventDetailSection>
-          </MotionReveal>
+          </View>
 
-          {event ? (
+          {practicalInfoRows.length > 0 ? (
             <MotionReveal delay={Motion.stagger.content * 3.5} enabled={!seededEvent}>
+              <EventDetailSection title="Infos pratiques">
+                <View style={styles.practicalRows}>
+                  {practicalInfoRows.map((row) =>
+                    row.action ? (
+                      <TouchableOpacity key={`${row.label}-${row.value}`} style={styles.practicalRow} onPress={row.action} activeOpacity={0.8}>
+                        <Text style={styles.practicalLabel}>{row.label}</Text>
+                        <Text numberOfLines={1} style={[styles.practicalValue, styles.practicalValueLink]}>
+                          {row.value}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View key={`${row.label}-${row.value}`} style={styles.practicalRow}>
+                        <Text style={styles.practicalLabel}>{row.label}</Text>
+                        <Text numberOfLines={1} style={styles.practicalValue}>
+                          {row.value}
+                        </Text>
+                      </View>
+                    ),
+                  )}
+                </View>
+              </EventDetailSection>
+            </MotionReveal>
+          ) : null}
+
+          {event && eventCoordinates ? (
+            <View style={styles.weatherBlock}>
               <EventWeatherSection
-                latitude={eventCoordinates?.latitude ?? null}
-                longitude={eventCoordinates?.longitude ?? null}
+                embedded
+                latitude={eventCoordinates.latitude}
+                longitude={eventCoordinates.longitude}
                 startsAt={event.starts_at}
                 endsAt={event.ends_at}
                 placeName={typeof event.city === 'string' ? event.city.trim() : ''}
               />
-            </MotionReveal>
-          ) : null}
-
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Eye size={20} color={colors.brand.textSecondary} style={styles.statIcon} />
-              <Text style={styles.statBoxValue}>{eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.statBox}
-              onPress={handleOpenLikers}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={
-                eventStats.likes === 0
-                  ? 'Aucune personne n’a aimé. Voir la liste'
-                  : eventStats.likes === 1
-                    ? '1 personne a aimé. Voir qui'
-                    : `${eventStats.likes} personnes ont aimé. Voir qui`
-              }
-            >
-              <View style={styles.statIcon}>
-                <BrandIcon name="heart" size={20} color={colors.brand.error} fillColor={eventStats.likes > 0 ? colors.brand.error : 'transparent'} />
-              </View>
-              <Text style={styles.statBoxValue}>{eventStats.likes}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.statBox} onPress={handleGoToEchoes} activeOpacity={0.85}>
-              <Star size={20} color="#FBBF24" fill="#FBBF24" style={styles.statIcon} />
-              <Text style={styles.statBoxValue}>{ratingAvg.toFixed(1)}</Text>
-              <Text style={styles.statBoxLabel}>{ratingCount} AVIS</Text>
-            </TouchableOpacity>
-          </View>
-
-          {practicalInfoRows.length > 0 ? (
-            <Card padding="md" style={styles.practicalCard}>
-              <Text style={styles.practicalTitle}>Infos pratiques</Text>
-              <View style={styles.practicalRows}>
-                {practicalInfoRows.map((row) =>
-                  row.action ? (
-                    <TouchableOpacity key={`${row.label}-${row.value}`} style={styles.practicalRow} onPress={row.action} activeOpacity={0.8}>
-                      <Text style={styles.practicalLabel}>{row.label}</Text>
-                      <Text numberOfLines={1} style={[styles.practicalValue, styles.practicalValueLink]}>
-                        {row.value}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View key={`${row.label}-${row.value}`} style={styles.practicalRow}>
-                      <Text style={styles.practicalLabel}>{row.label}</Text>
-                      <Text numberOfLines={1} style={styles.practicalValue}>
-                        {row.value}
-                      </Text>
-                    </View>
-                  ),
-                )}
-              </View>
-            </Card>
           ) : null}
 
-          <Card padding="md" style={styles.creatorCard}>
+          <EventEchoesPreview comments={comments} onOpenAll={handleGoToEchoes} />
+
+          {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
+
+          {eventStats.views > 0 || (eventStats.likes > 0 && peersEngaged.length === 0) ? (
+            <Text style={styles.quietLine}>
+              {eventStats.views > 0
+                ? `${eventStats.views > 999 ? `${(eventStats.views / 1000).toFixed(1)}k` : eventStats.views} ${eventStats.views > 1 ? 'vues' : 'vue'}`
+                : ''}
+              {eventStats.views > 0 && eventStats.likes > 0 && peersEngaged.length === 0 ? ' · ' : ''}
+              {eventStats.likes > 0 && peersEngaged.length === 0 ? (
+                <Text
+                  style={styles.quietLink}
+                  onPress={handleOpenLikers}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    eventStats.likes === 1
+                      ? '1 personne a aimé. Voir qui'
+                      : `${eventStats.likes} personnes ont aimé. Voir qui`
+                  }
+                >
+                  {eventStats.likes === 1 ? '1 personne a aimé' : `${eventStats.likes} personnes ont aimé`}
+                </Text>
+              ) : null}
+            </Text>
+          ) : null}
+
+          <EventDetailSection title={isPlatformOrganizer ? 'Provenance' : 'Organisateur'} style={styles.provenanceSection}>
             {isPlatformOrganizer ? (
               <TouchableOpacity
                 style={styles.creatorMain}
                 onPress={() => setPlatformOrganizerSheetVisible(true)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={`Organisateur ${organizerName}. En savoir plus.`}
+                accessibilityLabel={`${organizerMeta ? `${organizerMeta}. ` : ''}Fiche portée par ${organizerName}. En savoir plus.`}
               >
                 {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
                   <UserAvatar uri={event.creator.avatar_url} name={organizerName} size={46} />
@@ -1706,8 +1781,8 @@ export default function EventDetailScreen() {
                   <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 )}
                 <View style={styles.creatorCardInfo}>
-                  <Text style={styles.creatorCardName}>{organizerName}</Text>
-                  {organizerMeta ? <Text style={styles.creatorCardMeta}>{organizerMeta}</Text> : null}
+                  {organizerMeta ? <Text style={styles.creatorCardName}>{organizerMeta}</Text> : null}
+                  <Text style={organizerMeta ? styles.creatorCardMeta : styles.creatorCardName}>{organizerName}</Text>
                 </View>
                 <ChevronRight size={18} color={colors.brand.textSecondary} />
               </TouchableOpacity>
@@ -1729,39 +1804,7 @@ export default function EventDetailScreen() {
                 </View>
               </View>
             )}
-          </Card>
-
-          {features.socialPeers && peersEngaged.length > 0 ? (
-            <Card padding="md" style={[styles.creatorCard, { marginTop: spacing.sm }]}>
-              <Text style={styles.practicalTitle}>Aimé par vos amis</Text>
-              <View style={styles.peersRow}>
-                {peersEngaged.map((peer) => (
-                  <TouchableOpacity
-                    key={peer.id}
-                    style={styles.peerChip}
-                    onPress={() => {
-                      if (isGuest) {
-                        openGuestGate('Voir un profil');
-                        return;
-                      }
-                      router.push(`/community/${peer.id}` as any);
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Profil de ${peer.display_name}`}
-                  >
-                    <UserAvatar uri={peer.avatar_url} name={peer.display_name} size={28} />
-                    <Text style={styles.peerName} numberOfLines={1}>
-                      {peer.display_name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Card>
-          ) : null}
-
-          <EventEchoesPreview comments={comments} onOpenAll={handleGoToEchoes} />
-
-          {loadingCommunityPhotos ? <ActivityIndicator color={colors.brand.secondary} style={{ marginTop: spacing.md }} /> : null}
+          </EventDetailSection>
 
           <AdCard slotId={`detail-${event.id}`} />
 
@@ -2093,26 +2136,41 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
   },
   title: {
-    ...typography.h4,
+    ...typography.h3,
     fontWeight: '700',
-    fontSize: 22,
-    lineHeight: 26,
     letterSpacing: -0.4,
     color: colors.brand.text,
-    marginBottom: spacing.sm,
+    marginBottom: 6,
   },
-  categoryChip: {
-    flexShrink: 0,
-    maxWidth: 128,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
+  introHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: 6,
+    minHeight: 18,
   },
-  categoryChipText: {
-    fontSize: 10,
-    fontWeight: '700',
+  categoryLabel: {
+    ...typography.caption,
+    flex: 1,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+  },
+  introDate: {
+    ...typography.bodyBold,
+    color: colors.brand.text,
+  },
+  introEnd: {
+    ...typography.bodySmall,
+    color: colors.brand.textSecondary,
+    marginTop: 2,
+  },
+  introPlace: {
+    ...typography.body,
+    color: colors.brand.text,
+    marginTop: 2,
   },
   tagRow: {
     flexDirection: 'row',
@@ -2121,17 +2179,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   tagChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: colors.brand.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.brand.line,
   },
   tagChipText: {
-    color: colors.brand.text,
-    fontSize: 12,
-    fontWeight: '700',
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    fontWeight: '600',
   },
   socialRow: {
     flexDirection: 'row',
@@ -2150,9 +2207,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-  },
-  locationSection: {
-    marginTop: spacing.md,
   },
   debugIdButton: {
     width: 24,
@@ -2176,6 +2230,7 @@ const styles = StyleSheet.create({
   infoContent: {
     marginLeft: spacing.md,
     flex: 1,
+    minWidth: 0,
   },
   infoValue: {
     ...typography.body,
@@ -2199,21 +2254,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.brand.textSecondary,
     marginTop: 2,
-  },
-  priceBlock: {
-    alignItems: 'flex-end',
-    marginLeft: spacing.sm,
-  },
-  priceValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.brand.secondary,
-  },
-  priceHint: {
-    ...typography.caption,
-    color: colors.brand.textSecondary,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
   calendarCta: {
     marginTop: spacing.md,
@@ -2249,6 +2289,7 @@ const styles = StyleSheet.create({
   },
   locationMapBox: {
     height: 150,
+    marginTop: spacing.sm,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -2265,41 +2306,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.brand.ink,
   },
-  statIcon: { marginBottom: 4 },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  statBox: {
-    flex: 1,
-    minWidth: (width - spacing.lg * 2 - spacing.sm * 2) / 3,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statBoxValue: {
-    color: colors.brand.text,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  statBoxLabel: {
-    color: colors.brand.textSecondary,
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginTop: 2,
-  },
-  descriptionCard: {
-    marginTop: 0,
-    marginBottom: spacing.md,
-  },
   description: {
     ...typography.body,
     color: colors.brand.text,
-    lineHeight: 24,
+    lineHeight: 26,
   },
   descriptionMeasure: {
     position: 'absolute',
@@ -2317,8 +2327,70 @@ const styles = StyleSheet.create({
     color: colors.brand.secondary,
     fontWeight: '700',
   },
-  practicalCard: {
-    marginBottom: spacing.lg,
+  descriptionBlock: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
+  },
+  factPress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    columnGap: spacing.sm,
+    marginTop: 2,
+    minHeight: 44,
+  },
+  factPressStacked: {
+    flexWrap: 'wrap',
+  },
+  factCopy: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 140,
+  },
+  disclosure: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    flexShrink: 0,
+  },
+  placeDetail: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    marginBottom: spacing.xs,
+  },
+  disclosureStacked: {
+    flexBasis: '100%',
+  },
+  disclosureText: {
+    ...typography.bodySmall,
+    color: colors.brand.secondary,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  actionButton: {
+    flexGrow: 1,
+    flexBasis: 150,
+  },
+  actionButtonStacked: {
+    flexBasis: '100%',
+  },
+  weatherBlock: {
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.brand.line,
+  },
+  provenanceSection: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   practicalTitle: {
     ...typography.body,
@@ -2350,8 +2422,18 @@ const styles = StyleSheet.create({
   practicalValueLink: {
     color: colors.brand.secondary,
   },
-  creatorCard: {
-    marginBottom: spacing.lg,
+  prepareFollow: {
+    marginTop: spacing.lg,
+  },
+  quietLine: {
+    ...typography.caption,
+    color: colors.brand.textSecondary,
+    marginBottom: spacing.md,
+  },
+  quietLink: {
+    ...typography.caption,
+    color: colors.brand.secondary,
+    fontWeight: '700',
   },
   creatorMain: {
     flexDirection: 'row',
@@ -2380,6 +2462,34 @@ const styles = StyleSheet.create({
     color: colors.brand.textSecondary,
     marginTop: spacing.xs,
   },
+  peersBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  peersTitle: {
+    ...typography.bodySmall,
+    color: colors.brand.text,
+    fontWeight: '600',
+  },
+  peerAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  peerAvatar: {
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: colors.brand.page,
+  },
+  peerAvatarOverlap: {
+    marginLeft: -8,
+  },
+  peerLabelButton: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
   peersRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2396,11 +2506,6 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  peerAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
   },
   peerAvatarFallback: {
     alignItems: 'center',

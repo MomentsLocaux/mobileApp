@@ -433,7 +433,7 @@ Recette manuelle iOS/Android du build courant : découverte, social, agenda, pro
 2. Toucher 'Partager'
 3. Sélectionner une application cible dans la feuille de partage native
 
-**Résultat attendu** : La feuille de partage native s'ouvre avec un lien profond vers l'événement, le lien ouvre l'app (ou fallback web) sur la bonne fiche.
+**Résultat attendu** : La feuille de partage native s'ouvre avec une phrase et un seul lien web vers la fiche (`https://www.moments-locaux.com/fr/events/…`). Le lien est sur sa propre ligne pour devenir un hyperlien dans l’app de destination.
 
 ## Social
 
@@ -490,7 +490,7 @@ Recette manuelle iOS/Android du build courant : découverte, social, agenda, pro
 1. Ouvrir Compte > Inviter des amis
 2. Sélectionner un canal de partage (SMS, WhatsApp...)
 
-**Résultat attendu** : La feuille de partage native s'ouvre avec un message d'invitation contenant un lien de téléchargement/deep link.
+**Résultat attendu** : La feuille de partage native s'ouvre avec une phrase d’invitation et le lien du site sur sa propre ligne, pour qu’il devienne un hyperlien.
 
 ### MOB-SOC-005 — Consulter la liste des abonnés (followers)
 

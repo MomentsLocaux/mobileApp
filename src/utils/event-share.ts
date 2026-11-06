@@ -1,13 +1,13 @@
-import { Platform, Share } from 'react-native';
+import { Share } from 'react-native';
 import { WEBSITE_CANONICAL_ORIGIN } from '../constants/website';
 import { openInAppEventShare } from './event-share-host';
 import {
-  getEventAppLink,
   getEventShareMessage,
   type ShareableEvent,
 } from './event-share-message';
 
 export {
+  getAppShareMessage,
   getEventAppLink,
   getEventShareMessage,
   getEventShareUrl,
@@ -25,10 +25,10 @@ export function getPublicShareOrigin(): string {
 }
 
 export async function shareEventExternally(event: ShareableEvent): Promise<void> {
-  const message = getEventShareMessage(event.title, event.id, event.external_url);
-  await Share.share(
-    Platform.OS === 'ios' ? { message, url: getEventAppLink(event.id) } : { message },
-  );
+  await Share.share({
+    message: getEventShareMessage(event.title, event.id),
+    title: event.title.trim() || 'Moments Locaux',
+  });
 }
 
 export async function sharePublishedEvent(event: ShareableEvent): Promise<void> {

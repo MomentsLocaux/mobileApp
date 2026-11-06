@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.brand.line,
   },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
-  title: { ...typography.bodySmall, fontWeight: '800', color: colors.brand.text, flexShrink: 1 },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
+  title: { ...typography.h5, fontWeight: '700', color: colors.brand.text, flexShrink: 1 },
 });

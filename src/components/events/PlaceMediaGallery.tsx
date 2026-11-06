@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   View,
   FlatList,
@@ -9,9 +9,20 @@ import {
   StatusBar,
   useWindowDimensions,
 } from 'react-native';
+import { FlatList as PagingList, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image as ImageIcon, X } from 'lucide-react-native';
 import { colors, spacing, borderRadius, typography } from '@/constants/theme';
+import { Motion } from '@/constants/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { EventCoverImage } from './EventCoverImage';
 
 export type MediaImage = {
@@ -61,7 +72,10 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
   const [viewerIndex, setViewerIndex] = useState(0);
   const [stageSize, setStageSize] = useState({ width: windowWidth, height: HERO_HEIGHT + 220 });
   const listRef = useRef<FlatList<MediaImage>>(null);
-  const viewerListRef = useRef<FlatList<MediaImage>>(null);
+  const viewerListRef = useRef<PagingList<MediaImage>>(null);
+  const dragY = useSharedValue(0);
+  const reduceMotion = useReduceMotion();
+  const reduceMotionSv = useSharedValue(0);
 
   const organizerData = useMemo(
     () =>
@@ -90,6 +104,7 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
   const openViewer = (tab: 'organizer' | 'community', index = 0) => {
     const targetData = tab === 'organizer' ? organizerData : communityData;
     if (!targetData.length) return;
+    dragY.value = 0;
     setViewerTab(tab);
     setViewerIndex(index);
     setViewerVisible(true);
@@ -109,6 +124,47 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
       viewerListRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
   };
+
+  const closeViewer = useCallback(() => {
+    setViewerVisible(false);
+  }, []);
+
+  useEffect(() => {
+    reduceMotionSv.value = reduceMotion ? 1 : 0;
+  }, [reduceMotion, reduceMotionSv]);
+
+  const dismissGesture = useMemo(() => {
+    const native = Gesture.Native();
+    const pan = Gesture.Pan()
+      .simultaneousWithExternalGesture(native)
+      .activeOffsetY(12)
+      .failOffsetX([-28, 28])
+      .onUpdate((gesture) => {
+        dragY.value = Math.max(0, gesture.translationY);
+      })
+      .onEnd((gesture) => {
+        const shouldClose = gesture.translationY > 72 || gesture.velocityY > 900;
+        if (!shouldClose) {
+          dragY.value = withSpring(0, Motion.spring.sheet);
+          return;
+        }
+        if (reduceMotionSv.value === 1) {
+          dragY.value = 0;
+          runOnJS(closeViewer)();
+          return;
+        }
+        dragY.value = withTiming(640, { duration: 220 }, (finished) => {
+          if (!finished) return;
+          runOnJS(closeViewer)();
+        });
+      });
+    return { native, pan };
+  }, [closeViewer, dragY, reduceMotionSv]);
+
+  const viewerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(dragY.value, [0, 220], [1, 0.72]),
+    transform: [{ translateY: dragY.value }],
+  }));
 
   const singleHero = organizerData.length === 1 ? organizerData[0] : null;
 
@@ -172,10 +228,11 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
         transparent={false}
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => setViewerVisible(false)}
+        onRequestClose={closeViewer}
       >
-        <View style={styles.viewerContainer}>
-          <StatusBar barStyle="light-content" />
+        <GestureDetector gesture={dismissGesture.pan}>
+        <Animated.View style={[styles.viewerContainer, viewerStyle]}>
+          <StatusBar barStyle="dark-content" />
           <View
             style={[
               styles.viewerHeader,
@@ -213,12 +270,12 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
             <View style={styles.viewerHeaderSide}>
               <Pressable
                 style={styles.viewerClose}
-                onPress={() => setViewerVisible(false)}
+                onPress={closeViewer}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Fermer"
               >
-                <X size={18} color="#FFF" />
+                <X size={18} color={colors.brand.text} />
               </Pressable>
             </View>
           </View>
@@ -232,7 +289,8 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
             }}
           >
             {currentViewerData.length > 0 ? (
-              <FlatList
+              <GestureDetector gesture={dismissGesture.native}>
+              <PagingList
                 ref={viewerListRef}
                 data={currentViewerData}
                 horizontal
@@ -260,6 +318,7 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
                   </View>
                 )}
               />
+              </GestureDetector>
             ) : (
               <View style={styles.viewerEmpty}>
                 <ImageIcon size={34} color={colors.neutral[400]} />
@@ -277,7 +336,8 @@ export const PlaceMediaGallery = forwardRef<PlaceMediaGalleryHandle, Props>(func
               <View style={styles.viewerIndexSpacer} />
             )}
           </View>
-        </View>
+        </Animated.View>
+        </GestureDetector>
       </Modal>
     </>
   );
@@ -321,7 +381,7 @@ const styles = StyleSheet.create({
   },
   viewerContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.brand.page,
   },
   viewerHeader: {
     flexDirection: 'row',
@@ -346,7 +406,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.brand.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -355,7 +415,7 @@ const styles = StyleSheet.create({
   },
   viewerTabText: {
     ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.8)',
+    color: colors.brand.text,
     fontWeight: '600',
   },
   viewerTabTextActive: {
@@ -367,7 +427,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.brand.surface,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
   },
   viewerStage: {
     flex: 1,
@@ -390,7 +452,7 @@ const styles = StyleSheet.create({
   },
   viewerIndex: {
     ...typography.caption,
-    color: '#FFF',
+    color: colors.brand.textSecondary,
     textAlign: 'center',
   },
   viewerIndexSpacer: {

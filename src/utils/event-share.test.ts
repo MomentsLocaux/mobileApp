@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getAppShareMessage,
+  getEventShareMessage,
   internalEventShareMessage,
   parseSharedEventMessage,
   sharedEventInboxPreview,
@@ -29,6 +31,22 @@ test('a share without a hook still shows the moment title', () => {
   const body = `Cosy Autumn\nmoments-locaux://events/${eventId}`;
   assert.deepEqual(parseSharedEventMessage(body), { eventId, title: 'Cosy Autumn', note: '' });
   assert.equal(sharedEventInboxPreview(body), 'Moment : Cosy Autumn');
+});
+
+test('an external event share is one sentence and one web link', () => {
+  const message = getEventShareMessage('  Cosy Autumn  ', eventId);
+  assert.equal(
+    message,
+    `Je te partage « Cosy Autumn » sur Moments Locaux.\nhttps://www.moments-locaux.com/fr/events/${eventId}`,
+  );
+  assert.equal(message.includes('moments-locaux://'), false);
+});
+
+test('an app invite keeps the link on its own line', () => {
+  assert.equal(
+    getAppShareMessage('https://www.moments-locaux.com'),
+    'Viens découvrir Moments Locaux avec moi.\nhttps://www.moments-locaux.com',
+  );
 });
 
 test('a plain message stays text', () => {

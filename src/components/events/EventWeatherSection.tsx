@@ -20,6 +20,7 @@ type Props = {
   startsAt: string;
   endsAt?: string | null;
   placeName?: string | null;
+  embedded?: boolean;
 };
 
 export function EventWeatherSection({
@@ -28,6 +29,7 @@ export function EventWeatherSection({
   startsAt,
   endsAt,
   placeName,
+  embedded = false,
 }: Props) {
   const [view, setView] = useState<EventWeatherView | 'loading'>('loading');
   const place = placeName?.trim() ?? '';
@@ -49,12 +51,12 @@ export function EventWeatherSection({
   const ready = view !== 'loading' && view.status === 'ready' ? view : null;
   const message = view !== 'loading' && view.status !== 'ready' ? view.message : null;
 
-  return (
-    <EventDetailSection style={styles.section}>
-      <Text style={styles.title} accessibilityRole="header">
-        Quel temps fera-t-il ?
+  const body = (
+    <>
+      <Text style={[styles.title, embedded && styles.titleEmbedded]} accessibilityRole="header">
+        {embedded ? 'Météo' : 'Quel temps fera-t-il ?'}
       </Text>
-      {place ? <Text style={styles.place}>(à {place})</Text> : null}
+      {place ? <Text style={[styles.place, embedded && styles.placeEmbedded]}>(à {place})</Text> : null}
 
       {view === 'loading' ? (
         <View style={styles.loading}>
@@ -70,6 +72,14 @@ export function EventWeatherSection({
         </View>
       ) : null}
       {ready ? <Text style={styles.attribution}>{ready.attribution}</Text> : null}
+    </>
+  );
+
+  if (embedded) return <View>{body}</View>;
+
+  return (
+    <EventDetailSection style={styles.section}>
+      {body}
     </EventDetailSection>
   );
 }
@@ -139,12 +149,25 @@ const styles = StyleSheet.create({
     color: colors.brand.text,
     textTransform: 'uppercase',
   },
+  titleEmbedded: {
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: 0,
+    fontWeight: '700',
+    textTransform: 'none',
+  },
   place: {
     fontFamily: brandFonts.bold,
     fontSize: 18,
     lineHeight: 24,
     color: colors.brand.text,
     marginTop: 2,
+  },
+  placeEmbedded: {
+    fontFamily: brandFonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.brand.textSecondary,
   },
   loading: {
     minHeight: 120,

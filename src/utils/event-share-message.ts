@@ -10,11 +10,15 @@ export function getEventShareUrl(eventId: string): string {
   return `${WEBSITE_FR_ORIGIN}/events/${eventId}`;
 }
 
-export function getEventShareMessage(title: string, eventId: string, externalUrl?: string | null): string {
-  const appLink = getEventAppLink(eventId);
-  const downloadUrl = `${WEBSITE_FR_ORIGIN}/download`;
-  const extra = externalUrl?.trim() && externalUrl.trim() !== appLink ? `\n${externalUrl.trim()}` : '';
-  return `${title}\n${appLink}\n\nPas encore l’app ? ${downloadUrl}${extra}`;
+/** Sentence plus one https link, so the destination app can turn the link into a hyperlink. */
+export function getEventShareMessage(title: string, eventId: string): string {
+  const label = title.trim() || 'Un moment';
+  return `Je te partage « ${label} » sur Moments Locaux.\n${getEventShareUrl(eventId)}`;
+}
+
+/** Invite to the app. The url stays on its own line so it becomes the hyperlink. */
+export function getAppShareMessage(shareUrl: string): string {
+  return `Viens découvrir Moments Locaux avec moi.\n${shareUrl}`;
 }
 
 /** Opening line sent with an internal event share. */
