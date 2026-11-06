@@ -24,5 +24,10 @@ export const MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL = supabaseUrl
   ? `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/avatar/${MOMENTS_LOCAUX_ORGANIZER_AVATAR_PATH}`
   : null;
 
-/** Local asset fallback if remote branding avatar is unavailable. */
+/** Installed Signature B asset; preferred over the legacy remote brand avatar. */
 export const MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL = require('../../assets/images/logo-mark.png');
+
+/** Recognize legacy platform URLs in cached notification visuals without loading them. */
+export function isLegacyPlatformBrandAvatar(uri?: string | null): boolean {
+  return Boolean(uri?.split(/[?#]/, 1)[0].endsWith(`/avatar/${MOMENTS_LOCAUX_ORGANIZER_AVATAR_PATH}`));
+}

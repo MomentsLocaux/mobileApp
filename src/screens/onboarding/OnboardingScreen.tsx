@@ -30,6 +30,7 @@ import {
 import Toast from 'react-native-toast-message';
 import { AppBackground, Button, PushButton, UserAvatar } from '../../components/ui';
 import { BrandIcon } from '@/components/ui/BrandIcon';
+import { BrandMark } from '@/components/ui/BrandMark';
 import { OnboardingNeighborhood } from '@/components/onboarding/OnboardingNeighborhood';
 import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
 import { isRemoteAvatarUrl } from '@/constants/avatar-presets';
@@ -801,7 +802,7 @@ export default function OnboardingScreen() {
 
         {stepId === 'welcome' ? (
           <View style={styles.brandRow}>
-            <BrandIcon name="sparkles" size={22} />
+            <BrandMark size={22} />
             <Text style={styles.brandLabel}>Moments Locaux</Text>
           </View>
         ) : isMarketingStep ? (

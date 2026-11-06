@@ -42,7 +42,6 @@ import {
 } from '@/utils/event-calendar';
 import {
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
-  MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
 } from '@/constants/branding';
 import {
   isEventOrganizerOwner,
@@ -1784,17 +1783,7 @@ export default function EventDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`${organizerMeta ? `${organizerMeta}. ` : ''}Fiche portée par ${organizerName}. En savoir plus.`}
               >
-                {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
-                  <UserAvatar uri={event.creator.avatar_url} name={organizerName} size={46} />
-                ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
-                  <Image
-                    source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
-                    defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
-                    style={styles.creatorCardAvatar}
-                  />
-                ) : (
-                  <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
-                )}
+                <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 <View style={styles.creatorCardInfo}>
                   {organizerMeta ? <Text style={styles.creatorCardName}>{organizerMeta}</Text> : null}
                   <Text style={organizerMeta ? styles.creatorCardMeta : styles.creatorCardName}>{organizerName}</Text>
@@ -1805,12 +1794,6 @@ export default function EventDetailScreen() {
               <View style={styles.creatorMain}>
                 {organizerUsesCreatorAvatar && event.creator?.avatar_url ? (
                   <UserAvatar uri={event.creator.avatar_url} name={organizerName} size={46} />
-                ) : MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL ? (
-                  <Image
-                    source={{ uri: MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL }}
-                    defaultSource={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL}
-                    style={styles.creatorCardAvatar}
-                  />
                 ) : (
                   <Image source={MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL} style={styles.creatorCardAvatar} />
                 )}

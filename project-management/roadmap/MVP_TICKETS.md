@@ -1,5 +1,30 @@
 # MVP Tickets
 
+## Branding autorisé — signature native
+
+### ID: BRAND-SIGNATURE-B-003
+
+Suite de BRAND-SIGNATURE-B-001/002, déclinaison de MVP-P1-007. Demande produit du 6 novembre
+2026 : intégrer le M-flèche animé sur l’Accueil et les écrans de démarrage. Branche
+`feat/brand-signature-b-native`.
+
+Critères : symbole SVG B exact ; signature de 2,05 s avec point et onde d’arrivée éphémères,
+une fois par lancement sur Accueil ; boucle de passage de 2,8 s pendant les attentes existantes
+polices/session ; commandes de l’accueil accessibles ;
+arrêt hors écran/arrière-plan ; réduction des animations respectée dès le premier rendu.
+Extension demandée le même jour : remplacer tous les usages de la marque (connexion, onboarding,
+spinners partagés, avatars Moments Locaux, icônes et splash natifs), et utiliser le M entièrement
+leaf pour l’onglet et le tiroir Propositions. Configuration Expo alignée aux ressources natives
+suivies ; génération reproductible depuis les tracés B. Aucune modification du backend ni des permissions.
+
+Dernière précision produit : garder l’écran de lancement au moins **3 secondes visibles** pour
+voir un passage complet de 2,8 s, uniquement lors d’un démarrage à froid. Initialisation en
+parallèle ; aucun nouveau délai lors d’un retour d’arrière-plan ou remontage React. Une mise en
+arrière-plan pendant la présentation la consomme ; réduction des animations = pas de minimum
+décoratif. Garder les intentions de notification en attente jusqu’au montage de la navigation.
+
+Validation et limites : `audits/brand-signature-native/README.md`.
+
 ## Refonte autorisée — onboarding découverte
 
 ### ID: ONBOARDING-001

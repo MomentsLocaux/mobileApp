@@ -38,7 +38,7 @@ import { CONTRIBUTION_FAB_STACK_SPACE } from '@/utils/contribution-fab';
 import { getCategoryColor, getCategoryLucideIcon, getCategoryTextColor } from '@/constants/categories';
 import {
   MOMENTS_LOCAUX_ORGANIZER_AVATAR_LOCAL,
-  MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL,
+  isLegacyPlatformBrandAvatar,
 } from '@/constants/branding';
 
 type FilterMode = 'all' | 'unread';
@@ -196,7 +196,7 @@ function NotificationAvatar({
   type: AppNotificationType;
 }) {
   const [failed, setFailed] = useState(false);
-  const showUserAvatar = hasRenderableAvatar(uri) && !failed;
+  const showUserAvatar = hasRenderableAvatar(uri) && !isLegacyPlatformBrandAvatar(uri) && !failed;
   const BadgeIcon = categorySlug ? getCategoryLucideIcon(categorySlug) : typeIcon(type);
   const badgeColor = categorySlug ? getCategoryColor(categorySlug) : colors.brand.secondary;
   const badgeIconColor = categorySlug ? getCategoryTextColor(categorySlug) : colors.brand.onAccent;
@@ -388,7 +388,7 @@ export default function NotificationsInboxScreen() {
         accessibilityLabel={accessibilityLabel}
       >
         <NotificationAvatar
-          uri={visual?.avatarUrl ?? MOMENTS_LOCAUX_ORGANIZER_AVATAR_URL}
+          uri={visual?.avatarUrl ?? null}
           categorySlug={visual?.categorySlug ?? null}
           type={item.type}
         />

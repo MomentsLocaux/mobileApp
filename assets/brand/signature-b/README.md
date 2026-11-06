@@ -5,8 +5,8 @@ Choix utilisateur du 6 novembre 2026 : variante centrale « Signature en mouveme
 Branche : `design/brand-signature-b-assets`.
 
 Ce pack conserve exactement la géométrie B : M arrondi, boucle, diagonale montante et
-flèche ouverte. Les anciens fichiers et les configurations de l'app ne sont pas remplacés.
-L'adoption globale comme nouveau logo et les captures stores seront une intégration distincte.
+flèche ouverte. L’intégration B-003 installe cette marque dans l’app et les ressources natives.
+Les captures stores et déclarations de publication restent une étape de release.
 
 ## Où prendre les fichiers
 
@@ -24,6 +24,18 @@ L'adoption globale comme nouveau logo et les captures stores seront une intégra
 
 La galerie `index.html` s'ouvre directement dans un navigateur. Inventaire machine : `manifest.json`.
 L'archive complète se trouve un niveau au-dessus : `../moments-locaux-signature-b.zip`.
+
+## Animations — prototype B-002
+
+Ouvrir [l’atelier du mouvement](motion/index.html) pour comparer la signature avec point et onde d’arrivée (2,05 s),
+le passage en boucle (2,80 s) et l’élan au toucher (0,44 s). Réglage de vitesse,
+curseur de lecture, fond encre et réduction des animations disponibles.
+[Logique et paramètres](motion/README.md). Prototype navigateur isolé, sans intégration mobile.
+L’archive ZIP ci-dessus reste le pack d’assets statiques B-001 ; ce prototype se trouve dans le dépôt.
+
+Intégration native B-003 : `AnimatedBrandMark` pour Accueil/démarrage/spinners, `BrandMark`
+statique pour l’onboarding et Propositions (traitement **leaf**). Icônes, splash, connexion
+et avatars de marque alignés. [Périmètre et vérifications](../../../audits/brand-signature-native/README.md).
 
 ## Couleurs et variantes
 
@@ -45,12 +57,12 @@ La boucle est volontairement conservée ; le 16 px est surtout destiné aux favi
 - Icône Play proposée : `app-icons/app-icon-mint-512.png`.
 - Android adaptatif : foreground transparent + background menthe ; symbole contenu dans
   la zone centrale 66/108. `android-themed-monochrome` est le masque dédié, non un logo noir opaque.
-- Les tailles intermédiaires iOS seront générées lors de l'intégration par Expo/Xcode :
-  aucune modification d'AppIcon.appiconset ni de configuration n'a été faite ici.
+- AppIcon iOS et ressources Android sont installés par `source/InstallApp.py`. Xcode génère
+  les tailles intermédiaires iOS. Configuration Expo et projets natifs suivis sont alignés.
 - UI : taille logique 24 → PNG 24/48/72 ; taille logique 28 → PNG 28/56/84 ;
   taille logique 32 → PNG 32/64/96. Le SVG reste préférable pour l'app.
 - Splash : images de composition ; adapter aux safe areas et à chaque format d'écran.
-- PWA : fichiers fournis, mais manifest web non modifié ; les déclarer explicitement à l'intégration.
+- PWA : fichiers fournis ; favicon Expo remplacé, manifest PWA dédié non modifié.
 - Aucune déclaration de conformité finale stores/print : vérifier le binaire et les masques réels.
 
 ## Régénération et contrôles
@@ -66,6 +78,18 @@ Les scripts n'appellent aucun service externe. Génération native CoreGraphics 
 CoreText pour les contours typographiques ; pas de capture navigateur redimensionnée.
 Package.py vérifie les dimensions/alpha des PNG, la validité XML et l'absence de texte vivant
 dans les SVG, puis crée l'ICO et l'archive et contrôle son intégrité.
+
+Installer/régénérer les ressources actives de l’app (macOS), puis contrôler leurs empreintes :
+
+```sh
+python3 assets/brand/signature-b/source/InstallApp.py
+python3 assets/brand/signature-b/source/InstallApp.py --check
+```
+
+Ce script réutilise les fonctions vectorielles de `Generate.swift`, installe les PNG et les
+variantes natives et écrit `audits/brand-signature-native/installed-assets.json`. Il conserve
+les anciens fichiers Android sous leurs anciens noms, devenus inactifs dans le manifest.
+Un nouveau build natif est nécessaire pour voir les icônes et le splash.
 
 Inspection visuelle : logo horizontal, icône d'application et planche récapitulative.
 Le contrôle des masques natifs, captures stores et accessibilité dans les écrans sera réalisé

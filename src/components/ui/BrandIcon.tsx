@@ -2,6 +2,7 @@ import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 import { brandIconArtwork, type BrandIconName } from '@/constants/brand-icon-artwork';
 import { colors } from '@/constants/theme';
+import { BrandMark } from './BrandMark';
 
 export type { BrandIconName };
 export type BrandIconProps = {
@@ -26,6 +27,7 @@ export const BrandIcon = React.memo(function BrandIcon({
   color,
   fillColor,
 }: BrandIconProps) {
+  if (name === 'proposals') return <BrandMark size={size} treatment="leaf" />;
   const glyph = brandIconArtwork[name];
   const isHeart = name === 'heart';
   const stroke = color || (isHeart ? HEART : INK);
