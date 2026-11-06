@@ -135,7 +135,7 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
           </View>
           <Text style={styles.listingTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>{event.title}</Text>
           <Text style={styles.listingDetail} numberOfLines={1} maxFontSizeMultiplier={1.3}>{stamp.label}</Text>
-          {isMeaningfulPriceLabel(price) ? <Text style={styles.listingPrice} numberOfLines={1} maxFontSizeMultiplier={1.3}>{price}</Text> : null}
+          {isMeaningfulPriceLabel(price) && !(framed && price === 'Gratuit') ? <Text style={styles.listingPrice} numberOfLines={1} maxFontSizeMultiplier={1.3}>{price}</Text> : null}
           {framed && badge ? <View style={styles.listingChip}><Text style={styles.listingChipText} numberOfLines={1}>{badge}</Text></View> : null}
         </Pressable>
       </View>

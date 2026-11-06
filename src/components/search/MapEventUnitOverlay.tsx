@@ -30,9 +30,9 @@ const CARD_GAP = 20;
 const CARD_INSET = EDGE_PEEK + CARD_GAP;
 const CAROUSEL_MS = 320;
 /**
- * Framed listing copy, reserved at its tallest: kicker, two title lines,
- * detail, price, and the gaps between them. Every card uses this so a short
- * title does not shrink the row.
+ * Tallest framed copy: kicker, two title lines, detail, price and gaps.
+ * The row keeps this slot so a taller neighbor is not clipped, but each
+ * card itself stops at its own content.
  */
 const COPY_BLOCK = 22 + 3 + 48 + 3 + 20 + 3 + 26 + 8;
 
@@ -55,7 +55,6 @@ function CarouselCard({
   role,
   baseLeft,
   cardWidth,
-  height,
   dragX,
   stats,
   liked,
@@ -68,7 +67,6 @@ function CarouselCard({
   role: SlotRole;
   baseLeft: number;
   cardWidth: number;
-  height: number;
   dragX: SharedValue<number>;
   stats?: EventCardStats;
   liked: boolean;
@@ -93,7 +91,7 @@ function CarouselCard({
       style={[
         styles.cardShell,
         role === 'center' ? styles.cardCenter : styles.cardSide,
-        { width: cardWidth, height },
+        { width: cardWidth },
         slideStyle,
       ]}
     >
@@ -341,7 +339,7 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        pointerEvents={interactive ? 'auto' : 'none'}
+        pointerEvents={interactive ? 'box-none' : 'none'}
         style={[styles.stage, { bottom: bottomInset, height: cardHeight }, stageStyle]}
         onLayout={(layoutEvent) => {
           const width = layoutEvent.nativeEvent.layout.width;
@@ -355,7 +353,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
             role={role}
             baseLeft={slotLeft(role, cardWidth, measuredStage, inset)}
             cardWidth={cardWidth}
-            height={cardHeight}
             dragX={dragX}
             stats={statsById[item.id]}
             liked={isEventHearted ? isEventHearted(item.id) : item.id === event.id && Boolean(isHearted)}
@@ -379,7 +376,7 @@ const styles = StyleSheet.create({
   },
   cardShell: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     backgroundColor: colors.brand.page,
     borderRadius: 22,
     overflow: 'hidden',
