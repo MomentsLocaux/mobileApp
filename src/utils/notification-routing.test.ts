@@ -25,3 +25,27 @@ test('another notification that carries an event id still opens the public page'
     href: '/events/evt-1',
   });
 });
+
+test('one nearby event opens its page', () => {
+  assert.deepEqual(
+    resolveNotificationRoute('event_nearby_new', {
+      kind: 'event_nearby_digest',
+      eventId: '11111111-1111-4111-8111-111111111111',
+      eventIds: '11111111-1111-4111-8111-111111111111',
+    }),
+    { href: '/events/11111111-1111-4111-8111-111111111111' },
+  );
+});
+
+test('several nearby events open the review question, not the map', () => {
+  const first = '11111111-1111-4111-8111-111111111111';
+  const second = '22222222-2222-4222-8222-222222222222';
+  assert.deepEqual(
+    resolveNotificationRoute('event_nearby_new', {
+      kind: 'event_nearby_digest',
+      eventIds: `${first},${second}`,
+      route: 'map',
+    }),
+    { href: `/notifications/nearby-review?ids=${first},${second}` },
+  );
+});

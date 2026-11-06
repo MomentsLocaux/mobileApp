@@ -1,0 +1,1085 @@
+{
+  "color_space": "sRGB",
+  "date": "2026-11-06",
+  "files": [
+    {
+      "file": "symbols/mark-color.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "symbols/mark-color-256.png",
+      "height": 256,
+      "transparent": true,
+      "width": 256
+    },
+    {
+      "file": "symbols/mark-color-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "symbols/mark-color-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "symbols/mark-color.pdf",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "logos/logo-horizontal-color.svg",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-color-560.png",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-color-1120.png",
+      "height": 268,
+      "transparent": true,
+      "width": 1120
+    },
+    {
+      "file": "logos/logo-horizontal-color.pdf",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-stacked-color.svg",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-color-360.png",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-color-720.png",
+      "height": 464,
+      "transparent": true,
+      "width": 720
+    },
+    {
+      "file": "logos/logo-stacked-color.pdf",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "symbols/mark-reverse.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "symbols/mark-reverse-256.png",
+      "height": 256,
+      "transparent": true,
+      "width": 256
+    },
+    {
+      "file": "symbols/mark-reverse-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "symbols/mark-reverse-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "symbols/mark-reverse.pdf",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "logos/logo-horizontal-reverse.svg",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-reverse-560.png",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-reverse-1120.png",
+      "height": 268,
+      "transparent": true,
+      "width": 1120
+    },
+    {
+      "file": "logos/logo-horizontal-reverse.pdf",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-stacked-reverse.svg",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-reverse-360.png",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-reverse-720.png",
+      "height": 464,
+      "transparent": true,
+      "width": 720
+    },
+    {
+      "file": "logos/logo-stacked-reverse.pdf",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "symbols/mark-ink.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "symbols/mark-ink-256.png",
+      "height": 256,
+      "transparent": true,
+      "width": 256
+    },
+    {
+      "file": "symbols/mark-ink-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "symbols/mark-ink-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "symbols/mark-ink.pdf",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "logos/logo-horizontal-ink.svg",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-ink-560.png",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-ink-1120.png",
+      "height": 268,
+      "transparent": true,
+      "width": 1120
+    },
+    {
+      "file": "logos/logo-horizontal-ink.pdf",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-stacked-ink.svg",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-ink-360.png",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-ink-720.png",
+      "height": 464,
+      "transparent": true,
+      "width": 720
+    },
+    {
+      "file": "logos/logo-stacked-ink.pdf",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "symbols/mark-white.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "symbols/mark-white-256.png",
+      "height": 256,
+      "transparent": true,
+      "width": 256
+    },
+    {
+      "file": "symbols/mark-white-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "symbols/mark-white-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "symbols/mark-white.pdf",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "logos/logo-horizontal-white.svg",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-white-560.png",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-white-1120.png",
+      "height": 268,
+      "transparent": true,
+      "width": 1120
+    },
+    {
+      "file": "logos/logo-horizontal-white.pdf",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-stacked-white.svg",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-white-360.png",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-white-720.png",
+      "height": 464,
+      "transparent": true,
+      "width": 720
+    },
+    {
+      "file": "logos/logo-stacked-white.pdf",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "symbols/mark-black.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "symbols/mark-black-256.png",
+      "height": 256,
+      "transparent": true,
+      "width": 256
+    },
+    {
+      "file": "symbols/mark-black-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "symbols/mark-black-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "symbols/mark-black.pdf",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "logos/logo-horizontal-black.svg",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-black-560.png",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-black-1120.png",
+      "height": 268,
+      "transparent": true,
+      "width": 1120
+    },
+    {
+      "file": "logos/logo-horizontal-black.pdf",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-stacked-black.svg",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-black-360.png",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-black-720.png",
+      "height": 464,
+      "transparent": true,
+      "width": 720
+    },
+    {
+      "file": "logos/logo-stacked-black.pdf",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "symbols/mark-leaf.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "symbols/mark-leaf-256.png",
+      "height": 256,
+      "transparent": true,
+      "width": 256
+    },
+    {
+      "file": "symbols/mark-leaf-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "symbols/mark-leaf-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "symbols/mark-leaf.pdf",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "logos/logo-horizontal-leaf.svg",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-leaf-560.png",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-horizontal-leaf-1120.png",
+      "height": 268,
+      "transparent": true,
+      "width": 1120
+    },
+    {
+      "file": "logos/logo-horizontal-leaf.pdf",
+      "height": 134,
+      "transparent": true,
+      "width": 560
+    },
+    {
+      "file": "logos/logo-stacked-leaf.svg",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-leaf-360.png",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "logos/logo-stacked-leaf-720.png",
+      "height": 464,
+      "transparent": true,
+      "width": 720
+    },
+    {
+      "file": "logos/logo-stacked-leaf.pdf",
+      "height": 232,
+      "transparent": true,
+      "width": 360
+    },
+    {
+      "file": "app-icons/app-icon-mint.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "app-icons/app-icon-mint-512.png",
+      "height": 512,
+      "transparent": false,
+      "width": 512
+    },
+    {
+      "file": "app-icons/app-icon-mint-1024.png",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "social/avatar-mint.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "social/avatar-mint-400.png",
+      "height": 400,
+      "transparent": false,
+      "width": 400
+    },
+    {
+      "file": "social/avatar-mint-800.png",
+      "height": 800,
+      "transparent": false,
+      "width": 800
+    },
+    {
+      "file": "app-icons/app-icon-dark.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "app-icons/app-icon-dark-512.png",
+      "height": 512,
+      "transparent": false,
+      "width": 512
+    },
+    {
+      "file": "app-icons/app-icon-dark-1024.png",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "social/avatar-dark.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "social/avatar-dark-400.png",
+      "height": 400,
+      "transparent": false,
+      "width": 400
+    },
+    {
+      "file": "social/avatar-dark-800.png",
+      "height": 800,
+      "transparent": false,
+      "width": 800
+    },
+    {
+      "file": "app-icons/app-icon-white.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "app-icons/app-icon-white-512.png",
+      "height": 512,
+      "transparent": false,
+      "width": 512
+    },
+    {
+      "file": "app-icons/app-icon-white-1024.png",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "social/avatar-white.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "social/avatar-white-400.png",
+      "height": 400,
+      "transparent": false,
+      "width": 400
+    },
+    {
+      "file": "social/avatar-white-800.png",
+      "height": 800,
+      "transparent": false,
+      "width": 800
+    },
+    {
+      "file": "app-icons/android-adaptive-foreground.svg",
+      "height": 108,
+      "transparent": true,
+      "width": 108
+    },
+    {
+      "file": "app-icons/android-adaptive-foreground-108.png",
+      "height": 108,
+      "transparent": true,
+      "width": 108
+    },
+    {
+      "file": "app-icons/android-adaptive-foreground-216.png",
+      "height": 216,
+      "transparent": true,
+      "width": 216
+    },
+    {
+      "file": "app-icons/android-adaptive-foreground-324.png",
+      "height": 324,
+      "transparent": true,
+      "width": 324
+    },
+    {
+      "file": "app-icons/android-adaptive-foreground-432.png",
+      "height": 432,
+      "transparent": true,
+      "width": 432
+    },
+    {
+      "file": "app-icons/android-adaptive-foreground-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "app-icons/android-adaptive-background.svg",
+      "height": 108,
+      "transparent": false,
+      "width": 108
+    },
+    {
+      "file": "app-icons/android-adaptive-background-432.png",
+      "height": 432,
+      "transparent": false,
+      "width": 432
+    },
+    {
+      "file": "app-icons/android-adaptive-background-1024.png",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "app-icons/android-themed-monochrome.svg",
+      "height": 108,
+      "transparent": true,
+      "width": 108
+    },
+    {
+      "file": "app-icons/android-themed-monochrome-432.png",
+      "height": 432,
+      "transparent": true,
+      "width": 432
+    },
+    {
+      "file": "app-icons/android-themed-monochrome-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "ui/proposals-active.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-active-20.png",
+      "height": 20,
+      "transparent": true,
+      "width": 20
+    },
+    {
+      "file": "ui/proposals-active-24.png",
+      "height": 24,
+      "transparent": true,
+      "width": 24
+    },
+    {
+      "file": "ui/proposals-active-28.png",
+      "height": 28,
+      "transparent": true,
+      "width": 28
+    },
+    {
+      "file": "ui/proposals-active-32.png",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-active-40.png",
+      "height": 40,
+      "transparent": true,
+      "width": 40
+    },
+    {
+      "file": "ui/proposals-active-48.png",
+      "height": 48,
+      "transparent": true,
+      "width": 48
+    },
+    {
+      "file": "ui/proposals-active-56.png",
+      "height": 56,
+      "transparent": true,
+      "width": 56
+    },
+    {
+      "file": "ui/proposals-active-64.png",
+      "height": 64,
+      "transparent": true,
+      "width": 64
+    },
+    {
+      "file": "ui/proposals-active-72.png",
+      "height": 72,
+      "transparent": true,
+      "width": 72
+    },
+    {
+      "file": "ui/proposals-active-80.png",
+      "height": 80,
+      "transparent": true,
+      "width": 80
+    },
+    {
+      "file": "ui/proposals-active-84.png",
+      "height": 84,
+      "transparent": true,
+      "width": 84
+    },
+    {
+      "file": "ui/proposals-active-96.png",
+      "height": 96,
+      "transparent": true,
+      "width": 96
+    },
+    {
+      "file": "ui/proposals-inactive.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-inactive-20.png",
+      "height": 20,
+      "transparent": true,
+      "width": 20
+    },
+    {
+      "file": "ui/proposals-inactive-24.png",
+      "height": 24,
+      "transparent": true,
+      "width": 24
+    },
+    {
+      "file": "ui/proposals-inactive-28.png",
+      "height": 28,
+      "transparent": true,
+      "width": 28
+    },
+    {
+      "file": "ui/proposals-inactive-32.png",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-inactive-40.png",
+      "height": 40,
+      "transparent": true,
+      "width": 40
+    },
+    {
+      "file": "ui/proposals-inactive-48.png",
+      "height": 48,
+      "transparent": true,
+      "width": 48
+    },
+    {
+      "file": "ui/proposals-inactive-56.png",
+      "height": 56,
+      "transparent": true,
+      "width": 56
+    },
+    {
+      "file": "ui/proposals-inactive-64.png",
+      "height": 64,
+      "transparent": true,
+      "width": 64
+    },
+    {
+      "file": "ui/proposals-inactive-72.png",
+      "height": 72,
+      "transparent": true,
+      "width": 72
+    },
+    {
+      "file": "ui/proposals-inactive-80.png",
+      "height": 80,
+      "transparent": true,
+      "width": 80
+    },
+    {
+      "file": "ui/proposals-inactive-84.png",
+      "height": 84,
+      "transparent": true,
+      "width": 84
+    },
+    {
+      "file": "ui/proposals-inactive-96.png",
+      "height": 96,
+      "transparent": true,
+      "width": 96
+    },
+    {
+      "file": "ui/proposals-disabled.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-disabled-20.png",
+      "height": 20,
+      "transparent": true,
+      "width": 20
+    },
+    {
+      "file": "ui/proposals-disabled-24.png",
+      "height": 24,
+      "transparent": true,
+      "width": 24
+    },
+    {
+      "file": "ui/proposals-disabled-28.png",
+      "height": 28,
+      "transparent": true,
+      "width": 28
+    },
+    {
+      "file": "ui/proposals-disabled-32.png",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-disabled-40.png",
+      "height": 40,
+      "transparent": true,
+      "width": 40
+    },
+    {
+      "file": "ui/proposals-disabled-48.png",
+      "height": 48,
+      "transparent": true,
+      "width": 48
+    },
+    {
+      "file": "ui/proposals-disabled-56.png",
+      "height": 56,
+      "transparent": true,
+      "width": 56
+    },
+    {
+      "file": "ui/proposals-disabled-64.png",
+      "height": 64,
+      "transparent": true,
+      "width": 64
+    },
+    {
+      "file": "ui/proposals-disabled-72.png",
+      "height": 72,
+      "transparent": true,
+      "width": 72
+    },
+    {
+      "file": "ui/proposals-disabled-80.png",
+      "height": 80,
+      "transparent": true,
+      "width": 80
+    },
+    {
+      "file": "ui/proposals-disabled-84.png",
+      "height": 84,
+      "transparent": true,
+      "width": 84
+    },
+    {
+      "file": "ui/proposals-disabled-96.png",
+      "height": 96,
+      "transparent": true,
+      "width": 96
+    },
+    {
+      "file": "ui/proposals-on-dark.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-on-dark-20.png",
+      "height": 20,
+      "transparent": true,
+      "width": 20
+    },
+    {
+      "file": "ui/proposals-on-dark-24.png",
+      "height": 24,
+      "transparent": true,
+      "width": 24
+    },
+    {
+      "file": "ui/proposals-on-dark-28.png",
+      "height": 28,
+      "transparent": true,
+      "width": 28
+    },
+    {
+      "file": "ui/proposals-on-dark-32.png",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "ui/proposals-on-dark-40.png",
+      "height": 40,
+      "transparent": true,
+      "width": 40
+    },
+    {
+      "file": "ui/proposals-on-dark-48.png",
+      "height": 48,
+      "transparent": true,
+      "width": 48
+    },
+    {
+      "file": "ui/proposals-on-dark-56.png",
+      "height": 56,
+      "transparent": true,
+      "width": 56
+    },
+    {
+      "file": "ui/proposals-on-dark-64.png",
+      "height": 64,
+      "transparent": true,
+      "width": 64
+    },
+    {
+      "file": "ui/proposals-on-dark-72.png",
+      "height": 72,
+      "transparent": true,
+      "width": 72
+    },
+    {
+      "file": "ui/proposals-on-dark-80.png",
+      "height": 80,
+      "transparent": true,
+      "width": 80
+    },
+    {
+      "file": "ui/proposals-on-dark-84.png",
+      "height": 84,
+      "transparent": true,
+      "width": 84
+    },
+    {
+      "file": "ui/proposals-on-dark-96.png",
+      "height": 96,
+      "transparent": true,
+      "width": 96
+    },
+    {
+      "file": "web/favicon.svg",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "web/favicon-16.png",
+      "height": 16,
+      "transparent": true,
+      "width": 16
+    },
+    {
+      "file": "web/favicon-32.png",
+      "height": 32,
+      "transparent": true,
+      "width": 32
+    },
+    {
+      "file": "web/favicon-48.png",
+      "height": 48,
+      "transparent": true,
+      "width": 48
+    },
+    {
+      "file": "web/touch-icon.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "web/touch-icon-180.png",
+      "height": 180,
+      "transparent": false,
+      "width": 180
+    },
+    {
+      "file": "web/touch-icon-192.png",
+      "height": 192,
+      "transparent": false,
+      "width": 192
+    },
+    {
+      "file": "web/touch-icon-512.png",
+      "height": 512,
+      "transparent": false,
+      "width": 512
+    },
+    {
+      "file": "social/share-card.svg",
+      "height": 630,
+      "transparent": false,
+      "width": 1200
+    },
+    {
+      "file": "social/share-card-1200.png",
+      "height": 630,
+      "transparent": false,
+      "width": 1200
+    },
+    {
+      "file": "splash/splash-mark-mint.svg",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "splash/splash-mark-mint-1024.png",
+      "height": 1024,
+      "transparent": false,
+      "width": 1024
+    },
+    {
+      "file": "splash/splash-mark-mint-2048.png",
+      "height": 2048,
+      "transparent": false,
+      "width": 2048
+    },
+    {
+      "file": "splash/splash-mark-transparent.svg",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "splash/splash-mark-transparent-512.png",
+      "height": 512,
+      "transparent": true,
+      "width": 512
+    },
+    {
+      "file": "splash/splash-mark-transparent-1024.png",
+      "height": 1024,
+      "transparent": true,
+      "width": 1024
+    },
+    {
+      "file": "preview/brand-board.svg",
+      "height": 950,
+      "transparent": false,
+      "width": 1200
+    },
+    {
+      "file": "preview/brand-board-1200.png",
+      "height": 950,
+      "transparent": false,
+      "width": 1200
+    },
+    {
+      "file": "web/favicon.ico",
+      "sizes": [
+        16,
+        32,
+        48
+      ],
+      "transparent": true
+    }
+  ],
+  "reference": "BRAND-SIGNATURE-B-001",
+  "source": "Variant B — Signature en mouvement"
+}

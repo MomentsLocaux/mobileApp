@@ -77,6 +77,12 @@ export const features = {
    * Real AdMob IDs stay in EAS env, not in git.
    */
   ads: process.env.EXPO_PUBLIC_FEATURE_ADS === 'true',
+  /**
+   * Event sheet « À côté ». Default OFF.
+   * Set EXPO_PUBLIC_FEATURE_NEARBY_PLACES=true to load Mapbox category search.
+   * Uses the existing public EXPO_PUBLIC_MAPBOX_TOKEN. A secret sk. token is ignored.
+   */
+  nearbyPlaces: process.env.EXPO_PUBLIC_FEATURE_NEARBY_PLACES === 'true',
 } as const;
 
 export type FeatureFlag = keyof typeof features;

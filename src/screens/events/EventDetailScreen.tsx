@@ -78,6 +78,7 @@ import { PlaceMediaGallery, type MediaImage, type PlaceMediaGalleryHandle } from
 import { EventHeartButton } from '@/components/events/EventHeartButton';
 import type { BrandIconName } from '@/components/ui/BrandIcon';
 import { EventDetailSection } from '@/components/events/EventDetailSection';
+import { EventNearbySection, type EventNearbySectionHandle } from '@/components/events/EventNearbySection';
 import { EventWeatherSection } from '@/components/events/EventWeatherSection';
 import { EventMiniatureCarousel } from '@/components/events/EventMiniatureCarousel';
 import { EventEchoesPreview } from '@/components/events/EventEchoesPreview';
@@ -320,6 +321,8 @@ export default function EventDetailScreen() {
   const seededIdRef = useRef(id);
   const galleryRef = useRef<PlaceMediaGalleryHandle>(null);
   const scrollY = useSharedValue(0);
+  const scrollOffsetRef = useRef(0);
+  const nearbySectionRef = useRef<EventNearbySectionHandle>(null);
   const photoHeight = Math.round(windowDimensions.height * 0.56);
   // Visible photo before the drawer. Shorter than the photo layer so the title
   // and the first facts show on open. Wash, banner contact and the add-photo
@@ -1445,6 +1448,8 @@ export default function EventDetailScreen() {
               bounces={!canSwipeDismiss}
               onScroll={(scrollEvent) => {
                 const y = scrollEvent.nativeEvent.contentOffset.y;
+                scrollOffsetRef.current = y;
+                nearbySectionRef.current?.onScroll(y);
                 scrollY.value = y;
                 const nextAtTop = y <= 1;
                 setScrollAtTop((current) => (current === nextAtTop ? current : nextAtTop));
@@ -1693,6 +1698,16 @@ export default function EventDetailScreen() {
               style={[styles.actionButton, stackActions && styles.actionButtonStacked]}
             />
           </View>
+
+          <EventNearbySection
+            ref={nearbySectionRef}
+            enabled={features.nearbyPlaces && event.status === 'published'}
+            eventId={event.id}
+            latitude={eventCoordinates?.latitude ?? null}
+            longitude={eventCoordinates?.longitude ?? null}
+            viewportHeight={windowDimensions.height}
+            getScrollOffset={() => scrollOffsetRef.current}
+          />
 
           {practicalInfoRows.length > 0 ? (
             <MotionReveal delay={Motion.stagger.content * 3.5} enabled={!seededEvent}>

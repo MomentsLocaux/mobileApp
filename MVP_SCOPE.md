@@ -40,6 +40,7 @@ Canal Alpha = EAS **production** et **preview** (aligné `.env` local).
 | `FEATURE_GAMIFICATION` | off (parked) | V2 | Lumo / shop / missions / pass |
 | `FEATURE_DISCOVERY` | off (parked) | V2 | Discovery Engine |
 | `FEATURE_CONTESTS` | off (parked) | V2 | Concours |
+| `FEATURE_NEARBY_PLACES` | **on** | local EVENT-NEARBY-001 | Event sheet « À côté » via Mapbox Search Box. On for every EAS profile |
 
 ## Out of Alpha (parked on feature branches)
 

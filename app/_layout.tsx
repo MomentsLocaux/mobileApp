@@ -219,6 +219,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen name="messages" />
+        <Stack.Screen
+          name="notifications"
+          options={{
+            ...stackModalOptions,
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <LegalAcceptanceGate />

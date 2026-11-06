@@ -10,7 +10,31 @@ type RouteTarget =
   | { href: `/events/create?edit=${string}` }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
-  | { href: `/messages/${string}` };
+  | { href: `/messages/${string}` }
+  | { href: `/notifications/nearby-review?ids=${string}` };
+
+const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NEARBY_REVIEW_LIMIT = 20;
+
+/** Identifiers carried by a nearby digest. Accepts a comma-separated string or a string array. */
+export function nearbyReviewEventIds(data: unknown): string[] {
+  const record = asRecord(data);
+  const raw = record.eventIds ?? record.event_ids;
+  const parts = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string'
+      ? raw.split(',')
+      : [];
+  const ids: string[] = [];
+  for (const part of parts) {
+    if (typeof part !== 'string') continue;
+    const id = part.trim().toLowerCase();
+    if (!EVENT_ID.test(id) || ids.includes(id)) continue;
+    ids.push(id);
+    if (ids.length >= NEARBY_REVIEW_LIMIT) break;
+  }
+  return ids;
+}
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -33,6 +57,11 @@ export function resolveNotificationRoute(
   data: unknown,
 ): RouteTarget {
   const d = asRecord(data);
+
+  const nearbyIds = nearbyReviewEventIds(d);
+  if (pickString(d, 'kind') === 'event_nearby_digest' && nearbyIds.length > 1) {
+    return { href: `/notifications/nearby-review?ids=${nearbyIds.join(',')}` };
+  }
 
   if (type === 'event_request_changes') {
     const changeEventId = pickString(d, 'eventId', 'event_id');
