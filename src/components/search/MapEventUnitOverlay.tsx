@@ -11,12 +11,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { X } from 'lucide-react-native';
 import type { EventWithCreator } from '@/types/database';
 import { Motion } from '@/constants/motion';
 import { colors, spacing } from '@/constants/theme';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
-import { FloatingPressable } from '@/components/ui/FloatingPressable';
 import { MapDiscoveryEventCard } from '@/components/search/MapDiscoveryEventCard';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import type { MapCardSwipeDirection } from '@/utils/map-card-neighbor';
@@ -59,7 +57,6 @@ function CarouselCard({
   stats,
   liked,
   onOpen,
-  onClose,
   onToggleHeart,
   onAdvance,
 }: {
@@ -71,7 +68,6 @@ function CarouselCard({
   stats?: EventCardStats;
   liked: boolean;
   onOpen: () => void;
-  onClose?: () => void;
   onToggleHeart?: (event: EventWithCreator) => void;
   onAdvance?: () => void;
 }) {
@@ -107,21 +103,8 @@ function CarouselCard({
           onOpen={() => onOpen()}
           onToggleHeart={(item) => onToggleHeart?.(item)}
           onShare={(item) => { void sharePublishedEvent(item); }}
-          heartStyle={styles.cardHeart}
         />
       </View>
-      {role === 'center' && onClose ? (
-        <FloatingPressable
-          style={[styles.chromePressable, styles.closeButton]}
-          onPress={onClose}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Fermer"
-          animateEntrance={false}
-        >
-          <X size={17} color={colors.brand.text} />
-        </FloatingPressable>
-      ) : null}
       {role !== 'center' && onAdvance ? (
         <Pressable
           onPress={onAdvance}
@@ -337,8 +320,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
     return next;
   }, [event, neighborLeft, neighborRight]);
 
-  const closeCard = useCallback(() => onClose(), [onClose]);
-
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
@@ -360,7 +341,6 @@ export const MapEventUnitOverlay: React.FC<Props> = ({
             stats={statsById[item.id]}
             liked={isEventHearted ? isEventHearted(item.id) : item.id === event.id && Boolean(isHearted)}
             onOpen={item.id === event.id ? onPress : () => releaseHorizontal(role === 'left' ? 'left' : 'right')}
-            onClose={role === 'center' ? closeCard : undefined}
             onToggleHeart={onToggleHeart}
             onAdvance={role === 'center' ? undefined : () => releaseHorizontal(role)}
           />
@@ -399,23 +379,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 2,
     backgroundColor: colors.brand.line,
-  },
-  cardHeart: { top: 8, right: 46 },
-  chromePressable: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.brand.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 18,
-    right: 18,
-    zIndex: 40,
   },
   sideHitLeft: {
     position: 'absolute',

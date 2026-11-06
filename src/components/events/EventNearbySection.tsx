@@ -1,7 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -236,7 +235,6 @@ function NearbyPlaceCard({
   opening: boolean;
   onOpen: (place: NearbyPlace) => void;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
   const canOpen = Boolean(place.googleMapsUri);
   return (
     <Pressable
@@ -247,17 +245,6 @@ function NearbyPlaceCard({
       accessibilityLabel={`Voir l’établissement ${place.name}`}
       accessibilityState={{ disabled: !canOpen || opening, busy: opening }}
     >
-      {place.imageUrl && !imageFailed ? (
-        <Image
-          source={{ uri: place.imageUrl }}
-          style={styles.photo}
-          resizeMode="cover"
-          accessibilityIgnoresInvertColors
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <View style={styles.photoFallback} />
-      )}
       <View style={styles.body}>
         <Text style={styles.name}>{place.name}</Text>
         {place.categoryLabel ? <Text style={styles.meta}>{place.categoryLabel}</Text> : null}
@@ -306,16 +293,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.surface,
     borderRadius: 16,
     overflow: 'hidden',
-  },
-  photo: {
-    width: '100%',
-    height: 132,
-    backgroundColor: colors.brand.page,
-  },
-  photoFallback: {
-    width: '100%',
-    height: 132,
-    backgroundColor: colors.brand.surfaceMuted,
   },
   body: {
     paddingHorizontal: spacing.md,

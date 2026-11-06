@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import type { EventWithCreator } from '@/types/database';
 import type { EventCardStats } from '@/services/event-card-stats.service';
 import { features } from '@/config/features';
@@ -7,6 +7,7 @@ import { colors, spacing, typography } from '@/constants/theme';
 import { getCategoryColor, getCategoryLabel } from '@/constants/categories';
 import { getCategoryLucideIcon, pickCategoryMetaSlug } from '@/constants/category-visuals';
 import { useTaxonomyStore } from '@/store/taxonomyStore';
+import { BrandIcon } from '@/components/ui/BrandIcon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { EventCoverImage } from '@/components/events/EventCoverImage';
 import { EventHeartButton } from '@/components/events/EventHeartButton';
@@ -32,16 +33,47 @@ export type MapDiscoveryEventCardProps = {
   carousel?: boolean;
   /** Floating pin card: inset photo and a full text block, like a map listing. */
   framed?: boolean;
-  heartStyle?: StyleProp<ViewStyle>;
   onOpen: (event: EventWithCreator) => void;
   onHighlight?: (event: EventWithCreator) => void;
   onToggleHeart: (event: EventWithCreator) => void;
   onShare: (event: EventWithCreator) => void;
 };
 
+/** Same share glyph as the event detail photo: white icon, ink shadow, no disc. */
+function OverlayShareGlyph({
+  onPress,
+  accessibilityLabel,
+}: {
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const handlePress = (event: GestureResponderEvent) => {
+    event.stopPropagation?.();
+    onPress();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={6}
+      activeOpacity={0.86}
+      style={styles.photoGlyph}
+    >
+      <View pointerEvents="none" style={styles.photoGlyphShadow}>
+        <BrandIcon name="share" size={22} color={colors.brand.ink} fillColor="transparent" />
+      </View>
+      <View pointerEvents="none" style={styles.photoGlyphLayer}>
+        <BrandIcon name="share" size={22} color="#FFFFFF" fillColor="transparent" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 /** The viewport list and its Spotlight share real media, social data and category accents. */
 export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
-  event, variant = 'row', stats, liked, pending = false, active = false, distance, badge, carousel = false, framed = false, heartStyle,
+  event, variant = 'row', stats, liked, pending = false, active = false, distance, badge, carousel = false, framed = false,
   onOpen, onHighlight, onToggleHeart, onShare,
 }: MapDiscoveryEventCardProps) {
   const { profile } = useAuth();
@@ -98,17 +130,37 @@ export const MapDiscoveryEventCard = React.memo(function MapDiscoveryEventCard({
             ) : <CategoryIcon size={36} color={categoryColor} />}
           </Pressable>
           <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderWidth: active ? 2.5 : 1.5, borderColor: categoryColor, borderRadius: framed ? 14 : 16 }]} />
-          <EventHeartButton
-            appearance="overlay"
-            active={liked}
-            disabled={pending}
-            onPress={() => onToggleHeart(event)}
-            style={[styles.coverHeart, heartStyle]}
-            accessibilityLabel={`${liked ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${count} j’aime`}
-          />
-          <View style={styles.listingShare}>
-            <EventShareButton compact onPress={() => onShare(event)} accessibilityLabel={`Partager ${event.title}`} />
-          </View>
+          {framed ? (
+            <View pointerEvents="box-none" style={styles.framedActions}>
+              <EventHeartButton
+                appearance="overlay"
+                active={liked}
+                disabled={pending}
+                onPress={() => onToggleHeart(event)}
+                count={count}
+                compactCount
+                accessibilityLabel={`${liked ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${count} j’aime`}
+              />
+              <OverlayShareGlyph
+                onPress={() => onShare(event)}
+                accessibilityLabel={`Partager ${event.title}`}
+              />
+            </View>
+          ) : (
+            <>
+              <EventHeartButton
+                appearance="overlay"
+                active={liked}
+                disabled={pending}
+                onPress={() => onToggleHeart(event)}
+                style={styles.coverHeart}
+                accessibilityLabel={`${liked ? 'Ne plus aimer' : 'Aimer'} ${event.title}, ${count} j’aime`}
+              />
+              <View style={styles.listingShare}>
+                <EventShareButton compact onPress={() => onShare(event)} accessibilityLabel={`Partager ${event.title}`} />
+              </View>
+            </>
+          )}
           {badge && !framed ? <View style={styles.listingBadge} pointerEvents="none"><Text style={styles.listingBadgeText} numberOfLines={1}>{badge}</Text></View> : null}
         </View>
         <Pressable onPress={open} onPressIn={() => prefetchEventMedia(event, { priority: 'visible' })} accessibilityRole="button" accessibilityLabel={`Détails : ${event.title}`} accessibilityHint={stamp.label} style={[styles.listingCopy, framed && styles.listingCopyFramed]}>
@@ -241,6 +293,31 @@ const styles = StyleSheet.create({
   listingMedia: { width: '100%', aspectRatio: 1.4, borderRadius: 16, overflow: 'hidden', position: 'relative', borderWidth: 0, borderColor: 'transparent' },
   listingMediaFramed: { aspectRatio: 1.85, borderRadius: 14 },
   listingShare: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
+  framedActions: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    zIndex: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  photoGlyph: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoGlyphShadow: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    opacity: 0.55,
+  },
+  photoGlyphLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   listingBadge: { position: 'absolute', left: 10, bottom: 10, maxWidth: '70%', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: colors.brand.page },
   listingBadgeText: { ...typography.caption, color: colors.brand.text, fontWeight: '700' },
   listingCopy: { gap: 2 },

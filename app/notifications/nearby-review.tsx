@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
-import { BrandIcon } from '@/components/ui/BrandIcon';
+import { BrandMark } from '@/components/ui/BrandMark';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/hooks';
 import { EventsService } from '@/services/events.service';
@@ -76,13 +76,10 @@ export default function NearbyReviewScreen() {
       <IdentityAppBackground />
       <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
         <View style={styles.headerIcon}>
-          <BrandIcon name="pin" size={28} active />
+          <BrandMark size={32} />
         </View>
         <Text style={styles.kicker}>PRÈS DE CHEZ TOI</Text>
         <Text style={styles.headerTitle}>De nouveaux moments t’attendent</Text>
-        <Text style={styles.headerBody}>
-          Ils viennent d’arriver autour de toi. Une minute suffit pour repérer ceux qui te tentent.
-        </Text>
       </View>
 
       <View style={styles.cardWrap}>
@@ -164,13 +161,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h3,
+    alignSelf: 'stretch',
     color: colors.brand.text,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  headerBody: {
-    ...typography.body,
-    color: colors.brand.textSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
   },

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { CalendarDays, Check, CheckCheck, LocateFixed, MapPin, Search, Sparkles } from 'lucide-react-native';
+import { BrandMark } from '@/components/ui/BrandMark';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
@@ -140,7 +141,7 @@ export function ProposalWizard({
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}> 
         <View style={styles.brandRow}>
           <View style={styles.brandIcon}>
-            <Sparkles size={20} color={colors.brand.primary} strokeWidth={2.4} />
+            <BrandMark size={26} />
           </View>
           <View>
             <Text style={styles.brandTitle}>Propositions</Text>
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  brandIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.secondary },
+  brandIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.surface },
   brandTitle: { ...typography.h6, color: colors.brand.text },
   brandSubtitle: { ...typography.bodySmall, color: colors.brand.textSecondary },
   progressTrack: { flexDirection: 'row', gap: 6, marginTop: spacing.lg },

@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Clock3, History, Play, Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BrandMark } from '@/components/ui/BrandMark';
 import { borderRadius, colors, spacing, typography } from '@/constants/theme';
 import type { ProposalSession } from './proposal.types';
 
@@ -31,7 +32,7 @@ export function ProposalSessionEntry({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.iconHalo}>
-        <Sparkles size={34} color={colors.brand.primary} />
+        <BrandMark size={40} />
       </View>
       <Text style={styles.eyebrow}>TES PROPOSITIONS</Text>
       <Text style={styles.title}>On reprend où tu veux</Text>
@@ -104,7 +105,7 @@ export function ProposalSessionEntry({
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1, alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 120 },
-  iconHalo: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.secondary, marginBottom: spacing.lg },
+  iconHalo: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand.surface, marginBottom: spacing.lg },
   eyebrow: { ...typography.label, fontSize: 11, letterSpacing: 1.3, color: colors.brand.secondary },
   title: { ...typography.h2, color: colors.brand.text, textAlign: 'center', marginTop: spacing.sm },
   subtitle: { ...typography.body, color: colors.brand.textSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 460 },
