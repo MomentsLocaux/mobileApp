@@ -1,10 +1,10 @@
 import { Tabs, Redirect, usePathname, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { IdentityAppBackground } from '@/components/identity/IdentityAppBackground';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Pressable, Text, ScrollView } from 'react-native';
-import { BrandIcon, BrandLogoSpinner, UserAvatar } from '@/components/ui';
+import { BrandIcon, UserAvatar } from '@/components/ui';
+import { BrandStartupScreen } from '@/components/ui/BrandStartupScreen';
 import type { BrandIconName } from '@/components/ui/BrandIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -249,12 +249,7 @@ export default function TabsLayout() {
   };
 
   if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <IdentityAppBackground />
-        <BrandLogoSpinner size={80} accessibilityLabel="Chargement de l'application" />
-      </View>
-    );
+    return <BrandStartupScreen />;
   }
 
   if (profile && !profile.onboarding_completed && isAuthenticated) {
@@ -298,10 +293,8 @@ export default function TabsLayout() {
                     renderTabIconSlot(
                       focused,
                       <BrandIcon
-                        name="sparkles"
+                        name="proposals"
                         size={size}
-                        active={focused && !isGuest}
-                        color={isGuest ? colors.brand.textSecondary : colors.brand.ink}
                       />,
                       'proposals',
                     ),
@@ -549,7 +542,7 @@ export default function TabsLayout() {
                 }}
               />
             ) : null}
-            {!isProfessionnelAccount ? <DrawerLink icon="sparkles" label="Mes propositions" onPress={() => {
+            {!isProfessionnelAccount ? <DrawerLink icon="proposals" label="Mes propositions" onPress={() => {
               toggleDrawer(false);
               if (isGuest) { openGuestGate('Créer vos propositions'); return; }
               router.push('/(tabs)/proposals' as any);

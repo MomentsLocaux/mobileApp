@@ -1,6 +1,8 @@
 /** Purpose-drawn silhouettes from the UI-RELIEF-001 study (`audits/ui-relief-event/proposal.html`). */
 
 export const brandIconArtwork = {
+  // Rendered by BrandMark in BrandIcon, using the 32 × 32 Signature B geometry.
+  proposals: { body: '', detail: '' },
   home: {
     body: 'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5Z',
     detail: 'M9 21v-7h6v7',

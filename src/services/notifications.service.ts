@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import { syncAppIconBadge } from '@/services/push.service';
+import { isPlatformOrganizerEvent } from '@/utils/event-organizer';
 
 export type AppNotificationType =
   | 'event_published'
@@ -309,7 +310,7 @@ export const NotificationsService = {
         const event = eventById.get(getNotificationEventId(row) || '');
         const actor = actorById.get(getNotificationActorId(row) || '');
         visuals[row.id] = {
-          avatarUrl: event?.creator?.avatar_url || actor?.avatar_url || null,
+          avatarUrl: event && isPlatformOrganizerEvent(event) ? null : event?.creator?.avatar_url || actor?.avatar_url || null,
           categorySlug: pickCategorySlug(event?.category_meta) || event?.category || null,
           eventTitle: event?.title?.trim() || null,
           actorName: actor?.display_name?.trim() || null,

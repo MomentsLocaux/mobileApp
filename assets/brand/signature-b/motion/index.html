@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Signature B — Atelier du mouvement</title>
+  <link rel="icon" href="../web/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="motion.css">
+  <script src="motion.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <a href="../index.html" class="brand"><img src="../symbols/mark-color.svg" alt="" width="32" height="32"> Moments Locaux</a>
+      <span class="edition">Étude de mouvement · 01</span>
+    </header>
+
+    <div class="intro">
+      <p class="eyebrow">Signature B / Le détour</p>
+      <h1>La découverte prend<br>son propre chemin.</h1>
+      <p class="lede">Un détour, un élan, une direction. Le M reste un repère ; son trajet lui donne vie.</p>
+    </div>
+
+    <section class="workbench" aria-label="Aperçu interactif du logo animé">
+      <div class="stage" id="stage">
+        <div class="stage-meta"><span id="stage-context">Signature d’ouverture</span><span id="duration">2,05 s</span></div>
+        <div class="artwork">
+          <svg id="mark" class="mark" viewBox="0 0 32 32" role="img" aria-labelledby="mark-title">
+            <title id="mark-title">Moments Locaux, M avec détour et flèche montante</title>
+            <g fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+              <path class="base" d="M5 26V8L12 15M26 19V26"/>
+              <g id="accent">
+                <path id="route" class="route" d="M19 21C23 26 17 29 14 25C11 22 14 19 17 16L26 7"/>
+                <path id="arrow" class="route" d="M19 7H26V14"/>
+                <path id="pulse" d="M19 21C23 26 17 29 14 25C11 22 14 19 17 16L26 7" opacity="0"/>
+              </g>
+            </g>
+            <g aria-hidden="true">
+              <circle id="arrival-ring" cx="29.2" cy="3.8" r="0.9" fill="none" stroke="#7CB518" stroke-width="0.22" opacity="0"/>
+              <circle id="arrival-dot" cx="29.2" cy="3.8" r="0.72" fill="#7CB518" opacity="0"/>
+            </g>
+          </svg>
+          <div class="wordmark" id="wordmark">Moments Locaux<span>Le bon moment, au bon détour.</span></div>
+        </div>
+        <span class="stage-note" id="stage-note">Un point, une onde : le détour atteint son arrivée.</span>
+      </div>
+
+      <aside class="controls">
+        <p class="eyebrow">À l’essai</p>
+        <h2 id="mode-title">La signature</h2>
+        <p id="mode-description">Le détour se dessine, la flèche atteint un petit point. Une onde marque l’arrivée, puis le logo reste seul.</p>
+
+        <div class="transport">
+          <button type="button" id="toggle" class="primary">Pause</button>
+          <button type="button" id="replay" class="secondary">Rejouer ↗</button>
+        </div>
+        <label class="field" for="timeline"><span>Déroulé <output id="progress-label" for="timeline">0 %</output></span>
+          <input id="timeline" type="range" min="0" max="1000" value="0" aria-label="Position dans l’animation">
+        </label>
+        <label class="field" for="speed"><span>Vitesse <output id="speed-label" for="speed">1×</output></span>
+          <select id="speed"><option value="0.65">0,65× · observer</option><option value="1" selected>1× · rythme conseillé</option><option value="1.35">1,35× · plus vif</option></select>
+        </label>
+        <label class="check"><input id="dark" type="checkbox"><span>Tester sur fond encre</span></label>
+        <label class="check"><input id="reduce" type="checkbox"><span>Réduire les animations</span></label>
+        <p class="accessibility" id="motion-note">Le réglage d’accessibilité de votre appareil est aussi respecté.</p>
+        <p class="status" id="status" role="status" aria-live="polite">Lecture de la signature.</p>
+      </aside>
+    </section>
+
+    <nav class="variants" aria-label="Choisir une animation">
+      <button type="button" class="variant selected" data-mode="signature" aria-pressed="true"><span class="number">01 / 2,05 s</span><strong>La signature <span>↗</span></strong><span>Le détour se dessine. L’arrivée se révèle.</span><small>Ouverture · une seule lecture</small></button>
+      <button type="button" class="variant" data-mode="loading" aria-pressed="false"><span class="number">02 / 2,80 s</span><strong>Le passage <span>↗</span></strong><span>Une impulsion parcourt le chemin existant.</span><small>Chargement · boucle avec respiration</small></button>
+      <button type="button" class="variant" data-mode="interaction" aria-pressed="false"><span class="number">03 / 0,44 s</span><strong>L’élan <span>↗</span></strong><span>La flèche s’anime à votre geste.</span><small>Interaction · une seule lecture</small></button>
+    </nav>
+
+    <section class="story" aria-labelledby="story-title">
+      <div><p class="eyebrow">Le geste de marque</p><h2 id="story-title">Un détour qui mène<br>quelque part.</h2></div>
+      <ol>
+        <li><span>01</span><div><h3>Le repère</h3><p>Le M encre est déjà là. Il ancre la marque.</p></div></li>
+        <li><span>02</span><div><h3>Le détour</h3><p>La boucle anis se dessine avec souplesse.</p></div></li>
+        <li><span>03</span><div><h3>L’élan</h3><p>Le trait accélère, la pointe termine la direction.</p></div></li>
+        <li><span>04</span><div><h3>L’arrivée</h3><p>Un point et une seule onde, puis le logo retrouve sa forme.</p></div></li>
+      </ol>
+    </section>
+    <footer><span>BRAND-SIGNATURE-B-002 · Prototype navigateur</span><a href="README.md">Logique et paramètres →</a></footer>
+  </main>
+</body>
+</html>

@@ -1,12 +1,12 @@
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { AppState, Platform, Text, View } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
 import { AppBackground } from '../src/components/ui/AppBackground';
-import { BrandLogoSpinner } from '../src/components/ui/BrandLogoSpinner';
+import { BrandStartupScreen } from '../src/components/ui/BrandStartupScreen';
 import { toastConfig } from '../src/components/ui/AppToast';
 import { brandFontAssets } from '../src/constants/fonts';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
@@ -25,6 +25,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { LegalAcceptanceGate } from '@/components/legal/LegalAcceptanceGate';
 import { EventShareHost } from '@/components/events/EventShareSheet';
 import { stackModalOptions, stackPushOptions } from '@/constants/navigation';
+import { useColdStartPresentation } from '@/hooks/useColdStartPresentation';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -39,27 +40,11 @@ function hideNativeSplash() {
   void SplashScreen.hideAsync().catch(() => undefined);
 }
 
-function BootScreen() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#F4FBF6',
-      }}
-      onLayout={hideNativeSplash}
-    >
-      <BrandLogoSpinner size={80} accessibilityLabel="Chargement de l'application" />
-      <Text style={{ marginTop: 18, color: '#5B7A6A', fontSize: 15 }}>Chargement…</Text>
-    </View>
-  );
-}
-
 export default function RootLayout() {
   useFrameworkReady();
   const [fontsLoaded, fontError] = useFonts(brandFontAssets);
   const fontsReady = fontsLoaded || !!fontError;
+  const coldStart = useColdStartPresentation();
 
   const { setUser, setSession, setProfile, setLoading, initialized, setInitialized } = useAuthStore();
   const userId = useAuthStore((state) => state.user?.id);
@@ -168,17 +153,20 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!fontsReady || !initialized || !userId || !onboardingCompleted) return;
+    if (!fontsReady || !coldStart.complete || !initialized || !userId || !onboardingCompleted) return;
     const frame = requestAnimationFrame(() => {
       markNotificationRoutingReady();
       const href = consumeNotificationHref();
       if (href) router.push(href as never);
     });
     return () => cancelAnimationFrame(frame);
-  }, [fontsReady, initialized, onboardingCompleted, userId]);
+  }, [coldStart.complete, fontsReady, initialized, onboardingCompleted, userId]);
 
-  if (!fontsReady) {
-    return <BootScreen />;
+  if (!fontsReady || !coldStart.complete) {
+    return <BrandStartupScreen onLayout={() => {
+      hideNativeSplash();
+      coldStart.onLayout();
+    }} fontsReady={fontsReady} />;
   }
 
   return (

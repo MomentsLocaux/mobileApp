@@ -4,6 +4,7 @@ import { BrandIcon } from '@/components/ui/BrandIcon';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
 import { colors, spacing, typography } from '@/constants/theme';
 import { UserAvatar } from '@/components/ui';
+import { HomeBrandSignature } from './HomeBrandSignature';
 
 type TourTarget = {
   ref: React.Ref<View>;
@@ -42,6 +43,7 @@ export function HomeHeader({
 
   return (
     <View style={styles.header}>
+      <HomeBrandSignature />
       <View style={styles.headerTop}>
         <View ref={profileTour?.ref} collapsable={false} onLayout={profileTour?.onLayout}>
           <Pressable

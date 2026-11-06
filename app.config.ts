@@ -153,7 +153,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: ANDROID_VERSION_CODE,
     softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
-      foregroundImage: './assets/images/icon.png',
+      foregroundImage: './assets/brand/signature-b/app-icons/android-adaptive-foreground-1024.png',
+      monochromeImage: './assets/brand/signature-b/app-icons/android-themed-monochrome-1024.png',
       backgroundColor: '#F4FBF6',
     },
     // Required for FCM / Expo push on Android (file from Firebase Console).
@@ -179,6 +180,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: './assets/images/favicon.png',
   },
   plugins: [
+    ['expo-splash-screen', {
+      image: './assets/images/logo-mark.png',
+      imageWidth: 96,
+      resizeMode: 'contain',
+      backgroundColor: '#F4FBF6',
+    }],
     'expo-router',
     'expo-font',
     'expo-web-browser',
