@@ -706,17 +706,14 @@ export default function MapScreen() {
     [commitUnitSheetHidden],
   );
 
-  const showUnitCard = useCallback((event: EventWithCreator) => {
-    unitCardEventRef.current = event;
-    setUnitCardEvent(event);
-    unitCardTravel.value = withTiming(1, UNIT_CARD_TIMING);
-  }, [unitCardTravel]);
+  const pendingNeighborRef = useRef<EventWithCreator | null>(null);
 
   const beginUnitCardPresentation = useCallback(
     (event: EventWithCreator | null) => {
       if (!event) return;
       const generation = unitCycleGeneration.value + 1;
       unitCycleGeneration.value = generation;
+      pendingNeighborRef.current = null;
 
       if (reduceMotion) {
         cancelAnimation(unitCardModeProgress);
@@ -731,24 +728,17 @@ export default function MapScreen() {
 
       cancelAnimation(unitCardModeProgress);
       cancelAnimation(unitCardTravel);
-      const current = unitCardEventRef.current;
-      if (current && current.id !== event.id && unitCardTravel.value > 0.02) {
-        unitCardTravel.value = withTiming(0, UNIT_CARD_TIMING, (finished) => {
-          'worklet';
-          if (!finished || generation !== unitCycleGeneration.value) return;
-          runOnJS(showUnitCard)(event);
-        });
-        return;
-      }
-
+      const cardAlreadyOpen = Boolean(unitCardEventRef.current) && unitCardTravel.value > 0.02;
       unitCardEventRef.current = event;
       setUnitCardEvent(event);
       if (unitCardModeProgress.value < 0.99) {
         unitCardModeProgress.value = withTiming(1, UNIT_CARD_TIMING);
       }
-      unitCardTravel.value = withTiming(1, UNIT_CARD_TIMING);
+      // A marker tap replaces the open card immediately. Animating the
+      // current card away first kept the previous event on screen.
+      unitCardTravel.value = cardAlreadyOpen ? 1 : withTiming(1, UNIT_CARD_TIMING);
     },
-    [commitUnitSheetHidden, reduceMotion, showUnitCard, unitCardModeProgress, unitCardTravel, unitCycleGeneration],
+    [commitUnitSheetHidden, reduceMotion, unitCardModeProgress, unitCardTravel, unitCycleGeneration],
   );
 
   const finishUnitCardExit = useCallback((generation: number) => {
@@ -803,7 +793,6 @@ export default function MapScreen() {
 
   dismissUnitCardRef.current = beginUnitCardDismissal;
 
-  const pendingNeighborRef = useRef<EventWithCreator | null>(null);
   const unitCardNeighbors = useMemo(() => {
     if (!unitCardEvent) return { left: null, right: null };
     return {
