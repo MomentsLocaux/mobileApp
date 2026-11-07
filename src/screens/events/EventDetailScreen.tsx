@@ -1698,16 +1698,6 @@ export default function EventDetailScreen() {
             />
           </View>
 
-          <EventNearbySection
-            ref={nearbySectionRef}
-            enabled={features.nearbyPlaces && event.status === 'published'}
-            eventId={event.id}
-            latitude={eventCoordinates?.latitude ?? null}
-            longitude={eventCoordinates?.longitude ?? null}
-            viewportHeight={windowDimensions.height}
-            getScrollOffset={() => scrollOffsetRef.current}
-          />
-
           {practicalInfoRows.length > 0 ? (
             <MotionReveal delay={Motion.stagger.content * 3.5} enabled={!seededEvent}>
               <EventDetailSection title="Infos pratiques">
@@ -1746,6 +1736,16 @@ export default function EventDetailScreen() {
               />
             </View>
           ) : null}
+
+          <EventNearbySection
+            ref={nearbySectionRef}
+            enabled={features.nearbyPlaces && event.status === 'published'}
+            eventId={event.id}
+            latitude={eventCoordinates?.latitude ?? null}
+            longitude={eventCoordinates?.longitude ?? null}
+            viewportHeight={windowDimensions.height}
+            getScrollOffset={() => scrollOffsetRef.current}
+          />
 
           <EventEchoesPreview comments={comments} onOpenAll={handleGoToEchoes} />
 

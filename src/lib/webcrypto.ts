@@ -1,7 +1,8 @@
 /**
- * supabase-js PKCE calls `crypto.subtle.digest('SHA-256')`. Hermes has no WebCrypto,
- * so the client would fall back to a `plain` code challenge. SHA-256 stays in JS so
- * the current dev binary does not need a new native module.
+ * supabase-js PKCE calls `crypto.getRandomValues` and `crypto.subtle.digest('SHA-256')`.
+ * Once `crypto` exists, the verifier no longer falls back to `Math.random`, so a
+ * partial object crashes Google sign-in with "getRandomValues is not a function".
+ * Both stay in JS so the current dev binary does not need a new native module.
  */
 
 function rotr(value: number, bits: number): number {
@@ -133,6 +134,25 @@ const subtle = {
   },
 };
 
+function getRandomValues<T extends ArrayBufferView>(array: T): T {
+  if (array.byteLength > 65536) {
+    throw new Error('QuotaExceededError');
+  }
+  const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Math.floor(Math.random() * 256);
+  }
+  return array;
+}
+
+function defineCryptoMember(target: object, key: 'subtle' | 'getRandomValues', value: unknown): void {
+  try {
+    Object.defineProperty(target, key, { value, configurable: true });
+  } catch {
+    (target as Record<string, unknown>)[key] = value;
+  }
+}
+
 export function installWebCrypto(): void {
   if (typeof globalThis.TextEncoder !== 'function') {
     class Utf8Encoder {
@@ -145,14 +165,13 @@ export function installWebCrypto(): void {
   }
 
   const current = globalThis.crypto as Crypto | undefined;
-  if (typeof current?.subtle?.digest === 'function') return;
+  const hasDigest = typeof current?.subtle?.digest === 'function';
+  const hasRandom = typeof current?.getRandomValues === 'function';
+  if (hasDigest && hasRandom) return;
 
   const base = (current ?? {}) as Crypto;
-  try {
-    Object.defineProperty(base, 'subtle', { value: subtle, configurable: true });
-  } catch {
-    (base as { subtle?: typeof subtle }).subtle = subtle;
-  }
+  if (!hasRandom) defineCryptoMember(base, 'getRandomValues', getRandomValues);
+  if (!hasDigest) defineCryptoMember(base, 'subtle', subtle);
   if (!current) {
     Object.defineProperty(globalThis, 'crypto', { value: base, configurable: true });
   }

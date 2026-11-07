@@ -98,7 +98,9 @@
     "src/screens/proposals/proposal-category-display.test.ts",
     "src/screens/proposals/proposal-category-hints.test.ts",
     "src/screens/proposals/proposal-session-history.test.ts",
-    "src/services/nearby/nearby-places.test.ts"
+    "src/services/nearby/nearby-places.test.ts",
+    "src/lib/webcrypto.test.ts",
+    "src/lib/webcrypto.ts"
   ],
   "exclude": ["supabase/functions/**/*"]
 }

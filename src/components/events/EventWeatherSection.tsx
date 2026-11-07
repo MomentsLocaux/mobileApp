@@ -241,9 +241,9 @@ const styles = StyleSheet.create({
   },
   attribution: {
     fontFamily: brandFonts.regular,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 10,
+    lineHeight: 13,
     color: colors.neutral[400],
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
   },
 });

@@ -316,11 +316,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   attribution: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     gap: 2,
   },
   attributionText: {
     ...typography.caption,
-    color: colors.brand.textSecondary,
+    fontSize: 10,
+    lineHeight: 13,
+    color: colors.neutral[400],
   },
 });
