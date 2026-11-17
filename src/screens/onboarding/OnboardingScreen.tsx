@@ -43,6 +43,7 @@ import {
   OnboardingPermissionsStep,
   type OnboardingAlertPack,
 } from '@/components/onboarding/OnboardingPermissionsStep';
+import { OnboardingPromisesStep } from '@/components/onboarding/OnboardingPromisesStep';
 import { MVP_PROMISE, OnboardingWelcomeStep } from '@/components/onboarding/OnboardingWelcomeStep';
 import {
   OnboardingCreateWhyStep,
@@ -91,6 +92,7 @@ import {
 } from '@/utils/push-personalization';
 
 type StepId =
+  | 'promises'
   | 'welcome'
   | 'identity'
   | 'create_why'
@@ -205,7 +207,7 @@ export default function OnboardingScreen() {
 
   const steps: StepId[] = useMemo(() => {
     if (isProfessionnel) {
-      return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'messaging', 'avatar', 'creator', 'connector'];
+      return ['welcome', 'promises', 'identity', 'location', 'permissions', 'push_policy', 'messaging', 'avatar', 'creator', 'connector'];
     }
     const marketingTail: StepId[] = features.offers
       ? ['tiers', 'eclairer']
@@ -215,6 +217,7 @@ export default function OnboardingScreen() {
     if (particulierAlsoCreates && features.eventCreate) {
       return [
         'welcome',
+        'promises',
         'identity',
         'create_why',
         'location',
@@ -228,7 +231,7 @@ export default function OnboardingScreen() {
         ...(features.offers ? (['tiers', 'eclairer', 'mode_hint'] as StepId[]) : (['mode_hint'] as StepId[])),
       ];
     }
-    return ['welcome', 'identity', 'location', 'permissions', 'push_policy', 'messaging', 'themes', 'avatar', ...marketingTail];
+    return ['welcome', 'promises', 'identity', 'location', 'permissions', 'push_policy', 'messaging', 'themes', 'avatar', ...marketingTail];
   }, [isProfessionnel, particulierAlsoCreates]);
 
   const stepId = steps[Math.min(stepIndex, steps.length - 1)];
@@ -248,7 +251,7 @@ export default function OnboardingScreen() {
     stepId === 'tiers' || stepId === 'eclairer' || stepId === 'mode_hint';
   const progressSteps = steps.filter(
     (id) =>
-      id !== 'welcome' && id !== 'tiers' && id !== 'eclairer' && id !== 'mode_hint',
+      id !== 'promises' && id !== 'welcome' && id !== 'tiers' && id !== 'eclairer' && id !== 'mode_hint',
   );
 
   const identityReady =
@@ -256,6 +259,7 @@ export default function OnboardingScreen() {
     (accountKind === 'particulier' || (accountKind === 'professionnel' && !!proSubtype));
 
   const canContinue =
+    stepId === 'promises' ||
     stepId === 'welcome' ||
     (stepId === 'identity' && identityReady) ||
     (stepId === 'create_why' && !!createIntent) ||
@@ -805,6 +809,18 @@ export default function OnboardingScreen() {
             <BrandMark size={22} />
             <Text style={styles.brandLabel}>Moments Locaux</Text>
           </View>
+        ) : stepId === 'promises' ? (
+          <View style={styles.stepHeader}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goBack}
+              accessibilityRole="button"
+              accessibilityLabel="Revenir à l'étape précédente"
+            >
+              <ChevronLeft size={20} color={colors.brand.text} />
+              <Text style={styles.backText}>Retour</Text>
+            </TouchableOpacity>
+          </View>
         ) : isMarketingStep ? (
           <View style={styles.stepHeader}>
             <View style={styles.stepHeaderRow}>
@@ -879,6 +895,23 @@ export default function OnboardingScreen() {
         scrollEventThrottle={16}
       >
         <OnboardingStepFrame stepKey={stepId} direction={stepDirection}>
+        {stepId === 'promises' && (
+          <View style={styles.welcomeHeader}>
+            <Text style={styles.welcomeTitle} accessibilityRole="header">
+              Découvre ce que{'\n'}Moments Locaux t’offre
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
+              Ouvre les promesses qui te donnent envie.
+            </Text>
+          </View>
+        )}
+
+        {stepId === 'promises' && (
+          <View key="promises" style={styles.stepContainer}>
+            <OnboardingPromisesStep />
+          </View>
+        )}
+
         {stepId === 'welcome' && (
           <View style={styles.welcomeHeader}>
             {!features.diffuseur ? <OnboardingNeighborhood /> : null}
