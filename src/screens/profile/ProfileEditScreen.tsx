@@ -33,6 +33,8 @@ import {
   profileEditHasUnsavedChanges,
   profileLocationKey,
 } from '@/utils/profile-edit-changes';
+import { DemographicFields } from '@/components/profile/DemographicFields';
+import { EMPTY_DEMOGRAPHICS, getDemographics, saveDemographics, type Demographics } from '@/services/demographics.service';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -44,6 +46,8 @@ export default function ProfileEditScreen() {
   const homeBaselineKeyRef = useRef<string | null>(null);
   const [homeBaselineKey, setHomeBaselineKey] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
+  const [demographics, setDemographics] = useState<Demographics>(EMPTY_DEMOGRAPHICS);
+  const [savedDemographics, setSavedDemographics] = useState<Demographics>(EMPTY_DEMOGRAPHICS);
   const [bio, setBio] = useState(profile?.bio || '');
   const [avatarUri, setAvatarUri] = useState(profile?.avatar_url || '');
   const [coverUri, setCoverUri] = useState(profile?.cover_url || '');
@@ -64,6 +68,21 @@ export default function ProfileEditScreen() {
     setAvatarUri(profile.avatar_url || '');
     setCoverUri(profile.cover_url || '');
   }, [profile]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void getDemographics(user.id)
+      .then((value) => {
+        if (cancelled) return;
+        setDemographics(value);
+        setSavedDemographics(value);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -128,6 +147,14 @@ export default function ProfileEditScreen() {
     }
 
     const updatedProfile = await ProfileService.updateProfile(user.id, updates);
+    try {
+      await saveDemographics(user.id, demographics);
+      setSavedDemographics(demographics);
+    } catch {
+      setLoading(false);
+      Alert.alert('Profil', 'Le nom a été enregistré, mais les réponses facultatives n’ont pas pu l’être.');
+      return;
+    }
     if (homeLocation && Number.isFinite(homeLocation.latitude) && Number.isFinite(homeLocation.longitude)) {
       const saved = await setHomeLocationFromCoords(homeLocation.latitude, homeLocation.longitude);
       if (!saved) {
@@ -150,6 +177,9 @@ export default function ProfileEditScreen() {
     }
   };
 
+  const demographicsKey = (value: Demographics) =>
+    `${value.age_band ?? ''}|${value.household ?? ''}|${value.life_situation ?? ''}`;
+
   const hasUnsavedChanges = profile
     ? profileEditHasUnsavedChanges(
         {
@@ -158,6 +188,7 @@ export default function ProfileEditScreen() {
           avatarUrl: avatarUri,
           coverUrl: coverUri,
           locationKey: profileLocationKey(homeLocation),
+          demographicsKey: demographicsKey(demographics),
         },
         {
           displayName: profile.display_name || '',
@@ -165,6 +196,7 @@ export default function ProfileEditScreen() {
           avatarUrl: profile.avatar_url || '',
           coverUrl: profile.cover_url || '',
           locationKey: homeBaselineKey ?? profileLocationKey(homeLocation),
+          demographicsKey: demographicsKey(savedDemographics),
         },
       )
     : false;
@@ -442,6 +474,7 @@ export default function ProfileEditScreen() {
           ref={registerFieldRef('displayName')}
           onFocus={() => handleInputFocus('displayName')}
         />
+        <DemographicFields value={demographics} onChange={setDemographics} />
 
         <Input
           label="Bio"

@@ -28,6 +28,8 @@ import {
   X,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
+import { DemographicFields } from '@/components/profile/DemographicFields';
+import { EMPTY_DEMOGRAPHICS, getDemographics, saveDemographics, type Demographics } from '@/services/demographics.service';
 import { AppBackground, Button, PushButton, UserAvatar } from '../../components/ui';
 import { BrandIcon } from '@/components/ui/BrandIcon';
 import { BrandMark } from '@/components/ui/BrandMark';
@@ -140,6 +142,20 @@ export default function OnboardingScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const stepDirection = useSharedValue(1);
   const [displayName, setDisplayName] = useState(fallbackDisplayName);
+  const [demographics, setDemographics] = useState<Demographics>(EMPTY_DEMOGRAPHICS);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void getDemographics(user.id)
+      .then((value) => {
+        if (!cancelled) setDemographics(value);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   const [bio, setBio] = useState(profile?.bio || '');
   const [accountKind, setAccountKind] = useState<AccountKind>(() => {
     if (
@@ -546,6 +562,13 @@ export default function OnboardingScreen() {
       }
 
       await refreshProfile();
+      if (user) {
+        try {
+          await saveDemographics(user.id, demographics);
+        } catch (demoErr) {
+          console.warn('Demographics were not saved', demoErr);
+        }
+      }
       profilePersisted.current = true;
       return true;
     } catch (err) {
@@ -973,6 +996,8 @@ export default function OnboardingScreen() {
                 onFocus={() => handleInputFocus('displayName')}
               />
             </View>
+
+            <DemographicFields value={demographics} onChange={setDemographics} />
 
             {features.diffuseur ? (
               <View style={styles.inputGroup}>
