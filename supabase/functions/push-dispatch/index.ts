@@ -146,8 +146,10 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
     const prefs = pref as PrefRow | null;
+    // A marketing test campaign asks to ignore the person's fatigue settings.
+    const bypassFatigue = record.data?.bypassFatigue === true;
 
-    if (prefs && prefs.push_enabled === false) {
+    if (prefs && prefs.push_enabled === false && !bypassFatigue) {
         return json({ skipped: "push_disabled" }, 200);
     }
 
@@ -242,7 +244,7 @@ Deno.serve(async (req: Request) => {
         // discovery_personal_match / discovery_new_area: master discovery + éclaireur gate
     }
 
-    const isCritical = CRITICAL_PUSH_TYPES.has(type);
+    const isCritical = CRITICAL_PUSH_TYPES.has(type) || bypassFatigue;
     if (!isCritical && prefs) {
         if (isQuietHours(prefs.quiet_hours_start, prefs.quiet_hours_end)) {
             return json({ skipped: "quiet_hours" }, 200);
