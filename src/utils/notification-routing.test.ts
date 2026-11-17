@@ -20,9 +20,9 @@ test('a change request without an event id falls back to the suggestion list', (
   );
 });
 
-test('another notification that carries an event id still opens the public page', () => {
+test('another notification that carries an event id opens the dismissable sheet', () => {
   assert.deepEqual(resolveNotificationRoute('event_published', { eventId: 'evt-1' }), {
-    href: '/events/evt-1',
+    href: '/map-event/evt-1?origin=notification',
   });
 });
 
@@ -33,7 +33,7 @@ test('one nearby event opens its page', () => {
       eventId: '11111111-1111-4111-8111-111111111111',
       eventIds: '11111111-1111-4111-8111-111111111111',
     }),
-    { href: '/events/11111111-1111-4111-8111-111111111111' },
+    { href: '/map-event/11111111-1111-4111-8111-111111111111?origin=notification' },
   );
 });
 

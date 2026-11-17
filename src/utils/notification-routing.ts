@@ -6,7 +6,7 @@ import {
 
 type RouteTarget =
   | { href: NotificationRouteHref }
-  | { href: `/events/${string}` }
+  | { href: `/map-event/${string}?origin=notification` }
   | { href: `/events/create?edit=${string}` }
   | { href: `/community/${string}` }
   | { href: '/profile/my-events' }
@@ -51,6 +51,16 @@ const pickString = (data: Record<string, unknown>, ...keys: string[]): string | 
 
 const inbox = (): RouteTarget => ({ href: '/notifications' });
 
+/**
+ * The public event page opened from a notification.
+ * `map-event` is the root sheet that can be swiped down. `/events/[id]` is the
+ * first screen of a nested stack, so iOS presents it as a card and the
+ * downward swipe never attaches.
+ */
+const eventSheet = (eventId: string): RouteTarget => ({
+  href: `/map-event/${eventId}?origin=notification`,
+});
+
 /** Resolves in-app navigation for a notification payload (push tap or inbox). */
 export function resolveNotificationRoute(
   type: string | undefined,
@@ -76,7 +86,7 @@ export function resolveNotificationRoute(
 
   const eventId = pickString(d, 'eventId', 'event_id');
   if (eventId) {
-    return { href: `/events/${eventId}` };
+    return eventSheet(eventId);
   }
 
   const destination = hrefForNotificationDestination(d);
@@ -88,7 +98,7 @@ export function resolveNotificationRoute(
     const targetType = pickString(d, 'targetType', 'target_type');
     const targetId = pickString(d, 'targetId', 'target_id');
     if (targetType === 'event' && targetId) {
-      return { href: `/events/${targetId}` };
+      return eventSheet(targetId);
     }
   }
 

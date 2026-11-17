@@ -288,11 +288,11 @@ export default function EventDetailScreen() {
   const tagsMap = useTaxonomyStore((s) => s.tagsMap);
 
   const transitionContext = useMapDetailTransitionStore((state) => state.context);
-  const isListDetailOrigin = origin === 'home-list';
+  const isDismissableSheetOrigin = origin === 'home-list' || origin === 'notification';
   const isMapTransitionOrigin =
     (origin === 'map-unit' || origin === 'map-sheet') &&
     transitionContext?.origin === origin;
-  const canSwipeDismiss = isMapTransitionOrigin || isListDetailOrigin;
+  const canSwipeDismiss = isMapTransitionOrigin || isDismissableSheetOrigin;
   const seededEvent = resolveSeededEventDetail({
     eventId: id,
     origin,
@@ -305,7 +305,7 @@ export default function EventDetailScreen() {
   const reduceMotion = useReduceMotion();
   const canAnimateMapSurface =
     !reduceMotion && isMapTransitionOrigin && Boolean(seededEvent);
-  const canAnimateListSurface = !reduceMotion && isListDetailOrigin;
+  const canAnimateListSurface = !reduceMotion && isDismissableSheetOrigin;
   const canAnimateSurface = canAnimateMapSurface || canAnimateListSurface;
   const surfaceProgress = useSharedValue(canAnimateSurface ? 0 : 1);
   const [scrollAtTop, setScrollAtTop] = useState(true);
