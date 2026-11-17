@@ -4,6 +4,7 @@ export type ProfileEditSnapshot = {
   avatarUrl: string;
   coverUrl: string;
   locationKey: string;
+  demographicsKey?: string;
 };
 
 export type ProfileLocationSnapshot = {
@@ -29,5 +30,6 @@ export function profileEditHasUnsavedChanges(
     || current.avatarUrl !== baseline.avatarUrl
     || current.coverUrl !== baseline.coverUrl
     || current.locationKey !== baseline.locationKey
+    || (current.demographicsKey ?? '') !== (baseline.demographicsKey ?? '')
   );
 }
