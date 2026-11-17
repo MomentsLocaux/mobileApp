@@ -1,9 +1,11 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandIcon } from '@/components/ui/BrandIcon';
 import { LUMIA_AVATAR_LOCAL, LUMIA_NAME } from '@/constants/lumia';
+import { isLumiaTourHeaderTarget, type LumiaTourTargetId } from '@/constants/lumiaTour';
 import { colors, spacing, typography } from '@/constants/theme';
 import { UserAvatar } from '@/components/ui';
+import { useLumiaTourStore } from '@/store/lumiaTourStore';
 import { HomeBrandSignature } from './HomeBrandSignature';
 
 type TourTarget = {
@@ -40,12 +42,27 @@ export function HomeHeader({
   lumiaTour,
   notificationsTour,
 }: Props) {
+  const activeTargetId = useLumiaTourStore((s) => s.activeTargetId);
+  const setHeaderBandHeight = useLumiaTourStore((s) => s.setHeaderBandHeight);
+  const headerTour = Platform.OS === 'android' && isLumiaTourHeaderTarget(activeTargetId);
+  const highlighted = (id: LumiaTourTargetId) => headerTour && activeTargetId === id;
 
   return (
-    <View style={styles.header}>
+    <View
+      style={styles.header}
+      onLayout={(event) => setHeaderBandHeight(Math.round(event.nativeEvent.layout.height))}
+    >
       <HomeBrandSignature />
       <View style={styles.headerTop}>
-        <View ref={profileTour?.ref} collapsable={false} onLayout={profileTour?.onLayout}>
+        <View
+          ref={profileTour?.ref}
+          collapsable={false}
+          onLayout={profileTour?.onLayout}
+          style={[
+            highlighted('headerProfile') && styles.tourTarget,
+            headerTour && !highlighted('headerProfile') && styles.tourDimmed,
+          ]}
+        >
           <Pressable
             onPress={onPressProfile}
             accessibilityRole="button"
@@ -65,7 +82,15 @@ export function HomeHeader({
         </Text>
         <View style={styles.actions}>
           {showLumia ? (
-            <View ref={lumiaTour?.ref} collapsable={false} onLayout={lumiaTour?.onLayout}>
+            <View
+              ref={lumiaTour?.ref}
+              collapsable={false}
+              onLayout={lumiaTour?.onLayout}
+              style={[
+                highlighted('headerChat') && styles.tourTarget,
+                headerTour && !highlighted('headerChat') && styles.tourDimmed,
+              ]}
+            >
               <Pressable
                 style={styles.iconBtn}
                 onPress={onPressLumia}
@@ -76,7 +101,15 @@ export function HomeHeader({
               </Pressable>
             </View>
           ) : null}
-          <View ref={notificationsTour?.ref} collapsable={false} onLayout={notificationsTour?.onLayout}>
+          <View
+            ref={notificationsTour?.ref}
+            collapsable={false}
+            onLayout={notificationsTour?.onLayout}
+            style={[
+              highlighted('headerNotifications') && styles.tourTarget,
+              headerTour && !highlighted('headerNotifications') && styles.tourDimmed,
+            ]}
+          >
             <Pressable
               style={styles.iconBtn}
               onPress={onPressNotifications}
@@ -138,6 +171,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  tourTarget: {
+    borderWidth: 2,
+    borderColor: colors.brand.secondary,
+    backgroundColor: colors.brand.surfaceMuted,
+    borderRadius: 24,
+  },
+  tourDimmed: {
+    opacity: 0.4,
   },
   iconBtn: {
     width: 48,

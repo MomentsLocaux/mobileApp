@@ -57,6 +57,45 @@ export const LUMIA_TOUR_TARGET_RADIUS: Record<LumiaTourTargetId, number> = {
   headerNotifications: 20,
 };
 
+const LUMIA_TOUR_TAB_TARGETS = new Set<LumiaTourTargetId>([
+  'home',
+  'proposals',
+  'map',
+  'favorites',
+  'menu',
+]);
+
+const LUMIA_TOUR_HEADER_TARGETS = new Set<LumiaTourTargetId>([
+  'headerProfile',
+  'headerChat',
+  'headerNotifications',
+]);
+
+export function isLumiaTourTabTarget(id: LumiaTourTargetId | null | undefined): id is LumiaTourTargetId {
+  return !!id && LUMIA_TOUR_TAB_TARGETS.has(id);
+}
+
+export function isLumiaTourHeaderTarget(id: LumiaTourTargetId | null | undefined): id is LumiaTourTargetId {
+  return !!id && LUMIA_TOUR_HEADER_TARGETS.has(id);
+}
+
+/**
+ * Android does not punch a spotlight hole (window coordinates drift from the icon).
+ * The scrim stops before the chrome that owns the icon, and the icon is highlighted in place.
+ */
+export function lumiaTourAndroidScrimInsets(
+  target: LumiaTourTargetId | null | undefined,
+  opts: { tabBarHeight: number; headerClearance: number },
+): { top: number; bottom: number } {
+  if (isLumiaTourTabTarget(target)) {
+    return { top: 0, bottom: Math.max(0, opts.tabBarHeight) };
+  }
+  if (isLumiaTourHeaderTarget(target)) {
+    return { top: Math.max(0, opts.headerClearance), bottom: 0 };
+  }
+  return { top: 0, bottom: 0 };
+}
+
 type BuildOpts = {
   isProfessionnel: boolean;
   lumiaChat: boolean;

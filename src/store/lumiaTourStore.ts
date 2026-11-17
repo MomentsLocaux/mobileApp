@@ -5,6 +5,12 @@ type LumiaTourStore = {
   replayRequested: boolean;
   requestReplay: () => void;
   consumeReplay: () => void;
+  /** Android-only: icon highlighted in place. iOS keeps the spotlight hole. */
+  activeTargetId: LumiaTourTargetId | null;
+  setActiveTargetId: (id: LumiaTourTargetId | null) => void;
+  /** Laid-out home header height, used so the Android scrim clears that band. */
+  headerBandHeight: number;
+  setHeaderBandHeight: (height: number) => void;
   targets: Partial<Record<LumiaTourTargetId, LumiaTourTargetRect>>;
   setTarget: (id: LumiaTourTargetId, rect: LumiaTourTargetRect | null) => void;
   measureVersion: number;
@@ -15,6 +21,12 @@ export const useLumiaTourStore = create<LumiaTourStore>((set) => ({
   replayRequested: false,
   requestReplay: () => set({ replayRequested: true }),
   consumeReplay: () => set({ replayRequested: false }),
+  activeTargetId: null,
+  setActiveTargetId: (id) =>
+    set((state) => (state.activeTargetId === id ? state : { activeTargetId: id })),
+  headerBandHeight: 0,
+  setHeaderBandHeight: (height) =>
+    set((state) => (state.headerBandHeight === height ? state : { headerBandHeight: height })),
   targets: {},
   measureVersion: 0,
   bumpMeasure: () => set((state) => ({ measureVersion: state.measureVersion + 1 })),

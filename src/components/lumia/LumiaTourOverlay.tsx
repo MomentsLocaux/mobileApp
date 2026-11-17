@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import {
   LUMIA_NAME,
   LUMIA_TOUR_LOCAL,
+  lumiaTourAndroidScrimInsets,
   type LumiaTourStep,
   type LumiaTourTargetRect,
 } from '@/constants/lumiaTour';
@@ -30,9 +31,30 @@ const TYPE_MS = 16;
 type Props = {
   visible: boolean;
   steps: LumiaTourStep[];
+  /** Height of the bottom tab bar. Android keeps it outside the scrim. */
+  tabBarHeight: number;
   onDismiss: (reason: 'done' | 'skipped') => void;
   onStepChange?: (step: LumiaTourStep) => void;
 };
+
+const HEADER_BAND_FALLBACK = 176;
+
+function AndroidTourScrim({ top, bottom }: { top: number; bottom: number }) {
+  return (
+    <>
+      <View
+        pointerEvents="auto"
+        style={[StyleSheet.absoluteFill, styles.scrimFull, { top, bottom }]}
+      />
+      {top > 0 ? (
+        <View pointerEvents="auto" style={[styles.touchShield, { top: 0, height: top }]} />
+      ) : null}
+      {bottom > 0 ? (
+        <View pointerEvents="auto" style={[styles.touchShield, { bottom: 0, height: bottom }]} />
+      ) : null}
+    </>
+  );
+}
 
 function SpotlightScrim({ hole }: { hole: LumiaTourTargetRect | null }) {
   const { width: W, height: H } = Dimensions.get('window');
@@ -66,11 +88,11 @@ function SpotlightScrim({ hole }: { hole: LumiaTourTargetRect | null }) {
   );
 }
 
-export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Props) {
+export function LumiaTourOverlay({ visible, steps, tabBarHeight, onDismiss, onStepChange }: Props) {
   const insets = useSafeAreaInsets();
   const targets = useLumiaTourStore((s) => s.targets);
-  const overlayRef = useRef<View>(null);
-  const [androidOrigin, setAndroidOrigin] = useState({ x: 0, y: 0 });
+  const headerBandHeight = useLumiaTourStore((s) => s.headerBandHeight);
+  const setActiveTargetId = useLumiaTourStore((s) => s.setActiveTargetId);
   const [index, setIndex] = useState(0);
   const [typedLen, setTypedLen] = useState(0);
   const step = steps[index];
@@ -109,30 +131,23 @@ export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Pr
   }, [visible, spoken, typedLen]);
 
   useEffect(() => {
-    if (!visible || Platform.OS !== 'android') return;
-    const measure = () => {
-      overlayRef.current?.measureInWindow((x, y) => {
-        setAndroidOrigin((prev) => (prev.x === x && prev.y === y ? prev : { x, y }));
-      });
-    };
-    const frame = requestAnimationFrame(measure);
-    const later = setTimeout(measure, 50);
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(later);
-    };
-  }, [visible, index]);
+    if (Platform.OS !== 'android') return;
+    setActiveTargetId(visible && step?.target ? step.target : null);
+  }, [visible, step, setActiveTargetId]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    return () => setActiveTargetId(null);
+  }, [setActiveTargetId]);
 
   if (!steps.length || !step) return null;
 
-  const measuredHole = step.target ? targets[step.target] ?? null : null;
-  const hole = measuredHole
-    ? {
-        ...measuredHole,
-        x: measuredHole.x - (Platform.OS === 'android' ? androidOrigin.x : 0),
-        y: measuredHole.y - (Platform.OS === 'android' ? androidOrigin.y : 0),
-      }
-    : null;
+  const measuredHole = Platform.OS === 'ios' && step.target ? targets[step.target] ?? null : null;
+  const androidScrim = lumiaTourAndroidScrimInsets(step.target, {
+    tabBarHeight,
+    headerClearance:
+      insets.top + (headerBandHeight > 0 ? headerBandHeight : HEADER_BAND_FALLBACK),
+  });
 
   const finishTyping = () => {
     if (!typedComplete) setTypedLen(spoken.length);
@@ -174,8 +189,12 @@ export function LumiaTourOverlay({ visible, steps, onDismiss, onStepChange }: Pr
       onRequestClose={skip}
       statusBarTranslucent
     >
-      <View ref={overlayRef} style={styles.root} pointerEvents="box-none">
-        <SpotlightScrim hole={hole} />
+      <View style={styles.root} pointerEvents="box-none">
+        {Platform.OS === 'android' ? (
+          <AndroidTourScrim top={androidScrim.top} bottom={androidScrim.bottom} />
+        ) : (
+          <SpotlightScrim hole={measuredHole} />
+        )}
 
         <Image
           source={LUMIA_TOUR_LOCAL}
@@ -232,6 +251,12 @@ const styles = StyleSheet.create({
   },
   scrimFull: {
     backgroundColor: SCRIM,
+  },
+  touchShield: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
   },
   avatar: {
     position: 'absolute',

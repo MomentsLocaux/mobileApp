@@ -2,7 +2,7 @@ import { Tabs, Redirect, usePathname, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { ModeSwitch } from '@/components/identity/ModeSwitch';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Pressable, Text, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Pressable, Text, ScrollView, Platform } from 'react-native';
 import { BrandIcon, UserAvatar } from '@/components/ui';
 import { BrandStartupScreen } from '@/components/ui/BrandStartupScreen';
 import type { BrandIconName } from '@/components/ui/BrandIcon';
@@ -37,6 +37,7 @@ import { useAccountIdentity } from '@/hooks/useAccountIdentity';
 import { LumiaTourOverlay } from '@/components/lumia/LumiaTourOverlay';
 import { useLumiaTour } from '@/hooks/useLumiaTour';
 import {
+  isLumiaTourTabTarget,
   LUMIA_TOUR_TARGET_RADIUS,
   type LumiaTourStep,
   type LumiaTourTargetId,
@@ -89,6 +90,7 @@ export default function TabsLayout() {
   const { visible: lumiaTourVisible, steps: lumiaTourSteps, dismiss: dismissLumiaTour } = useLumiaTour();
   const setTourTarget = useLumiaTourStore((s) => s.setTarget);
   const bumpTourMeasure = useLumiaTourStore((s) => s.bumpMeasure);
+  const activeTourTarget = useLumiaTourStore((s) => s.activeTargetId);
   const targetRefs = useRef<Partial<Record<LumiaTourTargetId, View | null>>>({});
 
   const setTargetRef = useCallback(
@@ -194,19 +196,25 @@ export default function TabsLayout() {
     focused: boolean,
     content: React.ReactNode,
     targetId?: LumiaTourTargetId,
-  ) => (
-    <View
-      ref={targetId ? setTargetRef(targetId) : undefined}
-      collapsable={false}
-      onLayout={targetId ? measureTourTargets : undefined}
-      style={[
-        styles.tabIconSlot,
-        focused && { backgroundColor: accent.accentMuted },
-      ]}
-    >
-      {content}
-    </View>
-  );
+  ) => {
+    const androidTour = Platform.OS === 'android' && isLumiaTourTabTarget(activeTourTarget);
+    const highlighted = androidTour && targetId === activeTourTarget;
+    return (
+      <View
+        ref={targetId ? setTargetRef(targetId) : undefined}
+        collapsable={false}
+        onLayout={targetId ? measureTourTargets : undefined}
+        style={[
+          styles.tabIconSlot,
+          focused && { backgroundColor: accent.accentMuted },
+          highlighted && styles.tabIconSlotTour,
+          androidTour && !highlighted && styles.tabIconSlotTourDimmed,
+        ]}
+      >
+        {content}
+      </View>
+    );
+  };
 
   const renderProtectedTabButton = (
     props: any,
@@ -668,6 +676,7 @@ export default function TabsLayout() {
       <LumiaTourOverlay
         visible={lumiaTourVisible}
         steps={lumiaTourSteps}
+        tabBarHeight={tabBarHeight}
         onDismiss={dismissLumiaTour}
         onStepChange={handleLumiaTourStep}
       />
@@ -749,6 +758,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
+  },
+  tabIconSlotTour: {
+    backgroundColor: colors.brand.surfaceMuted,
+    borderWidth: 2,
+    borderColor: colors.brand.secondary,
+  },
+  tabIconSlotTourDimmed: {
+    opacity: 0.4,
   },
   tabIconSlotActive: {
     backgroundColor: 'rgba(124, 181, 24, 0.18)',
