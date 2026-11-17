@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
@@ -32,17 +35,29 @@ type Row = {
 export function EventShareHost() {
   const [event, setEvent] = useState<ShareableEvent | null>(null);
 
-  useEffect(() => {
-    registerEventShareOpener(setEvent);
-    return () => registerEventShareOpener(null);
-  }, []);
+  useEffect(() => registerEventShareOpener(setEvent), []);
 
+  return (
+    <EventShareOverlay event={event} onClose={() => setEvent(null)} />
+  );
+}
+
+export function EventShareOverlay({
+  event,
+  onClose,
+  presentation = 'modal',
+}: {
+  event: ShareableEvent | null;
+  onClose: () => void;
+  presentation?: 'modal' | 'overlay';
+}) {
   return (
     <EventShareSheet
       event={event}
-      onClose={() => setEvent(null)}
+      onClose={onClose}
+      presentation={presentation}
       onShareExternally={(item) => {
-        setEvent(null);
+        onClose();
         setTimeout(() => {
           void shareEventExternally(item).catch(() => undefined);
         }, 280);
@@ -55,10 +70,12 @@ function EventShareSheet({
   event,
   onClose,
   onShareExternally,
+  presentation = 'modal',
 }: {
   event: ShareableEvent | null;
   onClose: () => void;
   onShareExternally: (event: ShareableEvent) => void;
+  presentation?: 'modal' | 'overlay';
 }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -166,10 +183,9 @@ function EventShareSheet({
     }
   };
 
-  return (
-    <Modal visible={Boolean(event)} transparent animationType="fade" onRequestClose={onClose}>
+  const body = (
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]} onPress={(press) => press.stopPropagation()}>
+        <Pressable style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]} onPress={() => undefined}>
           <View style={styles.header}>
             <View style={styles.titleBlock}>
               <Text style={styles.title}>Envoyer dans Moments Locaux</Text>
@@ -236,11 +252,42 @@ function EventShareSheet({
           </TouchableOpacity>
         </Pressable>
       </Pressable>
+  );
+
+  if (presentation === 'overlay' && Platform.OS === 'ios') {
+    if (!event) return null;
+    return <IosShareWindow>{body}</IosShareWindow>;
+  }
+
+  return (
+    <Modal visible={Boolean(event)} transparent animationType="fade" onRequestClose={onClose}>
+      {body}
     </Modal>
   );
 }
 
+function IosShareWindow({ children }: { children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [opacity]);
+
+  return (
+    <FullWindowOverlay unstable_accessibilityContainerViewIsModal>
+      <Animated.View style={[styles.iosOverlay, { opacity }]}>{children}</Animated.View>
+    </FullWindowOverlay>
+  );
+}
+
 const styles = StyleSheet.create({
+  iosOverlay: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(26, 51, 41, 0.28)',

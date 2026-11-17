@@ -24,6 +24,7 @@ import { NotificationsService } from '@/services/notifications.service';
 import { setActiveDirectConversation } from '@/services/push.service';
 import { UGC_LIMITS } from '@/utils/ugc-sanitize';
 import { parseSharedEventMessage } from '@/utils/event-share';
+import { askToConfirmReport, confirmReportSubmitted } from '@/utils/report-feedback';
 
 export default function ConversationThreadScreen() {
   const router = useRouter();
@@ -160,11 +161,21 @@ export default function ConversationThreadScreen() {
     }
   };
 
-  const reportWithReason = (title: string, onPick: (reason: string) => Promise<void>) => {
+  const reportWithReason = (
+    title: string,
+    question: string,
+    onPick: (reason: string) => Promise<void>,
+  ) => {
     const run = (reason: string) => {
-      void onPick(reason).catch((caught) => {
-        setError(caught instanceof Error ? caught.message : 'Signalement impossible.');
-      });
+      void (async () => {
+        const confirmed = await askToConfirmReport(question);
+        if (!confirmed) return;
+        try {
+          await onPick(reason);
+        } catch (caught) {
+          setError(caught instanceof Error ? caught.message : 'Signalement impossible.');
+        }
+      })();
     };
     Alert.alert(title, 'Choisis la raison.', [
       { text: 'Message abusif', onPress: () => run('Message abusif') },
@@ -179,10 +190,14 @@ export default function ConversationThreadScreen() {
     Alert.alert(name || 'Conversation', undefined, [
       {
         text: 'Signaler cette personne',
-        onPress: () => reportWithReason('Signaler cette personne', async (reason) => {
-          await MessagingService.reportPerson(otherUserId, reason);
-          Alert.alert('Signalement envoyé', 'L’équipe va le lire.');
-        }),
+        onPress: () => reportWithReason(
+          'Signaler cette personne',
+          'Êtes-vous sûr de vouloir signaler cette personne ?',
+          async (reason) => {
+            await MessagingService.reportPerson(otherUserId, reason);
+            confirmReportSubmitted('L’équipe va le lire.');
+          },
+        ),
       },
       blocked
         ? {
@@ -301,10 +316,14 @@ export default function ConversationThreadScreen() {
                   onLongPress={
                     mine
                       ? () => openOwnMessageActions(item)
-                      : () => reportWithReason('Signaler ce message', async (reason) => {
-                          await MessagingService.reportMessage(item.id, reason);
-                          Alert.alert('Signalement envoyé', 'L’équipe va le lire.');
-                        })
+                      : () => reportWithReason(
+                          'Signaler ce message',
+                          'Êtes-vous sûr de vouloir signaler ce message ?',
+                          async (reason) => {
+                            await MessagingService.reportMessage(item.id, reason);
+                            confirmReportSubmitted('L’équipe va le lire.');
+                          },
+                        )
                   }
                   delayLongPress={280}
                   accessibilityRole={shared ? 'button' : 'text'}

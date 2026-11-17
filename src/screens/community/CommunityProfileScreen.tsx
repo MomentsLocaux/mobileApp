@@ -12,6 +12,7 @@ import { EventsService } from '@/services/events.service';
 import { EventCardStatsService, type EventCardStats } from '@/services/event-card-stats.service';
 import { LocalStatusService } from '@/services/local-status.service';
 import { ReportService } from '@/services/report.service';
+import { askToConfirmReport, confirmReportFailed, confirmReportSubmitted } from '@/utils/report-feedback';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import type { CommunityMember } from '../../types/community';
 import type { EventWithCreator } from '@/types/database';
@@ -568,14 +569,17 @@ export default function CommunityProfileScreen() {
         visible={reportVisible}
         onClose={() => setReportVisible(false)}
         onSelect={async (reason) => {
+          const profileId = member?.user_id;
+          setReportVisible(false);
+          if (!profileId) return;
+          const confirmed = await askToConfirmReport('Êtes-vous sûr de vouloir signaler ce profil ?');
+          if (!confirmed) return;
           try {
-            if (member?.user_id) {
-              await ReportService.profile(member.user_id, { reason });
-            }
+            await ReportService.profile(profileId, { reason });
+            confirmReportSubmitted('Merci, notre équipe de modération va examiner ce profil.');
           } catch (e) {
             console.warn('report profile', e);
-          } finally {
-            setReportVisible(false);
+            confirmReportFailed();
           }
         }}
       />

@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase/client';
 import { SocialService } from '@/services/social.service';
 import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 import { ReportService } from '@/services/report.service';
+import { askToConfirmReport, confirmReportFailed, confirmReportSubmitted } from '@/utils/report-feedback';
 import type { ReportReasonCode } from '@/constants/report-reasons';
 import { features } from '@/config/features';
 import { GuestGateModal } from '@/components/auth/GuestGateModal';
@@ -226,19 +227,21 @@ export default function EventEchoesScreen() {
 
   const handleReportComment = async (reason: ReportReasonCode) => {
     if (!reportCommentId) return;
+    const commentId = reportCommentId;
+    setReportVisible(false);
+    setReportCommentId(null);
+    const confirmed = await askToConfirmReport('Êtes-vous sûr de vouloir signaler ce commentaire ?');
+    if (!confirmed) return;
     try {
-      await ReportService.comment(reportCommentId, { reason });
+      await ReportService.comment(commentId, { reason });
       setReportedCommentIds((prev) => {
         const next = new Set(prev);
-        next.add(reportCommentId);
+        next.add(commentId);
         return next;
       });
-      Alert.alert('Signalement envoyé', 'Merci, notre équipe de modération va examiner ce commentaire.');
-    } catch (error) {
-      Alert.alert('Erreur', "Impossible d'envoyer le signalement pour l'instant.");
-    } finally {
-      setReportVisible(false);
-      setReportCommentId(null);
+      confirmReportSubmitted('Merci, notre équipe de modération va examiner ce commentaire.');
+    } catch {
+      confirmReportFailed();
     }
   };
 

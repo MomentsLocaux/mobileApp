@@ -35,7 +35,10 @@ import {
 } from '../../components/ui';
 import { AdCard } from '@/components/ads/AdCard';
 import { features } from '@/config/features';
-import { sharePublishedEvent } from '@/utils/event-share';
+import { sharePublishedEvent, type ShareableEvent } from '@/utils/event-share';
+import { registerEventShareOpener } from '@/utils/event-share-host';
+import { EventShareOverlay } from '@/components/events/EventShareSheet';
+import { askToConfirmReport, confirmReportFailed, confirmReportSubmitted } from '@/utils/report-feedback';
 import {
   EVENT_CALENDAR_LABEL,
   presentAddToDeviceCalendar,
@@ -358,6 +361,7 @@ export default function EventDetailScreen() {
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [descriptionCanExpand, setDescriptionCanExpand] = useState(false);
+  const [shareTarget, setShareTarget] = useState<ShareableEvent | null>(null);
   const [eventReportVisible, setEventReportVisible] = useState(false);
   const [eventReported, setEventReported] = useState(false);
   const [eventCorrectionVisible, setEventCorrectionVisible] = useState(false);
@@ -544,6 +548,19 @@ export default function EventDetailScreen() {
     useCallback(() => {
       loadEventDetails();
     }, [loadEventDetails]),
+  );
+
+  // The map list opens this sheet from a normal screen. This fiche is already a
+  // native modal, so a second React Native modal freezes iOS. Host the same
+  // sheet above the fiche while it is focused.
+  useFocusEffect(
+    useCallback(() => {
+      const unregister = registerEventShareOpener(setShareTarget);
+      return () => {
+        unregister();
+        setShareTarget(null);
+      };
+    }, []),
   );
 
   useEffect(() => {
@@ -891,14 +908,16 @@ export default function EventDetailScreen() {
 
   const handleReportEvent = async (reason: ReportReasonCode) => {
     if (!event?.id) return;
+    const eventId = event.id;
+    setEventReportVisible(false);
+    const confirmed = await askToConfirmReport('Êtes-vous sûr de vouloir signaler cet événement ?');
+    if (!confirmed) return;
     try {
-      await ReportService.event(event.id, { reason });
+      await ReportService.event(eventId, { reason });
       setEventReported(true);
-      Alert.alert('Signalement envoyé', "Merci, notre équipe de modération va examiner cet événement.");
-    } catch (error) {
-      Alert.alert('Erreur', "Impossible d'envoyer le signalement pour le moment.");
-    } finally {
-      setEventReportVisible(false);
+      confirmReportSubmitted('Merci, notre équipe de modération va examiner cet événement.');
+    } catch {
+      confirmReportFailed();
     }
   };
 
@@ -1950,6 +1969,12 @@ export default function EventDetailScreen() {
         visible={eventReportVisible}
         onClose={() => setEventReportVisible(false)}
         onSelect={handleReportEvent}
+      />
+
+      <EventShareOverlay
+        event={shareTarget}
+        presentation="overlay"
+        onClose={() => setShareTarget(null)}
       />
 
       {event ? (

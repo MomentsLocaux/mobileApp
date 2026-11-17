@@ -16,6 +16,12 @@ export const MAX_MAP_BBOX_DIAMETER_KM = 300;
  * the camera actually moves when the viewport was only slightly oversized.
  */
 export const MAP_BBOX_TIGHTEN_DIAMETER_KM = 80;
+/**
+ * The search modal counts events inside the radius bbox. Fitting that bbox
+ * with screen padding opens the map about 10% wider, so the map count runs
+ * ahead. Frame 90% of the radius so the visible window lands on the same area.
+ */
+export const MAP_DISPLAY_WINDOW_SCALE = 0.9;
 
 const KM_PER_LATITUDE_DEGREE = 111;
 
@@ -56,6 +62,19 @@ export function isMapBoundsTooLarge(
  * Scale a bbox around its center until its longest side is at most
  * `maxDiameterKm`. Bounds that are already small enough are returned as-is.
  */
+/** Scale a bbox around its center. 0.9 brings each edge 10% closer. */
+export function scaleMapBoundsAroundCenter(bounds: MapBounds, scale: number): MapBounds {
+  if (!(scale > 0) || !Number.isFinite(scale)) return bounds;
+  const centerLon = (bounds.ne[0] + bounds.sw[0]) / 2;
+  const centerLat = (bounds.ne[1] + bounds.sw[1]) / 2;
+  const halfLon = Math.abs(bounds.ne[0] - bounds.sw[0]) * 0.5 * scale;
+  const halfLat = Math.abs(bounds.ne[1] - bounds.sw[1]) * 0.5 * scale;
+  return {
+    sw: [centerLon - halfLon, centerLat - halfLat],
+    ne: [centerLon + halfLon, centerLat + halfLat],
+  };
+}
+
 export function shrinkMapBoundsToMaxDiameter(
   bounds: MapBounds,
   maxDiameterKm = MAP_BBOX_TIGHTEN_DIAMETER_KM

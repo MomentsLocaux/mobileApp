@@ -14,6 +14,7 @@ import {
   type SocialProvider,
 } from '@/services/oauth.service';
 import { isRevokedRefreshToken } from '@/utils/auth-session-errors';
+import { localizeSignInError } from '@/utils/auth-error-message';
 import { suspendNotificationRouting } from '@/services/notification-intent';
 
 export type AuthErrorCode = 'email_already_registered';
@@ -466,7 +467,7 @@ export class AuthService {
       this.explicitSignInInProgress = false;
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: localizeSignInError(error, 'Email ou mot de passe incorrect'),
       };
     }
   }

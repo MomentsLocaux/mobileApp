@@ -8,6 +8,8 @@ import {
   getViewportCacheDisposition,
   haveMapBoundsMeaningfullyChanged,
   insetMapBoundsForBottomOverlay,
+  MAP_DISPLAY_WINDOW_SCALE,
+  scaleMapBoundsAroundCenter,
   isMapBoundsTooLarge,
   isMissingViewportRpc,
   MAP_BBOX_TIGHTEN_DIAMETER_KM,
@@ -159,6 +161,19 @@ describe('map viewport fetch helpers', () => {
       }),
       true
     );
+  });
+
+  it('brings the map window 10% closer around the same center', () => {
+    const bounds = {
+      sw: [6, 48] as [number, number],
+      ne: [8, 50] as [number, number],
+    };
+    const scaled = scaleMapBoundsAroundCenter(bounds, MAP_DISPLAY_WINDOW_SCALE);
+    assert.equal(MAP_DISPLAY_WINDOW_SCALE, 0.9);
+    assert.equal((scaled.ne[0] + scaled.sw[0]) / 2, 7);
+    assert.equal((scaled.ne[1] + scaled.sw[1]) / 2, 49);
+    assert.ok(Math.abs(scaled.ne[0] - scaled.sw[0] - 1.8) < 1e-10);
+    assert.ok(Math.abs(scaled.ne[1] - scaled.sw[1] - 1.8) < 1e-10);
   });
 
   it('raises the south edge so a bottom sheet overlay is outside the fetch bbox', () => {

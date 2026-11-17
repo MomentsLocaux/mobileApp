@@ -9,6 +9,7 @@ export const BUG_REPORT_PAGE_IDS = [
   'proposals',
   'favorites',
   'community',
+  'messages',
   'shop',
   'missions',
   'profile',
@@ -46,8 +47,9 @@ export const BUG_REPORT_PAGES: BugReportPageOption[] = [
   { id: 'event_create', label: 'Création / publication', audience: 'app' },
   { id: 'event_suggest', label: 'Suggestion depuis une affiche', audience: 'app' },
   { id: 'proposals', label: 'Propositions', audience: 'app' },
-  { id: 'favorites', label: 'Favoris', audience: 'app' },
+  { id: 'favorites', label: 'Agenda', audience: 'app' },
   { id: 'community', label: 'Communauté', audience: 'app' },
+  { id: 'messages', label: 'Messages', audience: 'app' },
   { id: 'shop', label: 'Boutique', audience: 'app' },
   { id: 'missions', label: 'Missions', audience: 'app' },
   { id: 'profile', label: 'Profil', audience: 'app' },
@@ -76,9 +78,30 @@ export const isBugReportPageId = (value: string | null | undefined): value is Bu
 export const bugReportPageLabel = (page: string | null | undefined) =>
   BUG_REPORT_PAGES.find((option) => option.id === page)?.label || page || 'Autre / non précisé';
 
-export const mobileBugReportPages = BUG_REPORT_PAGES.filter(
-  (option) => option.audience === 'app' || option.audience === 'all',
-);
+/** Pages a user can actually open in the deployed app. Historical ids stay in the catalog. */
+export const MOBILE_BUG_REPORT_PAGE_IDS = [
+  'home',
+  'map',
+  'event_detail',
+  'event_suggest',
+  'proposals',
+  'favorites',
+  'community',
+  'messages',
+  'profile',
+  'settings',
+  'notifications',
+  'lumia',
+  'onboarding',
+  'auth',
+  'other',
+] as const satisfies readonly BugReportPageId[];
+
+export const mobileBugReportPages = MOBILE_BUG_REPORT_PAGE_IDS.map((id) => {
+  const option = BUG_REPORT_PAGES.find((page) => page.id === id);
+  if (!option) throw new Error(`Missing bug report page ${id}`);
+  return option;
+});
 
 export function foldBugReportPageValue(input: string) {
   return input
@@ -128,7 +151,15 @@ export function normalizeBugReportPage(raw: string | null | undefined): BugRepor
   if (v.includes('boutique') || v.includes('/shop') || v.includes('premium') || v.includes('payante')) return 'shop';
   if (v.includes('notification') || v.includes('preferences email')) return 'notifications';
   if (v.includes('/settings') || v === 'settings') return 'settings';
-  if (v.includes('favorit')) return 'favorites';
+  if (v.includes('favorit') || v.includes('agenda')) return 'favorites';
+  if (
+    v === 'messages' ||
+    v === 'message' ||
+    v.includes('/messages') ||
+    v.includes('conversation')
+  ) {
+    return 'messages';
+  }
   if (
     v.includes('communaute') ||
     v.includes('community') ||

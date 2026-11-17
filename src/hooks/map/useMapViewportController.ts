@@ -10,7 +10,12 @@ import type { EventWithCreator } from '@/types/database';
 import type { MapBounds } from '@/types/map-events';
 import type { useMapProgrammaticMove } from './useMapProgrammaticMove';
 import type { ViewportFetchOptions } from './useViewportEventsFetch';
-import { haveMapBoundsMeaningfullyChanged, isMapBoundsTooLarge } from '@/utils/map-viewport-fetch-utils';
+import {
+  haveMapBoundsMeaningfullyChanged,
+  isMapBoundsTooLarge,
+  MAP_DISPLAY_WINDOW_SCALE,
+  scaleMapBoundsAroundCenter,
+} from '@/utils/map-viewport-fetch-utils';
 import { resolveProgrammaticBoundsAction } from '@/utils/map-viewport-request';
 
 type ProgrammaticMove = ReturnType<typeof useMapProgrammaticMove>;
@@ -297,7 +302,10 @@ export function useMapViewportController({
       radiusKm: number,
       options?: { refreshAfter?: boolean; paddingBottom?: number }
     ) => {
-      const bounds = getBoundsFromRadiusKm(latitude, longitude, radiusKm);
+      const bounds = scaleMapBoundsAroundCenter(
+        getBoundsFromRadiusKm(latitude, longitude, radiusKm),
+        MAP_DISPLAY_WINDOW_SCALE,
+      );
       const coords = [
         { latitude: bounds.sw[1], longitude: bounds.sw[0] },
         { latitude: bounds.ne[1], longitude: bounds.ne[0] },
