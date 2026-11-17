@@ -14,6 +14,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { MapPin, Upload } from 'lucide-react-native';
 import { AppBackground, Button, Input, ScreenHeader, UserAvatar } from '../../components/ui';
 import { AvatarPresetPicker } from '@/components/onboarding/AvatarPresetPicker';
@@ -28,11 +29,20 @@ import { MapboxService } from '@/services/mapbox.service';
 import type { EventLocation } from '@/hooks/useCreateEventStore';
 import type { Profile } from '../../types/database';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import {
+  profileEditHasUnsavedChanges,
+  profileLocationKey,
+} from '@/utils/profile-edit-changes';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { profile, user, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const allowExitRef = useRef(false);
+  const locationEditedRef = useRef(false);
+  const homeBaselineKeyRef = useRef<string | null>(null);
+  const [homeBaselineKey, setHomeBaselineKey] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [avatarUri, setAvatarUri] = useState(profile?.avatar_url || '');
@@ -44,23 +54,49 @@ export default function ProfileEditScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const insets = useSafeAreaInsets();
   const { scrollViewRef, registerFieldRef, handleInputFocus, handleScroll } = useAutoScrollOnFocus();
+  const seededProfileIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!profile?.id || seededProfileIdRef.current) return;
+    seededProfileIdRef.current = profile.id;
+    setDisplayName(profile.display_name || '');
+    setBio(profile.bio || '');
+    setAvatarUri(profile.avatar_url || '');
+    setCoverUri(profile.cover_url || '');
+  }, [profile]);
 
   useEffect(() => {
     if (!profile?.id) return;
     let cancelled = false;
     void (async () => {
       const coords = await getVisibleHomeLocation(profile.id);
-      if (cancelled || !coords) return;
-      const geo = await MapboxService.reverse(coords.lat, coords.lon);
       if (cancelled) return;
-      setHomeLocation({
-        latitude: coords.lat,
-        longitude: coords.lon,
-        addressLabel: geo?.label || profile.city || 'Position enregistrée',
-        city: geo?.city || profile.city || '',
-        postalCode: geo?.postalCode || '',
-        country: geo?.country || 'FR',
-      });
+      const next = coords
+        ? {
+            latitude: coords.lat,
+            longitude: coords.lon,
+            addressLabel: '',
+            city: profile.city || '',
+            postalCode: '',
+            country: 'FR',
+          }
+        : null;
+      if (coords) {
+        const geo = await MapboxService.reverse(coords.lat, coords.lon);
+        if (cancelled) return;
+        if (next) {
+          next.addressLabel = geo?.label || profile.city || 'Position enregistrée';
+          next.city = geo?.city || profile.city || '';
+          next.postalCode = geo?.postalCode || '';
+          next.country = geo?.country || 'FR';
+        }
+      }
+      const key = profileLocationKey(next);
+      if (homeBaselineKeyRef.current === null) {
+        homeBaselineKeyRef.current = key;
+        setHomeBaselineKey(key);
+      }
+      if (!locationEditedRef.current) setHomeLocation(next);
     })();
     return () => {
       cancelled = true;
@@ -106,12 +142,62 @@ export default function ProfileEditScreen() {
       if (refreshProfile) {
         await refreshProfile();
       }
+      allowExitRef.current = true;
       Alert.alert('Succès', 'Profil mis à jour');
       router.back();
     } else {
       Alert.alert('Erreur', 'Impossible de mettre à jour le profil');
     }
   };
+
+  const hasUnsavedChanges = profile
+    ? profileEditHasUnsavedChanges(
+        {
+          displayName,
+          bio,
+          avatarUrl: avatarUri,
+          coverUrl: coverUri,
+          locationKey: profileLocationKey(homeLocation),
+        },
+        {
+          displayName: profile.display_name || '',
+          bio: profile.bio || '',
+          avatarUrl: profile.avatar_url || '',
+          coverUrl: profile.cover_url || '',
+          locationKey: homeBaselineKey ?? profileLocationKey(homeLocation),
+        },
+      )
+    : false;
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  hasUnsavedChangesRef.current = hasUnsavedChanges;
+  const savingRef = useRef(loading);
+  savingRef.current = loading;
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowExitRef.current || savingRef.current || !hasUnsavedChangesRef.current) return;
+      event.preventDefault();
+      Alert.alert(
+        'Modifications non enregistrées',
+        'Si vous revenez en arrière, les changements en cours seront perdus.',
+        [
+          { text: 'Continuer la modification', style: 'cancel' },
+          {
+            text: 'Annuler les changements',
+            style: 'destructive',
+            onPress: () => {
+              allowExitRef.current = true;
+              navigation.dispatch(event.data.action);
+            },
+          },
+          { text: 'Enregistrer', onPress: () => void handleSaveRef.current() },
+        ],
+      );
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleUseCurrentPosition = async () => {
     if (locating) return;
@@ -127,6 +213,7 @@ export default function ProfileEditScreen() {
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const geo = await MapboxService.reverseNearby(pos.coords.latitude, pos.coords.longitude);
+      locationEditedRef.current = true;
       setHomeLocation({
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -413,6 +500,7 @@ export default function ProfileEditScreen() {
         location={homeLocation}
         onClose={() => setLocationModalVisible(false)}
         onConfirmLocation={(location) => {
+          locationEditedRef.current = true;
           setHomeLocation(location);
           setLocationModalVisible(false);
         }}
